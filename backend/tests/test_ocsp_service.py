@@ -1225,8 +1225,16 @@ class TestResponderKeyOwnership:
             cert = _delegated_certificate(ca_cert, get_ca_signing_key(ca_obj), key)
             row = self._stored(ca_obj, cert, key, 'keyown-broken')
             row.prv = base64.b64encode(b'not a key').decode(); db.session.commit()
-            reason = OCSPService().check_delegated_responder(ca_obj, row)
-            assert reason and 'could not be loaded' in reason
+            try:
+                reason = OCSPService().check_delegated_responder(ca_obj, row)
+                assert reason and 'could not be loaded' in reason
+            finally:
+                # The test database is shared for the whole session and a
+                # backup refuses to export a key it cannot read: a row left
+                # holding this deliberate rubbish fails every later test that
+                # creates a backup, depending on run order.
+                db.session.delete(row)
+                db.session.commit()
 
 
 class TestEd25519Responder:
