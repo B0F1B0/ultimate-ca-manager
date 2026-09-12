@@ -43,14 +43,15 @@ except ValueError:
 _EMPTY_COLS = frozenset()
 
 # DB URI credentials. Greedy match to the LAST '@' in the authority so an
-# un-encoded '@' inside a password cannot leave a fragment behind.
-_URI_CRED_RE = re.compile(r"://([^:/?#@]+):[^/?#\s]*@")
+# un-encoded '@' inside a password cannot leave a fragment behind. The user
+# part may be empty (postgresql://:secret@host/db is a valid URI).
+_URI_CRED_RE = re.compile(r"://([^:/?#@]*):[^/?#\s]*@")
 
-# libpq also accepts the password as a query parameter
-# (postgresql://user@host/db?password=…), which the authority pattern above
-# does not cover.
+# libpq also accepts the password as a query parameter, spelled password,
+# passwd, pwd or sslpassword (the client key's passphrase), which the
+# authority pattern above does not cover.
 _URI_QUERY_PASSWORD_RE = re.compile(
-    r"(?i)\b(password|passwd|pwd)=[^&\s]*"
+    r"(?i)([A-Za-z0-9_]*(?:password|passwd|pwd))=[^&\s]*"
 )
 
 # setval()'s regclass argument as a constant. The cast is spelled out rather

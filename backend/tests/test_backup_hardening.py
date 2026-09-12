@@ -184,13 +184,43 @@ class TestScheduledRunReportsOutcome:
 
 
 class TestRetentionKeepsARestorePoint:
+    def _container(self) -> bytes:
+        """A structurally complete v2 container (header + metadata + body)."""
+        import base64 as b64, json as js, struct
+        metadata = js.dumps({
+            'format_version': 2, 'ucm_version': '2.230-dev',
+            'created_at': '2026-01-01T00:00:00Z', 'backup_type': 'full',
+            'kdf': {'type': 'argon2id', 'time_cost': 3, 'memory_cost': 65536,
+                    'parallelism': 4, 'hash_len': 32},
+            'salt_b64': b64.b64encode(b'S' * 16).decode(),
+            'nonce_b64': b64.b64encode(b'N' * 12).decode(),
+        }, separators=(',', ':')).encode()
+        return (b'UCMB' + bytes([2, 1, 2, 0]) + struct.pack('>H', len(metadata))
+                + metadata + b'C' * 512)
+
     def _mk(self, d, name, age_days, *, usable=True):
         path = d / name
-        # v2 container header: magic + format version, padded past the v1 floor
-        path.write_bytes(b'UCMB\x02' + b'\x00' * 80 if usable else b'x')
+        path.write_bytes(self._container() if usable else b'UCMB\x02' + b'\x00' * 80)
         ts = time.time() - age_days * 86400
         os.utime(path, (ts, ts))
         return path
+
+    def test_a_corrupt_newer_file_does_not_displace_the_last_good_archive(
+            self, app, tmp_path, monkeypatch):
+        """Only a header away from being an archive is not a restore point."""
+        from services.backup import schedule
+        from config.settings import Config
+        with app.app_context():
+            monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
+            _set('backup_retention_days', '7')
+            good = self._mk(tmp_path, 'ucm_backup_20000101_000000.ucmbkp', 30)
+            corrupt = self._mk(tmp_path, 'ucm_backup_20260101_000000.ucmbkp', 20,
+                               usable=False)
+
+            removed = schedule.run_backup_retention()
+
+            assert good.exists(), 'the last usable archive was pruned'
+            assert not corrupt.exists() and removed == 1
 
     def test_the_last_usable_archive_survives_its_retention_age(
             self, app, tmp_path, monkeypatch):
@@ -249,3 +279,129 @@ class TestDatabaseCredentialsStayOutOfTheAudit:
             'postgresql://alice@db.example/ucm?password=S3cret&sslmode=require')
         assert 'S3cret' not in out
         assert 'sslmode=require' in out
+
+
+class TestRedactionCoversEveryPasswordShape:
+    """The authority form with no user, and libqp's query spellings."""
+
+    def test_empty_user_and_ssl_password(self):
+        from services.database_admin import _redact_uri
+        out = _redact_uri('postgresql://:S3cret@db.example/ucm')
+        assert 'S3cret' not in out and 'db.example' in out
+
+        out = _redact_uri(
+            'postgresql://alice@db.example/ucm?sslpassword=S3cret&sslmode=require')
+        assert 'S3cret' not in out
+        assert 'sslmode=require' in out
+
+    def test_a_path_setting_is_not_redacted(self):
+        from services.database_admin import _redact_uri
+        out = _redact_uri('postgresql://alice@db.example/ucm?passfile=/etc/pgpass')
+        assert out.endswith('passfile=/etc/pgpass')
+
+
+class TestFailedTimestampStopsTheLoop:
+    """An archive written but never recorded must not be written again a
+    minute later, which is what filled the disk."""
+
+    def test_the_run_does_not_come_due_again_on_the_next_tick(
+            self, app, tmp_path, monkeypatch):
+        from services.backup import schedule
+        from config.settings import Config
+        with app.app_context():
+            monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
+            _set('auto_backup_enabled', 'true')
+            _set('backup_frequency', 'daily')
+            _set('backup_password', 'Correct-Horse-Battery-9')
+            SystemConfig.query.filter_by(key='backup.last_run').delete()
+            db.session.commit()
+            schedule._LAST_ATTEMPT['at'] = None
+
+            monkeypatch.setattr(
+                'services.backup.schedule.BackupService.create_backup',
+                lambda self, pw, **k: b'archive-bytes')
+            monkeypatch.setattr(
+                'services.backup.schedule._record_last_run',
+                lambda ts: (_ for _ in ()).throw(
+                    schedule.ScheduledBackupError('cannot write')))
+
+            try:
+                with pytest.raises(schedule.ScheduledBackupError):
+                    schedule.run_scheduled_backup()
+                written = list(tmp_path.glob('ucm_backup_*.ucmbkp'))
+                assert len(written) == 1
+
+                # Next scheduler tick, one minute later
+                assert schedule.run_scheduled_backup() == {
+                    'status': 'skipped', 'reason': 'not_due'}
+                assert len(list(tmp_path.glob('ucm_backup_*.ucmbkp'))) == 1
+            finally:
+                schedule._LAST_ATTEMPT['at'] = None
+                _set('auto_backup_enabled', 'false')
+                SystemConfig.query.filter_by(key='backup_password').delete()
+                db.session.commit()
+
+
+class TestSecretsAndFilesCannotBeDroppedSilently:
+    def test_an_undecryptable_dns_credential_aborts_the_backup(
+            self, app, monkeypatch):
+        from services.backup.errors import BackupExportError
+        from models.acme_models import DnsProvider
+        with app.app_context():
+            provider = DnsProvider(name='review-dns', provider_type='cloudflare')
+            provider.credentials = '{"api_token": "t0ken"}'
+            db.session.add(provider)
+            db.session.commit()
+            try:
+                import utils.encryption as enc
+                stored = provider._credentials
+                real_decrypt = enc.decrypt_value
+                # Only this provider's value stops decrypting: the shared test
+                # database holds other providers, and they must still export.
+                monkeypatch.setattr(
+                    enc, 'decrypt_value',
+                    lambda value: None if value == stored else real_decrypt(value))
+                with pytest.raises(BackupExportError) as exc:
+                    _service()._export_dns_providers(True)
+                assert 'review-dns' in str(exc.value)
+            finally:
+                db.session.delete(provider)
+                db.session.commit()
+
+    def test_an_unreadable_https_key_aborts_the_backup(self, app, monkeypatch,
+                                                       tmp_path):
+        from pathlib import Path
+        from services.backup.errors import BackupExportError
+        from config.settings import Config
+        cert = tmp_path / 'server.crt'
+        key = tmp_path / 'server.key'
+        cert.write_text('-----BEGIN CERTIFICATE-----\n')
+        key.write_text('-----BEGIN PRIVATE KEY-----\n')
+
+        real_read_text = Path.read_text
+
+        def read_text(self, *args, **kwargs):
+            if self == key:
+                raise OSError('Permission denied')
+            return real_read_text(self, *args, **kwargs)
+
+        with app.app_context():
+            monkeypatch.setattr(Config, 'HTTPS_CERT_PATH', cert, raising=False)
+            monkeypatch.setattr(Config, 'HTTPS_KEY_PATH', key, raising=False)
+            monkeypatch.setattr(Path, 'read_text', read_text)
+            with pytest.raises(BackupExportError):
+                _service()._export_https_files()
+
+
+class TestTaskReportedFailureIsNotGreen:
+    def test_a_task_returning_failed_is_recorded_as_failed(self):
+        from services.scheduler_service import ScheduledTask, SchedulerService
+        task = ScheduledTask('reports-failure',
+                             lambda: {'status': 'failed', 'reason': 'no password'},
+                             60)
+        SchedulerService()._run_task(task)
+
+        recorded = task.to_dict()
+        assert recorded['last_status'] == 'failed'
+        assert 'no password' in (recorded['last_error'] or '')
+        assert task.run_count == 0

@@ -70,3 +70,34 @@ def ensure_key_material(value: str, *, label: str) -> str:
             f"The private key of {label} did not decrypt to a usable PEM"
         )
     return value
+
+
+def decrypt_stored_secret(stored, *, label: str):
+    """Return a DB-encrypted secret in the clear, or abort the backup.
+
+    The model properties that read these columns answer None when the value
+    does not decrypt, and hand back the ciphertext when the key is missing
+    altogether. Either one exports as if it were the secret: the archive looks
+    complete and the restored integration silently has no usable credential.
+    """
+    if not stored:
+        return stored
+
+    from utils.encryption import decrypt_value, is_encrypted
+    if not is_encrypted(stored):
+        return stored  # stored before at-rest encryption was enabled
+
+    try:
+        value = decrypt_value(stored)
+    except Exception as exc:
+        raise BackupExportError(
+            f"The stored secret of {label} could not be decrypted "
+            "(wrong or missing database encryption key)"
+        ) from exc
+
+    if not value:
+        raise BackupExportError(
+            f"The stored secret of {label} could not be decrypted "
+            "(wrong or missing database encryption key)"
+        )
+    return value

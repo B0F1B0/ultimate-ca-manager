@@ -8,9 +8,11 @@ The source of truth is the General-settings keys the UI actually writes:
 ``backup_retention_days`` and ``backup_password``. There is no time-of-day in
 the UI, so cadence is driven by a stored ``backup.last_run`` timestamp.
 """
-import os
+import base64
 import glob
+import json
 import logging
+import os
 from datetime import datetime, timezone
 
 from models import db, SystemConfig
@@ -28,11 +30,18 @@ _VALID_FREQUENCIES = ('daily', 'weekly', 'monthly')
 _PERIOD_SECONDS = {'daily': 86400, 'weekly': 604800, 'monthly': 2592000}
 
 # Container shapes, from the format the service writes: v2 starts with the
-# magic and a known format byte, v1 is a bare salt + nonce + GCM tag.
+# magic, a known format byte and a metadata block, v1 is a bare salt + nonce
+# + GCM ciphertext with nothing to recognise it by.
 _CONTAINER_MAGIC = BackupService.MAGIC
 _KNOWN_FORMAT_VERSIONS = frozenset({BackupService.FORMAT_VERSION_V2})
+_KNOWN_FLAGS = frozenset({0, BackupService.FLAG_GZIP})
+_KNOWN_KDF_IDS = frozenset({BackupService.KDF_PBKDF2, BackupService.KDF_ARGON2ID})
+_REQUIRED_METADATA_KEYS = frozenset({
+    'format_version', 'kdf', 'salt_b64', 'nonce_b64',
+})
+_MIN_CIPHERTEXT_SIZE = 16  # GCM tag
 _MIN_V1_CONTAINER_SIZE = (
-    BackupService.SALT_SIZE + BackupService.NONCE_SIZE + 16
+    BackupService.SALT_SIZE + BackupService.NONCE_SIZE + _MIN_CIPHERTEXT_SIZE
 )
 
 
@@ -104,31 +113,74 @@ def list_backups() -> list[dict]:
     return backups
 
 
-def _looks_restorable(path: str) -> bool:
-    """Cheap structural check that a file still is a backup container.
+def _container_shape(path: str) -> int:
+    """Rank a file by how much of a backup container it still is.
 
-    Reads the header only: v2 archives start with the magic, v1 archives are a
-    raw salt + nonce + GCM ciphertext and can only be recognised by size.
+    2 = a complete v2 header: magic, known format and KDF bytes, and a
+        metadata block that parses and carries the fields a restore reads.
+    1 = no magic but large enough to be a legacy v1 container (bare salt +
+        nonce + GCM ciphertext, which has nothing to check).
+    0 = not a backup any more.
+
+    Only the header is read: the payload cannot be verified without the
+    backup password. A header alone is not proof of a restorable archive, so
+    a v2 container always outranks an opaque file.
     """
     try:
         size = os.path.getsize(path)
         if size < _MIN_V1_CONTAINER_SIZE:
-            return False
+            return 0
         with open(path, 'rb') as fh:
-            head = fh.read(5)
-    except OSError:
-        return False
-    if head[:4] == _CONTAINER_MAGIC:
-        return len(head) == 5 and head[4] in _KNOWN_FORMAT_VERSIONS
-    return True  # legacy v1 container: no magic to check
+            head = fh.read(10)
+            if head[:4] != _CONTAINER_MAGIC:
+                return 1 if len(head) == 10 else 0
+            if len(head) < 10:
+                return 0
+            version, flags, kdf_id, reserved = head[4], head[5], head[6], head[7]
+            if (version not in _KNOWN_FORMAT_VERSIONS
+                    or flags not in _KNOWN_FLAGS
+                    or kdf_id not in _KNOWN_KDF_IDS
+                    or reserved != 0):
+                return 0
+            metadata_len = int.from_bytes(head[8:10], 'big')
+            if metadata_len == 0 or size < 10 + metadata_len + _MIN_CIPHERTEXT_SIZE:
+                return 0
+            metadata = json.loads(fh.read(metadata_len).decode())
+    except (OSError, ValueError, UnicodeDecodeError):
+        return 0
+
+    if not isinstance(metadata, dict):
+        return 0
+    if not _REQUIRED_METADATA_KEYS.issubset(metadata):
+        return 0
+    for field in ('salt_b64', 'nonce_b64'):
+        try:
+            if not base64.b64decode(metadata[field], validate=True):
+                return 0
+        except (ValueError, TypeError):
+            return 0
+    return 2
 
 
 def _newest_restorable(paths: list[str]):
-    """Return the most recent file that still looks like a usable archive."""
-    for path in sorted(paths, key=lambda p: os.stat(p).st_mtime, reverse=True):
-        if _looks_restorable(path):
-            return path
-    return None
+    """Return the most recent file that still looks like a usable archive.
+
+    A complete v2 container wins over an older opaque file; an opaque file is
+    only kept when no v2 container survives, so a truncated or overwritten
+    archive written after the last good one cannot take its place as the
+    thing retention protects.
+    """
+    ranked = []
+    for path in paths:
+        shape = _container_shape(path)
+        if shape:
+            try:
+                ranked.append((shape, os.stat(path).st_mtime, path))
+            except OSError:
+                continue
+    if not ranked:
+        return None
+    return max(ranked)[2]
 
 
 def _apply_retention(retention_days: int) -> int:
@@ -180,6 +232,13 @@ def run_backup_retention() -> int:
     return _apply_retention(retention)
 
 
+# Last attempt made by this process, whether or not its timestamp could be
+# stored. `backup.last_run` is the source of truth across restarts; this guard
+# only covers the case where writing that row fails, which used to leave the
+# task due again 60 seconds later, once per minute, until the disk filled.
+_LAST_ATTEMPT: dict = {'at': None}
+
+
 def _record_last_run(ts: datetime) -> None:
     """Persist the run timestamp, or raise.
 
@@ -202,6 +261,13 @@ def _record_last_run(ts: datetime) -> None:
 
 
 def _is_due(sched: dict, now: datetime) -> bool:
+    period = _PERIOD_SECONDS.get(sched.get('frequency', 'daily'), 86400)
+    attempted = _LAST_ATTEMPT.get('at')
+    if attempted is not None:
+        elapsed = (_naive_utc(now) - _naive_utc(attempted)).total_seconds()
+        if elapsed < period - 300:
+            return False
+
     last_run = sched.get('last_run')
     if not last_run:
         return True  # never run → run now
@@ -209,13 +275,15 @@ def _is_due(sched: dict, now: datetime) -> bool:
         prev = datetime.fromisoformat(last_run.replace('Z', '+00:00'))
     except (ValueError, AttributeError):
         return True
-    # Normalise to naive UTC to match utc_now() (which is naive UTC)
-    if prev.tzinfo is not None:
-        prev = prev.astimezone(timezone.utc).replace(tzinfo=None)
-    now_naive = now.replace(tzinfo=None) if now.tzinfo is not None else now
-    period = _PERIOD_SECONDS.get(sched.get('frequency', 'daily'), 86400)
     # small slack so a ~daily timer doesn't drift a day each run
-    return (now_naive - prev).total_seconds() >= period - 300
+    return (_naive_utc(now) - _naive_utc(prev)).total_seconds() >= period - 300
+
+
+def _naive_utc(value: datetime) -> datetime:
+    """Normalise to naive UTC, which is what utc_now() returns."""
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
 
 
 def run_scheduled_backup() -> dict:
@@ -245,6 +313,10 @@ def run_scheduled_backup() -> dict:
             'No valid backup password configured (set a 12+ character '
             'password under Settings > Backup).'
         )
+
+    # Taken before the work starts: an archive written but not recorded must
+    # not be written again on the next tick.
+    _LAST_ATTEMPT['at'] = now
 
     try:
         backup_bytes = BackupService().create_backup(password)

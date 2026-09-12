@@ -23,7 +23,7 @@ from models.policy import CertificatePolicy
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
-from .key_material import as_pem, decrypt_stored_key
+from .key_material import as_pem, decrypt_stored_key, decrypt_stored_secret
 
 logger = logging.getLogger(__name__)
 
@@ -299,7 +299,11 @@ class ExportCoreMixin:
         for c in AcmeEabCredential.query.all():
             creds.append({
                 'kid': c.kid,
-                'hmac_key_b64': c.hmac_key_b64,
+                # Read through the stored column: the model property hands
+                # back None, or the ciphertext, when the value does not
+                # decrypt, and either one restores as an unusable HMAC key.
+                'hmac_key_b64': decrypt_stored_secret(
+                    c._hmac_key_b64, label=f"ACME EAB credential {c.kid}"),
                 'label': c.label,
                 'created_by_user_id': c.created_by_user_id,
                 'created_at': utc_isoformat(c.created_at) if c.created_at else None,

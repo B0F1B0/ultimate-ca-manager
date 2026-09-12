@@ -1530,9 +1530,24 @@ class TestUnreadableStoredKeyRefusesUpdate:
         with app.app_context():
             from models import db
             row = db.session.get(model, row_id)
+            original = row.prv
             row.prv = base64.b64encode(b'not a private key at all').decode()
             db.session.commit()
-            return row.prv, row.crt
+            return (row.prv, row.crt), original
+
+    @staticmethod
+    def _uncorrupt(app, model, row_id, original):
+        """Put the real key back.
+
+        The test database is shared for the whole session, and a backup now
+        refuses to export a key it cannot read: a row left corrupted here
+        would fail every later test that creates a backup.
+        """
+        with app.app_context():
+            from models import db
+            row = db.session.get(model, row_id)
+            row.prv = original
+            db.session.commit()
 
     @staticmethod
     def _row(app, model, row_id):
@@ -1547,12 +1562,15 @@ class TestUnreadableStoredKeyRefusesUpdate:
         r = self._import(auth_client, cpem + kpem)
         assert r.status_code in (200, 201), r.data
         first = json.loads(r.data)['data']
-        before = self._corrupt(app, Certificate, first['id'])
-        cpem2, _, _ = self._pair('unreadable-key.example.com')
-        r = self._import(auth_client, cpem2)
-        assert r.status_code == 409, r.data
-        assert 'could not be read' in json.loads(r.data)['message']
-        assert self._row(app, Certificate, first['id']) == before
+        before, original = self._corrupt(app, Certificate, first['id'])
+        try:
+            cpem2, _, _ = self._pair('unreadable-key.example.com')
+            r = self._import(auth_client, cpem2)
+            assert r.status_code == 409, r.data
+            assert 'could not be read' in json.loads(r.data)['message']
+            assert self._row(app, Certificate, first['id']) == before
+        finally:
+            self._uncorrupt(app, Certificate, first['id'], original)
 
     def test_ca_update_is_refused_and_nothing_changes(self, app, auth_client):
         from models import CA
@@ -1560,12 +1578,15 @@ class TestUnreadableStoredKeyRefusesUpdate:
         r = self._import(auth_client, cpem + kpem, '/api/v2/cas/import')
         assert r.status_code in (200, 201), r.data
         first = json.loads(r.data)['data']
-        before = self._corrupt(app, CA, first['id'])
-        cpem2, _, _ = self._pair('Unreadable Key CA', ca=True)
-        r = self._import(auth_client, cpem2, '/api/v2/cas/import')
-        assert r.status_code == 409, r.data
-        assert 'could not be read' in json.loads(r.data)['message']
-        assert self._row(app, CA, first['id']) == before
+        before, original = self._corrupt(app, CA, first['id'])
+        try:
+            cpem2, _, _ = self._pair('Unreadable Key CA', ca=True)
+            r = self._import(auth_client, cpem2, '/api/v2/cas/import')
+            assert r.status_code == 409, r.data
+            assert 'could not be read' in json.loads(r.data)['message']
+            assert self._row(app, CA, first['id']) == before
+        finally:
+            self._uncorrupt(app, CA, first['id'], original)
 
 
 class TestHomonymsOnReimport:

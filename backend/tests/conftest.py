@@ -110,8 +110,36 @@ def _reset_acme_proxy_caches():
     reset_proxy_caches()
 
 
+def _drop_unreadable_key_material(app):
+    """Forget key material that was written under a now-discarded key.
+
+    The test database is shared by the whole session, so a CA or certificate
+    written while `encryption_enabled` held an ephemeral key stays there after
+    the key is gone — and its key material can no longer be read by anything.
+    Since the backup service refuses to export a key it cannot decrypt, one
+    such leftover row would fail every later backup test. A row without key
+    material is a state the product supports (an offline or imported CA), so
+    the column is cleared rather than the row deleted, which would take its
+    certificates and approvals with it.
+    """
+    from models import db, CA, Certificate
+    from security.encryption import decrypt_private_key
+
+    with app.app_context():
+        changed = False
+        for model in (CA, Certificate):
+            for row in model.query.filter(model.prv.isnot(None)).all():
+                try:
+                    decrypt_private_key(row.prv)
+                except Exception:
+                    row.prv = None
+                    changed = True
+        if changed:
+            db.session.commit()
+
+
 @pytest.fixture
-def encryption_enabled(monkeypatch, tmp_path):
+def encryption_enabled(monkeypatch, tmp_path, app):
     """Enable private-key encryption with an isolated ephemeral key."""
     from cryptography.fernet import Fernet
     from security import encryption as enc_mod
@@ -125,6 +153,7 @@ def encryption_enabled(monkeypatch, tmp_path):
         yield enc_mod
 
     enc_mod.key_encryption.reload()
+    _drop_unreadable_key_material(app)
 
 
 @pytest.fixture(scope='session')

@@ -16,6 +16,10 @@ from utils.datetime_utils import utc_now
 logger = logging.getLogger(__name__)
 
 
+class TaskReportedFailure(RuntimeError):
+    """A task returned {'status': 'failed'} instead of raising."""
+
+
 class ScheduledTask:
     """Represents a scheduled task with metadata"""
     
@@ -230,6 +234,11 @@ class SchedulerService:
                 result = task.func()
 
             status, reason = self._outcome_of(result)
+            if status == 'failed':
+                # A task that reports its own failure is a failed run, not a
+                # green one with a note attached.
+                raise TaskReportedFailure(reason or 'task reported failure')
+
             duration_ms = (time.time() - start_time) * 1000
             task.last_duration_ms = duration_ms
             task.last_error = None
@@ -245,7 +254,8 @@ class SchedulerService:
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             task.last_duration_ms = duration_ms
-            error_msg = f"{type(e).__name__}: {str(e)}"
+            error_msg = (str(e) if isinstance(e, TaskReportedFailure)
+                         else f"{type(e).__name__}: {str(e)}")
             task.last_error = error_msg
             task.last_status = 'failed'
             task.last_reason = None

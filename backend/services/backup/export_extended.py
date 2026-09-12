@@ -18,7 +18,10 @@ from models.hsm import HsmKey
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
-from .key_material import decrypt_stored_key, ensure_key_material
+from .errors import BackupExportError
+from .key_material import (
+    decrypt_stored_key, decrypt_stored_secret, ensure_key_material,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +62,13 @@ class ExportExtendedMixin:
             providers.append({
                 'name': dp.name,
                 'provider_type': dp.provider_type,
-                'credentials': dp.credentials,
+                # Read through the stored column, not the model property: the
+                # property answers None (or the ciphertext) when the value
+                # does not decrypt, which exported as a provider without
+                # credentials and restored as one that cannot answer a
+                # challenge.
+                'credentials': decrypt_stored_secret(
+                    dp._credentials, label=f"DNS provider {dp.name}"),
                 'zones': dp.zones,
                 'is_default': dp.is_default,
                 'enabled': dp.enabled,
@@ -470,18 +479,25 @@ class ExportExtendedMixin:
         return items
 
     def _export_https_files(self) -> Dict[str, Any]:
-        """Export HTTPS server certificate and key files"""
+        """Export HTTPS server certificate and key files.
+
+        A file that is not there means HTTPS is not configured from these
+        paths, which is a normal shape of the archive. A file that is there
+        and cannot be read is not: it used to be swallowed, and the backup
+        that could not read the server key was still announced as complete.
+        """
         result = {}
-        try:
-            if Config.HTTPS_CERT_PATH.exists():
-                result['cert_pem'] = Config.HTTPS_CERT_PATH.read_text()
-        except Exception:
-            pass
-        try:
-            if Config.HTTPS_KEY_PATH.exists():
-                result['key_pem'] = Config.HTTPS_KEY_PATH.read_text()
-        except Exception:
-            pass
+        for key, path in (('cert_pem', Config.HTTPS_CERT_PATH),
+                          ('key_pem', Config.HTTPS_KEY_PATH)):
+            try:
+                if not path.exists():
+                    continue
+                result[key] = path.read_text()
+            except OSError as exc:
+                raise BackupExportError(
+                    f"The HTTPS server {'certificate' if key == 'cert_pem' else 'key'} "
+                    "exists but could not be read"
+                ) from exc
         return result
 
     def _encrypt_private_keys(self, backup_data: Dict, master_key: bytes) -> Dict:
