@@ -17,6 +17,16 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('database_v2', __name__)
 
 
+def _safe_uri(database_url: str) -> str:
+    """Return a DB URI safe to persist or return.
+
+    Audit details are readable by every role holding read:audit and are
+    forwarded to syslog, so the DB password must never reach them: an admin
+    configuring PostgreSQL would otherwise hand the credential to operators.
+    """
+    return svc._redact_uri(database_url or 'sqlite (default)')
+
+
 @bp.route('/api/v2/database/status', methods=['GET'])
 @require_auth(['read:settings'])
 def get_status():
@@ -40,9 +50,8 @@ def test_connection():
             return error_response('database_url is required', 400)
 
         ok, msg = svc.test_connection(database_url)
-        if ok:
-            return success_response(data={'success': True, 'message': msg})
-        return success_response(data={'success': False, 'message': msg})
+        msg = svc._redact_uri(msg)
+        return success_response(data={'success': ok, 'message': msg})
     except Exception as e:
         logger.error(f"Test connection failed: {e}")
         return error_response('Test failed', 500)
@@ -69,7 +78,8 @@ def switch_backend():
         if database_url:
             ok, msg = svc.test_connection(database_url)
             if not ok:
-                return error_response(f'Target DB unreachable: {msg}', 400)
+                return error_response(
+                    f'Target DB unreachable: {svc._redact_uri(msg)}', 400)
 
             # Bootstrap auth/RBAC/SSO/MFA tables to the new (empty) target so
             # admins, custom roles and SSO config survive the switch — without
@@ -77,7 +87,8 @@ def switch_backend():
             ok_boot, boot_msg, boot_stats = svc.bootstrap_auth_to_target(database_url)
             if not ok_boot:
                 return error_response(
-                    f'Pre-flight bootstrap failed (no changes made): {boot_msg}',
+                    'Pre-flight bootstrap failed (no changes made): '
+                    f'{svc._redact_uri(boot_msg)}',
                     500,
                 )
         else:
@@ -86,14 +97,14 @@ def switch_backend():
 
         ok, msg = svc.persist_database_url(database_url)
         if not ok:
-            return error_response(msg, 500)
+            return error_response(svc._redact_uri(msg), 500)
 
         # Audit BEFORE restart so the log entry is guaranteed to flush.
         AuditService.log_action(
             action='database.switch',
             resource_type='system',
             details={
-                'database_url': database_url or 'sqlite (default)',
+                'database_url': _safe_uri(database_url),
                 'data_migrated': False,
                 'bootstrap': boot_stats,
             },
@@ -132,18 +143,26 @@ def migrate_data():
             AuditService.log_action(
                 action='database.migrate.failed',
                 resource_type='system',
-                details={'database_url': database_url, 'error': msg, 'stats': stats}
+                details={
+                    'database_url': _safe_uri(database_url),
+                    'error': svc._redact_uri(msg),
+                    'stats': stats,
+                }
             )
             # Pre-flight refusals (target unreachable / not empty) → 409 Conflict
             status = 409 if ('not empty' in msg or 'unreachable' in msg) else 500
-            return error_response(msg, status)
+            return error_response(svc._redact_uri(msg), status)
 
         # Docker: skip persist + restart, return instructions
         if is_docker():
             AuditService.log_action(
                 action='database.migrate.success',
                 resource_type='system',
-                details={'database_url': database_url, 'stats': stats, 'docker': True}
+                details={
+                    'database_url': _safe_uri(database_url),
+                    'stats': stats,
+                    'docker': True,
+                }
             )
             return success_response(data={
                 'migrated': True,
@@ -160,13 +179,14 @@ def migrate_data():
         ok, persist_msg = svc.persist_database_url(database_url)
         if not ok:
             return error_response(
-                f'Data migrated but could not persist config: {persist_msg}', 500
+                'Data migrated but could not persist config: '
+                f'{svc._redact_uri(persist_msg)}', 500
             )
 
         AuditService.log_action(
             action='database.migrate.success',
             resource_type='system',
-            details={'database_url': database_url, 'stats': stats}
+            details={'database_url': _safe_uri(database_url), 'stats': stats}
         )
 
         ok, restart_msg = restart_ucm_service()

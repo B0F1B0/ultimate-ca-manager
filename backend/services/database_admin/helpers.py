@@ -46,6 +46,13 @@ _EMPTY_COLS = frozenset()
 # un-encoded '@' inside a password cannot leave a fragment behind.
 _URI_CRED_RE = re.compile(r"://([^:/?#@]+):[^/?#\s]*@")
 
+# libpq also accepts the password as a query parameter
+# (postgresql://user@host/db?password=…), which the authority pattern above
+# does not cover.
+_URI_QUERY_PASSWORD_RE = re.compile(
+    r"(?i)\b(password|passwd|pwd)=[^&\s]*"
+)
+
 # setval()'s regclass argument as a constant. The cast is spelled out rather
 # than imported from sqlalchemy.dialects.postgresql so this module stays
 # backend-neutral at import time (loads on every startup, including SQLite).
@@ -133,7 +140,10 @@ def _prune_db_migration_snapshots(keep: int = DB_MIGRATION_KEEP) -> int:
 
 def _redact_uri(uri: str) -> str:
     """Hide the password in a DB URI (or in any text that embeds one)."""
-    return _URI_CRED_RE.sub(r"://\1:***@", uri)
+    if not uri:
+        return uri
+    redacted = _URI_CRED_RE.sub(r"://\1:***@", uri)
+    return _URI_QUERY_PASSWORD_RE.sub(r"\1=***", redacted)
 
 
 def _short_err(msg: str, limit: int = 200) -> str:

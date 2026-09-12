@@ -8,7 +8,7 @@ from typing import Optional, Tuple
 
 from config.settings import is_docker
 
-from .helpers import UCM_ENV_PATH
+from .helpers import UCM_ENV_PATH, _redact_uri
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,8 @@ def persist_database_url(database_url: Optional[str]) -> Tuple[bool, str]:
         os.chmod(UCM_ENV_PATH, 0o640)
         return True, "DATABASE_URL persisted"
     except PermissionError as e:
-        return False, f"Permission denied writing {UCM_ENV_PATH}: {e}"
+        return False, _redact_uri(f"Permission denied writing {UCM_ENV_PATH}: {e}")
     except Exception as e:
-        logger.error(f"persist_database_url failed: {e}")
-        return False, f"Failed to persist DATABASE_URL: {e}"
+        # The error can quote the line being written, URI included
+        logger.error("persist_database_url failed: %s", _redact_uri(str(e)))
+        return False, _redact_uri(f"Failed to persist DATABASE_URL: {e}")
