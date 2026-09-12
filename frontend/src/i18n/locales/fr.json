@@ -4987,6 +4987,12 @@
     "runFailed": "Echec de l'execution de la tache",
     "loadFailed": "Echec du chargement des taches",
     "noTasks": "Aucune tache planifiee",
+    "skipped": "Ignorée : {{reason}}",
+    "skipReasons": {
+      "disabled": "les sauvegardes automatiques sont désactivées",
+      "not_due": "pas encore due",
+      "unknown": "aucune raison indiquée"
+    },
     "warningsCount": "{{count}} avertissement(s)",
     "colTask": "Tache",
     "colSchedule": "Frequence",

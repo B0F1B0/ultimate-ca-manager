@@ -119,9 +119,12 @@ class TestPasswordRuleEverywhere:
 
 
 class TestRestoreWrongPassword:
-    def test_wrong_password_is_named(self, auth_client):
+    def test_wrong_password_is_named(self, app, auth_client):
         import io
-        blob = _service().create_backup('Correct-Horse-Battery-9')
+        # Inside an app context: an export that cannot read its tables now
+        # aborts the backup instead of yielding empty sections.
+        with app.app_context():
+            blob = _service().create_backup('Correct-Horse-Battery-9')
         r = auth_client.post('/api/v2/system/restore', data={'password': 'Wrong-Horse-Battery-9',
                              'file': (io.BytesIO(blob), 'b.ucmbkp')}, content_type='multipart/form-data')
         assert r.status_code == 400, r.data

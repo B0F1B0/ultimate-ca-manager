@@ -4984,6 +4984,12 @@
     "runFailed": "Error al ejecutar la tarea",
     "loadFailed": "Error al cargar las tareas",
     "noTasks": "Sin tareas programadas",
+    "skipped": "Omitida: {{reason}}",
+    "skipReasons": {
+      "disabled": "las copias de seguridad automáticas están desactivadas",
+      "not_due": "aún no corresponde",
+      "unknown": "sin motivo indicado"
+    },
     "warningsCount": "{{count}} advertencia(s)",
     "colTask": "Tarea",
     "colSchedule": "Frecuencia",

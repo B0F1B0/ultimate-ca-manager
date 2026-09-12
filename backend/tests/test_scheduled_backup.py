@@ -74,9 +74,12 @@ class TestScheduledTaskGating:
             schedule.run_scheduled_backup()
             assert called == []
 
-    def test_enabled_but_no_password_is_noop(self, app, monkeypatch):
+    def test_enabled_but_no_password_fails_the_task(self, app, monkeypatch):
+        """Automatic backups on with no password produces nothing: that is a
+        failure the scheduler must show, not a silent skip reported green."""
         with app.app_context():
             from services.backup import schedule
+            from services.backup.errors import ScheduledBackupError
             _set('auto_backup_enabled', 'true')
             _set('backup_frequency', 'daily')
             SystemConfig.query.filter_by(key='backup_password').delete()
@@ -85,8 +88,16 @@ class TestScheduledTaskGating:
             called = []
             monkeypatch.setattr('services.backup_service.BackupService.create_backup',
                                 lambda self, pw, **k: called.append(1) or b'x')
-            schedule.run_scheduled_backup()
-            assert called == []  # no password → skip
+            with pytest.raises(ScheduledBackupError):
+                schedule.run_scheduled_backup()
+            assert called == []
+
+    def test_disabled_run_reports_why_it_stood_down(self, app):
+        with app.app_context():
+            from services.backup import schedule
+            _set('auto_backup_enabled', 'false')
+            assert schedule.run_scheduled_backup() == {
+                'status': 'skipped', 'reason': 'disabled'}
 
 
 class TestScheduleEndpoints:

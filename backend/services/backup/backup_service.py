@@ -33,6 +33,7 @@ from utils.datetime_utils import utc_now, utc_isoformat
 
 logger = logging.getLogger(__name__)
 
+from .errors import BackupExportError
 from .export_core import ExportCoreMixin
 from .export_extended import ExportExtendedMixin
 from .decrypt_mixin import DecryptMixin
@@ -155,51 +156,62 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
             }
 
         # Build backup data structure
-        def _safe(fn, *args, **kwargs):
-            """Call an export method; return [] on failure (missing table, model import error, etc.)"""
+        def _section(name, fn, *args, **kwargs):
+            """Run one exporter; any failure aborts the backup.
+
+            Substituting an empty section turned a missing table, an
+            undecryptable key or an unexpected column into an archive that was
+            announced as a successful backup while silently missing users, CAs
+            or secrets — and said so only on the day it was restored.
+            """
             try:
                 return fn(*args, **kwargs)
-            except Exception as e:
-                logger.warning(f"Backup export {fn.__name__} failed: {e}")
-                return [] if 'export' in fn.__name__ else {}
+            except BackupExportError:
+                raise
+            except Exception as exc:
+                logger.error("Backup export of section '%s' failed: %s", name, exc,
+                             exc_info=True)
+                raise BackupExportError(
+                    f"Section '{name}' could not be exported"
+                ) from exc
 
         backup_data = {
             'metadata': self._get_metadata(backup_type),
-            'configuration': _safe(self._export_configuration, include.get('configuration', True)),
-            'users': _safe(self._export_users, include.get('users', True)),
-            'certificate_authorities': _safe(self._export_cas, include.get('cas', True)),
-            'certificates': _safe(self._export_certificates, include.get('certificates', True)),
+            'configuration': _section('configuration', self._export_configuration, include.get('configuration', True)),
+            'users': _section('users', self._export_users, include.get('users', True)),
+            'certificate_authorities': _section('certificate_authorities', self._export_cas, include.get('cas', True)),
+            'certificates': _section('certificates', self._export_certificates, include.get('certificates', True)),
             # The list carries CA revocations as well: exported with either
-            'revoked_serials': _safe(self._export_revoked_serials, include.get('certificates', True) or include.get('cas', True)),
-            'acme_accounts': _safe(self._export_acme_accounts, include.get('acme_accounts', True)),
-            'acme_eab_credentials': _safe(self._export_acme_eab_credentials, include.get('acme_eab_credentials', True)),
-            'groups': _safe(self._export_groups, include.get('groups', True)),
-            'custom_roles': _safe(self._export_custom_roles, include.get('custom_roles', True)),
-            'certificate_templates': _safe(self._export_templates, include.get('certificate_templates', True)),
-            'trusted_certificates': _safe(self._export_truststore, include.get('trusted_certificates', True)),
-            'sso_providers': _safe(self._export_sso_providers, include.get('sso_providers', True)),
-            'hsm_providers': _safe(self._export_hsm_providers, include.get('hsm_providers', True)),
-            'api_keys': _safe(self._export_api_keys, include.get('api_keys', True)),
-            'smtp_config': _safe(self._export_smtp_config, include.get('smtp_config', True)),
-            'notification_config': _safe(self._export_notification_config, include.get('notification_config', True)),
-            'certificate_policies': _safe(self._export_policies, include.get('certificate_policies', True)),
-            'auth_certificates': _safe(self._export_auth_certificates, include.get('auth_certificates', True)),
-            'dns_providers': _safe(self._export_dns_providers, include.get('dns_providers', True)),
-            'acme_domains': _safe(self._export_acme_domains, include.get('acme_domains', True)),
-            'acme_local_domains': _safe(self._export_acme_local_domains, include.get('acme_local_domains', True)),
-            'ssh_cas': _safe(self._export_ssh_cas, include.get('ssh_cas', True)),
-            'ssh_certificates': _safe(self._export_ssh_certificates, include.get('ssh_certificates', True)),
-            'microsoft_cas': _safe(self._export_microsoft_cas, include.get('microsoft_cas', True)),
-            'msca_requests': _safe(self._export_msca_requests, include.get('msca_requests', True)),
-            'scan_profiles': _safe(self._export_scan_profiles, include.get('scan_profiles', True)),
-            'scan_runs': _safe(self._export_scan_runs, include.get('scan_runs', False)),
-            'discovered_certificates': _safe(self._export_discovered_certificates, include.get('discovered_certificates', False)),
-            'approval_requests': _safe(self._export_approval_requests, include.get('approval_requests', True)),
-            'scep_requests': _safe(self._export_scep_requests, include.get('scep_requests', False)),
-            'acme_client_orders': _safe(self._export_acme_client_orders, include.get('acme_client_orders', False)),
-            'hsm_keys': _safe(self._export_hsm_keys, include.get('hsm_keys', True)),
-            'audit_logs': _safe(self._export_audit_logs, include.get('audit_logs', False)),
-            'https_server': _safe(self._export_https_files),
+            'revoked_serials': _section('revoked_serials', self._export_revoked_serials, include.get('certificates', True) or include.get('cas', True)),
+            'acme_accounts': _section('acme_accounts', self._export_acme_accounts, include.get('acme_accounts', True)),
+            'acme_eab_credentials': _section('acme_eab_credentials', self._export_acme_eab_credentials, include.get('acme_eab_credentials', True)),
+            'groups': _section('groups', self._export_groups, include.get('groups', True)),
+            'custom_roles': _section('custom_roles', self._export_custom_roles, include.get('custom_roles', True)),
+            'certificate_templates': _section('certificate_templates', self._export_templates, include.get('certificate_templates', True)),
+            'trusted_certificates': _section('trusted_certificates', self._export_truststore, include.get('trusted_certificates', True)),
+            'sso_providers': _section('sso_providers', self._export_sso_providers, include.get('sso_providers', True)),
+            'hsm_providers': _section('hsm_providers', self._export_hsm_providers, include.get('hsm_providers', True)),
+            'api_keys': _section('api_keys', self._export_api_keys, include.get('api_keys', True)),
+            'smtp_config': _section('smtp_config', self._export_smtp_config, include.get('smtp_config', True)),
+            'notification_config': _section('notification_config', self._export_notification_config, include.get('notification_config', True)),
+            'certificate_policies': _section('certificate_policies', self._export_policies, include.get('certificate_policies', True)),
+            'auth_certificates': _section('auth_certificates', self._export_auth_certificates, include.get('auth_certificates', True)),
+            'dns_providers': _section('dns_providers', self._export_dns_providers, include.get('dns_providers', True)),
+            'acme_domains': _section('acme_domains', self._export_acme_domains, include.get('acme_domains', True)),
+            'acme_local_domains': _section('acme_local_domains', self._export_acme_local_domains, include.get('acme_local_domains', True)),
+            'ssh_cas': _section('ssh_cas', self._export_ssh_cas, include.get('ssh_cas', True)),
+            'ssh_certificates': _section('ssh_certificates', self._export_ssh_certificates, include.get('ssh_certificates', True)),
+            'microsoft_cas': _section('microsoft_cas', self._export_microsoft_cas, include.get('microsoft_cas', True)),
+            'msca_requests': _section('msca_requests', self._export_msca_requests, include.get('msca_requests', True)),
+            'scan_profiles': _section('scan_profiles', self._export_scan_profiles, include.get('scan_profiles', True)),
+            'scan_runs': _section('scan_runs', self._export_scan_runs, include.get('scan_runs', False)),
+            'discovered_certificates': _section('discovered_certificates', self._export_discovered_certificates, include.get('discovered_certificates', False)),
+            'approval_requests': _section('approval_requests', self._export_approval_requests, include.get('approval_requests', True)),
+            'scep_requests': _section('scep_requests', self._export_scep_requests, include.get('scep_requests', False)),
+            'acme_client_orders': _section('acme_client_orders', self._export_acme_client_orders, include.get('acme_client_orders', False)),
+            'hsm_keys': _section('hsm_keys', self._export_hsm_keys, include.get('hsm_keys', True)),
+            'audit_logs': _section('audit_logs', self._export_audit_logs, include.get('audit_logs', False)),
+            'https_server': _section('https_server', self._export_https_files),
         }
 
         # Choose KDF: Argon2id if available, else strong PBKDF2

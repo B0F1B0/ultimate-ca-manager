@@ -33,7 +33,9 @@ def create_backup():
     import secrets
 
     try:
-        from services.backup_service import BackupService, BackupPasswordError
+        from services.backup_service import (
+            BackupService, BackupExportError, BackupPasswordError,
+        )
         data = request.json or {}
         password = data.get('password')
         generated_password = False
@@ -84,6 +86,9 @@ def create_backup():
             data=response_data,
             message='Backup created successfully' + (' - SAVE THE PASSWORD!' if generated_password else '')
         )
+    except BackupExportError as e:
+        logger.error(f"Settings backup aborted: {e}")
+        return error_response(f'Backup aborted: {e}', 500)
     except Exception as e:
         logger.error(f"Settings backup failed: {e}")
         return error_response('Backup failed', 500)
@@ -146,7 +151,7 @@ def restore_backup():
 
 
 @bp.route('/api/v2/settings/backup/<path:filename>/download', methods=['GET'])
-@require_auth(['read:settings'])
+@require_auth(['admin:system'])
 def download_backup(filename):
     """Download backup file"""
     from flask import send_file
@@ -276,7 +281,7 @@ def update_backup_schedule():
 
 
 @bp.route('/api/v2/settings/backup/history', methods=['GET'])
-@require_auth(['read:settings'])
+@require_auth(['admin:system'])
 def get_backup_history():
     """Get backup history (actual backup files on disk)"""
     from services.backup.schedule import list_backups

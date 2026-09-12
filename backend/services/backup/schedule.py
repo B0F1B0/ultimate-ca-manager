@@ -17,12 +17,23 @@ from models import db, SystemConfig
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
+from .backup_service import BackupService
+from .errors import ScheduledBackupError
+
 logger = logging.getLogger(__name__)
 
 _BACKUP_GLOB = 'ucm_backup_*.ucmbkp'
 _LAST_RUN_KEY = 'backup.last_run'
 _VALID_FREQUENCIES = ('daily', 'weekly', 'monthly')
 _PERIOD_SECONDS = {'daily': 86400, 'weekly': 604800, 'monthly': 2592000}
+
+# Container shapes, from the format the service writes: v2 starts with the
+# magic and a known format byte, v1 is a bare salt + nonce + GCM tag.
+_CONTAINER_MAGIC = BackupService.MAGIC
+_KNOWN_FORMAT_VERSIONS = frozenset({BackupService.FORMAT_VERSION_V2})
+_MIN_V1_CONTAINER_SIZE = (
+    BackupService.SALT_SIZE + BackupService.NONCE_SIZE + 16
+)
 
 
 def _get(key, default=None):
@@ -49,15 +60,28 @@ def get_schedule() -> dict:
 
 
 def _get_backup_password() -> str:
-    """Return the decrypted configured backup password, or '' if unset."""
+    """Return the decrypted configured backup password, or '' if unset.
+
+    A stored value that looks encrypted but does not decrypt is an error, not
+    a password: returning the ciphertext produced archives encrypted with a
+    string the administrator has never seen, reported as successful backups.
+    """
     val = _get('backup_password')
     if not val:
         return ''
-    try:
-        from utils.encryption import decrypt_if_needed
-        return decrypt_if_needed(val)
-    except Exception:
-        return val
+
+    from utils.encryption import decrypt_value, is_encrypted
+    if not is_encrypted(val):
+        return val  # stored before at-rest encryption was enabled
+
+    password = decrypt_value(val)  # raises when the key is missing/unusable
+    if not password:
+        raise ScheduledBackupError(
+            'The configured backup password could not be decrypted '
+            '(the DB encryption key changed?). Set it again under '
+            'Settings > Backup.'
+        )
+    return password
 
 
 def list_backups() -> list[dict]:
@@ -80,13 +104,57 @@ def list_backups() -> list[dict]:
     return backups
 
 
+def _looks_restorable(path: str) -> bool:
+    """Cheap structural check that a file still is a backup container.
+
+    Reads the header only: v2 archives start with the magic, v1 archives are a
+    raw salt + nonce + GCM ciphertext and can only be recognised by size.
+    """
+    try:
+        size = os.path.getsize(path)
+        if size < _MIN_V1_CONTAINER_SIZE:
+            return False
+        with open(path, 'rb') as fh:
+            head = fh.read(5)
+    except OSError:
+        return False
+    if head[:4] == _CONTAINER_MAGIC:
+        return len(head) == 5 and head[4] in _KNOWN_FORMAT_VERSIONS
+    return True  # legacy v1 container: no magic to check
+
+
+def _newest_restorable(paths: list[str]):
+    """Return the most recent file that still looks like a usable archive."""
+    for path in sorted(paths, key=lambda p: os.stat(p).st_mtime, reverse=True):
+        if _looks_restorable(path):
+            return path
+    return None
+
+
 def _apply_retention(retention_days: int) -> int:
-    """Delete backup files older than retention_days. Returns count removed."""
+    """Delete backup files older than retention_days. Returns count removed.
+
+    The newest archive that still looks restorable is always kept, whatever
+    its age: retention ran on a timer of its own, so a long export outage (a
+    lost DB key, no configured password) ended with the last usable restore
+    point deleted and nothing to replace it.
+    """
     if not retention_days or retention_days < 1:
         return 0
     cutoff = utc_now().timestamp() - retention_days * 86400
     removed = 0
+    paths = []
     for path in glob.glob(os.path.join(str(Config.BACKUP_DIR), _BACKUP_GLOB)):
+        try:
+            os.stat(path)
+        except OSError:
+            continue
+        paths.append(path)
+
+    keep = _newest_restorable(paths)
+    for path in paths:
+        if path == keep:
+            continue
         try:
             if os.stat(path).st_mtime < cutoff:
                 os.unlink(path)
@@ -113,6 +181,12 @@ def run_backup_retention() -> int:
 
 
 def _record_last_run(ts: datetime) -> None:
+    """Persist the run timestamp, or raise.
+
+    The scheduler asks every 60 seconds whether a backup is due, and the
+    answer is read from this row: a silent rollback left the task due again on
+    the next tick, writing one archive per minute until the disk filled.
+    """
     cfg = SystemConfig.query.filter_by(key=_LAST_RUN_KEY).first()
     if cfg:
         cfg.value = utc_isoformat(ts)
@@ -120,8 +194,11 @@ def _record_last_run(ts: datetime) -> None:
         db.session.add(SystemConfig(key=_LAST_RUN_KEY, value=utc_isoformat(ts)))
     try:
         db.session.commit()
-    except Exception:
+    except Exception as exc:
         db.session.rollback()
+        raise ScheduledBackupError(
+            f'Backup created, but its schedule timestamp could not be saved: {exc}'
+        ) from exc
 
 
 def _is_due(sched: dict, now: datetime) -> bool:
@@ -141,26 +218,35 @@ def _is_due(sched: dict, now: datetime) -> bool:
     return (now_naive - prev).total_seconds() >= period - 300
 
 
-def run_scheduled_backup():
-    """Scheduler task — creates an encrypted backup when one is due."""
+def run_scheduled_backup() -> dict:
+    """Scheduler task — creates an encrypted backup when one is due.
+
+    Returns a structured result (`ok` / `skipped`) and raises on failure. Both
+    matter to the scheduler: swallowing the exception left the task reporting
+    "completed successfully", with a green view, a growing run count and no
+    archive anywhere.
+    """
     sched = get_schedule()
     if not sched.get('enabled'):
-        return
+        return {'status': 'skipped', 'reason': 'disabled'}
 
     now = utc_now()
     if not _is_due(sched, now):
-        return
+        return {'status': 'skipped', 'reason': 'not_due'}
 
     password = _get_backup_password()
     if not password or len(password) < 12:
-        logger.warning(
-            "Scheduled backup skipped: no valid backup password configured "
-            "(set a 12+ char password under Settings > Backup)."
+        # Automatic backups are on and nothing can be produced: a failure the
+        # administrator has to see, not a quiet log line.
+        _audit_scheduled_backup(
+            'scheduled', 'Scheduled backup failed: no valid backup password '
+            'configured', success=False)
+        raise ScheduledBackupError(
+            'No valid backup password configured (set a 12+ character '
+            'password under Settings > Backup).'
         )
-        return
 
     try:
-        from services.backup_service import BackupService
         backup_bytes = BackupService().create_backup(password)
 
         os.makedirs(str(Config.BACKUP_DIR), exist_ok=True)
@@ -174,28 +260,35 @@ def run_scheduled_backup():
             pass
 
         logger.info(f"Scheduled backup created: {filename} ({len(backup_bytes)} bytes)")
-        try:
-            from services.audit_service import AuditService
-            AuditService.log_action(
-                action='system_backup', resource_type='system',
-                resource_name=filename, details=f'Scheduled backup: {filename}',
-                success=True, username='system',
-            )
-        except Exception:
-            pass
+        _audit_scheduled_backup(filename, f'Scheduled backup: {filename}',
+                                success=True)
 
-        _apply_retention(sched.get('retention_days', 30))
+        removed = _apply_retention(sched.get('retention_days', 30))
         _record_last_run(now)
+        return {
+            'status': 'ok',
+            'filename': filename,
+            'size': len(backup_bytes),
+            'retention_removed': removed,
+        }
     except Exception as e:
         logger.error(f"Scheduled backup failed: {e}", exc_info=True)
         # A failure that only a log line reports is a backup nobody has:
         # the audit trail records it, as the successes are recorded
-        try:
-            from services.audit_service import AuditService
-            AuditService.log_action(
-                action='system_backup', resource_type='system',
-                resource_name='scheduled', details=f'Scheduled backup failed: {e}',
-                success=False, username='system',
-            )
-        except Exception:
-            pass
+        _audit_scheduled_backup('scheduled', f'Scheduled backup failed: {e}',
+                                success=False)
+        raise
+
+
+def _audit_scheduled_backup(resource_name: str, details: str, *,
+                            success: bool) -> None:
+    """Record a scheduled-backup outcome without masking it if audit is down."""
+    try:
+        from services.audit_service import AuditService
+        AuditService.log_action(
+            action='system_backup', resource_type='system',
+            resource_name=resource_name, details=details,
+            success=success, username='system',
+        )
+    except Exception:
+        logger.exception("Scheduled backup outcome could not be audited")

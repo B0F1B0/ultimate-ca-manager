@@ -4984,6 +4984,12 @@
     "runFailed": "Impossibile eseguire l'attivita",
     "loadFailed": "Impossibile caricare le attivita",
     "noTasks": "Nessuna attivita pianificata",
+    "skipped": "Ignorata: {{reason}}",
+    "skipReasons": {
+      "disabled": "i backup automatici sono disattivati",
+      "not_due": "non ancora prevista",
+      "unknown": "nessun motivo indicato"
+    },
     "warningsCount": "{{count}} avviso/i",
     "colTask": "Attivita",
     "colSchedule": "Frequenza",

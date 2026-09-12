@@ -4984,6 +4984,12 @@
     "runFailed": "タスクの実行に失敗しました",
     "loadFailed": "タスクの読み込みに失敗しました",
     "noTasks": "スケジュールされたタスクはありません",
+    "skipped": "スキップ: {{reason}}",
+    "skipReasons": {
+      "disabled": "自動バックアップが無効です",
+      "not_due": "まだ実行時期ではありません",
+      "unknown": "理由は記録されていません"
+    },
     "warningsCount": "{{count}} 件の警告",
     "colTask": "タスク",
     "colSchedule": "頻度",

@@ -3,8 +3,8 @@ Tests for general settings admin permission check.
 
 Verifies that security-sensitive settings (enforce_2fa, session_timeout,
 max_login_attempts, lockout_duration, password policy, metrics_token,
-key_recovery_dual_control) require admin:settings permission, while
-non-security settings (site_name, timezone, date_format) remain
+key_recovery_dual_control, backup schedule) require admin:settings
+permission, while non-security settings (site_name, timezone, date_format) remain
 accessible with write:settings only.
 """
 import pytest
@@ -59,6 +59,11 @@ ADMIN_ONLY_KEYS = [
     'password_require_lowercase',
     'password_require_numbers',
     'password_require_special',
+    # The backup schedule joined them: an operator able to shorten retention
+    # has the daily task delete the archives the admin:system routes protect.
+    'auto_backup_enabled',
+    'backup_frequency',
+    'backup_retention_days',
 ]
 
 # Settings that only need write:settings
@@ -67,8 +72,6 @@ NON_ADMIN_KEYS = [
     'timezone',
     'date_format',
     'show_time',
-    'auto_backup_enabled',
-    'backup_frequency',
 ]
 
 
@@ -95,6 +98,9 @@ class TestGeneralSettingsAdminPermission:
             'password_require_lowercase': False,
             'password_require_numbers': False,
             'password_require_special': False,
+            'auto_backup_enabled': True,
+            'backup_frequency': 'weekly',
+            'backup_retention_days': 1,
         }
 
         r = patch_json(op_client, '/api/v2/settings/general', {key: test_values[key]})
@@ -112,8 +118,6 @@ class TestGeneralSettingsAdminPermission:
             'timezone': 'America/New_York',
             'date_format': 'long',
             'show_time': False,
-            'auto_backup_enabled': True,
-            'backup_frequency': 'weekly',
         }
 
         r = patch_json(op_client, '/api/v2/settings/general', {key: test_values[key]})

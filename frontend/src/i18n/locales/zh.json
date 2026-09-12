@@ -4984,6 +4984,12 @@
     "runFailed": "运行任务失败",
     "loadFailed": "加载任务失败",
     "noTasks": "没有计划任务",
+    "skipped": "已跳过：{{reason}}",
+    "skipReasons": {
+      "disabled": "自动备份已关闭",
+      "not_due": "尚未到期",
+      "unknown": "未说明原因"
+    },
     "warningsCount": "{{count}} 个警告",
     "colTask": "任务",
     "colSchedule": "频率",

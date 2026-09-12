@@ -4984,6 +4984,12 @@
     "runFailed": "Aufgabe konnte nicht ausgefuhrt werden",
     "loadFailed": "Aufgaben konnten nicht geladen werden",
     "noTasks": "Keine geplanten Aufgaben",
+    "skipped": "Übersprungen: {{reason}}",
+    "skipReasons": {
+      "disabled": "automatische Sicherungen sind deaktiviert",
+      "not_due": "noch nicht fällig",
+      "unknown": "kein Grund angegeben"
+    },
     "warningsCount": "{{count}} Warnung(en)",
     "colTask": "Aufgabe",
     "colSchedule": "Zeitplan",

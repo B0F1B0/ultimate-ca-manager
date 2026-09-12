@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # 2. Advertised endpoints: These URLs are baked into notification emails and
 #    into the ACME directory that clients enrol against; repointing them at an
 #    attacker-controlled host redirects that traffic away from this server.
-# 3. Backup encryption password
+# 3. Backup schedule and encryption password
 _ADMIN_ONLY_SETTINGS = frozenset({
     'enforce_2fa',
     'session_timeout',
@@ -49,6 +49,12 @@ _ADMIN_ONLY_SETTINGS = frozenset({
     'acme_public_vhost',
     'acme_public_port',
     'acme_public_tls_cert_id',
+    # The whole backup schedule is admin-only, not just its password: an
+    # operator who can shorten retention can have the daily task delete the
+    # archives, which the dedicated admin:system route never allowed.
+    'auto_backup_enabled',
+    'backup_frequency',
+    'backup_retention_days',
     'backup_password',
     'crl_auto_delete_expired_revoked',
     'crl_auto_purge_stale_serials',

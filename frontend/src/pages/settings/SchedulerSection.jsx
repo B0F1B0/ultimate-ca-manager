@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Timer, Play, CheckCircle, WarningCircle, ArrowsClockwise } from '@phosphor-icons/react'
+import { Timer, Play, CheckCircle, WarningCircle, MinusCircle, ArrowsClockwise } from '@phosphor-icons/react'
 import { Button, Badge, DetailHeader, DetailContent, DetailSection } from '../../components'
 import { useNotification } from '../../contexts'
 import { systemService } from '../../services'
@@ -37,6 +37,15 @@ function relativeTime(iso) {
   else if (s < 86400) txt = `${Math.round(s / 3600)} h`
   else txt = `${Math.round(s / 86400)} d`
   return future ? `in ${txt}` : `${txt} ago`
+}
+
+// A run that did nothing on purpose reads differently from a successful one:
+// the backup task reports why it stood down (off, not due yet).
+function skipReason(t, reason) {
+  if (!reason) return t('scheduler.skipReasons.unknown')
+  const key = `scheduler.skipReasons.${reason}`
+  const label = t(key)
+  return label === key ? reason : label
 }
 
 function fmtDuration(ms) {
@@ -132,6 +141,8 @@ export default function SchedulerSection({ hasPermission }) {
                       <div className="flex items-center gap-2">
                         {task.last_error ? (
                           <WarningCircle size={16} className="text-amber-500 shrink-0" weight="fill" />
+                        ) : task.last_status === 'skipped' ? (
+                          <MinusCircle size={16} className="text-text-tertiary shrink-0" weight="fill" />
                         ) : (
                           <CheckCircle size={16} className="text-emerald-500 shrink-0" weight="fill" />
                         )}
@@ -139,6 +150,11 @@ export default function SchedulerSection({ hasPermission }) {
                           <p className="font-medium text-text-primary">{task.label}</p>
                           {task.last_error && (
                             <p className="text-xs text-amber-500/90 mt-0.5 font-mono">{task.last_error}</p>
+                          )}
+                          {!task.last_error && task.last_status === 'skipped' && (
+                            <p className="text-xs text-text-tertiary mt-0.5">
+                              {t('scheduler.skipped', { reason: skipReason(t, task.last_reason) })}
+                            </p>
                           )}
                         </div>
                       </div>

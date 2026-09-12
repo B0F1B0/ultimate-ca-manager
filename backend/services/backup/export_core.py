@@ -23,6 +23,8 @@ from models.policy import CertificatePolicy
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
+from .key_material import as_pem, decrypt_stored_key
+
 logger = logging.getLogger(__name__)
 
 
@@ -168,14 +170,15 @@ class ExportCoreMixin:
                 'private_key_pem_encrypted': None  # Will be set in _encrypt_private_keys
             }
 
-            # Decrypt at-rest encryption before export (backup uses its own encryption)
+            # Decrypt at-rest encryption before export (backup uses its own
+            # encryption). A key that cannot be decrypted aborts the backup:
+            # archiving the stored ciphertext in its place produced an archive
+            # whose restored CA could no longer sign anything.
             if ca.prv:
-                try:
-                    from security.encryption import decrypt_private_key
-                    prv_decrypted = decrypt_private_key(ca.prv)
-                    ca_data['_private_key_plaintext'] = base64.b64decode(prv_decrypted).decode()
-                except Exception:
-                    ca_data['_private_key_plaintext'] = ca.prv
+                label = f"CA {ca.refid}"
+                ca_data['_private_key_plaintext'] = as_pem(
+                    decrypt_stored_key(ca.prv, label=label), label=label
+                )
 
             cas.append(ca_data)
 
@@ -247,14 +250,12 @@ class ExportCoreMixin:
                 'private_key_pem_encrypted': None  # Will be set in _encrypt_private_keys
             }
 
-            # Decrypt at-rest encryption before export
+            # Decrypt at-rest encryption before export (see _export_cas)
             if cert.prv:
-                try:
-                    from security.encryption import decrypt_private_key
-                    prv_decrypted = decrypt_private_key(cert.prv)
-                    cert_data['_private_key_plaintext'] = base64.b64decode(prv_decrypted).decode()
-                except Exception:
-                    cert_data['_private_key_plaintext'] = cert.prv
+                label = f"certificate {cert.refid}"
+                cert_data['_private_key_plaintext'] = as_pem(
+                    decrypt_stored_key(cert.prv, label=label), label=label
+                )
 
             certs.append(cert_data)
 

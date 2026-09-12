@@ -2,6 +2,6 @@
 Backup Service for UCM - Wrapper for backward compatibility
 The actual implementation is in services.backup package
 """
-from services.backup import BackupService, BackupPasswordError
+from services.backup import BackupService, BackupPasswordError, BackupExportError
 
-__all__ = ['BackupService', 'BackupPasswordError']
+__all__ = ['BackupService', 'BackupPasswordError', 'BackupExportError']

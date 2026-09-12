@@ -74,7 +74,9 @@ const BASE_SETTINGS_CATEGORIES = [
   { id: 'email', labelKey: 'settings.tabs.email', icon: EnvelopeSimple, color: 'icon-bg-teal' },
   { id: 'security', labelKey: 'settings.tabs.security', icon: ShieldCheck, color: 'icon-bg-amber' },
   { id: 'sso', labelKey: 'settings.tabs.sso', icon: Key, color: 'icon-bg-purple' },
-  { id: 'backup', labelKey: 'settings.tabs.backup', icon: Database, color: 'icon-bg-emerald' },
+  // Admin-only: listing, downloading and restoring an archive are
+  // admin:system on the API — the archive holds every key and secret.
+  { id: 'backup', labelKey: 'settings.tabs.backup', icon: Database, color: 'icon-bg-emerald', permission: 'admin:system' },
   { id: 'audit', labelKey: 'settings.tabs.audit', icon: ListBullets, color: 'icon-bg-orange' },
   { id: 'database', labelKey: 'settings.tabs.database', icon: HardDrives, color: 'icon-bg-teal' },
   { id: 'https', labelKey: 'settings.tabs.https', icon: Lock, color: 'icon-bg-emerald' },
@@ -282,7 +284,9 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings()
-    loadBackups()
+    // Backup listing is admin:system now — don't fire a request every other
+    // role is refused.
+    if (hasPermission('admin:system')) loadBackups()
     loadHttpsInfo()
     loadCAs()
     loadDbStats()

@@ -48,6 +48,12 @@ class ScheduledTask:
         self.run_count = 0
         self.last_error: Optional[str] = None
         self.last_duration_ms = 0.0
+        # Outcome of the last run: 'ok', 'skipped' or 'failed'. A task that
+        # returns a result dict says which one itself, so a run that produced
+        # nothing (backup not due, no password) is no longer indistinguishable
+        # from one that did the work.
+        self.last_status: Optional[str] = None
+        self.last_reason: Optional[str] = None
         self._created_at = utc_now()
     
     def should_run(self) -> bool:
@@ -73,6 +79,8 @@ class ScheduledTask:
             "next_run": (self.next_run.isoformat() + 'Z') if self.next_run else None,
             "run_count": self.run_count,
             "last_error": self.last_error,
+            "last_status": self.last_status,
+            "last_reason": self.last_reason,
             "last_duration_ms": self.last_duration_ms,
         }
 
@@ -217,18 +225,21 @@ class SchedulerService:
             # Run within app context if available (needed for DB access)
             if self._app:
                 with self._app.app_context():
-                    task.func()
+                    result = task.func()
             else:
-                task.func()
-                
+                result = task.func()
+
+            status, reason = self._outcome_of(result)
             duration_ms = (time.time() - start_time) * 1000
             task.last_duration_ms = duration_ms
             task.last_error = None
+            task.last_status = status
+            task.last_reason = reason
             task.run_count += 1
             task.last_run = utc_now()
             task.next_run = utc_now() + __import__('datetime').timedelta(seconds=task.interval)
             logger.info(
-                f"Task '{task.name}' completed successfully "
+                f"Task '{task.name}' {'completed successfully' if status == 'ok' else f'skipped ({reason})'} "
                 f"(duration: {duration_ms:.1f}ms, runs: {task.run_count})"
             )
         except Exception as e:
@@ -236,12 +247,27 @@ class SchedulerService:
             task.last_duration_ms = duration_ms
             error_msg = f"{type(e).__name__}: {str(e)}"
             task.last_error = error_msg
+            task.last_status = 'failed'
+            task.last_reason = None
             task.last_run = utc_now()
             logger.error(
                 f"Task '{task.name}' failed: {error_msg} (duration: {duration_ms:.1f}ms)",
                 exc_info=True
             )
     
+    @staticmethod
+    def _outcome_of(result) -> tuple:
+        """Read a task's own report of what it did.
+
+        Tasks that return nothing are treated as having done their work; one
+        that returns {'status': 'skipped', 'reason': ...} says so instead.
+        """
+        if isinstance(result, dict):
+            status = result.get('status')
+            if status in ('ok', 'skipped', 'failed'):
+                return status, result.get('reason')
+        return 'ok', None
+
     def _scheduler_loop(self) -> None:
         """Main scheduler loop - runs in background thread"""
         logger.info("Scheduler thread started")

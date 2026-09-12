@@ -18,6 +18,8 @@ from models.hsm import HsmKey
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
+from .key_material import decrypt_stored_key, ensure_key_material
+
 logger = logging.getLogger(__name__)
 
 
@@ -123,14 +125,17 @@ class ExportExtendedMixin:
                 'created_by': getattr(ca, 'created_by', None),
                 'owner_group_id': getattr(ca, 'owner_group_id', None),
             }
-            # Private key: re-encrypt with master key in _encrypt_private_keys pass
+            # Private key: re-encrypt with master key in _encrypt_private_keys
+            # pass. SSH CAs store base64 of the OpenSSH PEM, and the restore
+            # puts that same encoding back, so the archive keeps it as stored —
+            # but a key that cannot be decrypted aborts the backup rather than
+            # travelling as its at-rest ciphertext.
             prv = getattr(ca, 'private_key', None)
             if prv:
-                try:
-                    from security.encryption import decrypt_private_key
-                    ca_data['_private_key_plaintext'] = decrypt_private_key(prv) if isinstance(prv, str) else prv.decode() if isinstance(prv, bytes) else str(prv)
-                except Exception:
-                    ca_data['_private_key_plaintext'] = str(prv)
+                label = f"SSH CA {getattr(ca, 'refid', None)}"
+                ca_data['_private_key_plaintext'] = ensure_key_material(
+                    decrypt_stored_key(prv, label=label), label=label
+                )
             cas.append(ca_data)
         return cas
 

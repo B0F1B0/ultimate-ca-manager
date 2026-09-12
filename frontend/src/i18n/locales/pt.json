@@ -4984,6 +4984,12 @@
     "runFailed": "Falha ao executar a tarefa",
     "loadFailed": "Falha ao carregar as tarefas",
     "noTasks": "Nenhuma tarefa agendada",
+    "skipped": "Ignorada: {{reason}}",
+    "skipReasons": {
+      "disabled": "as cópias de segurança automáticas estão desativadas",
+      "not_due": "ainda não está prevista",
+      "unknown": "sem motivo indicado"
+    },
     "warningsCount": "{{count}} aviso(s)",
     "colTask": "Tarefa",
     "colSchedule": "Frequencia",

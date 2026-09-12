@@ -4987,6 +4987,12 @@
     "runFailed": "Failed to run task",
     "loadFailed": "Failed to load scheduler tasks",
     "noTasks": "No scheduled tasks",
+    "skipped": "Skipped: {{reason}}",
+    "skipReasons": {
+      "disabled": "automatic backups are off",
+      "not_due": "not due yet",
+      "unknown": "no reason given"
+    },
     "warningsCount": "{{count}} warning(s)",
     "colTask": "Task",
     "colSchedule": "Schedule",

@@ -8,7 +8,11 @@ from flask import request, send_file
 from auth.unified import require_auth
 from utils.response import success_response, error_response
 from services.audit_service import AuditService
-from services.backup_service import BackupService, BackupPasswordError
+from services.backup_service import (
+    BackupService,
+    BackupExportError,
+    BackupPasswordError,
+)
 from pathlib import Path
 from datetime import datetime, timezone
 from uuid import uuid4
@@ -210,6 +214,9 @@ def create_backup():
 
     except BackupPasswordError as exc:
         return error_response(str(exc), 400)
+    except BackupExportError as exc:
+        logger.error("Backup aborted: %s", exc)
+        return error_response(f"Backup aborted: {exc}", 500)
     except ValueError as exc:
         logger.warning("Backup validation error: %s", exc)
         return error_response("Invalid backup parameters", 400)
@@ -220,7 +227,7 @@ def create_backup():
 
 @bp.route("/api/v2/system/backups", methods=["GET"])
 @bp.route("/api/v2/system/backup/list", methods=["GET"])
-@require_auth(["read:settings"])
+@require_auth(["admin:system"])
 def list_backups():
     """
     List available backups with pagination, search, sorting, summary, and disk use.
@@ -346,7 +353,7 @@ def list_backups():
 
 
 @bp.route("/api/v2/system/backup/<filename>/download", methods=["GET"])
-@require_auth(["read:settings"])
+@require_auth(["admin:system"])
 def download_backup(filename):
     """Download an existing backup file."""
     try:
