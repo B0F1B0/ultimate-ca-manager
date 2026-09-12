@@ -141,14 +141,17 @@ class TestDecoupledRetention:
             # auto-backup OFF on purpose
             _set('auto_backup_enabled', 'false')
             _set('backup_retention_days', '7')
+            # None of these carry a validation record, so the two most recent
+            # are kept whatever their age and only the third one goes.
+            oldest = self._mk(tmp_path, 'ucm_backup_19990101_000000.ucmbkp', 60)
             old = self._mk(tmp_path, 'ucm_backup_20000101_000000.ucmbkp', 30)
             new = self._mk(tmp_path, 'ucm_backup_20990101_000000.ucmbkp', 1)
 
             removed = schedule.run_backup_retention()
 
             assert removed == 1
-            assert not old.exists()
-            assert new.exists()
+            assert not oldest.exists()
+            assert old.exists() and new.exists()
 
     def test_run_backup_retention_zero_keeps_all(self, app, tmp_path, monkeypatch):
         with app.app_context():

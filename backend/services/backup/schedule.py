@@ -19,6 +19,7 @@ from models import db, SystemConfig
 from config.settings import Config
 from utils.datetime_utils import utc_now, utc_isoformat
 
+from . import storage
 from .backup_service import BackupService
 from .errors import ScheduledBackupError
 
@@ -29,20 +30,9 @@ _LAST_RUN_KEY = 'backup.last_run'
 _VALID_FREQUENCIES = ('daily', 'weekly', 'monthly')
 _PERIOD_SECONDS = {'daily': 86400, 'weekly': 604800, 'monthly': 2592000}
 
-# Container shapes, from the format the service writes: v2 starts with the
-# magic, a known format byte and a metadata block, v1 is a bare salt + nonce
-# + GCM ciphertext with nothing to recognise it by.
-_CONTAINER_MAGIC = BackupService.MAGIC
-_KNOWN_FORMAT_VERSIONS = frozenset({BackupService.FORMAT_VERSION_V2})
-_KNOWN_FLAGS = frozenset({0, BackupService.FLAG_GZIP})
-_KNOWN_KDF_IDS = frozenset({BackupService.KDF_PBKDF2, BackupService.KDF_ARGON2ID})
-_REQUIRED_METADATA_KEYS = frozenset({
-    'format_version', 'kdf', 'salt_b64', 'nonce_b64',
-})
-_MIN_CIPHERTEXT_SIZE = 16  # GCM tag
-_MIN_V1_CONTAINER_SIZE = (
-    BackupService.SALT_SIZE + BackupService.NONCE_SIZE + _MIN_CIPHERTEXT_SIZE
-)
+# Archives with no validation record are kept in this number, newest first:
+# nothing can be proven about them either way, so prudence decides.
+_UNRECORDED_KEPT = 2
 
 
 def _get(key, default=None):
@@ -113,83 +103,16 @@ def list_backups() -> list[dict]:
     return backups
 
 
-def _container_shape(path: str) -> int:
-    """Rank a file by how much of a backup container it still is.
-
-    2 = a complete v2 header: magic, known format and KDF bytes, and a
-        metadata block that parses and carries the fields a restore reads.
-    1 = no magic but large enough to be a legacy v1 container (bare salt +
-        nonce + GCM ciphertext, which has nothing to check).
-    0 = not a backup any more.
-
-    Only the header is read: the payload cannot be verified without the
-    backup password. A header alone is not proof of a restorable archive, so
-    a v2 container always outranks an opaque file.
-    """
-    try:
-        size = os.path.getsize(path)
-        if size < _MIN_V1_CONTAINER_SIZE:
-            return 0
-        with open(path, 'rb') as fh:
-            head = fh.read(10)
-            if head[:4] != _CONTAINER_MAGIC:
-                return 1 if len(head) == 10 else 0
-            if len(head) < 10:
-                return 0
-            version, flags, kdf_id, reserved = head[4], head[5], head[6], head[7]
-            if (version not in _KNOWN_FORMAT_VERSIONS
-                    or flags not in _KNOWN_FLAGS
-                    or kdf_id not in _KNOWN_KDF_IDS
-                    or reserved != 0):
-                return 0
-            metadata_len = int.from_bytes(head[8:10], 'big')
-            if metadata_len == 0 or size < 10 + metadata_len + _MIN_CIPHERTEXT_SIZE:
-                return 0
-            metadata = json.loads(fh.read(metadata_len).decode())
-    except (OSError, ValueError, UnicodeDecodeError):
-        return 0
-
-    if not isinstance(metadata, dict):
-        return 0
-    if not _REQUIRED_METADATA_KEYS.issubset(metadata):
-        return 0
-    for field in ('salt_b64', 'nonce_b64'):
-        try:
-            if not base64.b64decode(metadata[field], validate=True):
-                return 0
-        except (ValueError, TypeError):
-            return 0
-    return 2
-
-
-def _newest_restorable(paths: list[str]):
-    """Return the most recent file that still looks like a usable archive.
-
-    A complete v2 container wins over an older opaque file; an opaque file is
-    only kept when no v2 container survives, so a truncated or overwritten
-    archive written after the last good one cannot take its place as the
-    thing retention protects.
-    """
-    ranked = []
-    for path in paths:
-        shape = _container_shape(path)
-        if shape:
-            try:
-                ranked.append((shape, os.stat(path).st_mtime, path))
-            except OSError:
-                continue
-    if not ranked:
-        return None
-    return max(ranked)[2]
-
-
 def _apply_retention(retention_days: int) -> int:
     """Delete backup files older than retention_days. Returns count removed.
 
-    The newest archive that still looks restorable is always kept, whatever
-    its age: retention ran on a timer of its own, so a long export outage (a
-    lost DB key, no configured password) ended with the last usable restore
-    point deleted and nothing to replace it.
+    Two archives are never pruned, whatever their age. The most recent one
+    that still matches its validation record is the last provable restore
+    point: retention ran on a timer of its own, so a long export outage (a
+    lost DB key, no configured password) used to end with nothing left to
+    restore from. Archives with no record at all — written before records
+    existed, or by another path — are kept in the two most recent, since
+    nothing proves they are usable and nothing proves they are not.
     """
     if not retention_days or retention_days < 1:
         return 0
@@ -203,9 +126,14 @@ def _apply_retention(retention_days: int) -> int:
             continue
         paths.append(path)
 
-    keep = _newest_restorable(paths)
+    keep = set()
+    validated = storage.newest_validated(paths)
+    if validated:
+        keep.add(validated)
+    keep.update(storage.unrecorded(paths)[:_UNRECORDED_KEPT])
+
     for path in paths:
-        if path == keep:
+        if path in keep:
             continue
         try:
             if os.stat(path).st_mtime < cutoff:
@@ -232,10 +160,11 @@ def run_backup_retention() -> int:
     return _apply_retention(retention)
 
 
-# Last attempt made by this process, whether or not its timestamp could be
+# Last archive this process published, whether or not its timestamp could be
 # stored. `backup.last_run` is the source of truth across restarts; this guard
 # only covers the case where writing that row fails, which used to leave the
-# task due again 60 seconds later, once per minute, until the disk filled.
+# task due again 60 seconds later, once per minute, until the disk filled. It
+# is set after publication, never before, so a failed attempt is retried.
 _LAST_ATTEMPT: dict = {'at': None}
 
 
@@ -314,22 +243,20 @@ def run_scheduled_backup() -> dict:
             'password under Settings > Backup).'
         )
 
-    # Taken before the work starts: an archive written but not recorded must
-    # not be written again on the next tick.
-    _LAST_ATTEMPT['at'] = now
-
     try:
         backup_bytes = BackupService().create_backup(password)
 
-        os.makedirs(str(Config.BACKUP_DIR), exist_ok=True)
         filename = f"ucm_backup_{now.strftime('%Y%m%d_%H%M%S')}.ucmbkp"
-        filepath = os.path.join(str(Config.BACKUP_DIR), filename)
-        with open(filepath, 'wb') as f:
-            f.write(backup_bytes)
-        try:
-            os.chmod(filepath, 0o600)
-        except OSError:
-            pass
+        filepath = storage.write_archive_atomically(
+            Config.BACKUP_DIR, filename, backup_bytes)
+        storage.validate_and_record(filepath, backup_bytes)
+
+        # Only now: the archive exists, it reads back as written, and it is
+        # recorded. An export or write that failed before this point leaves
+        # the run due again on the next tick, which is what should happen;
+        # past it, a timestamp that cannot be stored must not produce a second
+        # archive a minute later.
+        _LAST_ATTEMPT['at'] = now
 
         logger.info(f"Scheduled backup created: {filename} ({len(backup_bytes)} bytes)")
         _audit_scheduled_backup(filename, f'Scheduled backup: {filename}',

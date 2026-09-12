@@ -184,70 +184,169 @@ class TestScheduledRunReportsOutcome:
 
 
 class TestRetentionKeepsARestorePoint:
-    def _container(self) -> bytes:
-        """A structurally complete v2 container (header + metadata + body)."""
-        import base64 as b64, json as js, struct
-        metadata = js.dumps({
-            'format_version': 2, 'ucm_version': '2.230-dev',
-            'created_at': '2026-01-01T00:00:00Z', 'backup_type': 'full',
-            'kdf': {'type': 'argon2id', 'time_cost': 3, 'memory_cost': 65536,
-                    'parallelism': 4, 'hash_len': 32},
-            'salt_b64': b64.b64encode(b'S' * 16).decode(),
-            'nonce_b64': b64.b64encode(b'N' * 12).decode(),
-        }, separators=(',', ':')).encode()
-        return (b'UCMB' + bytes([2, 1, 2, 0]) + struct.pack('>H', len(metadata))
-                + metadata + b'C' * 512)
+    """Retention protects what can be proven, not what merely looks right."""
 
-    def _mk(self, d, name, age_days, *, usable=True):
-        path = d / name
-        path.write_bytes(self._container() if usable else b'UCMB\x02' + b'\x00' * 80)
+    def _validated(self, tmp_path, name, payload, age_days):
+        """Write an archive the way the service does, and record it."""
+        from services.backup import storage
+        path = storage.write_archive_atomically(tmp_path, name, payload)
+        storage.validate_and_record(path, payload)
         ts = time.time() - age_days * 86400
         os.utime(path, (ts, ts))
         return path
 
-    def test_a_corrupt_newer_file_does_not_displace_the_last_good_archive(
+    def _plain(self, tmp_path, name, payload, age_days):
+        """Write an archive with no validation record (an older install)."""
+        path = tmp_path / name
+        path.write_bytes(payload)
+        ts = time.time() - age_days * 86400
+        os.utime(path, (ts, ts))
+        return path
+
+    def test_a_tampered_archive_does_not_displace_the_last_validated_one(
             self, app, tmp_path, monkeypatch):
-        """Only a header away from being an archive is not a restore point."""
+        """A file whose bytes changed after it was written is not a restore
+        point, however well-formed its header looks."""
         from services.backup import schedule
         from config.settings import Config
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
-            good = self._mk(tmp_path, 'ucm_backup_20000101_000000.ucmbkp', 30)
-            corrupt = self._mk(tmp_path, 'ucm_backup_20260101_000000.ucmbkp', 20,
-                               usable=False)
+            good = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
+                                   b'UCMB\x02' + b'A' * 600, 30)
+            tampered = self._validated(tmp_path, 'ucm_backup_20260101_000000.ucmbkp',
+                                       b'UCMB\x02' + b'B' * 600, 20)
+            # Same name, same size, same header; one byte of ciphertext differs
+            payload = bytearray(tampered.read_bytes())
+            payload[-1] ^= 0xFF
+            tampered.write_bytes(bytes(payload))
+            ts = time.time() - 20 * 86400
+            os.utime(tampered, (ts, ts))
 
             removed = schedule.run_backup_retention()
 
-            assert good.exists(), 'the last usable archive was pruned'
-            assert not corrupt.exists() and removed == 1
+            assert good.exists(), 'the last provable restore point was pruned'
+            assert not tampered.exists()
+            assert removed == 1
 
-    def test_the_last_usable_archive_survives_its_retention_age(
+    def test_the_last_validated_archive_survives_its_retention_age(
             self, app, tmp_path, monkeypatch):
         from services.backup import schedule
         from config.settings import Config
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
-            only = self._mk(tmp_path, 'ucm_backup_20000101_000000.ucmbkp', 30)
+            only = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
+                                   b'UCMB\x02' + b'A' * 600, 30)
 
             assert schedule.run_backup_retention() == 0
             assert only.exists()
 
-    def test_older_archives_still_go_once_a_newer_one_exists(
+    def test_older_archives_go_once_a_newer_validated_one_exists(
             self, app, tmp_path, monkeypatch):
         from services.backup import schedule
         from config.settings import Config
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
-            old = self._mk(tmp_path, 'ucm_backup_20000101_000000.ucmbkp', 30)
-            older = self._mk(tmp_path, 'ucm_backup_19990101_000000.ucmbkp', 60)
-            recent = self._mk(tmp_path, 'ucm_backup_20260101_000000.ucmbkp', 1)
+            old = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
+                                  b'UCMB\x02' + b'A' * 600, 30)
+            older = self._validated(tmp_path, 'ucm_backup_19990101_000000.ucmbkp',
+                                    b'UCMB\x02' + b'B' * 600, 60)
+            recent = self._validated(tmp_path, 'ucm_backup_20260101_000000.ucmbkp',
+                                     b'UCMB\x02' + b'C' * 600, 1)
 
             assert schedule.run_backup_retention() == 2
             assert recent.exists()
             assert not old.exists() and not older.exists()
+
+    def test_archives_from_before_records_keep_the_two_most_recent(
+            self, app, tmp_path, monkeypatch):
+        """Nothing proves an unrecorded archive is usable, and nothing proves
+        it is not: prudence keeps two."""
+        from services.backup import schedule
+        from config.settings import Config
+        with app.app_context():
+            monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
+            _set('backup_retention_days', '7')
+            oldest = self._plain(tmp_path, 'ucm_backup_19980101_000000.ucmbkp',
+                                 b'legacy-archive-bytes', 90)
+            middle = self._plain(tmp_path, 'ucm_backup_19990101_000000.ucmbkp',
+                                 b'legacy-archive-bytes', 60)
+            newest = self._plain(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
+                                 b'legacy-archive-bytes', 30)
+
+            assert schedule.run_backup_retention() == 1
+            assert newest.exists() and middle.exists()
+            assert not oldest.exists()
+
+
+class TestPublicationDecidesTheRetryGuard:
+    """The guard against writing an archive a minute exists for one case:
+    the archive is on disk and its timestamp is not."""
+
+    def _enable(self, tmp_path, monkeypatch):
+        from config.settings import Config
+        from services.backup import schedule
+        monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
+        _set('auto_backup_enabled', 'true')
+        _set('backup_frequency', 'daily')
+        _set('backup_password', 'Correct-Horse-Battery-9')
+        SystemConfig.query.filter_by(key='backup.last_run').delete()
+        db.session.commit()
+        schedule._LAST_ATTEMPT['at'] = None
+
+    def _disable(self):
+        from services.backup import schedule
+        schedule._LAST_ATTEMPT['at'] = None
+        _set('auto_backup_enabled', 'false')
+        SystemConfig.query.filter_by(key='backup_password').delete()
+        SystemConfig.query.filter_by(key='backup.last_run').delete()
+        db.session.commit()
+
+    def test_a_failed_export_is_retried_on_the_next_tick(
+            self, app, tmp_path, monkeypatch):
+        from services.backup import schedule
+        with app.app_context():
+            self._enable(tmp_path, monkeypatch)
+            try:
+                monkeypatch.setattr(
+                    'services.backup.schedule.BackupService.create_backup',
+                    lambda self, pw, **k: (_ for _ in ()).throw(
+                        RuntimeError('transient export failure')))
+                with pytest.raises(RuntimeError):
+                    schedule.run_scheduled_backup()
+                assert not list(tmp_path.glob('ucm_backup_*.ucmbkp'))
+
+                # One minute later the export works: nothing must stand in the way
+                monkeypatch.setattr(
+                    'services.backup.schedule.BackupService.create_backup',
+                    lambda self, pw, **k: b'archive-bytes')
+                result = schedule.run_scheduled_backup()
+                assert result['status'] == 'ok'
+                assert len(list(tmp_path.glob('ucm_backup_*.ucmbkp'))) == 1
+            finally:
+                self._disable()
+
+    def test_an_archive_that_cannot_be_validated_is_also_retried(
+            self, app, tmp_path, monkeypatch):
+        """A short write is a failed run, not a restore point."""
+        from services.backup import schedule, storage
+        with app.app_context():
+            self._enable(tmp_path, monkeypatch)
+            try:
+                monkeypatch.setattr(
+                    'services.backup.schedule.BackupService.create_backup',
+                    lambda self, pw, **k: b'archive-bytes')
+                monkeypatch.setattr(
+                    storage, 'digest_of',
+                    lambda path: (3, 'deadbeef'))  # as if the file were short
+                with pytest.raises(Exception):
+                    schedule.run_scheduled_backup()
+                assert schedule._LAST_ATTEMPT['at'] is None, \
+                    'a run that produced no provable archive must be retried'
+            finally:
+                self._disable()
 
 
 class TestDatabaseCredentialsStayOutOfTheAudit:

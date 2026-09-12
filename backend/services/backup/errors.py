@@ -22,3 +22,11 @@ class ScheduledBackupError(RuntimeError):
     Raised so the scheduler records the run as failed: the task used to
     swallow every error and still report a successful run.
     """
+
+
+class BackupValidationError(RuntimeError):
+    """An archive did not read back as it was written.
+
+    Raised after publication, before the archive is recorded as a restore
+    point: a file that cannot be proven whole must not be one.
+    """

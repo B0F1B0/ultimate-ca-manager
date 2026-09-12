@@ -2,6 +2,7 @@
 System Backup Operations
 """
 
+from services.backup import storage
 from services.backup.decrypt_mixin import BackupDecryptionError
 from . import bp
 from flask import request, send_file
@@ -12,6 +13,7 @@ from services.backup_service import (
     BackupService,
     BackupExportError,
     BackupPasswordError,
+    BackupValidationError,
 )
 from pathlib import Path
 from datetime import datetime, timezone
@@ -113,46 +115,12 @@ def _new_backup_filename() -> str:
 
 
 def _write_backup_atomically(backup_dir: Path, filename: str, data: bytes) -> Path:
+    """Write a backup atomically with owner-only permissions.
+
+    Thin wrapper over the service helper so this route, the scheduled backup
+    and retention all agree on how an archive reaches disk.
     """
-    Write a backup atomically with owner-only permissions.
-
-    A temporary file is written and fsynced first, then hard-linked into its
-    final name. `os.link` fails if the destination already exists, preventing
-    accidental overwrite of another backup.
-    """
-    backup_dir.mkdir(parents=True, exist_ok=True)
-
-    temp_path = None
-    destination = backup_dir / filename
-
-    try:
-        fd, temp_path = tempfile.mkstemp(
-            dir=str(backup_dir),
-            prefix=".ucm_backup_",
-            suffix=".tmp",
-        )
-
-        with os.fdopen(fd, "wb") as temp_file:
-            temp_file.write(data)
-            temp_file.flush()
-            os.fsync(temp_file.fileno())
-
-        os.chmod(temp_path, 0o600)
-
-        # Atomically publish the complete file without overwriting an existing one.
-        os.link(temp_path, destination)
-        os.unlink(temp_path)
-        temp_path = None
-
-        return destination
-
-    except Exception:
-        if temp_path:
-            try:
-                os.unlink(temp_path)
-            except OSError:
-                pass
-        raise
+    return storage.write_archive_atomically(backup_dir, filename, data)
 
 
 @bp.route("/api/v2/system/backup", methods=["POST"])
@@ -194,6 +162,11 @@ def create_backup():
             logger.error("Could not allocate a unique backup filename")
             return error_response("Failed to save backup", 500)
 
+        # Read the archive back and record its size and digest: retention
+        # protects the most recent archive that still matches its record, and
+        # a short write shows up here rather than on the day of a restore.
+        storage.validate_and_record(filepath, backup_bytes)
+
         _safe_audit_log(
             action="system_backup",
             resource_type="system",
@@ -217,6 +190,9 @@ def create_backup():
     except BackupExportError as exc:
         logger.error("Backup aborted: %s", exc)
         return error_response(f"Backup aborted: {exc}", 500)
+    except BackupValidationError as exc:
+        logger.error("Backup written but not validated: %s", exc)
+        return error_response(f"Backup could not be validated: {exc}", 500)
     except ValueError as exc:
         logger.warning("Backup validation error: %s", exc)
         return error_response("Invalid backup parameters", 400)
