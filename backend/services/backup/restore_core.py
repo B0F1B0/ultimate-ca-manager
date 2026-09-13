@@ -14,6 +14,8 @@ from models.acme_models import AcmeAccount
 from config.settings import Config
 from services.file_regen_service import mirror_private_key
 
+from .errors import BackupSchemaError
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,14 +31,14 @@ class RestoreCoreMixin:
         if metadata is None:
             return
         if not isinstance(metadata, dict):
-            raise ValueError("Invalid backup format: metadata is not an object")
+            raise BackupSchemaError("Invalid backup format: metadata is not an object")
 
         schema_version = metadata.get('schema_version')
         if schema_version is not None:
             if isinstance(schema_version, bool) or not isinstance(schema_version, int):
-                raise ValueError("Invalid backup format: schema version is not a number")
+                raise BackupSchemaError("Invalid backup format: schema version is not a number")
             if schema_version > self.SCHEMA_VERSION:
-                raise ValueError(
+                raise BackupSchemaError(
                     f"This backup uses schema version {schema_version}, newer than "
                     f"the {self.SCHEMA_VERSION} this server can restore. Upgrade "
                     "UCM to restore it; nothing has been changed."
@@ -45,10 +47,10 @@ class RestoreCoreMixin:
         required = metadata.get('min_reader_schema_version')
         if required is not None:
             if isinstance(required, bool) or not isinstance(required, int):
-                raise ValueError(
+                raise BackupSchemaError(
                     "Invalid backup format: minimum reader version is not a number")
             if required > self.SCHEMA_VERSION:
-                raise ValueError(
+                raise BackupSchemaError(
                     f"This backup requires a reader for schema version {required}; "
                     f"this server reads up to {self.SCHEMA_VERSION}. Nothing has "
                     "been changed."
@@ -62,22 +64,22 @@ class RestoreCoreMixin:
         if sections is None:
             return
         if not isinstance(sections, dict):
-            raise ValueError("Invalid backup format: section counts are not an object")
+            raise BackupSchemaError("Invalid backup format: section counts are not an object")
 
         for name, expected in sections.items():
             if isinstance(expected, bool) or not isinstance(expected, int):
-                raise ValueError(
+                raise BackupSchemaError(
                     f"Invalid backup format: count for section '{name}' is not a number")
             if name not in backup_data:
-                raise ValueError(
+                raise BackupSchemaError(
                     f"Incomplete backup: section '{name}' is announced but missing")
             value = backup_data[name]
             if not isinstance(value, (list, dict)):
-                raise ValueError(
+                raise BackupSchemaError(
                     f"Invalid backup format: section '{name}' is neither a list nor "
                     "an object")
             if len(value) != expected:
-                raise ValueError(
+                raise BackupSchemaError(
                     f"Incomplete backup: section '{name}' holds {len(value)} entries, "
                     f"{expected} were written"
                 )
@@ -95,12 +97,12 @@ class RestoreCoreMixin:
         """
         # Detect format from magic bytes
         if len(backup_bytes) >= 4 and backup_bytes[:4] == self.MAGIC:
-            master_key, backup_data = self._decrypt_v2(backup_bytes, password)
+            master_key, backup_data = self._decrypt_framed(backup_bytes, password)
         else:
             master_key, backup_data = self._decrypt_v1(backup_bytes, password)
 
         if not isinstance(backup_data, dict):
-            raise ValueError("Invalid backup format: the payload is not an object")
+            raise BackupSchemaError("Invalid backup format: the payload is not an object")
 
         # Verify checksum
         saved_checksum = backup_data.pop('checksum', None)
@@ -108,7 +110,11 @@ class RestoreCoreMixin:
             json_str = json.dumps(backup_data, indent=2, sort_keys=True)
             calc_checksum = hashlib.sha256(json_str.encode()).hexdigest()
             if calc_checksum != saved_checksum.get('value'):
-                raise ValueError("Backup checksum mismatch - file may be corrupted")
+                # Same family as the schema refusals: it happens before any
+                # write, and the administrator needs to read what it says.
+                raise BackupSchemaError(
+                    "Backup checksum mismatch: the archive is corrupted. "
+                    "Nothing has been changed.")
 
         # Everything the payload claims about itself is checked here, before
         # the first write: a schema this version cannot read, or a section

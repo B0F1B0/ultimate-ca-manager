@@ -98,14 +98,15 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
     SCHEMA_VERSION = 3
     MIN_READER_SCHEMA_VERSION = 3
 
-    # Argon2id params (OWASP 2024 recommendation for sensitive data)
-    ARGON2_TIME_COST = 3
-    ARGON2_MEMORY_COST = 65536  # 64 MiB
-    ARGON2_PARALLELISM = 4
-    ARGON2_SALT_SIZE = 16
-
-    # Stronger PBKDF2 when Argon2 unavailable
-    PBKDF2_ITERATIONS_V2 = 600000
+    # Argon2id params (OWASP 2024 recommendation for sensitive data) and the
+    # stronger PBKDF2 used when Argon2 is unavailable. Both come from the
+    # reader's whitelist, so what is written is by construction what will be
+    # accepted on the way back in.
+    ARGON2_TIME_COST = container.KDF_PROFILES[container.KDF_ARGON2ID]['emitted']['time_cost']
+    ARGON2_MEMORY_COST = container.KDF_PROFILES[container.KDF_ARGON2ID]['emitted']['memory_cost']
+    ARGON2_PARALLELISM = container.KDF_PROFILES[container.KDF_ARGON2ID]['emitted']['parallelism']
+    ARGON2_SALT_SIZE = container.KDF_PROFILES[container.KDF_ARGON2ID]['salt_size']
+    PBKDF2_ITERATIONS_V2 = container.KDF_PROFILES[container.KDF_PBKDF2]['emitted']['iterations']
 
     def __init__(self):
         self.app_version = Config.APP_VERSION
@@ -231,27 +232,25 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
         # archive and whether it arrived whole.
         backup_data['metadata'].update(self._schema_metadata(backup_data, include))
 
-        # Choose KDF: Argon2id if available, else strong PBKDF2
-        if _ARGON2_AVAILABLE:
-            kdf_id = self.KDF_ARGON2ID
-            salt = secrets.token_bytes(self.ARGON2_SALT_SIZE)
-            master_key = self._derive_argon2id(password, salt)
-            kdf_params = {
-                'type': 'argon2id',
-                'time_cost': self.ARGON2_TIME_COST,
-                'memory_cost': self.ARGON2_MEMORY_COST,
-                'parallelism': self.ARGON2_PARALLELISM,
-                'hash_len': self.KEY_SIZE,
-            }
+        # Choose KDF: Argon2id if available, else strong PBKDF2. The profile
+        # written here is the one the reader whitelists, taken from the same
+        # table: a parameter changed on one side and not the other would
+        # produce archives this server refuses to read back.
+        kdf_id = self.KDF_ARGON2ID if _ARGON2_AVAILABLE else self.KDF_PBKDF2
+        profile = container.KDF_PROFILES[kdf_id]
+        kdf_params = {'type': profile['type'], **profile['emitted']}
+        salt = secrets.token_bytes(profile['salt_size'])
+
+        if kdf_id == self.KDF_ARGON2ID:
+            master_key = self._derive_argon2id(
+                password, salt,
+                time_cost=kdf_params['time_cost'],
+                memory_cost=kdf_params['memory_cost'],
+                parallelism=kdf_params['parallelism'],
+                hash_len=kdf_params['hash_len'],
+            )
         else:
-            kdf_id = self.KDF_PBKDF2
-            salt = secrets.token_bytes(self.SALT_SIZE)
-            master_key = self._derive_pbkdf2(password, salt, self.PBKDF2_ITERATIONS_V2)
-            kdf_params = {
-                'type': 'pbkdf2-sha256',
-                'iterations': self.PBKDF2_ITERATIONS_V2,
-                'hash_len': self.KEY_SIZE,
-            }
+            master_key = self._derive_pbkdf2(password, salt, kdf_params['iterations'])
 
         # Encrypt private keys individually (uses same master_key + PBKDF2 per-key salt for legacy compat)
         backup_data = self._encrypt_private_keys(backup_data, master_key)

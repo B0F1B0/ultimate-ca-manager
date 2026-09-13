@@ -13,7 +13,9 @@ from services.backup_service import (
     BackupService,
     BackupExportError,
     BackupPasswordError,
+    BackupSchemaError,
     BackupValidationError,
+    ContainerError,
 )
 from pathlib import Path
 from datetime import datetime, timezone
@@ -511,6 +513,14 @@ def restore_backup():
     except BackupDecryptionError:
         logger.warning("Restore refused: the backup could not be decrypted")
         return error_response("Wrong backup password, or the file is not a valid backup", 400)
+    except (ContainerError, BackupSchemaError) as exc:
+        # These messages are ours, they name what the archive got wrong (an
+        # unreadable schema, a KDF profile out of range, a section short of
+        # its count) and say nothing about its contents. Answering "invalid
+        # restore parameters" left an administrator with an archive from a
+        # newer UCM no way to know that was the reason.
+        logger.warning("Restore refused: %s", exc)
+        return error_response(str(exc), 400)
     except ValueError as exc:
         logger.warning("Restore validation error: %s", exc)
         return error_response("Invalid restore parameters", 400)

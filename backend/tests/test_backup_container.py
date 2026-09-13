@@ -6,6 +6,7 @@ expanding a payload, and before the first write to the database.
 """
 import base64
 import gzip
+import hashlib
 import json
 import struct
 import zlib
@@ -65,7 +66,7 @@ class TestWhatIsWritten:
             blob = _rebuild(archive, tampered, ciphertext)
             with app.app_context():
                 with pytest.raises(Exception) as exc:
-                    _service()._decrypt_v2(blob, PASSWORD)
+                    _service()._decrypt_framed(blob, PASSWORD)
             assert 'Decryption failed' in str(exc.value), field
 
     def test_a_v2_archive_still_opens(self, app, archive):
@@ -75,7 +76,7 @@ class TestWhatIsWritten:
         with app.app_context():
             svc = _service()
             # Re-encrypt the same payload the way v2 did
-            master_key, payload = svc._decrypt_v2(archive, PASSWORD)
+            master_key, payload = svc._decrypt_framed(archive, PASSWORD)
             plaintext = gzip.compress(json.dumps(payload, indent=2, sort_keys=True).encode())
             from cryptography.hazmat.primitives.ciphers.aead import AESGCM
             nonce = base64.b64decode(metadata['nonce_b64'])
@@ -83,7 +84,7 @@ class TestWhatIsWritten:
             v2_metadata = dict(metadata, format_version=2)
             blob = _rebuild(archive, v2_metadata, v2_ciphertext, version=2)
 
-            _key, restored = svc._decrypt_v2(blob, PASSWORD)
+            _key, restored = svc._decrypt_framed(blob, PASSWORD)
             assert restored['metadata']['ucm_version'] == payload['metadata']['ucm_version']
 
 
@@ -98,7 +99,7 @@ class TestArgon2Path:
             svc = _service()
             blob = svc.create_backup(PASSWORD)
             assert blob[6] == container.KDF_ARGON2ID
-            _key, payload = svc._decrypt_v2(blob, PASSWORD)
+            _key, payload = svc._decrypt_framed(blob, PASSWORD)
             assert payload['metadata']['schema_version'] == svc.SCHEMA_VERSION
 
 
@@ -278,7 +279,7 @@ class TestSchemaIsCheckedBeforeAnyWrite:
     def test_a_real_archive_carries_its_schema_and_dialect(self, app, archive):
         with app.app_context():
             svc = _service()
-            _key, payload = svc._decrypt_v2(archive, PASSWORD)
+            _key, payload = svc._decrypt_framed(archive, PASSWORD)
             metadata = payload['metadata']
             assert metadata['schema_version'] == svc.SCHEMA_VERSION
             assert metadata['database_dialect'] in ('sqlite', 'postgresql')
@@ -293,7 +294,7 @@ class TestRestoreRefusesBeforeMutating:
         from models import db, User
         with app.app_context():
             svc = _service()
-            _key, payload = svc._decrypt_v2(archive, PASSWORD)
+            _key, payload = svc._decrypt_framed(archive, PASSWORD)
             payload['metadata']['schema_version'] = svc.SCHEMA_VERSION + 1
             before = {u.username for u in User.query.all()}
 
@@ -302,3 +303,139 @@ class TestRestoreRefusesBeforeMutating:
 
             db.session.rollback()
             assert {u.username for u in User.query.all()} == before
+
+
+class TestReviewOfTheReader:
+    """Findings of the adversarial pass over this reader, each pinned."""
+
+    def test_concatenated_gzip_members_are_all_read(self):
+        """gzip.decompress read them; a reader that stopped at the first
+        would hand back a truncated payload instead of refusing it."""
+        multi = gzip.compress(b'{"a":1}') + gzip.compress(b'{"b":2}')
+        assert container.decompress_bounded(multi) == b'{"a":1}{"b":2}'
+
+    def test_a_bomb_in_a_later_member_is_still_refused(self):
+        multi = gzip.compress(b'x' * 100) + gzip.compress(b'\x00' * (64 * 1024 * 1024))
+        with pytest.raises(ContainerError, match='expands beyond'):
+            container.decompress_bounded(multi)
+
+    def test_the_announced_version_must_match_the_framing(self):
+        """An archive must not describe itself as something it is not."""
+        metadata = {'format_version': 2, 'kdf': {'type': 'pbkdf2-sha256'},
+                    'salt_b64': '', 'nonce_b64': ''}
+        body = json.dumps(metadata, separators=(',', ':')).encode()
+        blob = (container.MAGIC + bytes([3, 1, 1, 0])
+                + struct.pack('>H', len(body)) + body + b'x' * 16)
+        with pytest.raises(ContainerError, match='announces format version 2'):
+            container.parse_header(blob)
+
+    def test_a_deeply_nested_header_is_refused_before_parsing(self):
+        """A v2 header may be 64 KiB, and json.loads recurses."""
+        deep = ('[' * 500 + ']' * 500).encode()
+        blob = (container.MAGIC + bytes([2, 1, 1, 0])
+                + struct.pack('>H', len(deep)) + deep + b'x' * 16)
+        with pytest.raises(ContainerError, match='Invalid backup metadata'):
+            container.parse_header(blob)
+
+    def test_a_refusal_tells_the_administrator_what_happened(self, app, auth_client,
+                                                             archive):
+        """An archive from a newer UCM used to come back as 'invalid restore
+        parameters', which says nothing about what to do next."""
+        import io
+        from services.backup import storage  # noqa: F401  (route import parity)
+        with app.app_context():
+            svc = _service()
+            _key, payload = svc._decrypt_framed(archive, PASSWORD)
+            payload['metadata']['schema_version'] = svc.SCHEMA_VERSION + 1
+            # Recompute the checksum the way a real writer would, so the
+            # refusal under test is the schema one and not a corrupt payload
+            payload.pop('checksum', None)
+            digest = hashlib.sha256(
+                json.dumps(payload, indent=2, sort_keys=True).encode()).hexdigest()
+            payload['checksum'] = {'algorithm': 'SHA256', 'value': digest}
+
+        # Rebuild an archive carrying the future schema, with a valid tag
+        with app.app_context():
+            import gzip as _gzip
+            from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+            header, _ = _split(archive)
+            metadata = json.loads(header[10:].decode())
+            salt = base64.b64decode(metadata['salt_b64'])
+            nonce = base64.b64decode(metadata['nonce_b64'])
+            svc = _service()
+            if metadata['kdf']['type'] == 'argon2id':
+                key = svc._derive_argon2id(
+                    PASSWORD, salt,
+                    time_cost=metadata['kdf']['time_cost'],
+                    memory_cost=metadata['kdf']['memory_cost'],
+                    parallelism=metadata['kdf']['parallelism'],
+                    hash_len=metadata['kdf']['hash_len'])
+            else:
+                key = svc._derive_pbkdf2(PASSWORD, salt, metadata['kdf']['iterations'])
+            plaintext = _gzip.compress(
+                json.dumps(payload, indent=2, sort_keys=True).encode())
+            blob = header + AESGCM(key).encrypt(nonce, plaintext, header)
+
+        response = auth_client.post(
+            '/api/v2/system/restore',
+            data={'password': PASSWORD, 'file': (io.BytesIO(blob), 'future.ucmbkp')},
+            content_type='multipart/form-data')
+
+        assert response.status_code == 400, response.data
+        message = json.loads(response.data)['message']
+        assert 'schema version' in message and 'nothing has been changed' in message.lower()
+
+    @pytest.mark.parametrize('offset, value, what', [
+        (4, 2, 'the format version byte'),
+        (5, 0, 'the gzip flag'),
+        (6, 1, 'the KDF id'),
+    ])
+    def test_editing_a_framing_byte_is_caught(self, app, archive, offset, value, what):
+        """v3 signs these bytes, so flipping one must not open the archive."""
+        if archive[offset] == value:
+            pytest.skip(f'{what} already holds the tested value')
+        blob = bytearray(archive)
+        blob[offset] = value
+        from services.backup.decrypt_mixin import BackupDecryptionError
+        with app.app_context():
+            with pytest.raises((BackupDecryptionError, ContainerError)) as exc:
+                _service()._decrypt_framed(bytes(blob), PASSWORD)
+        assert 'Decryption failed' in str(exc.value) or 'Invalid' in str(exc.value), what
+
+    def test_a_v3_archive_cannot_be_downgraded_to_v2(self, app, archive):
+        """Claiming v2 would move the authenticated data back to the magic
+        alone, which is the weakness v3 exists to close. Flipping the byte
+        alone contradicts the header's own JSON; rewriting both to agree
+        still fails, because the tag covers the header that was written."""
+        from services.backup.decrypt_mixin import BackupDecryptionError
+
+        byte_only = bytearray(archive)
+        byte_only[4] = container.FORMAT_VERSION_V2
+        with app.app_context():
+            with pytest.raises(ContainerError, match='announces format version 3'):
+                _service()._decrypt_framed(bytes(byte_only), PASSWORD)
+
+        header, ciphertext = _split(archive)
+        metadata = json.loads(header[10:].decode())
+        consistent = _rebuild(archive, dict(metadata, format_version=2),
+                              ciphertext, version=2)
+        with app.app_context():
+            with pytest.raises(BackupDecryptionError):
+                _service()._decrypt_framed(consistent, PASSWORD)
+
+    def test_the_writer_and_the_reader_share_one_kdf_table(self, app):
+        """What is written must be inside what is accepted."""
+        for kdf_id, profile in container.KDF_PROFILES.items():
+            metadata = {
+                'kdf': {'type': profile['type'], **profile['emitted']},
+                'salt_b64': base64.b64encode(b'S' * profile['salt_size']).decode(),
+                'nonce_b64': base64.b64encode(b'N' * container.NONCE_SIZE).decode(),
+            }
+            salt, nonce, params = container.validate_kdf(kdf_id, metadata)
+            assert params == profile['emitted']
+
+    def test_a_stream_that_cannot_progress_is_refused(self):
+        """A member whose stream stalls must be refused, not spun on."""
+        stalled = gzip.compress(b'payload' * 100)[:12]
+        with pytest.raises(ContainerError):
+            container.decompress_bounded(stalled)

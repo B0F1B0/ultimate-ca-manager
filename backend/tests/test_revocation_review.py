@@ -108,7 +108,7 @@ class TestParentCrlFromTheRow:
             from services.backup_service import BackupService
             svc = BackupService()
             blob = svc.create_backup('Correct-Horse-9-Battery', include={'cas': True, 'certificates': False})
-            _key, data = svc._decrypt_v2(blob, 'Correct-Horse-9-Battery')
+            _key, data = svc._decrypt_framed(blob, 'Correct-Horse-9-Battery')
         assert isinstance(data.get('revoked_serials'), list)
 
 

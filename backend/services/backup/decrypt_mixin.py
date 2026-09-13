@@ -62,7 +62,7 @@ class DecryptMixin:
 
         return master_key, container.json_loads_bounded(plaintext)
 
-    def _decrypt_v2(self, backup_bytes: bytes, password: str) -> Tuple[bytes, Dict[str, Any]]:
+    def _decrypt_framed(self, backup_bytes: bytes, password: str) -> Tuple[bytes, Dict[str, Any]]:
         """Read a framed container, v2 or v3.
 
         The two differ in one respect, and it is the point of v3: v2 signs

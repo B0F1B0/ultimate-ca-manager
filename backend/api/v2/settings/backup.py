@@ -111,7 +111,9 @@ def restore_backup():
         return error_response('Backup password required', 400)
 
     try:
-        from services.backup_service import BackupService, BackupPasswordError
+        from services.backup_service import (
+            BackupService, BackupPasswordError, BackupSchemaError, ContainerError,
+        )
         from utils.file_validation import validate_upload, BACKUP_EXTENSIONS
 
         # Read + size-cap the upload as bytes (restore_backup expects bytes, not
@@ -141,6 +143,9 @@ def restore_backup():
             data={'filename': file.filename, 'restored': True},
             message='Backup restored successfully. Please restart the application.'
         )
+    except (ContainerError, BackupSchemaError) as e:
+        logger.warning(f"Settings restore refused: {e}")
+        return error_response(str(e), 400)
     except Exception as e:
         logger.error(f"Settings restore failed: {e}")
         return error_response('Restore failed', 500)

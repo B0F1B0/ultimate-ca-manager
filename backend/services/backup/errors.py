@@ -30,3 +30,12 @@ class BackupValidationError(RuntimeError):
     Raised after publication, before the archive is recorded as a restore
     point: a file that cannot be proven whole must not be one.
     """
+
+
+class BackupSchemaError(ValueError):
+    """The payload describes a shape this version cannot restore.
+
+    Raised before the first write, so its message can say plainly that
+    nothing was changed: an archive from a newer UCM, or one whose sections
+    are short of the counts it announces.
+    """

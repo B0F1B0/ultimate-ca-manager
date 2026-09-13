@@ -1,9 +1,12 @@
 """Backup service package"""
 from .backup_service import BackupService, BackupPasswordError
+from .container import ContainerError
 from .errors import (
-    BackupExportError, BackupValidationError, ScheduledBackupError,
+    BackupExportError, BackupSchemaError, BackupValidationError,
+    ScheduledBackupError,
 )
 __all__ = [
     'BackupService', 'BackupPasswordError', 'BackupExportError',
-    'BackupValidationError', 'ScheduledBackupError',
+    'BackupSchemaError', 'BackupValidationError', 'ContainerError',
+    'ScheduledBackupError',
 ]

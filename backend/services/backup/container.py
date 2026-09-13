@@ -43,7 +43,11 @@ MAX_HEADER_METADATA_BYTES = 4096
 MAX_PLAINTEXT_BYTES = 512 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 MAX_JSON_DEPTH = 64
-MAX_JSON_CONTAINERS = 2_000_000
+# Each parsed object costs a few hundred bytes of interpreter memory, so this
+# is a memory ceiling, not a size one: five million objects is roughly a
+# gigabyte of parsed structures, and well above the largest real archive
+# (an instance exporting its audit log is the case that grows here).
+MAX_JSON_CONTAINERS = 5_000_000
 _INFLATE_CHUNK = 1024 * 1024
 
 # KDF profiles this reader accepts, with the exact shapes each version emits
@@ -138,12 +142,34 @@ def parse_header(container: bytes) -> Tuple[Dict[str, Any], bytes, bytes]:
     if len(container) < header_end + GCM_TAG_SIZE:
         raise ContainerError("Invalid backup file: truncated")
 
+    # The header's own JSON is parsed with the same bounds as the payload:
+    # a v2 header may be 64 KiB, and json.loads recurses, so nested brackets
+    # in a header reached the interpreter's recursion limit before any of
+    # this was authenticated.
     try:
-        metadata = json.loads(container[HEADER_PREFIX_SIZE:header_end].decode())
-    except (UnicodeDecodeError, json.JSONDecodeError):
+        metadata = json_loads_bounded(container[HEADER_PREFIX_SIZE:header_end])
+    except ContainerError:
         raise ContainerError("Invalid backup metadata")
     if not isinstance(metadata, dict):
         raise ContainerError("Invalid backup metadata")
+
+    # B: the version the header announces in JSON must be the one in its
+    # framing byte; a reader that trusts one and reports the other lets an
+    # archive describe itself as something it is not.
+    announced = metadata.get('format_version')
+    if announced is not None and announced != version:
+        raise ContainerError(
+            f"Invalid backup file: header announces format version {announced} "
+            f"but the container says {version}"
+        )
+
+    for name, framed in (('flags', flags), ('kdf_id', kdf_id)):
+        announced = metadata.get(name)
+        if announced is not None and announced != framed:
+            raise ContainerError(
+                f"Invalid backup file: header announces {name} {announced} but "
+                f"the container says {framed}"
+            )
 
     metadata['format_version'] = version
     metadata['flags'] = flags
@@ -208,53 +234,53 @@ def _decode_b64(value: Any, what: str) -> bytes:
 
 
 def decompress_bounded(plaintext: bytes) -> bytes:
-    """Inflate a gzip member with a ceiling on what it may produce.
+    """Inflate a gzip payload with a ceiling on what it may produce.
 
-    `gzip.decompress` materialises whatever the member expands to, so a
+    `gzip.decompress` materialises whatever the payload expands to, so a
     hundred-kilobyte archive that decompresses to tens of gigabytes took the
-    worker down with it. Inflating in chunks stops at the ceiling instead.
+    worker down with it. This inflates in chunks and stops at the ceiling.
+
+    Concatenated members are read as `gzip.decompress` reads them: UCM has
+    only ever written one, but a reader that stopped after the first would
+    return a truncated payload rather than refuse it.
     """
     limit = min(MAX_PLAINTEXT_BYTES, max(len(plaintext), 1) * MAX_COMPRESSION_RATIO)
-    decompressor = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
     chunks = []
     produced = 0
-    position = 0
+    remaining = plaintext
 
-    try:
-        while position < len(plaintext) or decompressor.unconsumed_tail:
-            if decompressor.unconsumed_tail:
-                source = decompressor.unconsumed_tail
-            else:
-                source = plaintext[position:position + _INFLATE_CHUNK]
-                position += len(source)
-            chunk = decompressor.decompress(source, _INFLATE_CHUNK)
-            produced += len(chunk)
-            if produced > limit:
-                raise ContainerError(
-                    "Refusing backup: its compressed payload expands beyond the "
-                    "accepted size"
-                )
-            chunks.append(chunk)
-            if decompressor.eof:
-                break
-        while not decompressor.eof:
-            chunk = decompressor.decompress(b'', _INFLATE_CHUNK)
-            if not chunk:
-                break
-            produced += len(chunk)
-            if produced > limit:
-                raise ContainerError(
-                    "Refusing backup: its compressed payload expands beyond the "
-                    "accepted size"
-                )
-            chunks.append(chunk)
-    except ContainerError:
-        raise
-    except zlib.error:
-        raise ContainerError("Invalid backup: gzip decompression failed")
+    while remaining:
+        decompressor = zlib.decompressobj(wbits=16 + zlib.MAX_WBITS)
+        try:
+            while True:
+                chunk = decompressor.decompress(remaining, _INFLATE_CHUNK)
+                produced += len(chunk)
+                if produced > limit:
+                    raise ContainerError(
+                        "Refusing backup: its compressed payload expands beyond "
+                        "the accepted size"
+                    )
+                if chunk:
+                    chunks.append(chunk)
+                consumed = len(remaining) - len(decompressor.unconsumed_tail)
+                remaining = decompressor.unconsumed_tail
+                if decompressor.eof:
+                    break
+                if not chunk and not consumed:
+                    # Neither output nor input consumed: the member ends before
+                    # its stream does, or the stream cannot progress at all.
+                    raise ContainerError("Invalid backup: truncated compressed payload")
+        except ContainerError:
+            raise
+        except zlib.error:
+            raise ContainerError("Invalid backup: gzip decompression failed")
 
-    if not decompressor.eof:
-        raise ContainerError("Invalid backup: truncated compressed payload")
+        if not decompressor.eof:
+            raise ContainerError("Invalid backup: truncated compressed payload")
+        remaining = decompressor.unused_data
+
+    if not chunks and not plaintext:
+        raise ContainerError("Invalid backup: empty compressed payload")
     return b''.join(chunks)
 
 
