@@ -95,9 +95,12 @@ def create_backup():
 def restore_backup():
     """Restore from backup file.
 
-    A restore replaces users, private keys and secrets from the archive — only
-    restore backups you produced yourself (see the Backup & Restore wiki page
-    for the trust model).
+    A restore replaces this instance with the archive: the rows a section held
+    when the backup was taken are what it holds afterwards, users, private
+    keys and secrets included. Only restore backups you produced yourself (see
+    the Backup & Restore wiki page for the trust model). The system endpoint
+    takes a `mode` for the rare case of merging an archive into a live
+    instance; this one always replaces.
     """
     if 'file' not in request.files:
         return error_response('No backup file provided', 400)
@@ -150,7 +153,8 @@ def restore_backup():
 
         return success_response(
             data={'filename': file.filename, 'restored': True},
-            message='Backup restored successfully. Please restart the application.'
+            message='Backup restored successfully. Every session opened before '
+                    'the restore was revoked; restart the application and sign in again.'
         )
     except (ContainerError, BackupSchemaError) as e:
         logger.warning(f"Settings restore refused: {e}")
