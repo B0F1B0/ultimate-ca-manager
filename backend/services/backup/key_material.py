@@ -113,9 +113,12 @@ def key_matches_certificate(pem_key: str, certificate_der_or_pem, *, label: str)
     A mismatch is a fact of the source database, not of the archive: refusing
     to back up would leave an administrator unable to save the very state they
     need to repair, which is the opposite of what a backup is for. So it is
-    recorded — the archive carries the list, the log says which records — and
-    the restore is where a mismatched pair is refused, before it becomes an
-    authority that signs answers nobody can verify.
+    recorded rather than refused: the archive carries the list in its
+    metadata, the log names the records, and the restore repeats both in its
+    result. It is not refused there either, for the same reason it was not
+    refused here — the state an administrator needs to repair has to be
+    restorable — but it is never silent, because the authority it produces
+    signs answers nobody can verify.
 
     Returns True when nothing could be checked (no key, no certificate, or
     material that cannot be parsed): unreadable is not proof of a mismatch.

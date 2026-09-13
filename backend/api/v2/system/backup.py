@@ -4,6 +4,7 @@ System Backup Operations
 
 from services.backup import storage
 from services.backup.locking import BackupBusyError, backup_operation_lock
+from services.backup.restore.plan import RestoreValidationError
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -486,6 +487,18 @@ def restore_backup():
             success=True,
         )
 
+        # An archive that carried no section changed nothing, so there is
+        # nothing to invalidate and no reason to sign everyone out and ask
+        # for a restart: that used to happen for a file holding metadata
+        # alone, announced as a successful restore.
+        if not results.get('sections_carried'):
+            logger.warning("Restore: the archive carried no data section")
+            return success_response(
+                data=results,
+                message=("The archive carried no data: nothing was restored, "
+                         "no session was revoked and no restart is needed."),
+            )
+
         # The data is in. Now the consequences: every session from before the
         # restore is void (the identities are the archive's), the caches hold
         # the PKI that was just replaced, and the workers need to come back on
@@ -512,6 +525,16 @@ def restore_backup():
             message += (". The archive also holds sections this version does "
                         "not restore: " + ", ".join(not_restored))
 
+        mismatches = results.get('key_mismatches') or []
+        if mismatches:
+            # The archive recorded these when it was written. An authority
+            # whose key is not its certificate's signs certificates nobody
+            # can verify, and the operator has to hear it now rather than
+            # from the first client that refuses the chain.
+            message += (f". {len(mismatches)} record(s) carry a private key "
+                        "that is not their certificate's and cannot sign: "
+                        + ", ".join(mismatches[:5]))
+
         return success_response(
             message=message,
             data=results,
@@ -520,17 +543,25 @@ def restore_backup():
     except BackupDecryptionError:
         logger.warning("Restore refused: the backup could not be decrypted")
         return error_response("Wrong backup password, or the file is not a valid backup", 400)
-    except (ContainerError, BackupSchemaError) as exc:
+    except (ContainerError, BackupSchemaError, RestoreValidationError) as exc:
         # These messages are ours, they name what the archive got wrong (an
         # unreadable schema, a KDF profile out of range, a section short of
-        # its count) and say nothing about its contents. Answering "invalid
-        # restore parameters" left an administrator with an archive from a
-        # newer UCM no way to know that was the reason.
+        # its count, a section that is not the shape it should be) and say
+        # nothing about its contents. Answering "invalid restore parameters"
+        # left an administrator holding an archive from a newer UCM, or one
+        # with a malformed section, no way to know which it was.
         logger.warning("Restore refused: %s", exc)
         return error_response(str(exc), 400)
+    except OverflowError as exc:
+        # A number the database cannot hold. It is the archive's fault, not
+        # ours, and a 500 with a traceback is the wrong way to say so.
+        logger.warning("Restore refused: a value is out of range (%s)", exc)
+        return error_response(
+            "The archive carries a numeric value this database cannot "
+            "store; the file is not a valid backup", 400)
     except ValueError as exc:
         logger.warning("Restore validation error: %s", exc)
-        return error_response("Invalid restore parameters", 400)
+        return error_response(f"The archive could not be read: {exc}", 400)
     except Exception:
         logger.exception("Restore failed")
         return error_response("Restore failed", 500)

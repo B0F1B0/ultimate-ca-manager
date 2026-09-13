@@ -141,7 +141,14 @@ class TestAnSshCaWithoutItsKeyIsNotRestored:
 class TestARowMissingAMandatoryColumnIsNotDropped:
     def test_an_ssh_certificate_without_its_authority_stops_the_restore(self, app):
         """It used to raise KeyError inside the per-row `except`, so the
-        certificate vanished and the restore reported the ones that worked."""
+        certificate vanished and the restore reported the ones that worked.
+
+        The refusal now happens while the plan is being built, before the
+        first write rather than at the insert: a column the row needs and
+        does not carry is named there, so either refusal is the contract
+        being kept.
+        """
+        from services.backup.restore.plan import RestoreValidationError
         from models.ssh import SSHCertificate
 
         with app.app_context():
@@ -158,7 +165,8 @@ class TestARowMissingAMandatoryColumnIsNotDropped:
             }])
 
             try:
-                with pytest.raises(BackupSchemaError) as refusal:
+                with pytest.raises(
+                        (BackupSchemaError, RestoreValidationError)) as refusal:
                     _service().restore_backup(blob, PASSWORD)
                 assert 'ssh_ca_id' in str(refusal.value)
 

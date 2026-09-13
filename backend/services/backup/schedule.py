@@ -113,18 +113,26 @@ def _record_outcome(outcome: str, reason: str = None) -> None:
     differs between workers; an administrator asking "did last night's backup
     run" deserves the same answer from any of them.
     """
-    for key, value in ((_LAST_OUTCOME_KEY, outcome),
-                       (_LAST_REASON_KEY, reason),
-                       (_LAST_OUTCOME_AT_KEY, utc_isoformat(utc_now()))):
-        row = SystemConfig.query.filter_by(key=key).first()
-        if row:
-            row.value = value
-        else:
-            db.session.add(SystemConfig(key=key, value=value))
     try:
+        for key, value in ((_LAST_OUTCOME_KEY, outcome),
+                           (_LAST_REASON_KEY, reason),
+                           (_LAST_OUTCOME_AT_KEY, utc_isoformat(utc_now()))):
+            row = SystemConfig.query.filter_by(key=key).first()
+            if row:
+                row.value = value
+            else:
+                db.session.add(SystemConfig(key=key, value=value))
         db.session.commit()
     except Exception:
-        db.session.rollback()
+        # The whole of it, not the commit alone: the read and the add can
+        # fail too, and an exception escaping here reached the caller, which
+        # recorded a backup that is on disk and readable as a failure -- and
+        # then called this again from its own `except`, replacing the
+        # original error with this one.
+        try:
+            db.session.rollback()
+        except Exception:
+            logger.warning("Could not roll back after a failed outcome record")
         # The outcome is a report, not the work: losing it must not turn a
         # successful backup into a failed one.
         logger.warning("Could not record the outcome of the scheduled backup")

@@ -6,7 +6,7 @@ import hashlib
 import base64
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict, List
 
 from models import db, User, CA, Certificate
 from utils.datetime_utils import utc_now
@@ -221,6 +221,14 @@ class RestoreCoreMixin:
         # discovered halfway through a restore.
         self._check_payload_schema(backup_data)
 
+        # An archive of metadata alone restores nothing. Announcing it as a
+        # success made the caller revoke every session and ask for a restart
+        # over a file that changed not one row.
+        carried = sorted(
+            name for name in SECTIONS
+            if backup_data.get(name)
+        )
+
         # Named before anything is written, so the answer can say what this
         # version will not put back even though the archive carries it.
         not_restored = sorted(
@@ -259,7 +267,19 @@ class RestoreCoreMixin:
             'https_server': 0,
             'revoked_serials': 0,
             'sections_not_restored': not_restored,
+            'sections_carried': carried,
         }
+
+        # A key that is not its certificate's was recorded when the archive
+        # was written, deliberately rather than refused: a backup has to stay
+        # possible precisely when something is wrong. What nobody did was tell
+        # the operator on the way back in, so the restore produced an
+        # authority that signs answers nobody can verify and said nothing.
+        results['key_mismatches'] = self._archived_key_mismatches(backup_data)
+        for record in results['key_mismatches']:
+            logger.warning(
+                "Restore: %s carries a private key that is not its "
+                "certificate's; it cannot sign for this installation", record)
 
         # Nothing has been written yet, and nothing will be until the plan
         # is built: it decides which row here each archived row is, and what
@@ -311,6 +331,26 @@ class RestoreCoreMixin:
         # restores data, and an API route is where revoking every session and
         # asking for a restart belongs (see invalidate_after_restore).
         return results
+
+    @staticmethod
+    def _archived_key_mismatches(backup_data: Dict[str, Any]) -> List[str]:
+        """The records the archive itself flagged as key/certificate mismatches.
+
+        Read from the metadata when it is there, and from the rows otherwise,
+        so an archive written before the metadata carried the list is still
+        reported rather than silently trusted.
+        """
+        metadata = backup_data.get('metadata') or {}
+        recorded = metadata.get('key_mismatches')
+        if isinstance(recorded, list) and recorded:
+            return [str(item) for item in recorded]
+
+        found = []
+        for section in ('certificate_authorities', 'certificates'):
+            for row in backup_data.get(section) or []:
+                if isinstance(row, dict) and row.get('_key_mismatch'):
+                    found.append(f"{section}:{row.get('refid') or '?'}")
+        return found
 
     @staticmethod
     def _remove_what_the_archive_omits(backup_data, plan):

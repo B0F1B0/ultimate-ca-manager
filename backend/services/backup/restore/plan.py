@@ -85,21 +85,55 @@ class RestorePlan:
                            position: int) -> None:
         """A row with no identity cannot be matched to a row here.
 
-        It is still restorable: it is written as a new row, and nothing can
-        point at it. Refusing the whole archive over one such row would make
-        an installation carrying rows older than the column that identifies
-        them impossible to restore at all.
+        Where the column allows it, the row is still restorable: it is written
+        as a new row, and nothing can point at it. Refusing the whole archive
+        over one such row would make an installation carrying rows older than
+        the column that identifies them impossible to restore at all.
+
+        Where the column does not allow it, the row cannot be written at all,
+        and saying "it will be restored as a new row" was a promise the insert
+        then broke: the transaction died on a constraint violation halfway
+        through, and the operator was told the restore had failed without
+        being told which row did it. That case is named here, before anything
+        is written.
         """
         if section.identity == ('id',):
             return  # singleton configuration rows
         missing = [field for field in section.identity
                    if row.get(field) in (None, '')]
-        if missing:
-            self.warnings.append(
-                f"row {position} of section '{name}' has no "
-                f"{', '.join(missing)}: it will be restored as a new row and "
-                "nothing can point at it"
-            )
+        if not missing:
+            return
+
+        unwritable = [field for field in missing
+                      if not self._identity_column_accepts_nothing(section, field)]
+        if unwritable:
+            raise RestoreValidationError(
+                f"Invalid backup: row {position} of section '{name}' has no "
+                f"{', '.join(unwritable)}, which the column requires: the row "
+                "cannot be restored")
+
+        self.warnings.append(
+            f"row {position} of section '{name}' has no "
+            f"{', '.join(missing)}: it will be restored as a new row and "
+            "nothing can point at it"
+        )
+
+    @staticmethod
+    def _identity_column_accepts_nothing(section: Section, field: str) -> bool:
+        """Whether that identity column tolerates a row without a value.
+
+        A column this version does not know is treated as tolerant: an
+        archive from another version must not be refused over a column that
+        is not ours to judge.
+        """
+        try:
+            model = load_model(section)
+            column = sa_inspect(model).local_table.columns.get(field)
+        except Exception:
+            return True
+        if column is None:
+            return True
+        return bool(column.nullable)
 
     def _index_target_rows(self, backup_data: Dict[str, Any]) -> None:
         """Map each section's stable identity to the id it has *here*."""

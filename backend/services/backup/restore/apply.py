@@ -18,7 +18,14 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from sqlalchemy import inspect as sa_inspect
-from sqlalchemy.types import Boolean, Date, DateTime, LargeBinary
+from sqlalchemy.types import (
+    Boolean,
+    Date,
+    DateTime,
+    Integer,
+    LargeBinary,
+    Numeric,
+)
 
 from models import db
 
@@ -127,6 +134,12 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
                 _coerce(value, column, f"{section_name}.{name}"))
 
 
+# The widest integer a database column holds: PostgreSQL's bigint, and the
+# ceiling SQLite stores as an INTEGER. Anything past it is not a value some
+# backend would take and another would not, it is not a value at all.
+_INTEGER_LIMIT = 2 ** 63 - 1
+
+
 def _coerce(value: Any, column, where: str) -> Any:
     """Turn an archived value back into what the column holds."""
     if value is None:
@@ -143,7 +156,22 @@ def _coerce(value: Any, column, where: str) -> Any:
             return parsed.date() if isinstance(kind, Date) and not isinstance(kind, DateTime) else parsed
         if isinstance(kind, Boolean) and not isinstance(value, bool):
             return bool(value)
-    except (ValueError, TypeError) as exc:
+        if isinstance(kind, (Integer, Numeric)) and isinstance(value, str):
+            # Left alone, "twenty-two" reached SQLite, which stores it, and
+            # PostgreSQL, which refuses it: the same archive restored or
+            # failed depending on the backend underneath.
+            return int(value) if isinstance(kind, Integer) else float(value)
+        if isinstance(kind, Integer) and isinstance(value, int):
+            # A number no database column can hold. Caught here, where the
+            # section and the column can still be named, rather than as an
+            # OverflowError from the driver halfway through the transaction.
+            if not -_INTEGER_LIMIT <= value <= _INTEGER_LIMIT:
+                raise RestoreValidationError(
+                    f"Invalid backup: {where} is out of range for this "
+                    "column")
+    except RestoreValidationError:
+        raise
+    except (ValueError, TypeError, OverflowError) as exc:
         raise RestoreValidationError(
             f"Invalid backup: {where} does not hold a value this column can "
             f"take ({value!r})") from exc

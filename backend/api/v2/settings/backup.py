@@ -8,7 +8,9 @@ from utils.response import success_response, error_response, no_content_response
 from models import db, SystemConfig
 from services.audit_service import AuditService
 from services.backup import storage
+from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.locking import BackupBusyError, backup_operation_lock
+from services.backup.restore.plan import RestoreValidationError
 from services.backup.settings_contract import (
     BackupSettingError,
     validate_backup_password,
@@ -176,9 +178,25 @@ def restore_backup():
             message='Backup restored successfully. Every session opened before '
                     'the restore was revoked; restart the application and sign in again.'
         )
-    except (ContainerError, BackupSchemaError) as e:
+    except BackupDecryptionError:
+        logger.warning("Settings restore refused: the backup could not be decrypted")
+        return error_response(
+            'Wrong backup password, or the file is not a valid backup', 400)
+    except (ContainerError, BackupSchemaError, RestoreValidationError) as e:
+        # The same refusals as the System route, answered the same way: a
+        # malformed archive used to be a 400 on one and a 500 "Restore
+        # failed" on the other, so which endpoint an operator had reached
+        # decided what they were told about their own file.
         logger.warning(f"Settings restore refused: {e}")
         return error_response(str(e), 400)
+    except OverflowError as e:
+        logger.warning(f"Settings restore refused: a value is out of range ({e})")
+        return error_response(
+            'The archive carries a numeric value this database cannot '
+            'store; the file is not a valid backup', 400)
+    except ValueError as e:
+        logger.warning(f"Settings restore validation error: {e}")
+        return error_response(f'The archive could not be read: {e}', 400)
     except Exception as e:
         logger.error(f"Settings restore failed: {e}")
         return error_response('Restore failed', 500)
