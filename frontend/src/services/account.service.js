@@ -96,16 +96,28 @@ export const accountService = {
     return apiClient.delete(`/mtls/certificates/${certId}`)
   },
 
-  async downloadMTLSCertificate(certId, { format = 'pem', password, legacy = false } = {}) {
+  async downloadMTLSCertificate(certId, {
+    format = 'pem', password, includeChain = true, includeRoot = false, legacy = false,
+  } = {}) {
     const fmt = (format === 'p12' ? 'pkcs12' : format).toLowerCase()
     if (fmt === 'pkcs12') {
       return apiClient.post(
         `/mtls/certificates/${certId}/download`,
-        { format: 'pkcs12', password, legacy },
+          {
+            format: 'pkcs12',
+            password,
+            include_chain: includeChain,
+            include_root: includeRoot,
+            legacy,
+          },
         { responseType: 'blob' },
       )
     }
-    return apiClient.get(`/mtls/certificates/${certId}/download${buildQueryString({ format: fmt })}`, {
+    return apiClient.get(`/mtls/certificates/${certId}/download${buildQueryString({
+      format: fmt,
+      include_chain: includeChain,
+      include_root: includeRoot,
+    })}`, {
       responseType: 'blob',
     })
   },

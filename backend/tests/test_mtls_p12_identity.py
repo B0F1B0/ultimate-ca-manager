@@ -89,6 +89,52 @@ def _download_p12(client, auth_cert_id):
 
 class TestPkcs12ExportIdentity:
 
+    def test_account_export_excludes_root_by_default_and_can_include_it(
+        self, app, auth_client, create_ca
+    ):
+        root = create_ca(cn='Account export root exclusion')
+        intermediate = create_ca(
+            cn='Account export intermediate',
+            type='intermediate',
+            parentCAId=root['id'],
+        )
+        created = _post(auth_client, '/api/v2/mtls/certificates', {
+            'ca_id': intermediate['id'], 'name': 'account-chain-choice',
+        })
+        assert created.status_code == 201, created.get_json()
+        data = created.get_json()['data']
+        url = f'/api/v2/mtls/certificates/{data["id"]}/download'
+        try:
+            without_root = _post(auth_client, url, {
+                'format': 'p12', 'password': 'Sup3rSecretP12!',
+                'include_chain': True,
+            })
+            with_root = _post(auth_client, url, {
+                'format': 'p12', 'password': 'Sup3rSecretP12!',
+                'include_chain': True, 'include_root': True,
+            })
+            assert without_root.status_code == 200, without_root.get_json()
+            assert with_root.status_code == 200, with_root.get_json()
+            assert len(pkcs12.load_key_and_certificates(
+                without_root.data, b'Sup3rSecretP12!'
+            )[2] or []) == 1
+            assert len(pkcs12.load_key_and_certificates(
+                with_root.data, b'Sup3rSecretP12!'
+            )[2] or []) == 2
+
+            invalid = _post(auth_client, url, {
+                'format': 'p12', 'password': 'Sup3rSecretP12!',
+                'include_root': 'false',
+            })
+            assert invalid.status_code == 400
+        finally:
+            with app.app_context():
+                AuthCertificate.query.filter_by(id=data['id']).delete()
+                row = db.session.get(Certificate, data['certificate_id'])
+                if row:
+                    db.session.delete(row)
+                db.session.commit()
+
     def test_forged_serial_does_not_unlock_another_records_key(self, app, viewer_client, victim):
         forged = _forged_cert_with_serial(_serial_int(victim['serial']))
         r = _post(viewer_client, '/api/v2/mtls/enroll-import', {'pem': forged, 'name': 'forged'})

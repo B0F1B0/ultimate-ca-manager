@@ -24,6 +24,7 @@ from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
 from utils.datetime_utils import utc_now, utc_isoformat
 from utils.revocation_reasons import normalize_revocation_reason, invalid_reason_message
+from utils.export_options import json_boolean, query_boolean
 
 logger = logging.getLogger(__name__)
 
@@ -285,15 +286,24 @@ def export_user_certificate(cert_id):
         data = request.get_json()
         export_format = data.get('format', 'pem').lower()
         password = data.get('password', '')
-        include_key = bool(data.get('include_key', True))
-        include_chain = bool(data.get('include_chain', True))
-        legacy = legacy_flag(data.get('legacy'))  # 3DES/SHA-1 profile (#331)
+        try:
+            include_key = json_boolean(data, 'include_key', True)
+            include_chain = json_boolean(data, 'include_chain', True)
+            include_root = json_boolean(data, 'include_root', False)
+            legacy_value = json_boolean(data, 'legacy', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
+        legacy = legacy_flag(legacy_value)  # 3DES/SHA-1 profile (#331)
     else:
         export_format = request.args.get('format', 'pem').lower()
         password = request.args.get('password', '')
         legacy = False
-        include_key = request.args.get('include_key', 'true').lower() == 'true'
-        include_chain = request.args.get('include_chain', 'true').lower() == 'true'
+        try:
+            include_key = query_boolean(request.args, 'include_key', True)
+            include_chain = query_boolean(request.args, 'include_chain', True)
+            include_root = query_boolean(request.args, 'include_root', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         # SECURITY: never accept passwords via query string (proxy access logs).
         if password or export_format in ('pkcs12', 'p12', 'pfx', 'jks'):
             if password:
@@ -321,22 +331,11 @@ def export_user_certificate(cert_id):
             key_pem = load_pem_bytes(cert.prv, context=f"certificate {cert.id}")
             private_key = serialization.load_pem_private_key(key_pem, password=None, backend=default_backend())
 
-            # Build CA chain
-            ca_certs = []
-            if include_chain and cert.caref:
-                ca = CA.query.filter_by(refid=cert.caref).first()
-                seen = set()
-                while ca and ca.refid not in seen and len(ca_certs) < 10:
-                    seen.add(ca.refid)
-                    if ca.crt:
-                        try:
-                            ca_cert = x509.load_pem_x509_certificate(
-                                base64.b64decode(ca.crt), default_backend()
-                            )
-                            ca_certs.append(ca_cert)
-                        except Exception:
-                            logger.warning(f"Failed to load CA cert {ca.refid}")
-                    ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
+            from api.v2.certificates.export import _build_ca_chain
+            ca_certs = (
+                _build_ca_chain(cert, cert_pem, include_root=include_root)
+                if include_chain else []
+            )
 
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=filename_base.encode(),
@@ -382,20 +381,14 @@ def export_user_certificate(cert_id):
             )
 
             cert_chain = [("X.509", cert_der)]
-            if include_chain and cert.caref:
-                ca = CA.query.filter_by(refid=cert.caref).first()
-                seen = set()
-                while ca and ca.refid not in seen and len(cert_chain) < 10:
-                    seen.add(ca.refid)
-                    if ca.crt:
-                        try:
-                            ca_cert_obj = x509.load_pem_x509_certificate(
-                                base64.b64decode(ca.crt), default_backend()
-                            )
-                            cert_chain.append(("X.509", ca_cert_obj.public_bytes(serialization.Encoding.DER)))
-                        except Exception:
-                            logger.warning(f"Failed to load CA cert {ca.refid}")
-                    ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
+            if include_chain:
+                from api.v2.certificates.export import _build_ca_chain
+                for ca_cert_obj in _build_ca_chain(
+                    cert, cert_pem, include_root=include_root
+                ):
+                    cert_chain.append((
+                        "X.509", ca_cert_obj.public_bytes(serialization.Encoding.DER)
+                    ))
 
             ts = int(_time.time() * 1000)
             pke = pyjks.PrivateKeyEntry(
@@ -424,7 +417,12 @@ def export_user_certificate(cert_id):
             )
 
         # PEM export (default)
-        result = cert_pem
+        from api.v2.certificates.export import _build_ca_chain, _split_pem_certs
+        stored_certs = _split_pem_certs(cert_pem)
+        result = (
+            stored_certs[0].public_bytes(serialization.Encoding.PEM)
+            if stored_certs else cert_pem
+        )
         filename = f"{filename_base}.crt"
 
         if include_key and cert.prv:
@@ -434,16 +432,11 @@ def export_user_certificate(cert_id):
             result += key_pem
             filename = f"{filename_base}.pem"
 
-        if include_chain and cert.caref:
-            ca = CA.query.filter_by(refid=cert.caref).first()
-            seen = set()
-            while ca and ca.refid not in seen:
-                seen.add(ca.refid)
-                if ca.crt:
-                    if not result.endswith(b'\n'):
-                        result += b'\n'
-                    result += base64.b64decode(ca.crt)
-                ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
+        if include_chain:
+            for ca_cert in _build_ca_chain(cert, cert_pem, include_root=include_root):
+                if not result.endswith(b'\n'):
+                    result += b'\n'
+                result += ca_cert.public_bytes(serialization.Encoding.PEM)
 
         AuditService.log_action(
             action='user_certificate_exported',

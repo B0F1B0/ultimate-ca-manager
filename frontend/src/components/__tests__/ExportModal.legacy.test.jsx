@@ -33,6 +33,14 @@ const renderModal = (onExport = vi.fn()) => {
 }
 
 describe('ExportModal PKCS#12 compatibility mode', () => {
+  it('returns the explicit Root CA choice', async () => {
+    const onExport = renderModal(vi.fn().mockResolvedValue(undefined))
+    fireEvent.click(screen.getByText('Include Root CA'))
+    fireEvent.submit(screen.getByText('Include Root CA').closest('form'))
+    await waitFor(() => expect(onExport).toHaveBeenCalledTimes(1))
+    expect(onExport.mock.calls[0][1].includeRoot).toBe(true)
+  })
+
   it('hides the checkbox for PEM and shows it for PKCS#12', () => {
     renderModal()
     expect(screen.queryByTestId('export-legacy-pkcs12')).toBeNull()

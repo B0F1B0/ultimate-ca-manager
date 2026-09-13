@@ -122,14 +122,21 @@ class TestCertificateExportApi:
         cert = create_cert(cn='p12-legacy.example.com')
         _assert_legacy(self._export(auth_client, cert['id'], legacy=True))
 
-    def test_legacy_false_and_strings(self, auth_client, create_cert):
+    def test_legacy_false_and_json_strings_are_rejected(self, auth_client, create_cert):
         cert = create_cert(cn='p12-strings.example.com')
         _assert_modern(self._export(auth_client, cert['id'], legacy=False))
-        _assert_legacy(self._export(auth_client, cert['id'], legacy='true'))
+        response = auth_client.post(
+            f'/api/v2/certificates/{cert["id"]}/export',
+            json={'format': 'pkcs12', 'password': PASSWORD, 'legacy': 'true'},
+        )
+        assert response.status_code == 400
+        assert response.get_json()['message'] == 'legacy must be a boolean'
 
     def test_legacy_with_chain(self, auth_client, create_cert):
         cert = create_cert(cn='p12-chain.example.com')
-        der = self._export(auth_client, cert['id'], legacy=True, include_chain=True)
+        der = self._export(
+            auth_client, cert['id'], legacy=True, include_chain=True, include_root=True,
+        )
         _assert_legacy(der)
         _, _, cas = pkcs12.load_key_and_certificates(der, PASSWORD.encode(), default_backend())
         assert cas, 'the CA chain must still be bundled in legacy mode'

@@ -13,6 +13,10 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
 const authState = vi.hoisted(() => ({ permissions: [] }))
+const accountMocks = vi.hoisted(() => ({
+  getMTLSCertificates: vi.fn(),
+  downloadMTLSCertificate: vi.fn(),
+}))
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -66,9 +70,10 @@ vi.mock('../../services/account.service', () => ({
     }),
     getApiKeys: vi.fn().mockResolvedValue({ data: [] }),
     getWebAuthnCredentials: vi.fn().mockResolvedValue({ data: [] }),
-    getMTLSCertificates: vi.fn().mockResolvedValue({ data: [] }),
+    getMTLSCertificates: accountMocks.getMTLSCertificates,
     getAvailableMTLSCertificates: vi.fn().mockResolvedValue({ data: [] }),
     createMTLSCertificate: vi.fn().mockResolvedValue({ data: {} }),
+    downloadMTLSCertificate: accountMocks.downloadMTLSCertificate,
   },
 }))
 
@@ -109,6 +114,8 @@ async function openMtlsModal() {
 describe('AccountPage mTLS modal — backend authorization gates', () => {
   beforeEach(() => {
     authState.permissions = []
+    accountMocks.getMTLSCertificates.mockResolvedValue({ data: [] })
+    accountMocks.downloadMTLSCertificate.mockResolvedValue(new Blob())
   })
 
   it('offers no Generate tab without write:user_certificates', async () => {
@@ -145,5 +152,37 @@ describe('AccountPage mTLS modal — backend authorization gates', () => {
     await openMtlsModal()
     expect(screen.getByText('account.mtlsGenerate')).toBeInTheDocument()
     expect(screen.getByText('account.mtlsIssuingCA')).toBeInTheDocument()
+  })
+
+  it('passes the Root CA choice to the account PKCS#12 export', async () => {
+    authState.permissions = ['*']
+    accountMocks.getMTLSCertificates.mockResolvedValue({
+      data: [{
+        id: 42,
+        name: 'Account mTLS certificate',
+        enabled: true,
+        valid_until: '2030-01-01T00:00:00Z',
+      }],
+    })
+    render(<MemoryRouter><AccountPage /></MemoryRouter>)
+    const securityTabs = await screen.findAllByText('common.security')
+    fireEvent.click(securityTabs[0])
+    await screen.findByText('Account mTLS certificate')
+    fireEvent.click(screen.getByLabelText('common.export'))
+    fireEvent.click(screen.getByText('P12 / PKCS#12'))
+    fireEvent.click(screen.getByText('export.includeRoot'))
+    fireEvent.change(screen.getByPlaceholderText('export.passwordPlaceholder'), {
+      target: { value: 'account-export-password' },
+    })
+    fireEvent.click(screen.getByText('export.download'))
+
+    await vi.waitFor(() => expect(accountMocks.downloadMTLSCertificate).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        format: 'pkcs12',
+        includeChain: true,
+        includeRoot: true,
+      }),
+    ))
   })
 })
