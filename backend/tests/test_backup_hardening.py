@@ -4,11 +4,12 @@ Each test here pins one behaviour the previous code got wrong: an archive
 announced as successful while incomplete, an operator reading or pruning
 archives, a DB password copied into the audit trail.
 """
+import errno
 import json
 import os
+import stat
 import threading
 import time
-from unittest.mock import mock_open
 
 import pytest
 
@@ -434,6 +435,41 @@ class TestValidatedArchivePublication:
 
         assert synced.count(tmp_path) >= 2
 
+    def test_unsupported_directory_fsync_does_not_refuse_backups(
+            self, tmp_path, monkeypatch):
+        from services.backup import storage
+        real_fsync = os.fsync
+
+        def fsync(fd):
+            if stat.S_ISDIR(os.fstat(fd).st_mode):
+                raise OSError(errno.EINVAL, 'directory fsync unsupported')
+            return real_fsync(fd)
+
+        monkeypatch.setattr(storage.os, 'fsync', fsync)
+        path = storage.publish_validated_archive(
+            tmp_path, 'ucm_backup_network_share.ucmbkp', b'archive')
+
+        assert path.read_bytes() == b'archive'
+        assert storage.matches_record(
+            path, storage.read_catalog(tmp_path)[path.name])
+
+    def test_directory_fsync_io_error_remains_fatal(
+            self, tmp_path, monkeypatch):
+        from services.backup import storage
+        real_fsync = os.fsync
+
+        def fsync(fd):
+            if stat.S_ISDIR(os.fstat(fd).st_mode):
+                raise OSError(errno.EIO, 'directory I/O failure')
+            return real_fsync(fd)
+
+        monkeypatch.setattr(storage.os, 'fsync', fsync)
+        with pytest.raises(OSError, match='directory I/O failure'):
+            storage.publish_validated_archive(
+                tmp_path, 'ucm_backup_io_failure.ucmbkp', b'archive')
+
+        assert not list(tmp_path.glob('ucm_backup_*.ucmbkp'))
+
     def test_legacy_create_route_uses_validated_publication(
             self, auth_client, tmp_path, monkeypatch):
         import api.v2.settings.backup as routes
@@ -446,7 +482,6 @@ class TestValidatedArchivePublication:
         monkeypatch.setattr(
             BackupService, 'create_backup',
             lambda self, password: b'archive')
-        monkeypatch.setattr(routes, 'open', mock_open(), raising=False)
         monkeypatch.setattr(routes.AuditService, 'log_action',
                             lambda **kwargs: None)
         monkeypatch.setattr(

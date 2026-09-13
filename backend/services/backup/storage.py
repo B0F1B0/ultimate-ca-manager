@@ -8,6 +8,7 @@ back and recorded with its size and SHA-256. Retention protects the most
 recent file that still matches its record.
 """
 from contextlib import contextmanager
+import errno
 import hashlib
 import json
 import logging
@@ -25,16 +26,31 @@ CATALOG_NAME = '.ucm_backup_catalog.json'
 _CATALOG_LOCK_NAME = '.ucm_backup_catalog.lock'
 _CATALOG_VERSION = 1
 _READ_CHUNK = 1024 * 1024
+_UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS = frozenset(filter(None, (
+    errno.EINVAL,
+    getattr(errno, 'ENOTSUP', None),
+    getattr(errno, 'EOPNOTSUPP', None),
+)))
 
 
-def _fsync_directory(path: Path) -> None:
-    """Make directory-entry changes durable before reporting success."""
+def _fsync_directory(path: Path) -> bool:
+    """Sync directory entries when the backing filesystem supports it."""
     flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0)
-    fd = os.open(path, flags)
+    fd = None
     try:
+        fd = os.open(path, flags)
         os.fsync(fd)
+    except OSError as exc:
+        if exc.errno not in _UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS:
+            raise
+        logger.warning(
+            "Directory fsync is unsupported for %s; backup crash durability "
+            "depends on the backing filesystem", path)
+        return False
     finally:
-        os.close(fd)
+        if fd is not None:
+            os.close(fd)
+    return True
 
 
 @contextmanager
