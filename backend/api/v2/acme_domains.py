@@ -60,14 +60,19 @@ def create_domain():
     if not provider:
         return error_response('DNS provider not found', 404)
     
-    # Check domain doesn't already exist
-    existing = AcmeDomain.query.filter_by(domain=domain_name).first()
-    if existing:
-        return error_response(f'Domain {domain_name} is already registered', 409)
-    
     # Validate domain format
     if not _is_valid_domain(domain_name):
         return error_response('Invalid domain format', 400)
+
+    # `example.com` and `*.example.com` name the same zone, so they cannot be
+    # two entries: only one of the two would ever be reached, and the operator
+    # could not tell which. The local-domain table is guarded the same way.
+    bare = domain_match.normalize(domain_name)
+    existing = AcmeDomain.query.filter(
+        AcmeDomain.domain.in_([bare, f'*.{bare}'])).first()
+    if existing:
+        return error_response(
+            f'Domain {existing.domain} is already registered', 409)
     
     # Validate issuing CA if specified
     issuing_ca_id = data.get('issuing_ca_id')

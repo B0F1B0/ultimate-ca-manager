@@ -133,6 +133,63 @@ class TestTheTwoSpellingsAreOneEntry:
         assert 'custom' in json.loads(refused.data)['message']
 
 
+class TestTheDnsMappedTableIsGuardedTheSameWay:
+    """The same rule, on the other table.
+
+    The local-domain route refused the second spelling and the DNS-mapped
+    route did not: `example.test` and `*.example.test` could both be
+    registered there, and only the first one the lookup ranked was ever
+    reached. Which of the two was in force depended on the order they came
+    back in, and the screen showed both (#352, reported by @gb-123-git).
+    """
+
+    def _create(self, auth_client, domain, provider_id):
+        return auth_client.post(
+            '/api/v2/acme/domains',
+            data=json.dumps({'domain': domain,
+                             'dns_provider_id': provider_id}),
+            content_type='application/json')
+
+    @pytest.fixture
+    def provider(self, app, clean_domains):
+        from models import db
+        from models.acme_models import DnsProvider
+
+        with app.app_context():
+            existing = DnsProvider.query.filter_by(
+                name='wildcard-guard-provider').first()
+            if existing is None:
+                existing = DnsProvider(name='wildcard-guard-provider',
+                                       provider_type='cloudflare')
+                db.session.add(existing)
+                db.session.commit()
+            return existing.id
+
+    @pytest.mark.parametrize('first, second',
+                             [('*.example.test', 'example.test'),
+                              ('example.test', '*.example.test')])
+    def test_registering_both_spellings_is_refused(
+            self, app, auth_client, provider, first, second):
+        assert self._create(auth_client, first, provider).status_code == 201
+
+        refused = self._create(auth_client, second, provider)
+
+        assert refused.status_code == 409, refused.data
+        message = json.loads(refused.data)['message']
+        assert 'already registered' in message
+        assert first in message, (
+            'the refusal must name the entry that is in the way, not the one '
+            'being asked for')
+
+    def test_a_malformed_domain_is_still_a_bad_request(
+            self, app, auth_client, provider):
+        """The duplicate check used to run first, so a domain the format
+        check would have refused came back as a conflict."""
+        refused = self._create(auth_client, '*', provider)
+
+        assert refused.status_code == 400, refused.data
+
+
 class TestAutoApproveHonoursTheWildcardEntry:
     def test_a_wildcard_entry_auto_approves_its_subdomains(
             self, app, clean_domains):
