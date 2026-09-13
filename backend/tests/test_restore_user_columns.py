@@ -146,17 +146,29 @@ class TestEveryColumnComesBack:
 
 
 class TestThePasswordIsNotLostToAnOldArchive:
+    @pytest.mark.parametrize('how', ['absent', 'empty'])
     def test_an_archive_without_a_hash_keeps_the_working_one(
-            self, app, furnished_user):
+            self, app, furnished_user, how):
         """An archive written by a version that did not carry the hash would
-        otherwise lock every account out of the instance."""
+        otherwise lock every account out of the instance.
+
+        Two shapes, and only the second reaches the guard: a key the archive
+        does not have at all is never applied, since the restore walks the
+        keys the row holds. A key the archive holds and sets to nothing is
+        applied, and without the guard it emptied a column the account cannot
+        sign in without -- and that the database refuses to leave empty, so
+        the whole restore died on it.
+        """
         blob = _archive_of_users(app)
         service = _service()
 
         with app.app_context():
             key, payload = service._decrypt_framed(blob, PASSWORD)
             for row in payload['users']:
-                row.pop('password_hash', None)
+                if how == 'absent':
+                    row.pop('password_hash', None)
+                else:
+                    row['password_hash'] = None
 
             user = User.query.filter_by(username='zzrestore-columns').first()
             before = user.password_hash

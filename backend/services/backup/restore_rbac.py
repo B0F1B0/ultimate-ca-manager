@@ -61,9 +61,18 @@ class RestoreRbacMixin:
 
     def _restore_custom_roles(self, backup_data: Dict, results: Dict,
                               plan: Optional[RestorePlan] = None) -> None:
-        """Restore custom roles from backup data"""
+        """Restore custom roles from backup data.
+
+        A role can be built on another role, which is a number: the restored
+        role inherited from whichever role happened to hold it here. It is a
+        reference now, and the roles of this same archive are indexed again
+        before the first one is written, since a role may inherit from one
+        the restore is creating a few rows earlier.
+        """
         from models.rbac import CustomRole
-        plan = plan if plan is not None else RestorePlan()
+        from .restore_extended import reindex_reference_targets
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
         for role_data in backup_data.get('custom_roles', []):
             role = CustomRole.query.filter_by(name=role_data['name']).first()
             if role is None:
@@ -71,6 +80,15 @@ class RestoreRbacMixin:
                 db.session.add(role)
             apply_columns(role, 'custom_roles', role_data, plan)
             results['custom_roles'] += 1
+        # The roles now exist, so a role built on one of them can be placed.
+        reindex_reference_targets('custom_roles', plan)
+        for role_data in backup_data.get('custom_roles', []):
+            if role_data.get('inherits_from') is None:
+                continue
+            role = CustomRole.query.filter_by(name=role_data['name']).first()
+            if role is not None:
+                role.inherits_from = plan.resolve(
+                    'custom_roles', role_data, 'inherits_from')
 
     def _restore_templates(self, backup_data: Dict, results: Dict,
                            plan: Optional[RestorePlan] = None) -> None:

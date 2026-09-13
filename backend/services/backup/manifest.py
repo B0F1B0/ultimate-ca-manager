@@ -29,7 +29,43 @@ class Section:
     identity: Tuple[str, ...]       # columns identifying a row across installs
     exclude: Dict[str, str] = field(default_factory=dict)   # column -> reason
     secrets: Tuple[str, ...] = ()   # columns decrypted at export
-    references: Dict[str, str] = field(default_factory=dict)  # FK column -> section
+    references: Dict[str, str] = field(default_factory=dict)
+    """Columns carrying the number another section's row happens to have on
+    this installation, mapped to that section: the export writes the identity
+    of the row beside the number, and the restore resolves that identity
+    against the target, whose numbering is its own.
+
+    A column that already says the same thing on every installation is not a
+    reference and must not be declared as one. Two were: the `used_by_account_id`
+    of an EAB credential and the `account_id` of an ACME client order both hold
+    the ACME account id, the string the protocol itself uses, while the section
+    they named is indexed by primary key. Nothing ever matched, so no identity
+    was written beside them; the restore found none, and cleared a link that
+    would have survived untouched had nothing been declared at all."""
+    stored: Dict[str, str] = field(default_factory=dict)
+    """How a secret that is a plain column is kept in that column, for the
+    secrets whose name is not a property of the model.
+
+    `secrets` says a column must leave the installation in the clear, so the
+    archive is readable on a server with another key. It did not say what to
+    do on the way back, and the restore assigned the archive's cleartext
+    straight to the column: an ACME account key, a deployment SSH key, a SCEP
+    challenge, an Intune client secret and a webhook signing secret landed in
+    the database readable, on an installation that had them encrypted before
+    the restore. Where the name is a property the setter re-encrypts and
+    there is nothing to declare; where it is a plain column, the layer the
+    application writes it with is named here:
+
+    * `master` for `security.encryption.encrypt_text`, the key-encryption key;
+    * `database` for `utils.encryption.encrypt_if_needed`, the database key.
+
+    A plain column absent from this mapping is one the application reads
+    directly, in the clear: the MFA secret `pyotp` is handed, the Argon2
+    hashes of the backup codes, the JSON configuration of an HSM provider.
+    Encrypting those would hand the application a ciphertext it never
+    decrypts. `tests/test_backup_manifest.py` refuses a secret that is
+    neither a property, nor named here, nor named there as read in the
+    clear."""
     optional: bool = False          # historical, exported only when asked
     custom: bool = False            # a dedicated exporter adds to this section
     handled: Dict[str, str] = field(default_factory=dict)
@@ -91,6 +127,9 @@ SECTIONS: Dict[str, Section] = {
         model='models.rbac:CustomRole',
         identity=('name',),
         exclude={**_SURROGATE},
+        # A role built on another one. The number is the source's, so the
+        # restored role inherited from whichever role happened to hold it.
+        references={'inherits_from': 'custom_roles'},
     ),
     'role_permissions': Section(
         model='models.rbac:RolePermission',
@@ -130,6 +169,7 @@ SECTIONS: Dict[str, Section] = {
             'error_message': 'live connection state',
         },
         secrets=('config',),
+        references={'created_by': 'users'},
     ),
     'hsm_keys': Section(
         model='models.hsm:HsmKey',
@@ -159,8 +199,14 @@ SECTIONS: Dict[str, Section] = {
     ),
     'notification_config': Section(
         model='models.email_notification:NotificationConfig',
-        identity=('id',),
-        exclude={},
+        # One row per kind of notification, seven of them on any
+        # installation, told apart by a `type` the table declares unique.
+        # Identified by the primary key it read as a section holding a single
+        # row, which it is not: a restore through the generic path would have
+        # applied all seven onto the same one, and the six others would have
+        # kept whatever the target held.
+        identity=('type',),
+        exclude={**_SURROGATE},
     ),
     'certificate_policies': Section(
         model='models.policy:CertificatePolicy',
@@ -194,8 +240,9 @@ SECTIONS: Dict[str, Section] = {
         identity=('kid',),
         exclude={**_SURROGATE},
         secrets=('hmac_key_b64',),
-        references={'created_by_user_id': 'users', 'used_by_account_id': 'acme_accounts',
-                    'revoked_by_user_id': 'users'},
+        # `used_by_account_id` holds the ACME account id itself, as text, and
+        # is deliberately not a reference: see the note above `references`.
+        references={'created_by_user_id': 'users', 'revoked_by_user_id': 'users'},
     ),
     'acme_domains': Section(
         model='models.acme_models:AcmeDomain',
@@ -207,18 +254,44 @@ SECTIONS: Dict[str, Section] = {
         model='models.acme_models:AcmeLocalDomain',
         identity=('domain',),
         exclude={**_SURROGATE},
+        # The authority that signs for this zone, and a column that cannot be
+        # empty. Written with the source's number it named another authority
+        # here, so the zone was signed by whoever held that number, and
+        # PostgreSQL refused the row outright.
+        references={'issuing_ca_id': 'certificate_authorities'},
     ),
     'acme_client_accounts': Section(
         model='models.acme_client_account:AcmeClientAccount',
-        identity=('directory_url', 'email'),
+        # The label is part of the identity because the pair
+        # (directory_url, email) is not one: migration 077 dropped the
+        # uniqueness of `directory_url` on purpose (#276), so an
+        # administrator may hold several accounts at the same authority,
+        # under the same shared mailbox, told apart only by what they called
+        # them. Identified by the pair alone, the two collapsed into one
+        # index entry: the second archived account overwrote the first, and
+        # an order restored beside them was attached to whichever of the two
+        # the index had kept.
+        identity=('directory_url', 'email', 'label'),
         exclude={**_SURROGATE},
         secrets=('account_key', 'eab_hmac_key'),
+        stored={'account_key': 'master'},
     ),
     'acme_client_orders': Section(
         model='models.acme_models:AcmeClientOrder',
         identity=('order_url',),
         exclude={**_SURROGATE},
-        references={'account_id': 'acme_client_accounts', 'dns_provider_id': 'dns_providers'},
+        # `account_id` names the local ACME account by its account id, the
+        # string the protocol itself uses, and is deliberately not a
+        # reference: see the note above `references`.
+        #
+        # `acme_client_account_id` is a number, and names the account at the
+        # external CA the order was placed with. Exported as it stood, the
+        # source's number landed here on whichever account happened to hold
+        # it: a renewal placed against a different CA, or against nothing.
+        references={'dns_provider_id': 'dns_providers',
+                    'acme_client_account_id': 'acme_client_accounts',
+                    'certificate_id': 'certificates',
+                    'source_certificate_id': 'certificates'},
         optional=True,
     ),
     'ssh_cas': Section(
@@ -233,7 +306,8 @@ SECTIONS: Dict[str, Section] = {
         model='models.ssh:SSHCertificate',
         identity=('serial', 'ssh_ca_id'),
         exclude={**_SURROGATE},
-        references={'ssh_ca_id': 'ssh_cas'},
+        references={'ssh_ca_id': 'ssh_cas',
+                    'owner_group_id': 'groups'},
     ),
     'microsoft_cas': Section(
         model='models.msca:MicrosoftCA',
@@ -248,13 +322,21 @@ SECTIONS: Dict[str, Section] = {
             'last_inventory_sync_result': 'live sync state',
             'last_synced_request_id': 'live sync state',
         },
-        secrets=('password', 'winrm_password'),
+        # `client_key_pem` is the private key of the certificate UCM presents
+        # to the authority: a mTLS connection's own key, kept encrypted at
+        # rest like the two passwords beside it. Left undeclared, the archive
+        # carried the ciphertext the source stored and the target came back
+        # with a key it cannot open, so the connection it was there to make
+        # could never be made again.
+        secrets=('password', 'winrm_password', 'client_key_pem'),
     ),
     'msca_requests': Section(
         model='models.msca:MSCARequest',
         identity=('msca_id', 'request_id'),
         exclude={**_SURROGATE},
-        references={'msca_id': 'microsoft_cas'},
+        references={'msca_id': 'microsoft_cas',
+                    'cert_id': 'certificates',
+                    'csr_id': 'certificates'},
         optional=True,
     ),
     'scep_profiles': Section(
@@ -266,6 +348,8 @@ SECTIONS: Dict[str, Section] = {
             'intune_last_test_result': 'live connection state',
         },
         secrets=('challenge_password', 'intune_client_secret'),
+        stored={'challenge_password': 'master',
+                'intune_client_secret': 'database'},
         references={'template_id': 'certificate_templates'},
     ),
     'ad_connector': Section(
@@ -287,6 +371,7 @@ SECTIONS: Dict[str, Section] = {
             'failure_count': 'delivery statistic',
         },
         secrets=('secret', 'auth_token'),
+        stored={'secret': 'database'},
     ),
     'deploy_targets': Section(
         model='models.deploy:DeployTarget',
@@ -298,6 +383,7 @@ SECTIONS: Dict[str, Section] = {
             'failure_count': 'delivery statistic',
         },
         secrets=('private_key',),
+        stored={'private_key': 'master'},
     ),
     'deploy_bindings': Section(
         model='models.deploy:DeployBinding',

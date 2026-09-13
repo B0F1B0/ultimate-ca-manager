@@ -8,7 +8,7 @@ import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-from models import db, User, CA, Certificate
+from models import db, CA, Certificate
 from utils.datetime_utils import utc_now
 from models.acme_models import AcmeAccount
 from config.settings import Config
@@ -397,7 +397,7 @@ class RestoreCoreMixin:
         self._restore_users(backup_data, results, plan)
         self._restore_cas(backup_data, results, master_key, plan)
         self._restore_certificates(backup_data, results, master_key, plan)
-        self._restore_revoked_serials(backup_data, results)
+        self._restore_revoked_serials(backup_data, results, plan)
         self._restore_acme_accounts(backup_data, results)
         self._restore_acme_eab_credentials(backup_data, results)
         self._restore_settings(backup_data, results)
@@ -411,7 +411,7 @@ class RestoreCoreMixin:
 
         # RBAC restores
         self._restore_groups(backup_data, results)
-        self._restore_custom_roles(backup_data, results)
+        self._restore_custom_roles(backup_data, results, plan)
         self._restore_templates(backup_data, results)
         # Settings came back before the templates: point the ACME profile
         # template bindings at the templates of the exported names, since
@@ -423,7 +423,7 @@ class RestoreCoreMixin:
 
         # Auth restores
         self._restore_sso_providers(backup_data, results)
-        self._restore_hsm_providers(backup_data, results)
+        self._restore_hsm_providers(backup_data, results, plan)
         self._restore_api_keys(backup_data, results, plan)
         self._restore_auth_certificates(backup_data, results, plan)
 
@@ -432,17 +432,17 @@ class RestoreCoreMixin:
         self._restore_notification_config(backup_data, results)
 
         # Policy restores
-        self._restore_policies(backup_data, results)
+        self._restore_policies(backup_data, results, plan)
         self._restore_dns_providers(backup_data, results)
-        self._restore_acme_domains(backup_data, results)
-        self._restore_acme_local_domains(backup_data, results)
+        self._restore_acme_domains(backup_data, results, plan)
+        self._restore_acme_local_domains(backup_data, results, plan)
 
         # Extended restores
-        self._restore_ssh_cas(backup_data, results, master_key)
-        self._restore_ssh_certificates(backup_data, results)
+        self._restore_ssh_cas(backup_data, results, master_key, plan)
+        self._restore_ssh_certificates(backup_data, results, plan)
         self._restore_microsoft_cas(backup_data, results)
         self._restore_scan_profiles(backup_data, results)
-        self._restore_hsm_keys(backup_data, results)
+        self._restore_hsm_keys(backup_data, results, plan)
         self._restore_approval_requests(backup_data, results, plan)
         self._restore_acme_client_orders(backup_data, results, plan)
         self._restore_https_files(backup_data, results, staged)
@@ -542,9 +542,23 @@ class RestoreCoreMixin:
             ca.offline_mode = ca_data.get('offline_mode')
             ca.offline_reason = ca_data.get('offline_reason')
 
-    def _restore_revoked_serials(self, backup_data: Dict, results: Dict) -> None:
-        """Restore the persistent revocation records (#343)."""
+    def _restore_revoked_serials(self, backup_data: Dict, results: Dict,
+                                 plan=None) -> None:
+        """Restore the persistent revocation records (#343).
+
+        The certificate a record revokes is resolved where the row is
+        written. It used to be set to None and left to `relink_references` at
+        the very end of the restore: the column tolerates it, so the repair
+        did arrive, but a revocation record with no certificate beside it is
+        the one row of the database nobody wants half-written, and the repair
+        is not reached when a later section refuses the archive.
+        """
         from models.revoked_serial import RevokedSerial
+        from .restore.plan import RestorePlan
+        from .restore_extended import reindex_reference_targets
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('revoked_serials', plan)
 
         results.setdefault('revoked_serials', 0)
         results.setdefault('revoked_serials_skipped', 0)
@@ -583,11 +597,14 @@ class RestoreCoreMixin:
                 where, 'revoked_at', rs_data.get('revoked_at'))
             invalidity_at = _archived_datetime(
                 where, 'invalidity_at', rs_data.get('invalidity_at'))
+            certificate_id = plan.resolve('revoked_serials', rs_data,
+                                          'certificate_id')
             if existing:
                 existing.revoked_at = revoked_at or existing.revoked_at
                 existing.revoke_reason = rs_data.get('revoke_reason')
                 existing.invalidity_at = invalidity_at
                 existing.valid_to = valid_to
+                existing.certificate_id = certificate_id
             else:
                 db.session.add(RevokedSerial(
                     caref=caref,
@@ -596,7 +613,7 @@ class RestoreCoreMixin:
                     revoke_reason=rs_data.get('revoke_reason'),
                     invalidity_at=invalidity_at,
                     valid_to=valid_to,
-                    certificate_id=None,
+                    certificate_id=certificate_id,
                 ))
             results['revoked_serials'] += 1
 

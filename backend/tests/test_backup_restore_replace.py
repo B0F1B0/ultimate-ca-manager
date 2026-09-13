@@ -21,10 +21,46 @@ class TestDeletionOrder:
         position = {name: index for index, name in enumerate(order)}
         for name, section in manifest.SECTIONS.items():
             for column, target in section.references.items():
+                if target == name:
+                    continue    # a role built on another role: one section,
+                    # and the rows inside it are removed in one statement
                 if target in position and name in position:
                     assert position[name] < position[target], (
                         f"{name} would be removed after {target}, which it "
                         "points at")
+
+    def test_a_section_goes_before_every_table_it_has_a_foreign_key_into(
+            self, app):
+        """The declarations are a smaller set than the foreign keys, on
+        purpose: a column that reads the same on every installation is not a
+        reference and is not declared as one. `acme_client_orders.account_id`
+        is one of those and is also a real foreign key, so ordering by the
+        declarations alone removed the ACME accounts before the orders that
+        point at them: PostgreSQL refused the delete and took the whole
+        replacing restore with it."""
+        from services.backup.export_generic import load_model
+
+        with app.app_context():
+            order = deletion_order(set(manifest.SECTIONS))
+            position = {name: index for index, name in enumerate(order)}
+            section_of_table = {}
+            for name, section in manifest.SECTIONS.items():
+                section_of_table[load_model(section).__table__.name] = name
+
+            late = []
+            for name, section in manifest.SECTIONS.items():
+                table = load_model(section).__table__
+                for column in table.columns:
+                    for foreign_key in column.foreign_keys:
+                        target = section_of_table.get(
+                            foreign_key.column.table.name)
+                        if target is None or target == name:
+                            continue
+                        if position[name] > position[target]:
+                            late.append(
+                                f'{name}.{column.key} points at {target}, '
+                                'which is removed first')
+            assert not late, late
 
     def test_every_section_is_ordered_once(self):
         order = deletion_order(set(manifest.SECTIONS))
@@ -172,3 +208,60 @@ class TestARestoreIsAReplacement:
             blob = _service().create_backup(PASSWORD, include=_only('groups'))
             with pytest.raises(BackupSchemaError, match='Unknown restore mode'):
                 _service().restore_backup(blob, PASSWORD, mode='overwrite')
+
+
+class TestTwoNamesThatAreNotTheSameValue:
+    """An identity column that is not a date is not read back as one.
+
+    Every identity value used to be handed to `datetime.fromisoformat`, which
+    accepts far more than a timestamp: a template called `20260914` and one
+    called `2026-09-14` came out as the same key, the index kept one of them,
+    and an archived row was applied over the other. The same holds for a
+    serial number, which this product stores as a historical mix of decimal
+    and hexadecimal text.
+    """
+
+    NAMES = ('20260914', '2026-09-14')
+
+    def test_the_index_tells_them_apart(self, app):
+        from models.certificate_template import CertificateTemplate
+
+        with app.app_context():
+            CertificateTemplate.query.filter(
+                CertificateTemplate.name.in_(self.NAMES)).delete(
+                    synchronize_session=False)
+            db.session.commit()
+            for name in self.NAMES:
+                db.session.add(CertificateTemplate(
+                    name=name, template_type='server',
+                    extensions_template='{}'))
+            db.session.commit()
+
+            try:
+                plan = RestorePlan.build(
+                    {'certificate_templates': [{'name': name}
+                                               for name in self.NAMES]})
+                found = {name: plan.existing_id('certificate_templates',
+                                                {'name': name})
+                         for name in self.NAMES}
+                assert found[self.NAMES[0]] != found[self.NAMES[1]], (
+                    f'both names resolve to the same row ({found}): a restore '
+                    'would write one template over the other')
+                for name, target_id in found.items():
+                    assert CertificateTemplate.query.get(target_id).name == name
+            finally:
+                CertificateTemplate.query.filter(
+                    CertificateTemplate.name.in_(self.NAMES)).delete(
+                        synchronize_session=False)
+                db.session.commit()
+
+    def test_a_timestamp_is_still_read_back(self, app):
+        """The reason the parsing is there at all: the archive spells a
+        moment with a `T` and the database hands back a `datetime`."""
+        from datetime import datetime
+
+        from services.backup.restore.plan import _normalise
+
+        moment = datetime(2026, 9, 14, 1, 2, 3)
+        assert _normalise('2026-09-14T01:02:03', True) == _normalise(moment)
+        assert _normalise('2026-09-14 01:02:03', True) == _normalise(moment)

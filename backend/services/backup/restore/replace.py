@@ -20,7 +20,7 @@ from models import db
 
 from ..export_generic import load_model
 from ..manifest import SECTIONS
-from .plan import RestorePlan, _identity_key, _normalise
+from .plan import RestorePlan, _normalise, _temporal_identity
 
 logger = logging.getLogger(__name__)
 
@@ -30,18 +30,66 @@ PROTECTED = {
     'users': lambda row: False,          # handled by the caller's own guard
 }
 
+# Which section a table belongs to, and which sections each one points into.
+# Built once: the mappers do not change between restores.
+_SECTION_OF_TABLE: Dict[str, str] = {}
+_POINTS_AT: Dict[str, Set[str]] = {}
+
+
+def _index_tables() -> None:
+    if _SECTION_OF_TABLE:
+        return
+    for name, section in SECTIONS.items():
+        try:
+            _SECTION_OF_TABLE[load_model(section).__table__.name] = name
+        except Exception:
+            continue
+
+
+def _points_at(section_name: str) -> Set[str]:
+    """The sections a row of this one holds a foreign key into.
+
+    Taken from the tables themselves rather than from the manifest's
+    `references`, which is a smaller set on purpose: a column that already
+    says the same thing on every installation is not a reference and is not
+    declared as one. `acme_client_orders.account_id` is exactly that, an ACME
+    account id the protocol defines, and it is also a real foreign key into
+    `acme_accounts`. Ordering the deletions by the declarations alone put the
+    accounts first and left PostgreSQL refusing the delete, taking a
+    replacing restore with it.
+    """
+    cached = _POINTS_AT.get(section_name)
+    if cached is not None:
+        return cached
+
+    section = SECTIONS[section_name]
+    targets = set(section.references.values())
+    try:
+        table = load_model(section).__table__
+    except Exception:
+        _POINTS_AT[section_name] = targets
+        return targets
+
+    for column in table.columns:
+        for foreign_key in column.foreign_keys:
+            named = _SECTION_OF_TABLE.get(foreign_key.column.table.name)
+            if named is not None and named != section_name:
+                targets.add(named)
+    _POINTS_AT[section_name] = targets
+    return targets
+
 
 def deletion_order(section_names: Set[str]) -> List[str]:
     """Sections ordered so that a row is removed before what it points at."""
+    _index_tables()
     remaining = set(section_names)
     ordered: List[str] = []
     while remaining:
         # A section can go once nothing left points at it
         free = [name for name in remaining
-                if not any(target in remaining
+                if not any(name in _points_at(other)
                            for other in remaining
-                           for column, target in SECTIONS[other].references.items()
-                           if other != name and target == name)]
+                           if other != name)]
         if not free:
             # A cycle: order within it cannot be decided, so take the rest as
             # they come and let the database complain if it must.
@@ -93,9 +141,12 @@ def _archived_identities(section_name: str, section, row: Dict[str, Any],
         else:
             resolved.append(row.get(field))
 
-    spellings = {tuple(_normalise(value) for value in raw)}
+    temporal = _temporal_identity(section_name)
+    spellings = {tuple(_normalise(value, field in temporal)
+                       for field, value in zip(section.identity, raw))}
     if any(value is not None for value in resolved):
-        spellings.add(tuple(_normalise(value) for value in resolved))
+        spellings.add(tuple(_normalise(value, field in temporal)
+                            for field, value in zip(section.identity, resolved)))
     return spellings
 
 

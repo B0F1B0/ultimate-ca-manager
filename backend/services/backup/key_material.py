@@ -77,17 +77,40 @@ def ensure_key_material(value: str, *, label: str) -> str:
 
 
 def decrypt_stored_secret(stored, *, label: str):
-    """Return a DB-encrypted secret in the clear, or abort the backup.
+    """Return a stored secret in the clear, or abort the backup.
 
     The model properties that read these columns answer None when the value
     does not decrypt, and hand back the ciphertext when the key is missing
     altogether. Either one exports as if it were the secret: the archive looks
     complete and the restored integration silently has no usable credential.
+
+    Two layers hold secrets on an installation, and this reads both. Most of
+    the manifest's `secrets` are written with the database key
+    (`utils.encryption`); a few are written with the key-encryption key
+    (`security.encryption.encrypt_text`) and read back with `decrypt_text` --
+    the ACME client account key and its EAB secret, the SCEP challenge, the
+    deployment SSH key. Decrypting only the first layer left those travelling
+    as the ciphertext of the installation that wrote them: an archive that
+    restores onto the machine it came from and nowhere else, and an ACME
+    account, a challenge or a deployment key the target cannot use.
     """
     if not stored:
         return stored
 
+    from security.encryption import decrypt_text, key_encryption
     from utils.encryption import decrypt_value, is_encrypted
+
+    if key_encryption.is_string_encrypted(stored):
+        # `decrypt_text` hands back what it was given when it cannot open it
+        # (no key, or another installation's), which is exactly the ciphertext
+        # this function exists to keep out of the archive.
+        value = decrypt_text(stored)
+        if not value or value == stored:
+            raise BackupExportError(
+                f"The stored secret of {label} could not be decrypted "
+                "(wrong or missing key-encryption key)")
+        return value
+
     if not is_encrypted(stored):
         return stored  # stored before at-rest encryption was enabled
 

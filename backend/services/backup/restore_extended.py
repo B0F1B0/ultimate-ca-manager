@@ -1,8 +1,25 @@
-"""
-Extended restore methods mixin for BackupService
+"""Extended restore methods mixin for BackupService.
+
+Every section here is applied through `apply_columns`, from the manifest the
+export was written from. The hand-written assignments it replaces had the
+same two faults throughout:
+
+* they wrote a hand-picked list of columns, and only onto rows they were
+  creating -- an SSH authority, a Microsoft connector, a scan profile or an
+  HSM key this installation already had was counted as restored and left
+  exactly as it was, and `microsoft_cas.winrm_password` was on no list at
+  all, so the WinRM credential was lost at every restore;
+* they wrote the source's own numeric ids into foreign keys --
+  `ssh_certificates.ssh_ca_id`, `hsm_keys.provider_id`,
+  `ssh_cas.owner_group_id` -- and counted on `relink_references`, at the very
+  end of the restore, to point them at the right row. SQLite enforces no
+  foreign key, so the repair arrived in time and nobody was any the wiser;
+  PostgreSQL refuses the insert as it happens, and the whole restore with it.
+
+References are resolved where the row is written instead, against a plan
+re-indexed for the sections this one points at (`reindex_reference_targets`).
 """
 import uuid
-import base64
 import logging
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -11,11 +28,12 @@ from sqlalchemy import inspect as sa_inspect
 
 from models import db
 from config.settings import Config
-from utils.datetime_utils import to_naive_utc, utc_now
+from utils.datetime_utils import to_naive_utc
 
 from .errors import BackupSchemaError
 from .export_generic import REFERENCE_SUFFIX, load_model
 from .manifest import SECTIONS
+from .restore.apply import apply_columns
 from .restore.plan import RestorePlan, RestoreValidationError
 
 logger = logging.getLogger(__name__)
@@ -36,6 +54,29 @@ def _missing_support(section_name: str, rows, feature: str) -> None:
         feature, len(rows), section_name)
 
 
+def reindex_reference_targets(section_name: str, plan: RestorePlan) -> None:
+    """Re-read the identities of the sections this one points at.
+
+    The plan is built before the restore writes anything, which is the point:
+    nothing is created until what the restore will do has been decided. But a
+    section points at rows this same restore created a few sections earlier --
+    an SSH certificate at its authority, an ACME domain at its DNS provider, a
+    policy at its CA -- and against the original index those references
+    resolved to nothing at all.
+
+    So the index is rebuilt here, once per section rather than once per row,
+    exactly as `apply_section` does it for the manifest-driven sections. It
+    happens before the first row of the section is added to the session: a
+    query with a half-built row pending would autoflush it into a constraint
+    violation.
+    """
+    references = SECTIONS[section_name].references
+    if not references:
+        return
+    db.session.flush()
+    plan.refresh(sorted(set(references.values())))
+
+
 def _required(where: str, row: Dict[str, Any], column: str) -> Any:
     """A column the row cannot be written without, or a refusal naming it.
 
@@ -52,18 +93,21 @@ def _required(where: str, row: Dict[str, Any], column: str) -> Any:
 
 
 def _timestamp(where: str, column: str, value: Any,
-               required: bool = False) -> Optional[datetime]:
+               required: bool = False, reason: str = 'part of what identifies '
+               'it') -> Optional[datetime]:
     """The instant the archive recorded, or a refusal.
 
     A date that could not be parsed used to become None, so an approval
     request came back without the creation date that identifies it and with
-    no trace of the value that was dropped.
+    no trace of the value that was dropped. A date the column cannot do
+    without is refused here rather than by the driver, which names a table
+    and leaves the operator to guess which of its rows was at fault.
     """
     if value in (None, ''):
         if required:
             raise RestoreValidationError(
-                f"Invalid backup: {where} has no {column}, which is part of "
-                "what identifies it; nothing has been changed")
+                f"Invalid backup: {where} has no {column}, which is "
+                f"{reason}; nothing has been changed")
         return None
     if isinstance(value, datetime):
         return to_naive_utc(value)
@@ -160,13 +204,26 @@ def _existing_row(section_name: str, identity: Dict[str, Any]):
 
 
 class RestoreExtendedMixin:
-    def _restore_ssh_cas(self, backup_data: Dict, results: Dict, master_key: bytes) -> None:
+    def _restore_ssh_cas(self, backup_data: Dict, results: Dict, master_key: bytes,
+                         plan: Optional[RestorePlan] = None) -> None:
         """Restore SSH certificate authorities from backup data.
 
-        A key that cannot be decrypted stops the restore. It used to be a
-        warning: the authority was created with an empty private key and
-        committed, so the restore reported success and left an SSH CA that
-        can sign nothing and that nobody was told about.
+        Every column the archive carries is applied through `apply_columns`,
+        to an authority already here exactly as to one being created. An
+        existing refid used to be passed over entirely: the restore counted
+        it and wrote nothing, so the authority kept the target's own public
+        key, principals, TTLs and serial counter while the archive said
+        otherwise. What the hand-written list did write, it wrote with the
+        source's `owner_group_id` -- the group that number happens to name
+        here, or none at all -- and left `relink_references` to repair it at
+        the very end, which PostgreSQL does not wait for.
+
+        The private key stays by hand: the manifest marks it `handled`
+        because only this method holds the archive's master key, so only it
+        can put the material back under *this* installation's key. A key that
+        cannot be decrypted stops the restore -- it used to be a warning, and
+        the authority was created with an empty private key and committed, so
+        the restore reported success and left an SSH CA that signs nothing.
         """
         results.setdefault('ssh_cas', 0)
         rows = backup_data.get('ssh_cas', [])
@@ -178,28 +235,31 @@ class RestoreExtendedMixin:
         except ImportError:
             _missing_support('ssh_cas', rows, 'SSH')
             return
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('ssh_cas', plan)
+
         for sca_data in rows:
             refid = sca_data.get('refid')
-            existing = SSHCertificateAuthority.query.filter_by(refid=refid).first() if refid else None
-            if existing:
-                continue
-            sca = SSHCertificateAuthority(
-                refid=refid or str(uuid.uuid4()),
-                descr=sca_data.get('descr', 'Imported SSH CA'),
-                ca_type=sca_data.get('ca_type', 'user'),
-                key_type=sca_data.get('key_type', 'ed25519'),
-                public_key=sca_data.get('public_key', ''),
-                private_key='',
-                fingerprint=sca_data.get('fingerprint', ''),
-                serial_counter=sca_data.get('serial_counter', 0),
-                default_ttl=sca_data.get('default_ttl', 86400),
-                max_ttl=sca_data.get('max_ttl', 0),
-                default_extensions=sca_data.get('default_extensions'),
-                allowed_principals=sca_data.get('allowed_principals'),
-                comment=sca_data.get('comment'),
-                created_by=sca_data.get('created_by'),
-                owner_group_id=sca_data.get('owner_group_id'),
-            )
+            sca = _existing_row('ssh_cas', {'refid': refid})
+            if sca is None:
+                # refid, descr, ca_type, public_key, private_key, key_type,
+                # fingerprint and serial_counter are NOT NULL; all but the
+                # private key are overwritten by apply_columns below.
+                sca = SSHCertificateAuthority(
+                    refid=refid or str(uuid.uuid4()),
+                    descr=sca_data.get('descr') or 'Imported SSH CA',
+                    ca_type=sca_data.get('ca_type') or 'user',
+                    key_type=sca_data.get('key_type') or 'ed25519',
+                    public_key=sca_data.get('public_key') or '',
+                    private_key='',
+                    fingerprint=sca_data.get('fingerprint') or '',
+                    serial_counter=sca_data.get('serial_counter') or 0,
+                )
+                db.session.add(sca)
+
+            apply_columns(sca, 'ssh_cas', sca_data, plan)
+
             encrypted = sca_data.get('private_key_pem_encrypted')
             prv = sca_data.get('_private_key_plaintext')
             if encrypted:
@@ -215,7 +275,6 @@ class RestoreExtendedMixin:
                     ) from exc
             if prv:
                 sca.private_key = encrypt_private_key(prv)
-            db.session.add(sca)
             results['ssh_cas'] += 1
 
         # One flush for the section, not a commit per row: the restore is one
@@ -223,12 +282,21 @@ class RestoreExtendedMixin:
         # rather than become the warning it used to be.
         db.session.flush()
 
-    def _restore_ssh_certificates(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_ssh_certificates(self, backup_data: Dict, results: Dict,
+                                  plan: Optional[RestorePlan] = None) -> None:
         """Restore SSH certificates from backup data.
 
-        A row that cannot be written is the restore's failure, not a line in
-        a log: a missing authority or an unreadable date used to drop the
-        certificate and let the restore report the ones that worked.
+        The row is the manifest's -- every column of it, and the authority it
+        names resolved to the id that authority has *here*. The number the
+        archive carries is the source's: written as it stood, it attached the
+        certificate to whichever authority holds that number on this
+        installation, and where none did, PostgreSQL refused the insert and
+        took the whole restore with it while SQLite waited for
+        `relink_references` to repair it.
+
+        A row that cannot be written is still the restore's failure, not a
+        line in a log: a missing authority or an unreadable date used to drop
+        the certificate and let the restore report the ones that worked.
         """
         results.setdefault('ssh_certificates', 0)
         rows = backup_data.get('ssh_certificates', [])
@@ -239,45 +307,79 @@ class RestoreExtendedMixin:
         except ImportError:
             _missing_support('ssh_certificates', rows, 'SSH')
             return
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('ssh_certificates', plan)
+
         for position, sc_data in enumerate(rows):
             where = f"SSH certificate {sc_data.get('refid') or position}"
-            refid = sc_data.get('refid')
-            if refid and SSHCertificate.query.filter_by(refid=refid).first():
-                continue
-            sc = SSHCertificate(
-                refid=refid or str(uuid.uuid4()),
-                descr=sc_data.get('descr'),
-                ssh_ca_id=_required(where, sc_data, 'ssh_ca_id'),
-                cert_type=sc_data.get('cert_type', 'user'),
-                key_id=sc_data.get('key_id', ''),
-                public_key=sc_data.get('public_key', ''),
-                certificate=sc_data.get('certificate', ''),
-                principals=sc_data.get('principals', ''),
-                serial=sc_data.get('serial', 0),
-                valid_from=_timestamp(where, 'valid_from', sc_data.get('valid_from')) or utc_now(),
-                valid_to=_timestamp(where, 'valid_to', sc_data.get('valid_to')) or utc_now(),
-                key_type=sc_data.get('key_type', 'ed25519'),
-                fingerprint=sc_data.get('fingerprint', ''),
-                extensions=sc_data.get('extensions'),
-                critical_options=sc_data.get('critical_options'),
-                revoked=bool(sc_data.get('revoked', False)),
-                revoked_at=_timestamp(where, 'revoked_at', sc_data.get('revoked_at')),
-                revoke_reason=sc_data.get('revoke_reason'),
-                source=sc_data.get('source', 'web'),
-                created_by=sc_data.get('created_by'),
-                owner_group_id=sc_data.get('owner_group_id'),
-            )
-            db.session.add(sc)
+            _required(where, sc_data, 'ssh_ca_id')
+            authority_id = _reference(where, 'ssh_certificates', sc_data,
+                                      'ssh_ca_id', plan)
+
+            # The manifest identifies a certificate by its serial and its
+            # authority, and the authority is the one resolved just above:
+            # matching on the archive's number would look for the authority
+            # the source used.
+            sc = _existing_row('ssh_certificates',
+                               {'serial': sc_data.get('serial'),
+                                'ssh_ca_id': authority_id})
+            if sc is None:
+                # refid, ssh_ca_id, cert_type, key_id, public_key,
+                # certificate, principals, serial, valid_from, valid_to,
+                # key_type and fingerprint are NOT NULL; apply_columns
+                # overwrites every one of them, ssh_ca_id with the same
+                # resolved id.
+                sc = SSHCertificate(
+                    refid=sc_data.get('refid') or str(uuid.uuid4()),
+                    ssh_ca_id=authority_id,
+                    cert_type=sc_data.get('cert_type') or 'user',
+                    key_id=sc_data.get('key_id') or '',
+                    public_key=sc_data.get('public_key') or '',
+                    certificate=sc_data.get('certificate') or '',
+                    principals=sc_data.get('principals') or '[]',
+                    serial=sc_data.get('serial') or 0,
+                    valid_from=_timestamp(where, 'valid_from',
+                                          sc_data.get('valid_from'),
+                                          required=True,
+                                          reason='a column it cannot be '
+                                                 'written without'),
+                    valid_to=_timestamp(where, 'valid_to',
+                                        sc_data.get('valid_to'),
+                                        required=True,
+                                        reason='a column it cannot be '
+                                               'written without'),
+                    key_type=sc_data.get('key_type') or 'ed25519',
+                    fingerprint=sc_data.get('fingerprint') or '',
+                )
+                db.session.add(sc)
+
+            apply_columns(sc, 'ssh_certificates', sc_data, plan)
             results['ssh_certificates'] += 1
 
         db.session.flush()
 
-    def _restore_microsoft_cas(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_microsoft_cas(self, backup_data: Dict, results: Dict,
+                               plan: Optional[RestorePlan] = None) -> None:
         """Restore Microsoft certificate authorities from backup data.
 
-        A connector the archive carries and this restore cannot write is a
-        CA that will not answer on the restored instance; it fails the
-        restore instead of disappearing into a warning.
+        Sixteen columns were written by hand out of a model that holds
+        thirty-eight, and only on a connector this installation did not
+        already have. Two of the missing ones are the reason this is not a
+        cosmetic difference: `winrm_password` was on no list at all, so the
+        credential of the administration channel was lost at every restore,
+        and the WinRM settings around it (host, port, transport, TLS
+        verification) came back as the model's defaults rather than as the
+        archive's.
+
+        `password` and `winrm_password` are assigned by their manifest name,
+        which is the model's property: it re-encrypts them with this
+        installation's database key, where writing the column underneath
+        would have left them readable.
+
+        A connector the archive carries and this restore cannot write is a CA
+        that will not answer on the restored instance; it fails the restore
+        instead of disappearing into a warning.
         """
         results.setdefault('microsoft_cas', 0)
         rows = backup_data.get('microsoft_cas', [])
@@ -288,36 +390,38 @@ class RestoreExtendedMixin:
         except ImportError:
             _missing_support('microsoft_cas', rows, 'Microsoft CA')
             return
+
+        plan = plan if plan is not None else RestorePlan()
+
         for position, msca_data in enumerate(rows):
             where = f"Microsoft CA {msca_data.get('name') or position}"
-            if msca_data.get('name') and MicrosoftCA.query.filter_by(
-                    name=msca_data['name']).first():
-                continue
-            msca = MicrosoftCA(
-                name=_required(where, msca_data, 'name'),
-                server=msca_data.get('server'),
-                ca_name=msca_data.get('ca_name'),
-                auth_method=msca_data.get('auth_method', 'ntlm'),
-                username=msca_data.get('username'),
-                password=msca_data.get('password'),
-                client_cert_pem=msca_data.get('client_cert_pem'),
-                client_key_pem=msca_data.get('client_key_pem'),
-                kerberos_principal=msca_data.get('kerberos_principal'),
-                kerberos_keytab_path=msca_data.get('kerberos_keytab_path'),
-                use_ssl=msca_data.get('use_ssl', True),
-                verify_ssl=msca_data.get('verify_ssl', True),
-                ca_bundle=msca_data.get('ca_bundle'),
-                default_template=msca_data.get('default_template'),
-                enabled=msca_data.get('enabled', True),
-                created_by=msca_data.get('created_by'),
-            )
-            db.session.add(msca)
+            name = _required(where, msca_data, 'name')
+            msca = _existing_row('microsoft_cas', {'name': name})
+            if msca is None:
+                # name, server and auth_method are NOT NULL; all three are
+                # overwritten by apply_columns.
+                msca = MicrosoftCA(
+                    name=name,
+                    server=msca_data.get('server') or '',
+                    auth_method=msca_data.get('auth_method') or 'ntlm',
+                )
+                db.session.add(msca)
+
+            apply_columns(msca, 'microsoft_cas', msca_data, plan)
             results['microsoft_cas'] += 1
 
         db.session.flush()
 
-    def _restore_scan_profiles(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_scan_profiles(self, backup_data: Dict, results: Dict,
+                               plan: Optional[RestorePlan] = None) -> None:
         """Restore scan profiles from backup data.
+
+        Applied from the manifest, and to a profile already here as to a new
+        one: an existing name was skipped, so a profile came back with the
+        targets, ports and schedule the target held rather than the archive's,
+        and the columns added to the model after the hand-written list --
+        `last_scan_at`, `next_scan_at`, `updated_at` -- reached no restore at
+        all.
 
         A profile the archive carries and this restore drops is a discovery
         scan that will never run again on the restored instance, so it fails
@@ -332,37 +436,37 @@ class RestoreExtendedMixin:
         except ImportError:
             _missing_support('scan_profiles', rows, 'certificate discovery')
             return
+
+        plan = plan if plan is not None else RestorePlan()
+
         for position, sp_data in enumerate(rows):
             where = f"scan profile {sp_data.get('name') or position}"
-            if sp_data.get('name') and ScanProfile.query.filter_by(
-                    name=sp_data['name']).first():
-                continue
-            sp = ScanProfile(
-                name=_required(where, sp_data, 'name'),
-                description=sp_data.get('description'),
-                targets=sp_data.get('targets', '[]'),
-                ports=sp_data.get('ports', '[443]'),
-                schedule_enabled=sp_data.get('schedule_enabled', False),
-                schedule_interval_minutes=sp_data.get('schedule_interval_minutes'),
-                notify_on_new=sp_data.get('notify_on_new', True),
-                notify_on_change=sp_data.get('notify_on_change', True),
-                notify_on_expiry=sp_data.get('notify_on_expiry', True),
-                timeout=sp_data.get('timeout', 5),
-                max_workers=sp_data.get('max_workers', 10),
-                resolve_dns=sp_data.get('resolve_dns', True),
-            )
-            db.session.add(sp)
+            name = _required(where, sp_data, 'name')
+            sp = _existing_row('scan_profiles', {'name': name})
+            if sp is None:
+                sp = ScanProfile(name=name)      # NOT NULL
+                db.session.add(sp)
+            apply_columns(sp, 'scan_profiles', sp_data, plan)
             results['scan_profiles'] += 1
 
         db.session.flush()
 
-    def _restore_hsm_keys(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_hsm_keys(self, backup_data: Dict, results: Dict,
+                          plan: Optional[RestorePlan] = None) -> None:
         """Restore HSM keys from backup data.
 
         A key that does not come back is a CA that cannot sign: the
-        authorities are relinked to these rows afterwards, so losing one
-        here would restore an HSM-backed CA with no key to reach for. The
-        failure stops the restore instead of being logged.
+        authorities are relinked to these rows afterwards, so losing one here
+        would restore an HSM-backed CA with no key to reach for. The failure
+        stops the restore instead of being logged.
+
+        The provider is resolved to the id it has *here*, both to find the
+        row the archive describes -- the manifest identifies a key by
+        (provider, identifier), and the archive's provider is the source's
+        number -- and to write it: `provider_id` is NOT NULL and carries a
+        foreign key, so the source's number was an insert PostgreSQL refused
+        outright and SQLite only survived because `relink_references` came
+        along at the end and repaired it.
         """
         results.setdefault('hsm_keys', 0)
         rows = backup_data.get('hsm_keys', [])
@@ -373,48 +477,66 @@ class RestoreExtendedMixin:
         except ImportError:
             _missing_support('hsm_keys', rows, 'HSM')
             return
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('hsm_keys', plan)
+
         for position, k_data in enumerate(rows):
             where = f"HSM key {k_data.get('key_identifier') or position}"
-            provider_id = _required(where, k_data, 'provider_id')
-            existing = HsmKey.query.filter_by(
-                provider_id=provider_id,
-                key_identifier=k_data.get('key_identifier'),
-            ).first()
-            if existing:
-                continue
-            hk = HsmKey(
-                provider_id=provider_id,
-                key_identifier=k_data.get('key_identifier'),
-                label=k_data.get('label'),
-                algorithm=k_data.get('algorithm'),
-                key_type=k_data.get('key_type'),
-                purpose=k_data.get('purpose'),
-                public_key_pem=k_data.get('public_key_pem'),
-                is_extractable=k_data.get('is_extractable', False),
-                extra_data=k_data.get('extra_data'),
-            )
-            db.session.add(hk)
+            _required(where, k_data, 'provider_id')
+            provider_id = _reference(where, 'hsm_keys', k_data, 'provider_id', plan)
+
+            hk = _existing_row('hsm_keys',
+                               {'provider_id': provider_id,
+                                'key_identifier': k_data.get('key_identifier')})
+            if hk is None:
+                # provider_id, key_identifier, label, algorithm, key_type and
+                # purpose are NOT NULL; apply_columns overwrites them all.
+                hk = HsmKey(
+                    provider_id=provider_id,
+                    key_identifier=k_data.get('key_identifier'),
+                    label=k_data.get('label') or '',
+                    algorithm=k_data.get('algorithm') or '',
+                    key_type=k_data.get('key_type') or '',
+                    purpose=k_data.get('purpose') or '',
+                )
+                db.session.add(hk)
+
+            apply_columns(hk, 'hsm_keys', k_data, plan)
             results['hsm_keys'] += 1
 
         db.session.flush()
 
     def _restore_approval_requests(self, backup_data: Dict, results: Dict,
-                                   plan: RestorePlan) -> None:
+                                   plan: Optional[RestorePlan] = None) -> None:
         """Restore approval requests, once and with their dates.
 
         Every row used to be created unconditionally, so restoring the same
         archive twice left two copies of every pending request, each still
         waiting on the same certificate. A request is now the row the
-        manifest says it is — the certificate it is about, as that
-        certificate is numbered *here*, and the instant it was created — so a
+        manifest says it is -- the certificate it is about, as that
+        certificate is numbered *here*, and the instant it was created -- so a
         second restore updates what the first one wrote instead of adding to
         it. The creation date is carried back rather than replaced by the
         moment of the restore, which is also what makes the identity hold.
+
+        The row itself goes through `apply_columns`, to one that already
+        exists exactly as to a new one: a restore that left half the fields of
+        an existing request as they were would match neither the archive nor
+        what was here. `created_at` is handed over already parsed, since it is
+        the value the identity was looked up with.
         """
         from models.policy import ApprovalRequest
 
         results.setdefault('approval_requests', 0)
-        for position, ar_data in enumerate(backup_data.get('approval_requests', [])):
+        rows = backup_data.get('approval_requests', [])
+        if not rows:
+            return
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('approval_requests', plan)
+
+        for position, ar_data in enumerate(rows):
             where = f"approval request {position}"
             created_at = _timestamp(where, 'created_at', ar_data.get('created_at'),
                                     required=True)
@@ -431,73 +553,56 @@ class RestoreExtendedMixin:
                                     {'certificate_id': certificate_id,
                                      'created_at': created_at})
             if request is None:
-                request = ApprovalRequest()
+                # request_type and requester_id are NOT NULL; both are
+                # overwritten by apply_columns.
+                request = ApprovalRequest(
+                    request_type=ar_data.get('request_type') or 'certificate',
+                    requester_id=requester_id)
                 db.session.add(request)
 
-            # Applied to a row that already exists exactly as to a new one:
-            # a restore that left half the fields of an existing request as
-            # they were would match neither the archive nor what was here.
-            request.certificate_id = certificate_id
-            request.created_at = created_at
-            request.requester_id = requester_id
-            request.policy_id = _reference(where, 'approval_requests', ar_data,
-                                           'policy_id', plan)
-            request.request_type = ar_data.get('request_type', 'certificate')
-            request.request_data = ar_data.get('request_data')
-            request.requester_comment = ar_data.get('requester_comment')
-            request.status = ar_data.get('status', 'pending')
-            request.approvals = ar_data.get('approvals', '[]')
-            request.required_approvals = ar_data.get('required_approvals', 1)
-            request.expires_at = _timestamp(where, 'expires_at',
-                                            ar_data.get('expires_at'))
-            request.resolved_at = _timestamp(where, 'resolved_at',
-                                             ar_data.get('resolved_at'))
+            apply_columns(request, 'approval_requests',
+                          dict(ar_data, created_at=created_at), plan)
             results['approval_requests'] += 1
 
         db.session.flush()
 
     def _restore_acme_client_orders(self, backup_data: Dict, results: Dict,
-                                    plan: RestorePlan) -> None:
+                                    plan: Optional[RestorePlan] = None) -> None:
         """Restore the orders UCM placed with an external ACME CA, once.
 
         An order is the one the CA knows under that URL, so restoring an
         archive twice updates the order it already put back rather than
         placing a second row for the same upstream order.
+
+        Every column comes from the manifest now: the hand-written list was
+        missing the CSR the order was placed with, the certificate it renews,
+        its expiry and its renewal history, so a restored order was one the
+        renewal could not carry on from.
         """
         from models.acme_models import AcmeClientOrder
 
         results.setdefault('acme_client_orders', 0)
-        for position, o_data in enumerate(backup_data.get('acme_client_orders', [])):
-            where = f"ACME client order {position}"
+        rows = backup_data.get('acme_client_orders', [])
+        if not rows:
+            return
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('acme_client_orders', plan)
+
+        for o_data in rows:
             order = _existing_row('acme_client_orders',
                                   {'order_url': o_data.get('order_url')})
             if order is None:
-                order = AcmeClientOrder()
+                # domains, challenge_type, environment, key_source and status
+                # are NOT NULL; all of them are overwritten by apply_columns.
+                order = AcmeClientOrder(domains=o_data.get('domains') or '[]')
                 db.session.add(order)
 
-            order.domains = o_data.get('domains', '[]')
-            order.challenge_type = o_data.get('challenge_type', 'dns-01')
-            order.environment = o_data.get('environment', 'staging')
-            order.key_type = o_data.get('key_type', 'RSA-2048')
-            order.status = o_data.get('status', 'pending')
-            order.order_url = o_data.get('order_url')
-            order.account_url = o_data.get('account_url')
-            order.finalize_url = o_data.get('finalize_url')
-            order.certificate_url = o_data.get('certificate_url')
-            order.challenges_data = o_data.get('challenges_data')
-            order.dns_provider_id = _reference(where, 'acme_client_orders', o_data,
-                                               'dns_provider_id', plan)
-            # The manifest carries no identity for the issued certificate, so
-            # there is nothing to resolve it against; the column is left as
-            # this restore has always written it.
-            order.certificate_id = o_data.get('certificate_id')
-            order.renewal_enabled = o_data.get('renewal_enabled', True)
-            order.is_proxy_order = o_data.get('is_proxy_order', False)
-            order.dns_records_created = o_data.get('dns_records_created')
-            order.client_jwk_thumbprint = o_data.get('client_jwk_thumbprint')
-            order.upstream_order_url = o_data.get('upstream_order_url')
-            order.upstream_authz_urls = o_data.get('upstream_authz_urls')
-            order.error_message = o_data.get('error_message')
+            # `certificate_id` is a column like any other here: the manifest
+            # carries no identity for the issued certificate, so there is
+            # nothing to resolve it against and the archive's own number is
+            # written, exactly as this restore has always written it.
+            apply_columns(order, 'acme_client_orders', o_data, plan)
             results['acme_client_orders'] += 1
 
         db.session.flush()

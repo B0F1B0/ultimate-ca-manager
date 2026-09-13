@@ -272,11 +272,12 @@ class TestSectionsTheOldRestoreIgnored:
 
     def test_a_webhook_endpoint_comes_back_with_a_usable_secret(self, app):
         from services.webhook_service import WebhookEndpoint
+        from utils.encryption import decrypt_if_needed, encrypt_if_needed
         with app.app_context():
             endpoint = WebhookEndpoint(name='restored-hook',
                                        url='https://hook.example.test/z',
                                        events='["certificate.issued"]')
-            endpoint.secret = 'a-secret-only-this-server-knows'
+            endpoint.secret = encrypt_if_needed('a-secret-only-this-server-knows')
             db.session.add(endpoint)
             db.session.commit()
 
@@ -292,8 +293,17 @@ class TestSectionsTheOldRestoreIgnored:
                 back = WebhookEndpoint.query.filter_by(name='restored-hook').first()
                 assert back is not None, 'the endpoint was not restored'
                 assert back.url == 'https://hook.example.test/z'
-                # Read through the property: re-encrypted with this server's key
-                assert back.secret == 'a-secret-only-this-server-knows'
+                # `secret` is a plain column the application keeps encrypted,
+                # so what matters is what the delivery path reads out of it
+                # and that the column is not holding the secret in the clear:
+                # the archive carries it that way so it can be restored under
+                # another key, and the restore is where it goes back under
+                # this one.
+                assert decrypt_if_needed(back.secret) == (
+                    'a-secret-only-this-server-knows')
+                assert back.secret != 'a-secret-only-this-server-knows', (
+                    'the restore left the signing secret readable in the '
+                    'database')
             finally:
                 WebhookEndpoint.query.filter_by(name='restored-hook').delete()
                 db.session.commit()

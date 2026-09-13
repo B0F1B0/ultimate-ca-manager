@@ -93,6 +93,7 @@ def _fill_secrets(name, row):
     exists to answer -- does this leave the installation readable?
     """
     section = manifest.SECTIONS[name]
+    written = set()
     for column in section.secrets:
         try:
             with db.session.begin_nested():
@@ -101,8 +102,13 @@ def _fill_secrets(name, row):
         except Exception:
             # A column this version stores differently, or a setter that
             # refuses the shape: the section is still seeded, that secret is
-            # simply not exercised.
+            # simply not exercised. Which one it was is returned, because a
+            # secret nobody wrote is a secret the archive cannot be asked
+            # about -- and the table below would stay empty for the wrong
+            # reason.
             continue
+        written.add((name, column))
+    return written
 
 
 def _sections_by_table():
@@ -126,9 +132,9 @@ def _any_existing(section_name):
 
 
 def _seed_all():
-    """Create one row per section; return (rows, failures, order)."""
+    """Create one row per section; return (rows, failures, order, secrets)."""
     by_table = _sections_by_table()
-    rows, failures, order = {}, {}, []
+    rows, failures, order, secrets_written = {}, {}, [], set()
     # Sections whose exporter reads real cryptographic material are left to
     # the fixtures: a row carrying "zzcontract-7" where a certificate belongs
     # aborts the export, which is the export doing its job.
@@ -186,7 +192,7 @@ def _seed_all():
                 continue
 
             table = sa_inspect(model).local_table
-            _fill_secrets(name, row)
+            secrets_written |= _fill_secrets(name, row)
             rows[name] = row
             order.append((name, {column.name: getattr(row, column.name)
                                  for column in table.primary_key.columns}))
@@ -197,7 +203,7 @@ def _seed_all():
             break
 
     db.session.commit()
-    return rows, failures, order
+    return rows, failures, order, secrets_written
 
 
 def _remove(order):
@@ -234,7 +240,7 @@ def seeded(app, create_ca, create_cert):
     create_cert(cn=f'{MARK}-contract-leaf.test', ca_id=authority['id'])
 
     with app.app_context():
-        rows, failures, order = _seed_all()
+        rows, failures, order, secrets_written = _seed_all()
         try:
             service = BackupService()
             # Everything, historical sections included: this file checks the
@@ -244,7 +250,7 @@ def seeded(app, create_ca, create_cert):
                 include={name: True for name in manifest.SECTIONS})
             _key, payload = service._decrypt_framed(blob, PASSWORD)
             yield {'payload': payload, 'failures': failures,
-                   'seeded': set(rows)}
+                   'seeded': set(rows), 'secrets_written': secrets_written}
         finally:
             _remove(order)
 
@@ -332,12 +338,7 @@ class TestEveryDeclaredColumnTravels:
 # point of decrypting them on the way out. Listed rather than ignored: the
 # test below fails both when something new joins them and when one of them is
 # fixed and left here.
-KNOWN_TO_TRAVEL_ENCRYPTED = {
-    ('acme_client_accounts', 'eab_hmac_key'):
-        'written through utils.encryption and read back through '
-        'security.encryption, so the export decrypts nothing and the archive '
-        'carries the ciphertext of the installation that wrote it',
-}
+KNOWN_TO_TRAVEL_ENCRYPTED: dict = {}
 
 
 class TestEverySecretTravelsReadable:
@@ -392,6 +393,22 @@ class TestEverySecretTravelsReadable:
     def test_the_debt_list_carries_a_reason(self):
         assert all(reason.strip()
                    for reason in KNOWN_TO_TRAVEL_ENCRYPTED.values())
+
+    def test_every_declared_secret_was_actually_written(self, seeded):
+        """An empty debt table means nothing if the column was never seeded.
+
+        `_fill_secrets` lets a setter refuse a value and carries on, because
+        a section that cannot take one shape of secret is still worth seeding
+        for everything else. But a secret nobody wrote is a secret the
+        archive was never asked about, and the list above then stays empty
+        for the wrong reason.
+        """
+        expected = {(name, column) for name in seeded['seeded']
+                    for column in manifest.SECTIONS[name].secrets}
+        never_written = sorted(expected - seeded['secrets_written'])
+        assert never_written == [], (
+            'these secrets were seeded by nothing, so nothing above says '
+            f'whether they leave the installation readable: {never_written}')
 
 
 class TestEveryRelationTravelsByIdentity:

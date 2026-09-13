@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
+
 def test_load_or_create_account_key_delegates_to_client_service():
     """Proxy key load must go through AcmeClientService on the linked account."""
     from services.acme.acme_client_service import AcmeClientService
@@ -23,6 +25,26 @@ def test_load_or_create_account_key_delegates_to_client_service():
     assert "encrypt_text(" in client_src
     assert "decrypt_text(" in client_src
 
+
+
+@pytest.fixture(autouse=True)
+def _remove_the_accounts_these_tests_encrypt(app):
+    """Take back out what these tests leave encrypted.
+
+    They run under `encryption_enabled`, which installs a key and discards it
+    when the test ends, so a row left behind holds a secret nothing can read
+    again. Anything that later reads this database as a database -- a backup,
+    which refuses to archive a secret it cannot decrypt rather than carry the
+    ciphertext -- then fails on a row that belongs to no test at all.
+    """
+    yield
+    from models import db, AcmeClientAccount
+
+    with app.app_context():
+        AcmeClientAccount.query.filter(
+            AcmeClientAccount.directory_url.like('%-test.example/directory')
+        ).delete(synchronize_session=False)
+        db.session.commit()
 
 
 def test_proxy_account_key_encrypted_at_rest(app, encryption_enabled):
@@ -124,7 +146,7 @@ def test_acme_client_eab_legacy_plaintext_still_loads(app, encryption_enabled):
 def test_legacy_system_config_eab_hmac_encrypted_at_rest(
     app, auth_client, encryption_enabled
 ):
-    from models import SystemConfig, db
+    from models import SystemConfig
     from security.encryption import key_encryption
 
     r = auth_client.patch('/api/v2/acme/client/settings', json={

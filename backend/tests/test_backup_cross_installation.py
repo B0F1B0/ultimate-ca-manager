@@ -50,7 +50,6 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.x509.oid import NameOID
 from sqlalchemy import create_engine, inspect as sa_inspect, text
-from sqlalchemy.exc import IntegrityError
 
 from models import db
 from services.backup import manifest
@@ -253,6 +252,9 @@ SECRET_VALUES = {
     ('acme_client_accounts', 'eab_hmac_key'): 'xinst-acme-client-eab-key',
     ('microsoft_cas', 'password'): 'xinst-msca-password',
     ('microsoft_cas', 'winrm_password'): 'xinst-winrm-password',
+    ('microsoft_cas', 'client_key_pem'): (
+        '-----BEGIN PRIVATE KEY-----\nxinst-msca-mtls\n'
+        '-----END PRIVATE KEY-----\n'),
     ('scep_profiles', 'challenge_password'): 'xinst-scep-challenge',
     ('scep_profiles', 'intune_client_secret'): 'xinst-intune-secret',
     ('ad_connector', 'bind_password'): 'xinst-ad-bind-password',
@@ -333,18 +335,27 @@ def _stored_secret(row, column):
     return getattr(row, _secret_attribute(type(row), column), None)
 
 
-def _readable_secret(row, column):
+def _readable_secret(row, column, section_name=None):
     """The secret as this installation reads it back.
 
     Through the property when there is one, since that is what every caller
-    uses; otherwise through the column, decrypting it if the row still holds
-    ciphertext -- which is what the routes that wrote it do.
+    uses. Otherwise through the column, opened with the layer the manifest
+    says the application keeps it under: `decrypt_if_needed` alone read an
+    ACME account key, a deployment key and a SCEP challenge as the ciphertext
+    they are, because those three are written with the key-encryption key and
+    not with the database key.
     """
+    from security.encryption import decrypt_text
     from utils.encryption import decrypt_if_needed
 
     if _has_encrypting_property(type(row), column):
         return getattr(row, column)
-    return decrypt_if_needed(_stored_secret(row, column))
+    stored = _stored_secret(row, column)
+    layer = (manifest.SECTIONS[section_name].stored.get(column)
+             if section_name else None)
+    if layer == 'master':
+        return decrypt_text(stored) if stored else stored
+    return decrypt_if_needed(stored)
 
 
 class _Ids:
@@ -410,6 +421,10 @@ def _seed_source():
                  role='operator', active=True) for suffix in 'ab']
     users[1].custom_role_id = roles[1].id
     users[1].sso_provider_id = providers[1].id
+    # A role built on another role, and a provider recording who added it:
+    # two numbers that named a different row on every other installation.
+    roles[1].inherits_from = roles[0].id
+    hsm_providers[1].created_by = users[1].id
     for column in ('totp_secret', 'backup_codes'):
         secret(users[1], 'users', column)
 
@@ -469,12 +484,13 @@ def _seed_source():
     policies[1].approval_group_id = groups[1].id
     db.session.flush()
 
-    # No policy_id on the request: see NOT_EXERCISED. An approval whose policy
-    # the same archive carries takes the restore down before anything here can
-    # look at it.
+    # The request names the policy that governs it: a link that used to take
+    # the restore down, because resolving it queried the session while a
+    # half-built request was pending and the autoflush wrote the row before
+    # its required columns were set. The restorer builds the row whole now.
     add('approval_requests', certificate_id=leaves[1].id,
         requester_id=users[1].id, request_type='issue', status='pending',
-        created_at=now)
+        policy_id=policies[1].id, created_at=now)
 
     dns_providers = [add('dns_providers', name=f'xinst-dns-{suffix}',
                          provider_type='cloudflare') for suffix in 'ab']
@@ -497,12 +513,28 @@ def _seed_source():
     add('acme_domains', domain='xinst-domain.example.test',
         dns_provider_id=dns_providers[1].id, issuing_ca_id=authorities[1].id)
 
+    # The authority a locally-served zone is signed by: a column that cannot
+    # be empty, so the source's number was written into it and PostgreSQL
+    # refused the row outright.
+    add('acme_local_domains', domain='xinst-local.example.test',
+        issuing_ca_id=authorities[1].id, auto_approve=True,
+        created_by='xinst-user-b')
+
     client_accounts = [
         add('acme_client_accounts',
             directory_url=f'https://acme-{suffix}.example.test/directory',
             label=f'xinst-client-{suffix}', email=f'acme-{suffix}@example.test',
             account_key_algorithm='ec256', proxy_slug=f'xinst-proxy-{suffix}')
         for suffix in 'ab']
+    # A second account at the same authority, under the same mailbox, told
+    # apart only by its label: what migration 077 made possible (#276), and
+    # what an identity of (directory_url, email) alone could not tell from
+    # the account above.
+    client_accounts.append(add(
+        'acme_client_accounts',
+        directory_url='https://acme-b.example.test/directory',
+        label='xinst-client-b-second', email='acme-b@example.test',
+        account_key_algorithm='ec256', proxy_slug='xinst-proxy-b-second'))
     for column in ('account_key', 'eab_hmac_key'):
         secret(client_accounts[1], 'acme_client_accounts', column)
     db.session.flush()
@@ -511,7 +543,9 @@ def _seed_source():
         domains='["xinst-order.example.test"]', challenge_type='http-01',
         environment='production', key_source='generate', status='valid',
         account_id=acme_accounts[1].account_id,
-        dns_provider_id=dns_providers[1].id)
+        acme_client_account_id=client_accounts[1].id,
+        dns_provider_id=dns_providers[1].id,
+        certificate_id=leaves[1].id, source_certificate_id=leaves[0].id)
 
     ssh_authorities = [
         add('ssh_cas', refid=f'xinst-sshca-{suffix}',
@@ -527,16 +561,18 @@ def _seed_source():
         cert_type='user', key_id='xinst-key-id', public_key='ssh-ed25519 AAAA xinst',
         certificate='ssh-ed25519-cert-v01@openssh.com AAAA', principals='["xinst"]',
         serial=17, valid_from=now, valid_to=now + timedelta(days=30),
-        key_type='ed25519', fingerprint='SHA256:xinstcert')
+        key_type='ed25519', fingerprint='SHA256:xinstcert',
+        owner_group_id=groups[1].id)
 
     microsoft = [add('microsoft_cas', name=f'xinst-msca-{suffix}',
                      server=f'ca-{suffix}.example.test') for suffix in 'ab']
-    for column in ('password', 'winrm_password'):
+    for column in ('password', 'winrm_password', 'client_key_pem'):
         secret(microsoft[1], 'microsoft_cas', column)
     db.session.flush()
 
     add('msca_requests', msca_id=microsoft[1].id, request_id=42,
-        template='WebServer', status='issued')
+        template='WebServer', status='issued',
+        cert_id=leaves[1].id, csr_id=leaves[0].id)
 
     scep = add('scep_profiles', name='xinst-scep', url_slug='xinst-scep',
                ca_refid='xinst-ca-b', template_id=templates[1].id)
@@ -635,20 +671,16 @@ def _seed_target_history():
 # that way.
 ABORTS_THE_RESTORE = ()
 
-# Sections a restore writes with the source's numeric id and repairs at the
-# very end, in `relink_references`. SQLite enforces no foreign key, so the
-# repair arrives in time and the row ends up correct -- which is why the
-# reference walk passes on SQLite. PostgreSQL refuses the insert as it
-# happens, and the whole restore with it: see `TestWhatPostgreSQLRefuses`.
-RESTORED_ONLY_ON_SQLITE = {
-    'api_keys': 'user_id',
-    'auth_certificates': 'user_id',
-    'certificate_policies': 'ca_id',
-    'acme_domains': 'dns_provider_id',
-    'ssh_cas': 'owner_group_id',
-    'ssh_certificates': 'ssh_ca_id',
-    'hsm_keys': 'provider_id',
-}
+# Sections a restore wrote with the source's numeric id, repairing them at
+# the very end in `relink_references`. SQLite enforces no foreign key, so the
+# repair arrived in time and nobody was any the wiser; PostgreSQL refused the
+# insert as it happened and took the whole restore with it, so an archive
+# that restored on one backend did not restore on the other.
+#
+# Empty: every one of them resolves its references where the row is written
+# now. `tests/test_restore_reference_resolution_pg.py` is the proof on a real
+# PostgreSQL, and `TestWhatPostgreSQLUsedToRefuse` keeps the list at zero.
+RESTORED_ONLY_ON_SQLITE: dict = {}
 
 RESTORABLE_SECTIONS = tuple(
     name for name in (
@@ -657,7 +689,8 @@ RESTORABLE_SECTIONS = tuple(
         'revoked_serials', 'hsm_providers', 'hsm_keys', 'api_keys',
         'auth_certificates', 'certificate_policies', 'approval_requests',
         'dns_providers', 'acme_accounts', 'acme_eab_credentials',
-        'acme_domains', 'acme_client_accounts', 'acme_client_orders',
+        'acme_domains', 'acme_local_domains', 'acme_client_accounts',
+        'acme_client_orders',
         'ssh_cas', 'ssh_certificates', 'microsoft_cas', 'msca_requests',
         'scep_profiles', 'deploy_targets', 'scan_profiles', 'scan_runs',
         'discovered_certificates', 'smtp_config', 'ad_connector',
@@ -902,22 +935,6 @@ def _where_the_reference_landed(section_name, column, row):
 # the test, each with the reason. A reference that is neither exercised nor
 # named here fails `test_every_declared_reference_is_accounted_for`.
 NOT_EXERCISED = {
-    ('revoked_serials', 'certificate_id'):
-        "the restore writes certificate_id=None on purpose (restore_core), so "
-        "the reference the archive carries has nowhere to land",
-    ('approval_requests', 'policy_id'):
-        "resolving it falls through to a query on the session while a half "
-        "built ApprovalRequest is pending, and the autoflush that query "
-        "triggers writes the row before its NOT NULL request_type is set: the "
-        "restore dies of an IntegrityError on the policy of its own archive",
-    ('acme_client_orders', 'account_id'):
-        "the column holds the ACME account id as a string while the manifest "
-        "points it at a section indexed by numeric primary key, so no "
-        "identity is ever written beside it; what the restore does with it is "
-        "pinned by TestReferencesTheManifestCannotResolve instead",
-    ('acme_eab_credentials', 'used_by_account_id'):
-        "same contradiction as acme_client_orders.account_id, and pinned in "
-        "the same place",
 }
 
 # Relations a restore places wrongly on another installation. Pinned, not
@@ -1023,6 +1040,68 @@ class TestEveryReferenceLandsOnTheRowTheArchiveNames:
         assert not stale, f'these reasons no longer name a reference: {sorted(stale)}'
 
 
+class TestALinkTheProtocolNamesComesBackAsItself:
+    """The two links that were dropped *because* they had been declared.
+
+    An EAB credential and an ACME client order name the account they belong
+    to by its account id: the string the protocol itself uses, the same on
+    every installation that holds the account. The manifest declared both
+    columns as references to `acme_accounts`, which is indexed by primary
+    key, so no identity was ever written beside them, and the restore,
+    finding none, cleared a link that needed no translation at all.
+
+    The companion of this class says it on PostgreSQL, where the order's
+    column is a foreign key and a wrong value cannot even be written. It is
+    said here as well because that file is opt-in: without a PostgreSQL
+    server to run against, nothing at all asserted this.
+    """
+
+    @pytest.mark.parametrize('section_name, column, identity', [
+        ('acme_eab_credentials', 'used_by_account_id', {'kid': 'xinst-eab-kid'}),
+        ('acme_client_orders', 'account_id',
+         {'order_url': 'https://acme-b.example.test/order/1'}),
+    ])
+    def test_the_account_the_archive_names_is_still_named(
+            self, app, restored_on_sqlite, section_name, column, identity):
+        archived = restored_on_sqlite.archived_row(section_name, **identity)
+        assert archived[column] == 'xinst-acct-b', \
+            'the archive carries the account id, as text and unambiguous'
+
+        with restored_on_sqlite.open(app):
+            row = _model(section_name).query.filter_by(**identity).one()
+            assert getattr(row, column) == 'xinst-acct-b', (
+                f'{section_name}.{column} no longer names the account the '
+                'archive named')
+            assert _model('acme_accounts').query.filter_by(
+                account_id=getattr(row, column)).one(), \
+                'and the account it names is one this installation holds'
+
+
+class TestTwoRowsAnIdentityCouldNotTellApart:
+    """An identity that is not unique loses rows without a word.
+
+    Two accounts at the same authority, under the same shared mailbox, are
+    what migration 077 made possible on purpose (#276). Identified by the
+    pair (directory_url, email) they were one entry in the index: the second
+    archived row was applied over the first, the section came out of the
+    restore one row short, and the order pointing at the account that
+    disappeared was attached to the one that remained.
+    """
+
+    def test_both_accounts_of_the_shared_mailbox_arrive(self, app,
+                                                        restored_on_sqlite):
+        from models.acme_client_account import AcmeClientAccount
+
+        with restored_on_sqlite.open(app):
+            same_mailbox = AcmeClientAccount.query.filter_by(
+                directory_url='https://acme-b.example.test/directory',
+                email='acme-b@example.test').all()
+            labels = sorted(account.label for account in same_mailbox)
+            assert labels == ['xinst-client-b', 'xinst-client-b-second'], (
+                'the two accounts an identity of (directory_url, email) could '
+                f'not tell apart came back as {labels}')
+
+
 class TestACertificateFindsItsAuthority:
     """The one link that is not a number, and has to keep working anyway."""
 
@@ -1048,48 +1127,34 @@ class TestACertificateFindsItsAuthority:
                 ec.ECDSA(signed.signature_hash_algorithm))
 
 
-class TestWhatPostgreSQLRefuses:
+class TestWhatPostgreSQLUsedToRefuse:
     """The same archive, onto an installation that enforces its own schema.
 
-    Several restorers write the source's numeric id and count on
+    Several restorers wrote the source's numeric id and counted on
     `relink_references`, at the very end of the restore, to point the column
     at the right row. On SQLite, which enforces no foreign key, the repair
-    arrives in time and nobody is any the wiser. PostgreSQL refuses the
-    insert as it happens: the transaction dies, the restore is announced as
-    failed, and an archive that restores on one backend does not restore on
+    arrived in time and nobody was any the wiser. PostgreSQL refused the
+    insert as it happened: the transaction died, the restore was announced as
+    failed, and an archive that restored on one backend did not restore on
     the other.
 
-    Resolving the reference where the row is written -- the same
-    `plan.refresh()` the sections above are waiting for -- would settle both.
+    They resolve the reference where the row is written now.
     """
 
-    @_needs_pg
-    @pytest.mark.parametrize('section_name', sorted(RESTORED_ONLY_ON_SQLITE))
-    def test_the_section_is_refused_by_the_foreign_key(self, app, source,
-                                                       section_name):
-        _empty_the_postgresql_bench()
-        keys = Keys(source.directory, f'pg-{section_name}')
-        blob, _archive = source.archive_of(
-            *(RESTORABLE_ON_POSTGRESQL + (section_name,)))
-        try:
-            with _installation(app, _PG_URL, keys, True):
-                with app.app_context():
-                    _seed_target_history()
-                    with pytest.raises(IntegrityError) as refused:
-                        _service().restore_backup(blob, PASSWORD)
-        finally:
-            _empty_the_postgresql_bench()
+    def test_no_section_is_left_to_postgresql_to_refuse(self):
+        """Every one of them resolves its references where the row is
+        written now, so none is left writing a number that belongs to another
+        installation. An entry coming back means a section went back to
+        relying on the repair at the end -- which PostgreSQL never reaches."""
+        assert RESTORED_ONLY_ON_SQLITE == {}
 
-        table = _model(section_name).__tablename__
-        assert f'table "{table}"' in str(refused.value), (
-            f'the restore was refused, but not over {table}: {refused.value}')
-        assert 'foreign key' in str(refused.value)
-
-    def test_the_same_sections_restore_on_sqlite(self, app, restored_on_sqlite):
-        """The other half of the statement, and the reason it is quiet: on
-        SQLite every one of them comes back, correctly linked."""
+    def test_they_all_restore_on_sqlite_too(self, app, restored_on_sqlite):
+        """The seven that used to be in the list, by name: what was quiet on
+        SQLite and fatal on PostgreSQL now works on both."""
         with restored_on_sqlite.open(app):
-            for section_name in RESTORED_ONLY_ON_SQLITE:
+            for section_name in ('api_keys', 'auth_certificates',
+                                 'certificate_policies', 'acme_domains',
+                                 'ssh_cas', 'ssh_certificates', 'hsm_keys'):
                 assert _model(section_name).query.count() > 0, (
                     f"'{section_name}' no longer restores on SQLite either")
 
@@ -1133,36 +1198,6 @@ class TestWhatARestoreUsedToDropWithoutSayingSo:
         with restored_on_sqlite.open(app):
             assert _model('approval_requests').query.count() == 1, \
                 'the approval request was written and then taken away again'
-
-
-class TestReferencesTheManifestCannotResolve:
-    """Two references the manifest points at a section it cannot match.
-
-    `acme_eab_credentials.used_by_account_id` and
-    `acme_client_orders.account_id` hold the ACME account id as a string. The
-    manifest declares them as references to `acme_accounts`, whose index
-    answers a numeric primary key, so no identity is ever written beside them
-    -- and the restore, finding none, drops a link that would have survived
-    untouched had nothing been declared at all.
-    """
-
-    @pytest.mark.parametrize('section_name, column, identity', [
-        ('acme_eab_credentials', 'used_by_account_id', {'kid': 'xinst-eab-kid'}),
-        ('acme_client_orders', 'account_id',
-         {'order_url': 'https://acme-b.example.test/order/1'}),
-    ])
-    def test_the_account_the_archive_names_is_dropped(
-            self, app, restored_on_sqlite, section_name, column, identity):
-        archived = restored_on_sqlite.archived_row(section_name, **identity)
-        assert archived[column] == 'xinst-acct-b', \
-            'the archive carries the account id, as a string and unambiguous'
-        assert archived.get(f'{column}{REFERENCE_SUFFIX}') is None, \
-            'and carries no identity beside it, which is the whole problem'
-        with restored_on_sqlite.open(app):
-            row = _model(section_name).query.filter_by(**identity).one()
-            assert getattr(row, column) is None, (
-                f'{section_name}.{column} is kept now -- this test and the '
-                'entry in NOT_EXERCISED can both go')
 
 
 class TestNothingAbortsARestoreAnyMore:
@@ -1220,7 +1255,10 @@ AT_REST_AFTER_A_RESTORE = {
 
     # Put back under the target's database key now that their restorers go
     # through the manifest-driven path instead of assigning the private
-    # column behind the property.
+    # column behind the property, or -- for winrm_password -- instead of not
+    # being written at all.
+    ('microsoft_cas', 'winrm_password'): 'database key',
+    ('microsoft_cas', 'client_key_pem'): 'database key',
     ('smtp_config', 'smtp_password'): 'database key',
     ('sso_providers', 'ldap_bind_password'): 'database key',
     ('sso_providers', 'oauth2_client_secret'): 'database key',
@@ -1234,14 +1272,21 @@ AT_REST_AFTER_A_RESTORE = {
     ('users', 'backup_codes'): 'the clear',
     ('users', 'totp_secret'): 'the clear',
 
-    # Still readable where a property that encrypts exists and the restorer
-    # goes around it, or where the writing route encrypts and the restore
-    # does not. These are the gaps left.
-    ('deploy_targets', 'private_key'): 'the clear',
+    # Readable in the column, which is where the application reads it: the
+    # HSM configuration goes straight to json.loads.
     ('hsm_providers', 'config'): 'the clear',
-    ('scep_profiles', 'challenge_password'): 'the clear',
-    ('scep_profiles', 'intune_client_secret'): 'the clear',
-    ('webhook_endpoints', 'secret'): 'the clear',
+
+    # Plain columns, so no property re-encrypted them, and the restore wrote
+    # the archive's cleartext into each: a deployment SSH key, a SCEP
+    # challenge, an Intune client secret and a webhook signing secret sat
+    # readable in the database of an installation that had them encrypted
+    # the minute before it restored its own archive. The manifest now names
+    # the layer each column is kept under and the restore puts them back
+    # under it.
+    ('deploy_targets', 'private_key'): 'key-encryption key',
+    ('scep_profiles', 'challenge_password'): 'key-encryption key',
+    ('scep_profiles', 'intune_client_secret'): 'database key',
+    ('webhook_endpoints', 'secret'): 'database key',
 
     # Never written by the restore at all:
     #  - _restore_microsoft_cas writes a hand-picked list of columns;
@@ -1249,25 +1294,25 @@ AT_REST_AFTER_A_RESTORE = {
     #    which drops it before it reaches the branch that writes secrets:
     #    the column is named `_auth_token`, so `columns.get('auth_token')` is
     #    None and the row is skipped as "a column this version does not have".
-    ('microsoft_cas', 'winrm_password'): 'nothing',
     ('webhook_endpoints', 'auth_token'): 'nothing',
 
-    # Carried as the source's own ciphertext and written back unchanged: the
-    # product encrypts these through `security.encryption` while the export
-    # decrypts through `utils.encryption`, so what reaches the target is bytes
-    # only the source's master key opens.
+    # Both arrived as the source's own ciphertext until the export learned to
+    # read the key-encryption layer as well: the product writes them through
+    # `security.encryption` and the export decrypted only through
+    # `utils.encryption`, so they opened on no installation but the one that
+    # wrote the archive. The account key is a plain column and went back in
+    # the clear once the export was fixed; it goes back under the key the
+    # product writes it with.
     ('acme_client_accounts', 'account_key'): 'key-encryption key',
     ('acme_client_accounts', 'eab_hmac_key'): 'key-encryption key',
 }
 
-# Secrets the archive carries as the source's own ciphertext, because the
-# product encrypts them through `security.encryption` while the export
-# decrypts through `utils.encryption`: what travels is bytes only the source's
-# master key opens, so the target restores an ACME account key it cannot use.
-CARRIED_AS_SOURCE_CIPHERTEXT = {
-    ('acme_client_accounts', 'account_key'),
-    ('acme_client_accounts', 'eab_hmac_key'),
-}
+# Secrets the archive carried as the source's own ciphertext: the export
+# decrypted with one module and the model stored with the other, so nothing
+# was decrypted at all and the value only opened on the installation that
+# wrote it. Empty: the export now tries both, and refuses the backup when
+# neither reads.
+CARRIED_AS_SOURCE_CIPHERTEXT: set = set()
 
 # Secrets the restore never writes; there is nothing on the target to read.
 NOT_RESTORED_AT_ALL = {key for key, state in AT_REST_AFTER_A_RESTORE.items()
@@ -1310,7 +1355,7 @@ def secrets_on_the_target(app, restored_on_sqlite):
             measured[(section_name, column)] = {
                 'stored': stored,
                 'at_rest': _at_rest(stored),
-                'readable': _readable_secret(row, column),
+                'readable': _readable_secret(row, column, section_name),
             }
     return measured
 

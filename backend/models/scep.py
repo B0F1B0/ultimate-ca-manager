@@ -99,9 +99,24 @@ class ScepProfile(db.Model):
             return self.challenge_password
 
     def decrypted_intune_secret(self):
+        """The Intune client secret, whether or not it was stored encrypted.
+
+        `decrypt_value` answers None for anything that is not one of its
+        own tokens, and the `or ''` turned that into an empty string: a
+        value written before at-rest encryption, or put back by a restore
+        -- which carries secrets in the clear inside the archive so they
+        survive a change of database key -- read back as no secret at all,
+        and the Intune enrolment stopped working without a word.
+
+        The sibling above already tolerates this for the challenge
+        password; this is the same tolerance, decided by looking at the
+        value rather than by catching the failure.
+        """
         if not self.intune_client_secret:
             return ''
-        from utils.encryption import decrypt_value
+        from utils.encryption import decrypt_value, is_encrypted
+        if not is_encrypted(self.intune_client_secret):
+            return self.intune_client_secret
         return decrypt_value(self.intune_client_secret) or ''
 
 

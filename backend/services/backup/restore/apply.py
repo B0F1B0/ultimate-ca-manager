@@ -138,25 +138,77 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
             continue          # a column this version does not have
 
         if name in section.references:
-            setattr(instance, attribute_of.get(name, name),
-                    plan.resolve(section_name, row, name))
+            resolved = plan.resolve(section_name, row, name)
+            if resolved is None and row.get(name) is not None:
+                _unplaceable_reference(section_name, section, name, row, column)
+            setattr(instance, attribute_of.get(name, name), resolved)
             continue
 
         if name in section.secrets:
-            # Assigned by its manifest name, which is the model's own
-            # attribute: where that is a property over a private column the
-            # property re-encrypts with this installation's key, and where it
-            # is a plain column the column is what the application reads
-            # directly (`pyotp.TOTP(user.totp_secret)`, `json.loads(
-            # provider.config)`), so the archive's value is what belongs in
-            # it. Encrypting those would hand the application a ciphertext it
-            # never decrypts: a restored account with MFA that cannot be
-            # verified any more.
-            setattr(instance, name, value)
+            setattr(instance, name, _secret_as_stored(section, name, value))
             continue
 
         setattr(instance, attribute_of.get(name, name),
                 _coerce(value, column, f"{section_name}.{name}"))
+
+
+def _unplaceable_reference(section_name, section, name, row, column) -> None:
+    """A reference the archive carries and this installation cannot place.
+
+    Left alone, a column that requires a value took `None` and the insert
+    died on a NOT NULL constraint halfway through the transaction, naming a
+    table and nothing else: the operator was told the restore had failed and
+    not which row, nor which link, nor what was missing from the archive. A
+    zone served locally, whose signing authority the archive does not carry,
+    is the case that reaches this first.
+
+    A column that accepts an empty value keeps its silence: the reference may
+    point at a row a later section of this same restore creates, and
+    `relink_references` resolves it again once everything exists.
+    """
+    if column.nullable:
+        return
+    identity = row.get(f'{name}{REFERENCE_SUFFIX}')
+    raise RestoreValidationError(
+        f"Invalid backup: {section_name}.{name} points at a "
+        f"{section.references[name]} row this installation does not have "
+        f"({identity or 'and the archive carries no identity for it'}), and "
+        "the column requires one; nothing has been changed")
+
+
+def _secret_as_stored(section, name: str, value: Any) -> Any:
+    """The archive's cleartext, in the shape the column holds it here.
+
+    A secret is assigned by its manifest name, which is the model's own
+    attribute. Where that is a property over a private column, the setter
+    re-encrypts with this installation's key and the cleartext is what it
+    wants. Where it is a plain column, it depends on the column, and the
+    manifest is where that is written down:
+
+    * a column the application reads directly gets the cleartext, because
+      that is what the application reads: `pyotp.TOTP(user.totp_secret)`,
+      `json.loads(provider.config)`, the Argon2 hashes of the backup codes.
+      Encrypting those would hand the application a ciphertext it never
+      decrypts, and a restored account whose MFA can no longer be verified;
+    * a column the application keeps encrypted gets it back encrypted, with
+      the layer the application writes it with. Assigning the cleartext there
+      put an ACME account key, a deployment SSH key, a SCEP challenge, an
+      Intune client secret and a webhook signing secret into the database
+      readable: a restore taken and put back on the same installation
+      silently undid its own at-rest protection.
+    """
+    layer = section.stored.get(name)
+    if not value or layer is None:
+        return value
+    if layer == 'master':
+        from security.encryption import encrypt_text
+        return encrypt_text(value)
+    if layer == 'database':
+        from utils.encryption import encrypt_if_needed
+        return encrypt_if_needed(value)
+    raise RestoreValidationError(
+        f"The manifest asks for {name} to be stored as '{layer}', which is "
+        "not a layer this version writes")
 
 
 # The widest integer a database column holds: PostgreSQL's bigint, and the

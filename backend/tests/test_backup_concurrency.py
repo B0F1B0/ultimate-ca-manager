@@ -6,7 +6,6 @@ single file. Nothing serialised them: two runs could produce the same name,
 truncate each other's file, and both record a success.
 """
 import multiprocessing
-import os
 import time
 
 import pytest
@@ -140,8 +139,21 @@ class TestAFullDiskPublishesNothing:
             db.session.commit()
             schedule._LAST_ATTEMPT['at'] = None
 
+            real_fsync = os_module.fsync
+            archive_dir = str(backup_dir)
+
             def no_space(fd):
-                raise OSError(errno.ENOSPC, 'No space left on device')
+                # Only the archive being written, not every fsync in the
+                # process: the run records its own outcome through the
+                # database, and a commit that cannot sync would leave this
+                # test asserting on an outcome nobody could write.
+                try:
+                    name = os_module.readlink(f'/proc/self/fd/{fd}')
+                except OSError:
+                    name = ''
+                if name.startswith(archive_dir):
+                    raise OSError(errno.ENOSPC, 'No space left on device')
+                return real_fsync(fd)
 
             monkeypatch.setattr(os_module, 'fsync', no_space)
             try:

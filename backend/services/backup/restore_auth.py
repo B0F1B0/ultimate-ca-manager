@@ -28,6 +28,7 @@ from models import db
 from .errors import BackupSchemaError
 from .restore import RestorePlan
 from .restore.apply import apply_columns
+from .restore_extended import reindex_reference_targets
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,10 @@ class RestoreAuthMixin:
         provider the target was connected to.
         """
         from models.hsm import HsmProvider
-        plan = plan if plan is not None else RestorePlan()
+        from .restore_extended import reindex_reference_targets
+
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('hsm_providers', plan)
         for hsm_data in backup_data.get('hsm_providers', []):
             hsm = HsmProvider.query.filter_by(name=hsm_data['name']).first()
             if hsm is None:
@@ -111,16 +115,19 @@ class RestoreAuthMixin:
                           plan: Optional[RestorePlan] = None) -> None:
         """Restore API keys from backup data.
 
-        `user_id` is the one column still written by hand, and only when the
-        plan resolves nothing: the column is NOT NULL and the plan's index of
-        the users is taken before the first write, so a key belonging to a
-        user this same restore creates resolves to nothing yet. The number the
-        row already holds is kept as a placeholder rather than writing NULL
-        into a column that refuses it, and `relink_references` puts the key on
-        the user the archive names once every row exists.
+        The plan's index of the users is taken before the first write, so a
+        key belonging to a user this same restore creates used to resolve to
+        nothing; the number the row already held was kept as a placeholder and
+        `relink_references` repaired it at the end. That number is the
+        *source's*, and PostgreSQL refuses it at the moment of the insert --
+        the repair never ran, and the whole restore died on a foreign key.
+
+        The index of the users is rebuilt here instead, before the first key
+        is applied, so the reference resolves to the row it names.
         """
         from models.api_key import APIKey
         plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('api_keys', plan)
         for ak_data in backup_data.get('api_keys', []):
             ak = APIKey.query.filter_by(key_hash=ak_data['key_hash']).first()
             if ak is None:
@@ -130,10 +137,7 @@ class RestoreAuthMixin:
                             name=ak_data.get('name', 'restored'),
                             permissions=ak_data.get('permissions', '[]'))
                 db.session.add(ak)
-            held = ak.user_id
             apply_columns(ak, 'api_keys', ak_data, plan)
-            if ak.user_id is None:
-                ak.user_id = held
             results['api_keys'] += 1
 
     def _restore_auth_certificates(self, backup_data: Dict, results: Dict,
@@ -141,11 +145,12 @@ class RestoreAuthMixin:
         """Restore authentication certificates from backup data.
 
         The certificate itself is decoded before the row is applied (see
-        `_archived_client_certificate`); `user_id` is kept by hand for the
-        same reason as in `_restore_api_keys`.
+        `_archived_client_certificate`); the index of the users is rebuilt
+        first for the same reason as in `_restore_api_keys`.
         """
         from models.auth_certificate import AuthCertificate
         plan = plan if plan is not None else RestorePlan.build(backup_data)
+        reindex_reference_targets('auth_certificates', plan)
         for ac_data in backup_data.get('auth_certificates', []):
             ac = AuthCertificate.query.filter_by(
                 cert_serial=ac_data['cert_serial']
@@ -162,8 +167,5 @@ class RestoreAuthMixin:
                     user_id=ac_data.get('user_id', 1),
                     cert_subject=ac_data.get('cert_subject', ''))
                 db.session.add(ac)
-            held = ac.user_id
             apply_columns(ac, 'auth_certificates', row, plan)
-            if ac.user_id is None:
-                ac.user_id = held
             results['auth_certificates'] += 1
