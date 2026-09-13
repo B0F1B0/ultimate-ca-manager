@@ -36,14 +36,71 @@ os.environ.setdefault('CSRF_DISABLED', 'true')
 # (root-owned, breaking the service's session pruning) and touch its
 # .restart_requested watcher signal. load_dotenv never overrides pre-set env
 # vars, so pinning a temp dir here keeps tests off the real data dir.
-if 'DATA_DIR' not in os.environ:
-    _tmp_data_dir = tempfile.mkdtemp(prefix='ucm-test-data-')
+# Under xdist the workers inherit the controller's environment, so a single
+# temp dir would be shared by all of them — and with it the inter-process
+# locks that live in it (the backup lock, the migration lock). A test holding
+# one would then refuse an unrelated test running on another worker. Each
+# worker is an independent instance and gets its own directory.
+def _sweep_abandoned_test_dirs(prefix='ucm-test-', older_than=86400):
+    """Remove the temp directories of runs that never got to clean up.
+
+    The `atexit` below does not run when an xdist worker is killed, so a
+    suite that is interrupted leaves its directory behind; on a machine that
+    runs the suite all day that is hundreds of them. Only this suite's own
+    prefix is touched, and only after a day, so a run happening right now is
+    never disturbed.
+    """
+    import time
+
+    cutoff = time.time() - older_than
+    root = Path(tempfile.gettempdir())
+    try:
+        candidates = list(root.glob(f'{prefix}*'))
+    except OSError:
+        return
+    for path in candidates:
+        try:
+            if path.is_dir() and path.stat().st_mtime < cutoff:
+                shutil.rmtree(path, ignore_errors=True)
+        except OSError:
+            continue
+
+
+_sweep_abandoned_test_dirs()
+
+# Pre-migration snapshots are kept for the operator, not for a test run: two
+# are enough to exercise both the retention and the fact that two snapshots
+# never claim the same name, and they keep a worker's directory small.
+os.environ.setdefault('UCM_DB_MIGRATION_KEEP', '2')
+
+_xdist_worker = os.environ.get('PYTEST_XDIST_WORKER')
+if 'DATA_DIR' not in os.environ or _xdist_worker:
+    _tmp_data_dir = tempfile.mkdtemp(
+        prefix=f'ucm-test-data-{_xdist_worker or "main"}-')
     os.environ['DATA_DIR'] = _tmp_data_dir
     atexit.register(shutil.rmtree, _tmp_data_dir, ignore_errors=True)
+
+# The backend-switch routes rewrite /etc/ucm/ucm.env, the file the installed
+# service reads at boot: a test that reached it would take this machine's own
+# instance down. Redirected here rather than in the `app` fixture, because a
+# test that never asks for `app` would otherwise resolve the real path, and
+# the protection would rest on a convention instead of on the structure.
+UCM_TEST_ENV_FILE = Path(os.environ['DATA_DIR']) / 'etc' / 'ucm.env'
+UCM_TEST_ENV_FILE.parent.mkdir(parents=True, exist_ok=True)
+if not UCM_TEST_ENV_FILE.exists():
+    UCM_TEST_ENV_FILE.write_text('# test sandbox\n')
 os.environ.setdefault('UCM_DEV_MODE', 'true')
 
 # Add backend to Python path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# The path is a module constant, bound by value wherever it was imported, so
+# each module that holds a copy is redirected as soon as it is importable.
+from services.database_admin import helpers as _db_helpers  # noqa: E402
+from services.database_admin import persistence as _db_persistence  # noqa: E402
+
+_db_helpers.UCM_ENV_PATH = UCM_TEST_ENV_FILE
+_db_persistence.UCM_ENV_PATH = UCM_TEST_ENV_FILE
 
 
 class _GuardResolverProxy:
@@ -460,3 +517,49 @@ def assert_error(response, status):
     """Assert response is an error with given status code."""
     assert response.status_code == status, \
         f'Expected {status}, got {response.status_code}: {response.data[:500]}'
+
+
+def clean_dangling_rows(app):
+    """Delete rows of the shared test database that break its own schema.
+
+    The suite's database is shared by every file of a worker and is not
+    guaranteed to satisfy its own foreign keys: it is written by fixtures that
+    bypass the routes, and SQLite enforces nothing. Anything that reads it as
+    a *database* rather than as a fixture — the migration, which refuses to
+    copy rows PostgreSQL would reject — then fails depending on which files
+    ran before it.
+
+    Returns the number of rows removed, so a caller can say so.
+    """
+    from sqlalchemy import text as _text
+    from models import db as _db
+    from services.database_admin.helpers import _force_register_all_models
+
+    _force_register_all_models()
+    removed = 0
+    with app.app_context():
+        present = set(_db.inspect(_db.engine).get_table_names())
+        for table in reversed(_db.metadata.sorted_tables):
+            if table.name not in present:
+                continue
+            for constraint in table.foreign_key_constraints:
+                elements = list(constraint.elements)
+                child = [e.parent.name for e in elements]
+                parent_table = elements[0].column.table.name
+                parent = [e.column.name for e in elements]
+                if parent_table not in present:
+                    continue
+                on = ' AND '.join(
+                    f'c."{a}" = p."{b}"' for a, b in zip(child, parent))
+                not_null = ' AND '.join(f'c."{a}" IS NOT NULL' for a in child)
+                result = _db.session.execute(_text(
+                    f'DELETE FROM "{table.name}" WHERE rowid IN ('
+                    f'  SELECT c.rowid FROM "{table.name}" c '
+                    f'  LEFT JOIN "{parent_table}" p ON {on} '
+                    f'  WHERE {not_null} AND p."{parent[0]}" IS NULL)'))
+                removed += result.rowcount or 0
+        if removed:
+            _db.session.commit()
+        else:
+            _db.session.rollback()
+    return removed

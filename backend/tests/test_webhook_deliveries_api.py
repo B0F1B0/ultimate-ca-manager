@@ -33,7 +33,8 @@ def endpoint_with_deliveries(app):
 
 class TestDeliveriesList:
     def test_requires_auth(self, client, endpoint_with_deliveries):
-        assert client.get(f'/api/v2/webhooks/{endpoint_with_deliveries}/deliveries').status_code == 401
+        r = client.get(f'/api/v2/webhooks/{endpoint_with_deliveries}/deliveries')
+        assert r.status_code == 401, r.data
 
     def test_lists_all(self, auth_client, endpoint_with_deliveries):
         r = auth_client.get(f'/api/v2/webhooks/{endpoint_with_deliveries}/deliveries')

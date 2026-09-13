@@ -16,7 +16,7 @@ class TestAcmePreflightAuth:
             'domains': ['example.com'],
             'email': 'a@example.com',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 class TestAcmePreflightValidateOnly:

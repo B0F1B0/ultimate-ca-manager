@@ -77,16 +77,32 @@ def _mk_template(app, name, ku, eku, template_type='custom', key_type='RSA-2048'
         return tpl.id
 
 
+def _drop_template(app, tpl_id):
+    """Remove a template the way the application would leave the database.
+
+    The route refuses to delete a template certificates still point at; these
+    tests delete the row directly, so the link has to be cleared first. Left
+    behind, it is a certificate referencing a template that no longer exists —
+    a row the schema forbids, which outlives the test and the file."""
+    from sqlalchemy import text
+
+    with app.app_context():
+        tpl = db.session.get(CertificateTemplate, tpl_id)
+        if not tpl:
+            return
+        db.session.execute(
+            text('UPDATE certificates SET template_id = NULL '
+                 'WHERE template_id = :tpl'), {'tpl': tpl_id})
+        db.session.delete(tpl)
+        db.session.commit()
+
+
 @pytest.fixture
 def mtls_template(app):
     """A client-auth template: digitalSignature only, clientAuth only."""
     tpl_id = _mk_template(app, 'acme-mtls-tpl', ['digitalSignature'], ['clientAuth'])
     yield tpl_id
-    with app.app_context():
-        tpl = db.session.get(CertificateTemplate, tpl_id)
-        if tpl:
-            db.session.delete(tpl)
-            db.session.commit()
+    _drop_template(app, tpl_id)
 
 
 def _install_profiles(app, profiles):

@@ -5,7 +5,8 @@ import pytest
 
 class TestSchedulerListEndpoint:
     def test_requires_auth(self, client):
-        assert client.get('/api/v2/system/scheduler').status_code == 401
+        r = client.get('/api/v2/system/scheduler')
+        assert r.status_code == 401, r.data
 
     def test_lists_tasks_with_labels(self, auth_client):
         r = auth_client.get('/api/v2/system/scheduler')
@@ -21,7 +22,8 @@ class TestSchedulerListEndpoint:
 
 class TestSchedulerRunEndpoint:
     def test_requires_auth(self, client):
-        assert client.post('/api/v2/system/scheduler/session_cleanup/run').status_code == 401
+        r = client.post('/api/v2/system/scheduler/session_cleanup/run')
+        assert r.status_code == 401, r.data
 
     def test_unknown_task_returns_404(self, auth_client):
         r = auth_client.post('/api/v2/system/scheduler/does_not_exist/run')

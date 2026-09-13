@@ -10,17 +10,29 @@ from models import db, AcmeClientAccount, SystemConfig
 from services.acme.acme_client_service import AcmeClientService
 
 
+def _wipe_acme_client_state():
+    """Remove the accounts and everything that points at them.
+
+    A bulk ``query.delete()`` runs no cascade, and SQLite enforces no foreign
+    key here, so deleting the accounts alone leaves the orders of this file
+    behind as rows referencing an account that no longer exists. They outlive
+    the test and the suite then carries a database its own schema forbids.
+    """
+    from models import AcmeClientOrder
+
+    AcmeClientOrder.query.delete()
+    AcmeClientAccount.query.delete()
+    SystemConfig.query.filter(SystemConfig.key.like('acme.client.%')).delete()
+    db.session.commit()
+
+
 @pytest.fixture
 def clean_acme_state(app):
     """Wipe all ACME-related state before each test."""
     with app.app_context():
-        AcmeClientAccount.query.delete()
-        SystemConfig.query.filter(SystemConfig.key.like('acme.client.%')).delete()
-        db.session.commit()
+        _wipe_acme_client_state()
         yield
-        AcmeClientAccount.query.delete()
-        SystemConfig.query.filter(SystemConfig.key.like('acme.client.%')).delete()
-        db.session.commit()
+        _wipe_acme_client_state()
 
 
 class TestEnvironmentResolution:

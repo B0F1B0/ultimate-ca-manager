@@ -87,7 +87,9 @@ class TestErrorResponseWire:
 
     def test_unauthenticated_error_is_also_a_problem_document(self, client):
         r = client.get(f'{BASE}/certificates')
-        assert r.status_code in (401, 403)
+        # The body is in the message: this one has failed intermittently
+        # under load, and a bare status comparison says nothing about why.
+        assert r.status_code in (401, 403), r.data
         body = json.loads(r.data)
         assert body['status'] == r.status_code
         assert body['message']

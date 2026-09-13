@@ -1136,6 +1136,22 @@ class TestOrphanFilter:
     """Orphans are selected over the whole set, not on the page received
     (#345 review): the filter and the counter must agree at any page size."""
 
+    @pytest.fixture(autouse=True)
+    def _remove_the_orphans(self, app):
+        """Take the orphans back out of the shared database.
+
+        A certificate pointing at a CA that does not exist is a state SQLite
+        tolerates and PostgreSQL refuses; left behind, it belongs to no test
+        and makes any later check of the database's own integrity fail on
+        rows nobody asked for."""
+        yield
+        with app.app_context():
+            from sqlalchemy import text as _text
+            from models import db as _db
+            _db.session.execute(_text(
+                "DELETE FROM certificates WHERE caref LIKE 'missing-ca-%'"))
+            _db.session.commit()
+
     @staticmethod
     def _orphan(app, auth_client, create_ca, cn):
         """A certificate left pointing at a CA this instance does not hold.
