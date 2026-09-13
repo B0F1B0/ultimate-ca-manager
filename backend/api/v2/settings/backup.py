@@ -2,14 +2,26 @@
 Settings - Backup management + schedule + history routes
 """
 
-from flask import request
+from flask import request, send_file
 from auth.unified import require_auth
-from config.settings import Config
 from utils.response import success_response, error_response, no_content_response
 from models import db, SystemConfig
 from services.audit_service import AuditService
 from services.backup import storage
-from utils.datetime_utils import utc_now
+from services.backup.settings_contract import (
+    BackupSettingError,
+    validate_backup_password,
+    validate_frequency,
+    validate_retention_days,
+)
+from services.backup_service import (
+    BackupService,
+    BackupExportError,
+    BackupPasswordError,
+    BackupSchemaError,
+    BackupValidationError,
+    ContainerError,
+)
 import logging
 import secrets
 
@@ -31,63 +43,73 @@ def get_backup_settings():
 @bp.route('/api/v2/settings/backup/create', methods=['POST'])
 @require_auth(['admin:system'])
 def create_backup():
-    """Create backup now"""
+    """Create backup now.
+
+    The archive is produced, named, published and proven by the same code as
+    POST /api/v2/system/backup: two entry points, one implementation, so an
+    instance cannot end up with two sets of archives under two naming schemes.
+    What is particular to this route is the password it generates for a caller
+    that did not bring one, which it returns once.
+    """
+    data = request.json or {}
+    password = data.get('password')
+    generated_password = False
+
+    # Generate secure random password if not provided
+    if not password:
+        password = secrets.token_urlsafe(16)  # 128-bit entropy
+        generated_password = True
+
+    # The generated password goes through the rule too: it is the password the
+    # administrator will have to type back to restore.
     try:
-        from services.backup_service import (
-            BackupService, BackupExportError, BackupPasswordError,
-        )
-        data = request.json or {}
-        password = data.get('password')
-        generated_password = False
+        validate_backup_password(password)
+    except BackupSettingError as e:
+        return error_response(str(e), 400)
 
-        # Generate secure random password if not provided
-        if not password:
-            password = secrets.token_urlsafe(16)  # 128-bit entropy
-            generated_password = True
-        else:
-            # The same rule as the system backup route (#346)
-            try:
-                BackupService.validate_password(password)
-            except BackupPasswordError as e:
-                return error_response(str(e), 400)
-
-        service = BackupService()
-        backup_bytes = service.create_backup(password)
-
-        timestamp = utc_now().strftime('%Y%m%d_%H%M%S_%f')
-        filename = f"ucm_backup_{timestamp}_{secrets.token_hex(6)}.ucmbkp"
-        filepath = storage.publish_validated_archive(
-            Config.BACKUP_DIR, filename, backup_bytes)
-
-        AuditService.log_action(
-            action='system_backup',
-            resource_type='system',
-            resource_name=filename,
-            details=f'Created backup: {filename}',
-            success=True
-        )
-
-        response_data = {
-            'filename': filename,
-            'size': len(backup_bytes),
-            'path': str(filepath)
-        }
-
-        # Include generated password in response so user can save it
-        if generated_password:
-            response_data['password'] = password
-            response_data['password_generated'] = True
-
-        return success_response(
-            data=response_data,
-            message='Backup created successfully' + (' - SAVE THE PASSWORD!' if generated_password else '')
-        )
+    try:
+        backup_bytes = BackupService().create_backup(password)
+        _filepath, filename = storage.create_archive(backup_bytes)
+    except BackupPasswordError as e:
+        return error_response(str(e), 400)
     except BackupExportError as e:
         logger.error(f"Settings backup aborted: {e}")
         return error_response(f'Backup aborted: {e}', 500)
+    except BackupValidationError as e:
+        logger.error(f"Settings backup written but not validated: {e}")
+        return error_response(f'Backup could not be validated: {e}', 500)
     except Exception as e:
         logger.error(f"Settings backup failed: {e}")
         return error_response('Backup failed', 500)
+
+    AuditService.log_action(
+        action='system_backup',
+        resource_type='system',
+        resource_name=filename,
+        details=f'Created backup: {filename}',
+        success=True
+    )
+
+    response_data = {
+        'filename': filename,
+        # `size` stays the byte count this route has always returned; both
+        # families also answer `size_bytes`, which means the same thing on
+        # either of them. The absolute path is gone: where the instance keeps
+        # its archives is not the caller's business.
+        'size': len(backup_bytes),
+        'size_bytes': len(backup_bytes),
+        'download_url': f'/api/v2/settings/backup/{filename}/download',
+    }
+
+    # Include generated password in response so user can save it
+    if generated_password:
+        response_data['password'] = password
+        response_data['password_generated'] = True
+
+    return success_response(
+        data=response_data,
+        message='Backup created successfully' + (' - SAVE THE PASSWORD!' if generated_password else '')
+    )
 
 
 @bp.route('/api/v2/settings/backup/restore', methods=['POST'])
@@ -114,9 +136,6 @@ def restore_backup():
         return error_response('Backup password required', 400)
 
     try:
-        from services.backup_service import (
-            BackupService, BackupPasswordError, BackupSchemaError, ContainerError,
-        )
         from utils.file_validation import validate_upload, BACKUP_EXTENSIONS
 
         # Read + size-cap the upload as bytes (restore_backup expects bytes, not
@@ -164,70 +183,57 @@ def restore_backup():
         return error_response('Restore failed', 500)
 
 
-@bp.route('/api/v2/settings/backup/<path:filename>/download', methods=['GET'])
+@bp.route('/api/v2/settings/backup/<filename>/download', methods=['GET'])
 @require_auth(['admin:system'])
 def download_backup(filename):
-    """Download backup file"""
-    from flask import send_file
-    from werkzeug.utils import secure_filename
-    from pathlib import Path
-    import os
+    """Download backup file.
 
-    backup_dir = Path(Config.BACKUP_DIR)
-
-    # SECURITY: Sanitize filename to prevent path traversal
-    safe_filename = secure_filename(os.path.basename(filename))
-    if not safe_filename:
-        return error_response('Invalid filename', 400)
-
-    backup_file = backup_dir / safe_filename
-
-    # SECURITY: Verify the resolved path is within backup directory
+    The name is resolved by the storage module, the one implementation the
+    System route uses as well: a traversal, a name secure_filename() would
+    have quietly turned into a different valid one, an extension this service
+    never writes and a symlink are refused the same way on both.
+    """
     try:
-        backup_file = backup_file.resolve()
-        if not backup_file.is_relative_to(backup_dir.resolve()):
-            return error_response('Access denied', 403)
-    except (ValueError, RuntimeError):
-        return error_response('Invalid path', 400)
+        backup_file, safe_filename = storage.resolve_archive(filename)
+    except ValueError:
+        return error_response('Invalid backup filename', 400)
+    except PermissionError:
+        return error_response('Access denied', 403)
 
-    if not backup_file.exists():
+    if not backup_file.is_file() or backup_file.is_symlink():
         return error_response('Backup file not found', 404)
 
     return send_file(
-        str(backup_file),
+        backup_file,
         as_attachment=True,
         download_name=safe_filename,
-        mimetype='application/octet-stream'
+        mimetype='application/octet-stream',
+        conditional=True,
     )
 
 
-@bp.route('/api/v2/settings/backup/<path:filename>', methods=['DELETE'])
+@bp.route('/api/v2/settings/backup/<filename>', methods=['DELETE'])
 @require_auth(['admin:system'])
 def delete_backup(filename):
-    """Delete backup file"""
-    from werkzeug.utils import secure_filename
-    from pathlib import Path
-    import os
+    """Delete backup file.
 
-    backup_dir = Path(Config.BACKUP_DIR)
-
-    # SECURITY: Sanitize filename to prevent path traversal
-    safe_filename = secure_filename(os.path.basename(filename))
-    if not safe_filename:
-        return error_response('Invalid filename', 400)
-
-    backup_file = backup_dir / safe_filename
-
-    # SECURITY: Verify the resolved path is within backup directory
+    Same resolution as the System route. Deleting stays idempotent here — a
+    name that is already gone answers 204 — which is the contract this route's
+    callers have always had.
+    """
     try:
-        backup_file = backup_file.resolve()
-        if not backup_file.is_relative_to(backup_dir.resolve()):
-            return error_response('Access denied', 403)
-    except (ValueError, RuntimeError):
-        return error_response('Invalid path', 400)
+        backup_file, safe_filename = storage.resolve_archive(filename)
+    except ValueError:
+        return error_response('Invalid backup filename', 400)
+    except PermissionError:
+        return error_response('Access denied', 403)
 
-    if backup_file.exists():
-        backup_file.unlink()
+    try:
+        if backup_file.is_file() and not backup_file.is_symlink():
+            backup_file.unlink()
+    except OSError:
+        logger.exception("Failed to delete backup: %s", safe_filename)
+        return error_response('Failed to delete backup', 500)
 
     AuditService.log_action(
         action='backup_delete',
@@ -258,26 +264,29 @@ def update_backup_schedule():
     retention_days→backup_retention_days.
     """
     from . import set_config
-    from services.backup.schedule import get_schedule, _VALID_FREQUENCIES
+    from services.backup.schedule import get_schedule
     data = request.json
     if not data:
         return error_response('No data provided', 400)
 
+    # One contract, shared with PATCH /api/v2/settings/general: the two routes
+    # write the same three rows, so a value one of them refuses cannot be
+    # stored through the other.
+    try:
+        if 'frequency' in data:
+            data['frequency'] = validate_frequency(data['frequency'], 'frequency')
+        if 'retention_days' in data:
+            data['retention_days'] = validate_retention_days(
+                data['retention_days'], 'retention_days')
+    except BackupSettingError as e:
+        return error_response(str(e), 400)
+
     if 'enabled' in data:
         set_config('auto_backup_enabled', 'true' if data['enabled'] else 'false')
     if 'frequency' in data:
-        if data['frequency'] not in _VALID_FREQUENCIES:
-            return error_response(
-                f"frequency must be one of {', '.join(_VALID_FREQUENCIES)}", 400)
         set_config('backup_frequency', data['frequency'])
     if 'retention_days' in data:
-        try:
-            rd = int(data['retention_days'])
-        except (ValueError, TypeError):
-            return error_response('retention_days must be an integer', 400)
-        if rd < 1 or rd > 3650:
-            return error_response('retention_days must be between 1 and 3650', 400)
-        set_config('backup_retention_days', str(rd))
+        set_config('backup_retention_days', str(data['retention_days']))
 
     try:
         db.session.commit()

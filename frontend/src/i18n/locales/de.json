@@ -2291,6 +2291,7 @@
     "availableBackups": "Verfügbare Sicherungen",
     "backup": "Sicherung & Wiederherstellung",
     "backupFrequency": "Sicherungshäufigkeit",
+    "backupCadenceNote": "Ab dem letzten Lauf gezählt, nicht zu einer festen Uhrzeit: Eine Sicherung läuft, sobald diese Zeit seit der vorherigen vergangen ist.",
     "backupPassword": "Sicherungspasswort",
     "backupPasswordTooRepetitive": "Das Passwort wiederholt zu wenige Zeichen: {{distinct}} verschiedene, mindestens {{required}} erforderlich",
     "backupSubtitle": "Datensicherungs- und Wiederherstellungsoptionen",

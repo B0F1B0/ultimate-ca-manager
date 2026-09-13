@@ -15,7 +15,11 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from uuid import uuid4
 
+import werkzeug.utils
+
+from config.settings import Config
 from utils.datetime_utils import utc_isoformat, utc_now
 
 from .errors import BackupValidationError
@@ -31,6 +35,13 @@ _UNSUPPORTED_DIRECTORY_FSYNC_ERRNOS = frozenset(filter(None, (
     getattr(errno, 'ENOTSUP', None),
     getattr(errno, 'EOPNOTSUPP', None),
 )))
+
+# The extensions this service writes, and the only ones it will serve back.
+ALLOWED_ARCHIVE_EXTENSIONS = ('.ucmbkp', '.json.enc')
+
+# A name collision means a UUID collided; retrying costs nothing and publishing
+# never overwrites, so the loop is bounded rather than infinite.
+_NAME_ATTEMPTS = 5
 
 
 def _fsync_directory(path: Path) -> bool:
@@ -229,6 +240,109 @@ def publish_validated_archive(
     return path
 
 
+def backup_directory() -> Path:
+    """The configured archive directory, resolved.
+
+    Read on every call: the directory is a setting, and a route that captured
+    it at import time kept writing to the previous one.
+    """
+    return Path(Config.BACKUP_DIR).resolve()
+
+
+def is_archive_name(filename: str) -> bool:
+    """Whether a name carries an extension this service writes."""
+    return bool(filename) and filename.endswith(ALLOWED_ARCHIVE_EXTENSIONS)
+
+
+def resolve_archive(raw_filename, backup_dir=None) -> tuple:
+    """Resolve a requested archive name to a path in the archive directory.
+
+    The one implementation for every route that takes an archive name. The two
+    families of backup routes used to read the same name two ways: one refused
+    traversal, an extension it never writes, a name ``secure_filename()`` had
+    to change and a symlink; the other took whatever ``secure_filename()``
+    turned the request into, as long as the result stayed under the directory.
+    Only the strict reading is left.
+
+    Returns ``(resolved path, filename)``. Raises ``ValueError`` when the name
+    is not one this service would have written, and ``PermissionError`` when
+    it points outside the directory or at a symlink; callers map those to 400
+    and 403.
+    """
+    if not isinstance(raw_filename, str):
+        raise ValueError("Invalid backup filename")
+
+    filename = werkzeug.utils.secure_filename(raw_filename)
+
+    # A name secure_filename() had to change is not the name that was asked
+    # for. Serving the valid file it happens to produce is how a traversal
+    # attempt turns into a successful download.
+    if not filename or filename != raw_filename:
+        raise ValueError("Invalid backup filename")
+
+    if not is_archive_name(filename):
+        raise ValueError("Invalid backup filename")
+
+    directory = (Path(backup_dir).resolve() if backup_dir is not None
+                 else backup_directory())
+    candidate = directory / filename
+
+    # Backups are normal files written by this service, never symlinks.
+    if candidate.is_symlink():
+        raise PermissionError("Symlinked backup files are not permitted")
+
+    try:
+        resolved = candidate.resolve()
+        if not resolved.is_relative_to(directory):
+            raise PermissionError("Backup path is outside the backup directory")
+    except (ValueError, RuntimeError) as exc:
+        raise ValueError("Invalid backup path") from exc
+
+    return resolved, filename
+
+
+def new_archive_filename() -> str:
+    """A collision-resistant name for a new archive.
+
+    Microseconds and a UUID fragment: a name to the second let two backups
+    taken in the same second fight over one file.
+    """
+    return (f"ucm_backup_{utc_now().strftime('%Y%m%d_%H%M%S_%f')}"
+            f"_{uuid4().hex[:12]}.ucmbkp")
+
+
+def create_archive(data: bytes, backup_dir=None) -> tuple:
+    """Publish archive bytes under a new name, validated.
+
+    The one implementation behind every "create a backup" route: same
+    directory, same naming, same proof that what is on disk is what was
+    produced. Returns ``(path, filename)``, and raises ``FileExistsError``
+    when no unused name could be allocated.
+
+    Held under the shared backup lock, so a manual backup, the scheduled one
+    and retention cannot interleave: they write and delete in the same
+    directory, and the catalogue that vouches for them is one file.
+    """
+    from .locking import backup_operation_lock
+
+    with backup_operation_lock(timeout=30, purpose='creating a backup'):
+        return _create_archive(data, backup_dir)
+
+
+def _create_archive(data: bytes, backup_dir=None) -> tuple:
+    directory = Path(backup_dir) if backup_dir is not None else backup_directory()
+    for _ in range(_NAME_ATTEMPTS):
+        filename = new_archive_filename()
+        try:
+            return publish_validated_archive(directory, filename, data), filename
+        except FileExistsError:
+            continue
+
+    logger.error("Could not allocate a unique backup filename in %d attempts",
+                 _NAME_ATTEMPTS)
+    raise FileExistsError("Could not allocate a unique backup filename")
+
+
 def matches_record(path, entry: dict) -> bool:
     """Whether the file on disk still is the archive that was recorded."""
     if not isinstance(entry, dict):
@@ -258,6 +372,26 @@ def newest_validated(paths) -> object:
         if entry and matches_record(path, entry):
             return path
     return None
+
+
+def tampered(paths) -> list:
+    """Archives whose record exists and no longer matches what is on disk.
+
+    Proven to be something other than what was written, so nothing should
+    protect them: keeping "the two most recent" is protection against losing a
+    restore point, not against losing a file.
+    """
+    if not paths:
+        return []
+    archives = read_catalog(Path(list(paths)[0]).parent)
+    if not archives:
+        return []
+    found = []
+    for path in paths:
+        entry = archives.get(Path(path).name)
+        if entry and not matches_record(path, entry):
+            found.append(path)
+    return found
 
 
 def unrecorded(paths) -> list:

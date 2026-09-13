@@ -55,6 +55,7 @@ export default function BackupSection({
                 ]}
                 value={settings.backup_frequency || 'daily'}
                 onChange={(val) => updateSetting('backup_frequency', val)}
+                helperText={t('settings.backupCadenceNote')}
               />
               <Input
                 label={

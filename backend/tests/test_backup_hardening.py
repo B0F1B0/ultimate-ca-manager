@@ -220,6 +220,9 @@ class TestRetentionKeepsARestorePoint:
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
+            # One archive minimum, so what survives here survives because it
+            # is provable, not because of the count.
+            _set('backup_min_keep', '1')
             good = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
                                    b'UCMB\x02' + b'A' * 600, 30)
             tampered = self._validated(tmp_path, 'ucm_backup_20260101_000000.ucmbkp',
@@ -244,6 +247,7 @@ class TestRetentionKeepsARestorePoint:
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
+            _set('backup_min_keep', '1')
             only = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
                                    b'UCMB\x02' + b'A' * 600, 30)
 
@@ -257,6 +261,7 @@ class TestRetentionKeepsARestorePoint:
         with app.app_context():
             monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
             _set('backup_retention_days', '7')
+            _set('backup_min_keep', '1')
             old = self._validated(tmp_path, 'ucm_backup_20000101_000000.ucmbkp',
                                   b'UCMB\x02' + b'A' * 600, 30)
             older = self._validated(tmp_path, 'ucm_backup_19990101_000000.ucmbkp',

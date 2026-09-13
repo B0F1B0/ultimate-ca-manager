@@ -2291,6 +2291,7 @@
     "availableBackups": "利用可能なバックアップ",
     "backup": "バックアップと復元",
     "backupFrequency": "バックアップ頻度",
+    "backupCadenceNote": "時刻ではなく前回の実行からの経過時間で判断します。前回からこの時間が過ぎるとバックアップが実行されます。",
     "backupPassword": "バックアップパスワード",
     "backupPasswordTooRepetitive": "パスワードの文字の種類が少なすぎます：{{distinct}} 種類、少なくとも {{required}} 種類が必要です",
     "backupSubtitle": "データバックアップと復元オプション",

@@ -2444,6 +2444,7 @@
     "encryptedBackup": "Créer une sauvegarde chiffrée",
     "automaticBackups": "Sauvegardes automatiques",
     "backupFrequency": "Fréquence de sauvegarde",
+    "backupCadenceNote": "Compté depuis la dernière exécution, pas à une heure fixe : une sauvegarde a lieu quand ce délai s'est écoulé depuis la précédente.",
     "availableBackups": "Sauvegardes disponibles",
     "noBackups": "Aucune sauvegarde trouvée",
     "eventsToLog": "Événements à journaliser",

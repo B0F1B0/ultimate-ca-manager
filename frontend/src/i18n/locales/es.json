@@ -2291,6 +2291,7 @@
     "availableBackups": "Respaldos disponibles",
     "backup": "Respaldo y restauración",
     "backupFrequency": "Frecuencia de respaldo",
+    "backupCadenceNote": "Se cuenta desde la última ejecución, no a una hora fija: la copia se realiza cuando ha pasado ese tiempo desde la anterior.",
     "backupPassword": "Contraseña de la copia de seguridad",
     "backupPasswordTooRepetitive": "La contraseña repite demasiado pocos caracteres: {{distinct}} distintos, se necesitan al menos {{required}}",
     "backupSubtitle": "Opciones de copia de seguridad y recuperación de datos",

@@ -3,7 +3,12 @@ System Backup Operations
 """
 
 from services.backup import storage
+from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.decrypt_mixin import BackupDecryptionError
+from services.backup.settings_contract import (
+    BackupSettingError,
+    validate_backup_password,
+)
 from . import bp
 from flask import request, send_file
 from auth.unified import require_auth
@@ -17,35 +22,15 @@ from services.backup_service import (
     BackupValidationError,
     ContainerError,
 )
-from pathlib import Path
 from datetime import datetime, timezone
-from uuid import uuid4
 import logging
-import os
-import tempfile
-import werkzeug.utils
 
 from utils.file_validation import validate_upload, BACKUP_EXTENSIONS
 
 logger = logging.getLogger(__name__)
 
-_ALLOWED_BACKUP_EXTENSIONS = (".ucmbkp", ".json.enc")
 _MAX_BACKUP_UPLOAD_SIZE = 100 * 1024 * 1024
 _MAX_BULK_DELETE_FILES = 1000
-
-
-def _backup_dir() -> str:
-    """Return the configured backup directory."""
-    try:
-        from config.settings import Config
-        return str(Config.BACKUP_DIR)
-    except Exception:
-        return "/opt/ucm/data/backups"
-
-
-def _backup_root() -> Path:
-    """Return the resolved backup directory path."""
-    return Path(_backup_dir()).resolve()
 
 
 def _human_size(size_bytes: int) -> str:
@@ -55,48 +40,6 @@ def _human_size(size_bytes: int) -> str:
     if size_bytes > 1024:
         return f"{size_bytes / 1024:.1f} KB"
     return f"{size_bytes} B"
-
-
-def _is_backup_filename(filename: str) -> bool:
-    """Return whether a filename has an allowed backup extension."""
-    return bool(filename) and filename.endswith(_ALLOWED_BACKUP_EXTENSIONS)
-
-
-def _resolve_backup_file(raw_filename: str) -> tuple[Path, str]:
-    """
-    Validate and resolve a backup filename safely.
-
-    Rejects traversal attempts, filenames changed by secure_filename(), unsupported
-    extensions, symlinks, and paths outside of the configured backup directory.
-    """
-    if not isinstance(raw_filename, str):
-        raise ValueError("Invalid backup filename")
-
-    filename = werkzeug.utils.secure_filename(raw_filename)
-
-    # Do not silently transform a potentially malicious requested path into a
-    # different valid filename.
-    if not filename or filename != raw_filename:
-        raise ValueError("Invalid backup filename")
-
-    if not _is_backup_filename(filename):
-        raise ValueError("Invalid backup filename")
-
-    backup_dir = _backup_root()
-    candidate = backup_dir / filename
-
-    # Backups must be normal files managed by this service, not symlinks.
-    if candidate.is_symlink():
-        raise PermissionError("Symlinked backup files are not permitted")
-
-    try:
-        resolved = candidate.resolve()
-        if not resolved.is_relative_to(backup_dir):
-            raise PermissionError("Backup path is outside the backup directory")
-    except (ValueError, RuntimeError) as exc:
-        raise ValueError("Invalid backup path") from exc
-
-    return resolved, filename
 
 
 def _request_restart_after_restore():
@@ -125,12 +68,6 @@ def _safe_audit_log(**kwargs) -> None:
         logger.exception("Operation completed but audit logging failed")
 
 
-def _new_backup_filename() -> str:
-    """Generate a collision-resistant backup filename."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    return f"ucm_backup_{timestamp}_{uuid4().hex[:12]}.ucmbkp"
-
-
 @bp.route("/api/v2/system/backup", methods=["POST"])
 @bp.route("/api/v2/system/backup/create", methods=["POST"])
 @require_auth(["admin:system"])
@@ -143,33 +80,18 @@ def create_backup():
         if not password:
             return error_response("Password required for encryption", 400)
 
-        service = BackupService()
         try:
-            # The rules live in the service; the route no longer keeps its own
-            # partial copy of them, which said nothing about the others (#346)
-            service._validate_password(password)
-        except BackupPasswordError as exc:
+            # The one rule, shared with the Settings route and with the
+            # password stored for the unattended run (#346)
+            validate_backup_password(password)
+        except BackupSettingError as exc:
             return error_response(str(exc), 400)
 
-        backup_bytes = service.create_backup(password)
+        backup_bytes = BackupService().create_backup(password)
 
-        backup_dir = _backup_root()
-
-        # UUID collisions are exceptionally unlikely, but retry safely if one occurs.
-        filepath = None
-        filename = None
-        for _ in range(5):
-            filename = _new_backup_filename()
-            try:
-                filepath = storage.publish_validated_archive(
-                    backup_dir, filename, backup_bytes)
-                break
-            except FileExistsError:
-                continue
-
-        if filepath is None or filename is None:
-            logger.error("Could not allocate a unique backup filename")
-            return error_response("Failed to save backup", 500)
+        # Naming, publication and the proof of what was written are the
+        # storage module's, for every route that creates an archive.
+        _filepath, filename = storage.create_archive(backup_bytes)
 
         _safe_audit_log(
             action="system_backup",
@@ -220,13 +142,13 @@ def list_backups():
               name_asc, name_desc
     """
     try:
-        backup_dir = _backup_root()
+        backup_dir = storage.backup_directory()
         files = []
 
         if backup_dir.exists() and backup_dir.is_dir():
             for entry in backup_dir.iterdir():
                 if (
-                    not _is_backup_filename(entry.name)
+                    not storage.is_archive_name(entry.name)
                     or entry.is_symlink()
                     or not entry.is_file()
                 ):
@@ -337,7 +259,7 @@ def list_backups():
 def download_backup(filename):
     """Download an existing backup file."""
     try:
-        backup_file, safe_filename = _resolve_backup_file(filename)
+        backup_file, safe_filename = storage.resolve_archive(filename)
     except ValueError:
         return error_response("Invalid backup filename", 400)
     except PermissionError:
@@ -360,7 +282,7 @@ def download_backup(filename):
 def delete_backup(filename):
     """Delete one backup file."""
     try:
-        backup_file, safe_filename = _resolve_backup_file(filename)
+        backup_file, safe_filename = storage.resolve_archive(filename)
     except ValueError:
         return error_response("Invalid backup filename", 400)
     except PermissionError:
@@ -370,7 +292,8 @@ def delete_backup(filename):
         if not backup_file.is_file() or backup_file.is_symlink():
             return error_response("Backup file not found", 404)
 
-        backup_file.unlink()
+        with backup_operation_lock(timeout=15, purpose='deleting a backup'):
+            backup_file.unlink()
 
         _safe_audit_log(
             action="backup_delete",
@@ -408,7 +331,7 @@ def bulk_delete_backups():
 
     for raw_name in names:
         try:
-            backup_file, safe_filename = _resolve_backup_file(raw_name)
+            backup_file, safe_filename = storage.resolve_archive(raw_name)
         except (ValueError, PermissionError):
             invalid += 1
             continue
@@ -461,8 +384,14 @@ def run_retention_now():
     try:
         from services.backup.schedule import run_backup_retention
 
-        removed = run_backup_retention()
+        # Asked for by a person: wait a little for a backup in flight rather
+        # than answering "nothing was removed" because something else held
+        # the directory.
+        removed = run_backup_retention(wait=30)
 
+    except BackupBusyError as busy:
+        logger.info("Run retention refused: %s", busy)
+        return error_response(str(busy), 409)
     except Exception:
         logger.exception("Run retention failed")
         return error_response("Failed to apply retention", 500)

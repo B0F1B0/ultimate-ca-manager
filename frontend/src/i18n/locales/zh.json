@@ -2291,6 +2291,7 @@
     "availableBackups": "可用备份",
     "backup": "备份与恢复",
     "backupFrequency": "备份频率",
+    "backupCadenceNote": "以距上次运行的时间计算，而非固定时刻：距上次运行经过该时长后即执行备份。",
     "backupPassword": "备份密码",
     "backupPasswordTooRepetitive": "密码使用的字符种类过少：{{distinct}} 种，至少需要 {{required}} 种",
     "backupSubtitle": "数据备份和恢复选项",

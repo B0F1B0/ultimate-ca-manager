@@ -12,6 +12,12 @@ import json
 import logging
 
 from . import bp, get_config, set_config
+from services.backup.settings_contract import (
+    BackupSettingError,
+    validate_backup_password,
+    validate_frequency,
+    validate_retention_days,
+)
 from utils.hsts import hsts_env_locked
 from utils.public_endpoints import validate_admin_base_url, validate_protocol_base_url
 
@@ -293,6 +299,24 @@ def update_general_settings():
                 return error_response('ACME public TLS certificate must include a private key', 400)
             data['acme_public_tls_cert_id'] = str(cert_id)
 
+    # The backup schedule is validated by the same contract as PATCH
+    # /api/v2/settings/backup/schedule. This route used to take any string as
+    # a cadence and any value at all as a retention, and the scheduler
+    # substituted a default when it read them back: a frequency nobody ran and
+    # a retention nobody applied, both saved without a word.
+    if 'backup_frequency' in data:
+        try:
+            data['backup_frequency'] = validate_frequency(data['backup_frequency'])
+        except BackupSettingError as e:
+            return error_response(str(e), 400)
+
+    if 'backup_retention_days' in data:
+        try:
+            data['backup_retention_days'] = validate_retention_days(
+                data['backup_retention_days'])
+        except BackupSettingError as e:
+            return error_response(str(e), 400)
+
     # Validate HSTS max-age (non-negative int) when provided
     if 'hsts_max_age' in data:
         try:
@@ -321,10 +345,9 @@ def update_general_settings():
             if key == 'backup_password' and value:
                 # The rule the backup itself applies: a password refused at
                 # backup time would fail every scheduled backup in silence
-                from services.backup_service import BackupService, BackupPasswordError
                 try:
-                    BackupService.validate_password(value)
-                except BackupPasswordError as e:
+                    validate_backup_password(value)
+                except BackupSettingError as e:
                     return error_response(str(e), 400)
                 from utils.encryption import encrypt_if_needed
                 value = encrypt_if_needed(value)

@@ -2292,6 +2292,7 @@
     "availableBackups": "Available Backups",
     "backup": "Backup & Restore",
     "backupFrequency": "Backup Frequency",
+    "backupCadenceNote": "Counted from the last run, not a time of day: a run happens when this much time has passed since the previous one.",
     "backupPassword": "Backup Password",
     "backupPasswordTooRepetitive": "Password repeats too few characters: {{distinct}} distinct, at least {{required}} needed",
     "backupSubtitle": "Backup and data recovery options",
