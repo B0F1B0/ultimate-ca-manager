@@ -278,21 +278,28 @@ class RestoreExtendedMixin:
                 db.session.rollback()
                 logger.warning(f"ACME client order restore failed: {e}")
 
-    def _restore_https_files(self, backup_data: Dict, results: Dict) -> None:
-        """Restore HTTPS server files from backup data"""
+    def _restore_https_files(self, backup_data: Dict, results: Dict,
+                             staged=None) -> None:
+        """Stage the HTTPS server certificate and key.
+
+        Nothing is written where the server reads it until the database
+        transaction has committed: the pair used to be written in the middle
+        of the restore, so a failure afterwards left the server presenting a
+        certificate from an archive that was never applied. Failures are no
+        longer swallowed either — a restore that cannot place the key it was
+        asked to restore has not restored it.
+        """
         https_data = backup_data.get('https_server', {})
+        if not https_data:
+            return
+        if staged is None:
+            raise RuntimeError("HTTPS files must be staged, not written directly")
+
         if https_data.get('cert_pem'):
-            try:
-                Config.HTTPS_CERT_PATH.parent.mkdir(parents=True, exist_ok=True)
-                Config.HTTPS_CERT_PATH.write_text(https_data['cert_pem'])
-                results['https_server'] += 1
-            except Exception:
-                pass
+            staged.stage(Config.HTTPS_CERT_PATH,
+                         https_data['cert_pem'].encode(), mode=0o644)
+            results['https_server'] += 1
         if https_data.get('key_pem'):
-            try:
-                Config.HTTPS_KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
-                Config.HTTPS_KEY_PATH.write_text(https_data['key_pem'])
-                Config.HTTPS_KEY_PATH.chmod(0o600)
-                results['https_server'] += 1
-            except Exception:
-                pass
+            staged.stage(Config.HTTPS_KEY_PATH,
+                         https_data['key_pem'].encode(), mode=0o600)
+            results['https_server'] += 1

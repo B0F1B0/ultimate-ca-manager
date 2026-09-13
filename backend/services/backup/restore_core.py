@@ -15,6 +15,9 @@ from config.settings import Config
 from services.file_regen_service import mirror_private_key
 
 from .errors import BackupSchemaError
+from .restore import RestorePlan, single_transaction
+from .restore.files import StagedFiles
+from .restore.apply import apply_section
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,24 @@ logger = logging.getLogger(__name__)
 # than this (the manifest is ahead of the restore), so what is not applied is
 # reported rather than passed over: an archive holding webhook endpoints and
 # deployment targets must not restore as a success that silently dropped them.
-RESTORED_SECTIONS = {
+# Sections the manifest-driven applier puts back, in an order where a
+# section comes after everything it points at: a membership needs its user and
+# its group, a binding needs its target and its certificate.
+GENERIC_SECTIONS = (
+    'role_permissions',
+    'group_members',
+    'webauthn_credentials',
+    'ad_connector',
+    'webhook_endpoints',
+    'deploy_targets',
+    'deploy_bindings',
+    'scep_profiles',
+    'ca_template_pins',
+    'acme_client_accounts',
+    'key_recovery_requests',
+)
+
+RESTORED_SECTIONS = set(GENERIC_SECTIONS) | {
     'users', 'certificate_authorities', 'certificates', 'revoked_serials',
     'acme_accounts', 'acme_eab_credentials', 'configuration', 'groups',
     'custom_roles', 'certificate_templates', 'trusted_certificates',
@@ -210,6 +230,41 @@ class RestoreCoreMixin:
             'sections_not_restored': not_restored,
         }
 
+        # Nothing has been written yet, and nothing will be until the plan
+        # is built: it decides which row here each archived row is, and what
+        # each reference resolves to on this installation.
+        plan = RestorePlan.build(backup_data)
+        for warning in plan.warnings:
+            logger.warning("Restore: %s", warning)
+
+        # Files are written to a staging directory during the transaction and
+        # published once it has committed, so the database and the files on
+        # disk can never disagree about whether the restore happened.
+        staged = StagedFiles()
+        try:
+            with single_transaction():
+                self._apply_all(backup_data, results, master_key, plan, staged)
+        except Exception:
+            staged.discard()
+            raise
+
+        try:
+            staged.publish()
+        except Exception:
+            logger.exception("Restore: the database was restored but its files "
+                             "could not be published")
+            raise
+        finally:
+            staged.discard()
+
+        # What the restore leaves behind — sessions opened before it, caches
+        # holding the PKI it replaced — is the caller's to clear: this service
+        # restores data, and an API route is where revoking every session and
+        # asking for a restart belongs (see invalidate_after_restore).
+        return results
+
+    def _apply_all(self, backup_data, results, master_key, plan, staged):
+        """Every write of a restore, inside the one transaction."""
         # Core restores
         self._restore_users(backup_data, results)
         self._restore_cas(backup_data, results, master_key)
@@ -219,13 +274,9 @@ class RestoreCoreMixin:
         self._restore_acme_eab_credentials(backup_data, results)
         self._restore_settings(backup_data, results)
 
-        # Commit after core entities
-        try:
-            db.session.commit()
-        except Exception as _commit_err:
-            db.session.rollback()
-            logger.error(f"Commit failed in services/backup/restore_core.py:78: {_commit_err}", exc_info=True)
-            raise
+        # No commit here: the whole restore is one transaction, so a failure
+        # in a later section cannot leave these entities applied on their own.
+        db.session.flush()
 
         # Regenerate CA/cert files on disk
         self._regenerate_files()
@@ -266,16 +317,16 @@ class RestoreCoreMixin:
         self._restore_hsm_keys(backup_data, results)
         self._restore_approval_requests(backup_data, results)
         self._restore_acme_client_orders(backup_data, results)
-        self._restore_https_files(backup_data, results)
+        self._restore_https_files(backup_data, results, staged)
 
-        try:
-            db.session.commit()
-        except Exception as _commit_err:
-            db.session.rollback()
-            logger.error(f"Commit failed in services/backup/restore_core.py:115: {_commit_err}", exc_info=True)
-            raise
-
-        return results
+        # Sections the manifest carries and the hand-written restorers never
+        # learned about: applied from the manifest, with every column and with
+        # references resolved through the plan.
+        for name in GENERIC_SECTIONS:
+            rows = backup_data.get(name)
+            if not rows:
+                continue
+            results[name] = apply_section(name, rows, plan)
 
     def _restore_users(self, backup_data: Dict, results: Dict) -> None:
         """Restore users from backup data"""

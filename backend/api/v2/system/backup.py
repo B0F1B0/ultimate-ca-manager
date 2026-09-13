@@ -99,6 +99,21 @@ def _resolve_backup_file(raw_filename: str) -> tuple[Path, str]:
     return resolved, filename
 
 
+def _request_restart_after_restore():
+    """Ask the service to restart, the one way this project restarts.
+
+    A restore replaces the certificate authorities, their keys and the
+    identities; the running workers hold the previous ones in memory.
+    """
+    try:
+        from utils.service_manager import restart_service
+        ok = restart_service()
+        return bool(ok), "restart requested"
+    except Exception as exc:
+        logger.warning("Restore: could not request a restart: %s", exc)
+        return False, "restart the service manually"
+
+
 def _safe_audit_log(**kwargs) -> None:
     """
     Record audit events without converting an already-completed operation into
@@ -505,8 +520,26 @@ def restore_backup():
             success=True,
         )
 
+        # The data is in. Now the consequences: every session from before the
+        # restore is void (the identities are the archive's), the caches hold
+        # the PKI that was just replaced, and the workers need to come back on
+        # the restored state.
+        from services.backup.restore.invalidate import invalidate_after_restore
+        try:
+            results['invalidated'] = invalidate_after_restore()
+        except Exception:
+            logger.exception("Restore: sessions could not be revoked")
+            return error_response(
+                "Backup restored, but the sessions opened before it could not "
+                "be revoked. Restart UCM before using it.", 500)
+
+        restart_ok, restart_message = _request_restart_after_restore()
+        results['restart_requested'] = restart_ok
+
         not_restored = results.get('sections_not_restored') or []
-        message = "Backup restored successfully"
+        message = ("Backup restored successfully. Sign in again"
+                   if restart_ok else
+                   f"Backup restored successfully. Restart UCM to finish: {restart_message}")
         if not_restored:
             # The archive carries more than this version applies; saying so is
             # the difference between a restore and a restore that looked fine.

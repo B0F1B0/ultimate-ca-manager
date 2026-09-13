@@ -139,7 +139,9 @@ SECTIONS: Dict[str, Section] = {
     ),
     'api_keys': Section(
         model='models.api_key:APIKey',
-        identity=('key_prefix',),
+        # The hash, not the prefix: the prefix is nullable and rows predating
+        # it carry none, so it cannot identify a key on another installation.
+        identity=('key_hash',),
         exclude={**_SURROGATE, 'last_used_at': 'usage statistic'},
         references={'user_id': 'users'},
     ),

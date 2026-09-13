@@ -139,6 +139,15 @@ def restore_backup():
             success=True
         )
 
+        from services.backup.restore.invalidate import invalidate_after_restore
+        try:
+            invalidate_after_restore()
+        except Exception:
+            logger.exception("Restore: sessions could not be revoked")
+            return error_response(
+                'Backup restored, but the sessions opened before it could not '
+                'be revoked. Restart the application before using it.', 500)
+
         return success_response(
             data={'filename': file.filename, 'restored': True},
             message='Backup restored successfully. Please restart the application.'

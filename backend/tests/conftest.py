@@ -17,6 +17,7 @@ import shutil
 import sys
 import json
 import tempfile
+from pathlib import Path
 
 # Set required env vars at MODULE LOAD time, before any test file is collected.
 # settings.py reads SECRET_KEY / JWT_SECRET_KEY at class-body load time, so they
@@ -173,6 +174,31 @@ def app():
 
     from app import create_app
     application = create_app('testing')
+
+    # Keep the suite off the machine's real files. The restore writes the
+    # HTTPS certificate and key where the configuration points, and the
+    # backup routes write archives to the configured directory: pointed at
+    # /etc/ucm and /opt/ucm as they are by default, a test run would replace
+    # the files the installed service is using.
+    from config.settings import Config as _Config
+    _sandbox = Path(tempfile.mkdtemp(prefix='ucm-test-paths-'))
+    for _name, _relative in (
+        ('HTTPS_CERT_PATH', 'etc/https_cert.pem'),
+        ('HTTPS_KEY_PATH', 'etc/https_key.pem'),
+        ('DATA_DIR', 'data'),
+        ('BACKUP_DIR', 'data/backups'),
+        ('CA_DIR', 'data/ca'),
+        ('CRL_DIR', 'data/crl'),
+        ('CERT_DIR', 'data/certs'),
+        ('KEY_DIR', 'data/keys'),
+    ):
+        if not hasattr(_Config, _name):
+            continue
+        _target = _sandbox / _relative
+        (_target.parent if _target.suffix else _target).mkdir(parents=True, exist_ok=True)
+        setattr(_Config, _name, _target)
+        application.config[_name] = _target
+
     application.config['TESTING'] = True
     application.config['WTF_CSRF_ENABLED'] = False
     # Deterministic FQDN so CA OCSP/CDP/AIA auto-URL generation does not depend
@@ -193,15 +219,55 @@ def client(app):
     return app.test_client()
 
 
+class _ReloggingClient:
+    """A test client that signs back in when its session disappears.
+
+    A restore revokes every session that existed before it, the caller's
+    included — that is the point of it. The session-scoped client would then
+    fail every later test in the worker, so it signs in again once and replays
+    the request, the way a person would.
+    """
+
+    def __init__(self, client, login):
+        self._client = client
+        self._login = login
+
+    def _call(self, method, *args, **kwargs):
+        response = getattr(self._client, method)(*args, **kwargs)
+        if response.status_code != 401:
+            return response
+        self._login(self._client)
+        try:
+            return getattr(self._client, method)(*args, **kwargs)
+        except ValueError:
+            # An upload whose stream the first attempt consumed cannot be
+            # replayed; the original answer is what the test asked for.
+            return response
+
+    def get(self, *a, **k): return self._call('get', *a, **k)
+    def post(self, *a, **k): return self._call('post', *a, **k)
+    def put(self, *a, **k): return self._call('put', *a, **k)
+    def patch(self, *a, **k): return self._call('patch', *a, **k)
+    def delete(self, *a, **k): return self._call('delete', *a, **k)
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+
 @pytest.fixture(scope='session')
 def auth_client(app):
     """Authenticated Flask test client (admin role)."""
+    def login(client):
+        r = client.post('/api/v2/auth/login',
+                        data=json.dumps({'username': 'admin',
+                                         'password': 'changeme123'}),
+                        content_type='application/json')
+        assert r.status_code == 200, f'Admin login failed: {r.data}'
+        return r
+
     c = app.test_client()
-    r = c.post('/api/v2/auth/login',
-               data=json.dumps({'username': 'admin', 'password': 'changeme123'}),
-               content_type='application/json')
-    assert r.status_code == 200, f'Admin login failed: {r.data}'
-    return c
+    login(c)
+    return _ReloggingClient(c, login)
 
 
 @pytest.fixture(scope='module')

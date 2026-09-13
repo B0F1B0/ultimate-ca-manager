@@ -250,46 +250,115 @@ class TestSectionAccounting:
 
 
 class TestTheRestoreSaysWhatItLeavesBehind:
-    """The export is ahead of the restore: what is carried but not applied is
-    named, instead of passing for a complete restore."""
+    """Every section the manifest declares is applied now; what remains is an
+    archive from a version that carries more than this one knows about."""
 
-    def test_a_carried_but_unapplied_section_is_reported(self, app):
+    def test_an_unknown_section_is_reported_rather_than_dropped(self, app):
+        with app.app_context():
+            svc = _service()
+            blob = svc.create_backup(PASSWORD)
+            _key, data = svc._decrypt_framed(blob, PASSWORD)
+
+            data['a_section_from_a_later_version'] = [{'anything': 1}]
+            data.pop('checksum', None)
+            forged = _reseal(svc, blob, data)
+
+            results = svc.restore_backup(forged, PASSWORD)
+            assert 'a_section_from_a_later_version' in results['sections_not_restored']
+
+
+class TestSectionsTheOldRestoreIgnored:
+    """The sixteen sections the export learned to carry are now put back."""
+
+    def test_a_webhook_endpoint_comes_back_with_a_usable_secret(self, app):
         from services.webhook_service import WebhookEndpoint
         with app.app_context():
-            endpoint = WebhookEndpoint(name='manifest-report-hook',
-                                       url='https://hook.example.test/x',
+            endpoint = WebhookEndpoint(name='restored-hook',
+                                       url='https://hook.example.test/z',
                                        events='["certificate.issued"]')
+            endpoint.secret = 'a-secret-only-this-server-knows'
             db.session.add(endpoint)
             db.session.commit()
+
+            # Only the section under test: restoring a whole archive into the
+            # session database would rewrite rows other tests are looking at.
+            blob = _service().create_backup(PASSWORD, include=_only('webhook_endpoints'))
+            WebhookEndpoint.query.filter_by(name='restored-hook').delete()
+            db.session.commit()
+            assert WebhookEndpoint.query.filter_by(name='restored-hook').first() is None
+
             try:
-                svc = _service()
-                blob = svc.create_backup(PASSWORD)
-                results = svc.restore_backup(blob, PASSWORD)
-                assert 'webhook_endpoints' in results['sections_not_restored']
+                _service().restore_backup(blob, PASSWORD)
+                back = WebhookEndpoint.query.filter_by(name='restored-hook').first()
+                assert back is not None, 'the endpoint was not restored'
+                assert back.url == 'https://hook.example.test/z'
+                # Read through the property: re-encrypted with this server's key
+                assert back.secret == 'a-secret-only-this-server-knows'
             finally:
-                db.session.delete(endpoint)
+                WebhookEndpoint.query.filter_by(name='restored-hook').delete()
                 db.session.commit()
 
-    def test_the_route_says_it_too(self, app, auth_client):
-        import io
-        from services.webhook_service import WebhookEndpoint
+    def test_a_membership_follows_the_user_not_the_number(self, app, create_user):
+        """The source's ids mean nothing here: the membership must land on the
+        user with that username, whatever id it happens to have."""
+        from models import User
+        from models.group import Group, GroupMember
+        create_user(username='membership_follows_identity', role='operator')
         with app.app_context():
-            endpoint = WebhookEndpoint(name='manifest-route-hook',
-                                       url='https://hook.example.test/y',
-                                       events='["certificate.issued"]')
-            db.session.add(endpoint)
+            group = Group(name='membership-identity-group')
+            db.session.add(group)
             db.session.commit()
-            blob = _service().create_backup(PASSWORD)
+            user = User.query.filter_by(username='membership_follows_identity').first()
+            db.session.add(GroupMember(group_id=group.id, user_id=user.id, role='member'))
+            db.session.commit()
 
-        try:
-            response = auth_client.post(
-                '/api/v2/system/restore',
-                data={'password': PASSWORD, 'file': (io.BytesIO(blob), 'a.ucmbkp')},
-                content_type='multipart/form-data')
-            assert response.status_code == 200, response.data
-            message = json.loads(response.data)['message']
-            assert 'does not restore' in message and 'webhook_endpoints' in message
-        finally:
-            with app.app_context():
-                WebhookEndpoint.query.filter_by(name='manifest-route-hook').delete()
+            blob = _service().create_backup(
+                PASSWORD, include=_only('group_members', 'groups', 'users'))
+            GroupMember.query.filter_by(group_id=group.id).delete()
+            db.session.commit()
+
+            try:
+                _service().restore_backup(blob, PASSWORD)
+                back = GroupMember.query.filter_by(group_id=group.id).first()
+                assert back is not None, 'the membership was not restored'
+                assert back.user_id == user.id
+            finally:
+                GroupMember.query.filter_by(group_id=group.id).delete()
+                db.session.delete(group)
                 db.session.commit()
+
+
+def _only(*names):
+    """An include map that carries just these sections."""
+    return {name: name in names for name in manifest.SECTIONS}
+
+
+def _reseal(svc, original_blob, data):
+    """Rewrite an archive's payload, keeping its container and password."""
+    import gzip
+    import hashlib
+    import struct
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    from services.backup import container
+
+    metadata_len = struct.unpack('>H', original_blob[8:10])[0]
+    header = original_blob[:10 + metadata_len]
+    metadata = json.loads(header[10:].decode())
+    salt = base64.b64decode(metadata['salt_b64'])
+    nonce = base64.b64decode(metadata['nonce_b64'])
+
+    if metadata['kdf']['type'] == 'argon2id':
+        key = svc._derive_argon2id(
+            PASSWORD, salt,
+            time_cost=metadata['kdf']['time_cost'],
+            memory_cost=metadata['kdf']['memory_cost'],
+            parallelism=metadata['kdf']['parallelism'],
+            hash_len=metadata['kdf']['hash_len'])
+    else:
+        key = svc._derive_pbkdf2(PASSWORD, salt, metadata['kdf']['iterations'])
+
+    digest = hashlib.sha256(
+        json.dumps(data, indent=2, sort_keys=True).encode()).hexdigest()
+    data['checksum'] = {'algorithm': 'SHA256', 'value': digest}
+    plaintext = gzip.compress(json.dumps(data, indent=2, sort_keys=True).encode())
+    return header + AESGCM(key).encrypt(nonce, plaintext, header)
