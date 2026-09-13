@@ -72,6 +72,16 @@ GENERIC_SECTIONS = (
     'ca_template_pins',
     'acme_client_accounts',
     'key_recovery_requests',
+    # The history an archive carries only when it is asked for. They were
+    # listed as restored and no code path ever wrote them: the export
+    # collected them, the restore counted them as applied, and they went
+    # nowhere. An operator who asks for the audit log in their archive is
+    # asking to get it back.
+    'audit_logs',
+    'discovered_certificates',
+    'msca_requests',
+    'scan_runs',
+    'scep_requests',
 )
 
 RESTORED_SECTIONS = set(GENERIC_SECTIONS) | {
@@ -384,7 +394,7 @@ class RestoreCoreMixin:
     def _apply_all(self, backup_data, results, master_key, plan, staged):
         """Every write of a restore, inside the one transaction."""
         # Core restores
-        self._restore_users(backup_data, results)
+        self._restore_users(backup_data, results, plan)
         self._restore_cas(backup_data, results, master_key, plan)
         self._restore_certificates(backup_data, results, master_key, plan)
         self._restore_revoked_serials(backup_data, results)
@@ -397,7 +407,7 @@ class RestoreCoreMixin:
         db.session.flush()
 
         # Regenerate CA/cert files on disk
-        self._regenerate_files()
+        self._regenerate_files(staged)
 
         # RBAC restores
         self._restore_groups(backup_data, results)
@@ -414,8 +424,8 @@ class RestoreCoreMixin:
         # Auth restores
         self._restore_sso_providers(backup_data, results)
         self._restore_hsm_providers(backup_data, results)
-        self._restore_api_keys(backup_data, results)
-        self._restore_auth_certificates(backup_data, results)
+        self._restore_api_keys(backup_data, results, plan)
+        self._restore_auth_certificates(backup_data, results, plan)
 
         # Notification restores
         self._restore_smtp_config(backup_data, results)
@@ -446,29 +456,41 @@ class RestoreCoreMixin:
                 continue
             results[name] = apply_section(name, rows, plan)
 
-    def _restore_users(self, backup_data: Dict, results: Dict) -> None:
-        """Restore users from backup data"""
+    def _restore_users(self, backup_data: Dict, results: Dict, plan) -> None:
+        """Restore users from backup data.
+
+        It used to write six columns: username, email, full name, role,
+        active and the password hash. The manifest declares far more, the
+        export has carried them since the archive was made manifest-driven,
+        and this dropped every one of them -- an account came back without
+        its MFA secret, without its backup codes, without the SSO identity
+        that binds it to its provider, and without the custom role that gives
+        it anything beyond its base rights. The restore reported a success.
+
+        `apply_columns` writes every column the archive carries, resolves the
+        references through the plan, and puts secrets back through the
+        model's property, which is what re-encrypts them with this
+        installation's key.
+        """
         from models import User
+
         for user_data in backup_data.get('users', []):
-            existing = User.query.filter_by(username=user_data['username']).first()
-            if existing:
-                existing.email = user_data.get('email')
-                existing.full_name = user_data.get('full_name')
-                existing.role = user_data.get('role', 'user')
-                existing.active = user_data.get('active', True)
-                # Never null out a working password with a backup that lacks one
-                if user_data.get('password_hash'):
-                    existing.password_hash = user_data.get('password_hash')
-            else:
-                new_user = User(
-                    username=user_data['username'],
-                    email=user_data.get('email'),
-                    full_name=user_data.get('full_name'),
-                    role=user_data.get('role', 'user'),
-                    active=user_data.get('active', True),
-                    password_hash=user_data.get('password_hash')
-                )
-                db.session.add(new_user)
+            existing = User.query.filter_by(
+                username=user_data['username']).first()
+            if existing is None:
+                existing = User(username=user_data['username'])
+                db.session.add(existing)
+
+            # Never null out a working password with a backup that lacks one:
+            # an archive written by a version that did not carry the hash
+            # would otherwise lock every account out of the instance.
+            carried_hash = user_data.get('password_hash')
+            previous_hash = existing.password_hash
+
+            apply_columns(existing, 'users', user_data, plan)
+
+            if not carried_hash:
+                existing.password_hash = previous_hash
             results['users'] += 1
 
     @staticmethod
@@ -795,7 +817,7 @@ class RestoreCoreMixin:
             configuration if isinstance(configuration, dict) else {},
             (configuration or {}).get('encrypted_settings') or [])
 
-    def _regenerate_files(self) -> None:
+    def _regenerate_files(self, staged) -> None:
         """Write the files that materialise the restored rows on disk.
 
         Every failure here used to be `pass`: a restore that could not write
@@ -806,6 +828,15 @@ class RestoreCoreMixin:
         restore. It runs inside the transaction, so the rows go back with it
         and the instance stays as it was, which is the only outcome that
         matches what the caller is told.
+
+        The certificate and CSR files are staged rather than written in
+        place, and published with the rest once the transaction has
+        committed: written directly, a restore that failed afterwards left
+        every certificate file holding the archive's content while the rows
+        had gone back to what they were. The key mirrors are the exception
+        and stay a direct write, because mirroring is also a *removal* when
+        database encryption is on, which staging does not express; each one
+        is atomic on its own (see ``mirror_private_key``).
 
         Material that cannot be decoded is a warning naming the row, and the
         restore goes on. This walks every authority and certificate in the
@@ -829,7 +860,7 @@ class RestoreCoreMixin:
                         "decoded (%s); its file was not written", ca.id, exc)
                 else:
                     Config.CA_DIR.mkdir(parents=True, exist_ok=True)
-                    ca_cert_path(ca).write_bytes(cert_pem)
+                    staged.stage(ca_cert_path(ca), cert_pem, mode=0o644)
             if ca.prv:
                 try:
                     prv_pem = load_pem_bytes(ca.prv, context=f"CA {ca.id}")
@@ -852,7 +883,8 @@ class RestoreCoreMixin:
                         "decoded (%s); its file was not written", cert.id, exc)
                 else:
                     Config.CERT_DIR.mkdir(parents=True, exist_ok=True)
-                    cert_cert_path(cert).write_bytes(cert_pem_bytes)
+                    staged.stage(cert_cert_path(cert), cert_pem_bytes,
+                                 mode=0o644)
             if cert.csr:
                 try:
                     csr_data = cert.csr
@@ -866,7 +898,7 @@ class RestoreCoreMixin:
                         "be decoded (%s); its file was not written",
                         cert.id, exc)
                 else:
-                    cert_csr_path(cert).write_bytes(csr_bytes)
+                    staged.stage(cert_csr_path(cert), csr_bytes, mode=0o644)
             if cert.prv:
                 try:
                     prv_pem_bytes = load_pem_bytes(cert.prv, context=f"certificate {cert.id}")

@@ -6,6 +6,7 @@ Ensures filesystem is consistent with database state.
 import base64
 import logging
 import os
+import tempfile
 from pathlib import Path
 
 from config.settings import Config
@@ -24,10 +25,22 @@ def mirror_private_key(path: Path, key_pem: bytes, *, context: str) -> bool:
     """Mirror a plaintext key only when database encryption is disabled.
 
     When encryption is enabled, any stale mirror at ``path`` is removed.
-    Filesystem failures are recoverable and therefore logged without raising.
+
+    The write is atomic: the content goes to a temporary file in the same
+    directory, is fsynced and chmoded there, and only then replaces the
+    mirror. Writing in place truncated the file first, so a failure partway --
+    a full disk, a read-only mount -- destroyed the key that was there while
+    the caller went on to report a success. A mirror half-written is a key
+    nothing can read.
+
+    Failures are logged and reported through the return value rather than
+    raised: a mirror is a convenience for tools that read keys off disk, and
+    the key itself is in the database. The caller decides what to do with a
+    False.
     """
     from security.encryption import key_encryption
 
+    temp_path = None
     try:
         if key_encryption.is_enabled:
             path.unlink(missing_ok=True)
@@ -35,19 +48,32 @@ def mirror_private_key(path: Path, key_pem: bytes, *, context: str) -> bool:
             return False
 
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        fd, temp_name = tempfile.mkstemp(
+            dir=str(path.parent), prefix='.ucm_key_', suffix='.tmp')
+        temp_path = Path(temp_name)
         try:
             os.fchmod(fd, 0o600)
             with os.fdopen(fd, 'wb') as key_file:
                 fd = -1
                 key_file.write(key_pem)
+                key_file.flush()
+                os.fsync(key_file.fileno())
         finally:
             if fd >= 0:
                 os.close(fd)
+        os.replace(temp_path, path)
+        temp_path = None
         return True
     except Exception as e:
         logger.warning("Could not mirror private key for %s: %s", context, e)
         return False
+    finally:
+        if temp_path is not None:
+            try:
+                temp_path.unlink()
+            except OSError:
+                logger.warning(
+                    "Could not remove the temporary key mirror %s", temp_path)
 
 
 def write_cert_files(cert) -> None:

@@ -1,147 +1,169 @@
+"""Authentication-related restore methods mixin for BackupService.
+
+Every section here is applied through `apply_columns`, from the manifest the
+export was written from. Two things the hand-written assignments got wrong are
+what this file exists to stop doing:
+
+* the secrets were assigned to the *private column* underneath the property
+  (`sso._oauth2_client_secret = ...`), which is the column the property
+  encrypts into -- so a restored SSO provider held its OAuth2 client secret
+  and its LDAP bind password in the clear, and restoring a backup quietly
+  removed the at-rest protection of the installation that took it;
+* everything the list did not name was dropped: an SSO provider came back
+  without its issuer, its JWKS URI, its TLS verification settings or its
+  required groups, and an HSM provider had its live `status` reset to
+  'unknown' while the target was talking to it.
+
+`plan` is what turns a reference into the row it names *here*; the restore
+hands its own down. A section the manifest declares no reference for never
+asks the plan anything, so those restorers fall back to an empty plan when
+they are called directly.
 """
-Authentication-related restore methods mixin for BackupService
-"""
+import base64
 import logging
-from typing import Dict, Any
+from typing import Dict, Optional
 
 from models import db
 
 from .errors import BackupSchemaError
+from .restore import RestorePlan
+from .restore.apply import apply_columns
 
 logger = logging.getLogger(__name__)
 
 
+def _archived_client_certificate(ac_data: Dict):
+    """The bytes an archived authentication certificate holds, or a refusal.
+
+    The certificate a client authenticates with is stored as bytes and travels
+    base64-encoded. An archive written before that carries the PEM text
+    itself, which is why the text is recognised rather than decoded: it used
+    to be fed to the base64 decoder and kept only because the failure was
+    caught, and a value that was neither of the two became the UTF-8 bytes of
+    whatever it was -- a login certificate nobody could ever present, restored
+    as a success.
+
+    Decoded here rather than by `apply_columns`, which would hand the PEM text
+    to the base64 decoder exactly as the old restore did.
+    """
+    value = ac_data.get('cert_pem')
+    if not isinstance(value, str) or not value:
+        return value
+    if value.lstrip().startswith('-----BEGIN'):
+        return value.encode('utf-8')
+    try:
+        return base64.b64decode(value)
+    except ValueError as exc:   # binascii.Error is one
+        raise BackupSchemaError(
+            "Invalid backup: the certificate of authentication certificate "
+            f"{ac_data.get('cert_serial')} is neither PEM nor base64. Nothing "
+            "has been changed."
+        ) from exc
+
+
 class RestoreAuthMixin:
-    def _restore_sso_providers(self, backup_data: Dict, results: Dict) -> None:
-        """Restore SSO providers from backup data"""
+    def _restore_sso_providers(self, backup_data: Dict, results: Dict,
+                               plan: Optional[RestorePlan] = None) -> None:
+        """Restore SSO providers from backup data.
+
+        The client secret and the bind password go back through the model's
+        properties, which re-encrypt them with *this* installation's key; they
+        used to be written straight to the columns those properties encrypt
+        into, and landed in the database readable.
+        """
         from models.sso import SSOProvider
+        plan = plan if plan is not None else RestorePlan()
         for sso_data in backup_data.get('sso_providers', []):
-            existing = SSOProvider.query.filter_by(name=sso_data['name']).first()
-            if existing:
-                sso = existing
-            else:
-                sso = SSOProvider(name=sso_data['name'])
+            sso = SSOProvider.query.filter_by(name=sso_data['name']).first()
+            if sso is None:
+                # name and provider_type are NOT NULL; both are overwritten
+                # by apply_columns when the archive carries them.
+                sso = SSOProvider(
+                    name=sso_data['name'],
+                    provider_type=sso_data.get('provider_type', 'oauth2'))
                 db.session.add(sso)
-            sso.provider_type = sso_data.get('provider_type', 'oauth2')
-            sso.enabled = sso_data.get('enabled', False)
-            sso.is_default = sso_data.get('is_default', False)
-            sso.display_name = sso_data.get('display_name')
-            sso.icon = sso_data.get('icon')
-            sso.default_role = sso_data.get('default_role', 'viewer')
-            sso.auto_create_users = sso_data.get('auto_create_users', True)
-            sso.auto_update_users = sso_data.get('auto_update_users', True)
-            sso.attribute_mapping = sso_data.get('attribute_mapping')
-            sso.role_mapping = sso_data.get('role_mapping')
-            sso.saml_entity_id = sso_data.get('saml_entity_id')
-            sso.saml_sso_url = sso_data.get('saml_sso_url')
-            sso.saml_slo_url = sso_data.get('saml_slo_url')
-            sso.saml_certificate = sso_data.get('saml_certificate')
-            sso.saml_sign_requests = sso_data.get('saml_sign_requests', True)
-            sso.oauth2_client_id = sso_data.get('oauth2_client_id')
-            sso._oauth2_client_secret = sso_data.get('oauth2_client_secret')
-            sso.oauth2_auth_url = sso_data.get('oauth2_auth_url')
-            sso.oauth2_token_url = sso_data.get('oauth2_token_url')
-            sso.oauth2_userinfo_url = sso_data.get('oauth2_userinfo_url')
-            sso.oauth2_scopes = sso_data.get('oauth2_scopes')
-            sso.ldap_server = sso_data.get('ldap_server')
-            sso.ldap_port = sso_data.get('ldap_port', 389)
-            sso.ldap_use_ssl = sso_data.get('ldap_use_ssl', False)
-            sso.ldap_bind_dn = sso_data.get('ldap_bind_dn')
-            sso._ldap_bind_password = sso_data.get('ldap_bind_password')
-            sso.ldap_base_dn = sso_data.get('ldap_base_dn')
-            sso.ldap_user_filter = sso_data.get('ldap_user_filter')
-            sso.ldap_group_filter = sso_data.get('ldap_group_filter')
-            sso.ldap_username_attr = sso_data.get('ldap_username_attr')
-            sso.ldap_email_attr = sso_data.get('ldap_email_attr')
-            sso.ldap_fullname_attr = sso_data.get('ldap_fullname_attr')
+            apply_columns(sso, 'sso_providers', sso_data, plan)
             results['sso_providers'] += 1
 
-    def _restore_hsm_providers(self, backup_data: Dict, results: Dict) -> None:
-        """Restore HSM providers from backup data"""
+    def _restore_hsm_providers(self, backup_data: Dict, results: Dict,
+                               plan: Optional[RestorePlan] = None) -> None:
+        """Restore HSM providers from backup data.
+
+        Three columns were applied and the rest of the row was dropped. One of
+        the three was `status`, which the manifest excludes on purpose: it is
+        live connection state, and a restore reset it to 'unknown' on a
+        provider the target was connected to.
+        """
         from models.hsm import HsmProvider
+        plan = plan if plan is not None else RestorePlan()
         for hsm_data in backup_data.get('hsm_providers', []):
-            existing = HsmProvider.query.filter_by(name=hsm_data['name']).first()
-            if existing:
-                existing.type = hsm_data.get('type')
-                existing.config = hsm_data.get('config', '{}')
-                existing.status = hsm_data.get('status', 'unknown')
-            else:
-                new_hsm = HsmProvider(
-                    name=hsm_data['name'],
-                    type=hsm_data.get('type', 'pkcs11'),
-                    config=hsm_data.get('config', '{}'),
-                    status=hsm_data.get('status', 'unknown'),
-                )
-                db.session.add(new_hsm)
+            hsm = HsmProvider.query.filter_by(name=hsm_data['name']).first()
+            if hsm is None:
+                # name, type and config are NOT NULL
+                hsm = HsmProvider(name=hsm_data['name'],
+                                  type=hsm_data.get('type') or 'pkcs11',
+                                  config=hsm_data.get('config') or '{}')
+                db.session.add(hsm)
+            apply_columns(hsm, 'hsm_providers', hsm_data, plan)
             results['hsm_providers'] += 1
 
-    def _restore_api_keys(self, backup_data: Dict, results: Dict) -> None:
-        """Restore API keys from backup data"""
+    def _restore_api_keys(self, backup_data: Dict, results: Dict,
+                          plan: Optional[RestorePlan] = None) -> None:
+        """Restore API keys from backup data.
+
+        `user_id` is the one column still written by hand, and only when the
+        plan resolves nothing: the column is NOT NULL and the plan's index of
+        the users is taken before the first write, so a key belonging to a
+        user this same restore creates resolves to nothing yet. The number the
+        row already holds is kept as a placeholder rather than writing NULL
+        into a column that refuses it, and `relink_references` puts the key on
+        the user the archive names once every row exists.
+        """
         from models.api_key import APIKey
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
         for ak_data in backup_data.get('api_keys', []):
-            existing = APIKey.query.filter_by(key_hash=ak_data['key_hash']).first()
-            if existing:
-                existing.name = ak_data.get('name')
-                existing.permissions = ak_data.get('permissions', '[]')
-                existing.is_active = ak_data.get('is_active', True)
-            else:
-                new_ak = APIKey(
-                    user_id=ak_data.get('user_id', 1),
-                    key_hash=ak_data['key_hash'],
-                    name=ak_data.get('name', 'restored'),
-                    permissions=ak_data.get('permissions', '[]'),
-                    is_active=ak_data.get('is_active', True),
-                )
-                db.session.add(new_ak)
+            ak = APIKey.query.filter_by(key_hash=ak_data['key_hash']).first()
+            if ak is None:
+                # key_hash, user_id, name and permissions are NOT NULL
+                ak = APIKey(key_hash=ak_data['key_hash'],
+                            user_id=ak_data.get('user_id', 1),
+                            name=ak_data.get('name', 'restored'),
+                            permissions=ak_data.get('permissions', '[]'))
+                db.session.add(ak)
+            held = ak.user_id
+            apply_columns(ak, 'api_keys', ak_data, plan)
+            if ak.user_id is None:
+                ak.user_id = held
             results['api_keys'] += 1
 
-    def _restore_auth_certificates(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_auth_certificates(self, backup_data: Dict, results: Dict,
+                                   plan: Optional[RestorePlan] = None) -> None:
         """Restore authentication certificates from backup data.
 
-        The certificate a client authenticates with is stored as bytes and
-        travels base64-encoded. An archive written before that carries the
-        PEM text itself, which is why the text is recognised rather than
-        decoded: it used to be fed to the base64 decoder and kept only
-        because the failure was caught, and a value that was neither of the
-        two became the UTF-8 bytes of whatever it was — a login certificate
-        nobody could ever present, restored as a success.
+        The certificate itself is decoded before the row is applied (see
+        `_archived_client_certificate`); `user_id` is kept by hand for the
+        same reason as in `_restore_api_keys`.
         """
-        import base64
         from models.auth_certificate import AuthCertificate
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
         for ac_data in backup_data.get('auth_certificates', []):
-            existing = AuthCertificate.query.filter_by(
+            ac = AuthCertificate.query.filter_by(
                 cert_serial=ac_data['cert_serial']
             ).first()
-            cert_pem_val = ac_data.get('cert_pem')
-            if isinstance(cert_pem_val, str) and cert_pem_val:
-                if cert_pem_val.lstrip().startswith('-----BEGIN'):
-                    cert_pem_val = cert_pem_val.encode('utf-8')
-                else:
-                    try:
-                        cert_pem_val = base64.b64decode(cert_pem_val)
-                    except ValueError as exc:   # binascii.Error is one
-                        raise BackupSchemaError(
-                            "Invalid backup: the certificate of authentication "
-                            f"certificate {ac_data.get('cert_serial')} is "
-                            "neither PEM nor base64. Nothing has been changed."
-                        ) from exc
-            if existing:
-                existing.cert_pem = cert_pem_val
-                existing.cert_subject = ac_data.get('cert_subject', '')
-                existing.cert_issuer = ac_data.get('cert_issuer')
-                existing.cert_fingerprint = ac_data.get('cert_fingerprint')
-                existing.name = ac_data.get('name')
-                existing.enabled = ac_data.get('enabled', True)
-            else:
-                new_ac = AuthCertificate(
-                    user_id=ac_data.get('user_id', 1),
-                    cert_pem=cert_pem_val,
+
+            row = ac_data
+            if 'cert_pem' in ac_data:
+                row = dict(ac_data, cert_pem=_archived_client_certificate(ac_data))
+
+            if ac is None:
+                # user_id, cert_serial and cert_subject are NOT NULL
+                ac = AuthCertificate(
                     cert_serial=ac_data['cert_serial'],
-                    cert_subject=ac_data.get('cert_subject', ''),
-                    cert_issuer=ac_data.get('cert_issuer'),
-                    cert_fingerprint=ac_data.get('cert_fingerprint'),
-                    name=ac_data.get('name'),
-                    enabled=ac_data.get('enabled', True),
-                )
-                db.session.add(new_ac)
+                    user_id=ac_data.get('user_id', 1),
+                    cert_subject=ac_data.get('cert_subject', ''))
+                db.session.add(ac)
+            held = ac.user_id
+            apply_columns(ac, 'auth_certificates', row, plan)
+            if ac.user_id is None:
+                ac.user_id = held
             results['auth_certificates'] += 1

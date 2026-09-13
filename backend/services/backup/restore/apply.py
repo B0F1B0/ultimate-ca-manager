@@ -93,6 +93,23 @@ def apply_section(section_name: str, rows: List[Dict[str, Any]],
             f"Section '{section_name}' has a composite primary key; this "
             "version cannot apply it")
 
+    # The plan was built before anything was written, which is the point: no
+    # row is created until what the restore will do is decided. But a section
+    # can point at a row this same restore has just created a few sections
+    # earlier, and against the original index that reference resolved to
+    # nothing. Where the column requires a value the insert then failed and
+    # took the whole restore with it -- a membership, a role permission, a
+    # WebAuthn credential, a deployment binding, a template pin, a key
+    # recovery request: six sections that made a restore onto a fresh
+    # installation impossible.
+    #
+    # Only the sections this one points at are rebuilt, and only once per
+    # section rather than once per row: re-indexing the whole archive for
+    # every row would turn a restore into a walk over the database.
+    if section.references:
+        db.session.flush()
+        plan.refresh(sorted(set(section.references.values())))
+
     applied = 0
     for row in rows:
         target_id = plan.existing_id(section_name, row)
@@ -126,7 +143,15 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
             continue
 
         if name in section.secrets:
-            # Through the property: it re-encrypts with this installation's key
+            # Assigned by its manifest name, which is the model's own
+            # attribute: where that is a property over a private column the
+            # property re-encrypts with this installation's key, and where it
+            # is a plain column the column is what the application reads
+            # directly (`pyotp.TOTP(user.totp_secret)`, `json.loads(
+            # provider.config)`), so the archive's value is what belongs in
+            # it. Encrypting those would hand the application a ciphertext it
+            # never decrypts: a restored account with MFA that cannot be
+            # verified any more.
             setattr(instance, name, value)
             continue
 

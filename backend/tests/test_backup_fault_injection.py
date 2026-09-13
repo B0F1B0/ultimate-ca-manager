@@ -543,13 +543,15 @@ class TestFilesThatCannotBeWritten:
 
     def test_a_refused_authority_file_stops_the_restore(
             self, app, auth_client, create_ca, groups_archive, monkeypatch):
-        """The authority files are written inside the transaction and are not
-        staged, so the rule they follow is the other one: a write that fails
-        stops the restore, the rows go back with it, and the file that was
-        there is untouched because it was never opened.
+        """The authority files are staged with the rest and published once
+        the transaction has committed, so a publication that is refused puts
+        back what it replaced and the restore raises: the rows go back with
+        it and the file on disk is the one that was there.
 
-        Every failure here used to be `pass`, and a restore that could not
-        write a single file still reported success.
+        Written in place, as they were, a restore that failed afterwards left
+        every authority file holding the archive's content while the rows had
+        gone back. And before that, every failure here was `pass`: a restore
+        that could not write a single file still reported success.
         """
         from models import CA
         from utils.file_naming import ca_cert_path
@@ -561,15 +563,15 @@ class TestFilesThatCannotBeWritten:
                 target = ca_cert_path(db.session.get(CA, created['id']))
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(b'the authority file already on disk')
-                real_write_bytes = Path.write_bytes
+                real_replace = os.replace
 
-                def refused(self, data):
-                    if self == target:
+                def refused(src, dst, *args, **kwargs):
+                    if Path(dst) == target:
                         raise PermissionError(errno.EACCES, 'Permission denied')
-                    return real_write_bytes(self, data)
+                    return real_replace(src, dst, *args, **kwargs)
 
                 with monkeypatch.context() as injected:
-                    injected.setattr(Path, 'write_bytes', refused)
+                    injected.setattr(os, 'replace', refused)
                     with pytest.raises(PermissionError):
                         _service().restore_backup(blob, PASSWORD)
                 db.session.rollback()
@@ -577,6 +579,9 @@ class TestFilesThatCannotBeWritten:
                 assert target.read_bytes() == b'the authority file already on disk'
                 assert _group_names() == before, \
                     'a file that could not be written left the rows applied'
+                assert not [p for p in target.parent.iterdir()
+                            if p.name.startswith('.ucm_restore_')], \
+                    'the temporary file of the refused replace survived'
         finally:
             auth_client.delete(f"/api/v2/cas/{created['id']}")
 

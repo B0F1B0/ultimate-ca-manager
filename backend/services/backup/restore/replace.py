@@ -60,9 +60,43 @@ def rows_to_remove(section_name: str, archived_rows: List[Dict[str, Any]],
     if section.identity == ('id',):
         return []          # singleton configuration: nothing to prune
 
-    archived = {_identity_key(row, section.identity) for row in archived_rows}
+    archived = set()
+    for row in archived_rows:
+        archived.update(_archived_identities(section_name, section, row, plan))
     present = plan.target_ids.get(section_name) or {}
     return [target_id for key, target_id in present.items() if key not in archived]
+
+
+def _archived_identities(section_name: str, section, row: Dict[str, Any],
+                        plan: RestorePlan) -> Set[Tuple]:
+    """Every spelling of an archived row's identity that could match here.
+
+    Some sections are identified by what they point at and by nothing else: a
+    pin is the pair (authority, template), a binding is the pair (target,
+    certificate). The archive carries the source's numbers for those, and a
+    row written by the manifest-driven path carries this installation's, so
+    comparing them raw never matched -- the restore created the row and the
+    replacement pass, finding an identity the archive "does not hold",
+    deleted it again. The section came out of a restore empty, without a word.
+
+    Both spellings count. The resolved one is what a row written through the
+    plan holds; the raw one is what a restorer that has not been moved to the
+    plan yet still writes, and what an archive written before references
+    carried identities can offer at all. Keeping a row the archive does carry
+    is the error worth making: the other one empties a section in silence.
+    """
+    resolved, raw = [], []
+    for field in section.identity:
+        raw.append(row.get(field))
+        if field in section.references:
+            resolved.append(plan.resolve(section_name, row, field))
+        else:
+            resolved.append(row.get(field))
+
+    spellings = {tuple(_normalise(value) for value in raw)}
+    if any(value is not None for value in resolved):
+        spellings.add(tuple(_normalise(value) for value in resolved))
+    return spellings
 
 
 def replace_sections(backup_data: Dict[str, Any], plan: RestorePlan,

@@ -242,7 +242,7 @@ def test_api_creation_keeps_public_files_but_not_keys_when_encrypted(
 
 
 def test_renew_import_csr_and_restore_do_not_recreate_encrypted_key_mirrors(
-    app, auth_client, encryption_enabled
+    app, auth_client, encryption_enabled, tmp_path
 ):
     import base64
 
@@ -292,7 +292,14 @@ def test_renew_import_csr_and_restore_do_not_recreate_encrypted_key_mirrors(
 
             for item in (cert, imported, csr):
                 cert_key_path(item).write_bytes(b'stale plaintext')
-            BackupService()._regenerate_files()
+            # The certificate files are staged and published with the rest of
+            # the restore now; the key mirrors are still a direct write, and
+            # removing a stale one is what this checks.
+            from services.backup.restore.files import StagedFiles
+            with StagedFiles(base_dir=tmp_path / 'staging') as staged:
+                BackupService()._regenerate_files(staged)
+                staged.publish()
+                staged.discard()
             assert all(not cert_key_path(item).exists() for item in (cert, imported, csr))
     finally:
         _cleanup_models(app, cert_ids, ca_data['id'])

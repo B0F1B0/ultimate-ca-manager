@@ -1,33 +1,51 @@
+"""RBAC restore methods mixin for BackupService.
+
+Each section is applied through `apply_columns`, from the manifest the export
+was written from, so a column added to one of these models comes back without
+anyone having to remember this file exists. The hand-written lists were
+already behind: a certificate template came back without its EKU or its key
+size, a trusted certificate without its validity dates, and a group without
+the columns added after the list was written.
+
+`plan` is what turns a reference into the row it names *here*. None of these
+sections declares one, so nothing is ever resolved and an empty plan answers
+everything `apply_columns` asks; the parameter is there so the restore can
+hand its own down the day one of them does.
 """
-RBAC restore methods mixin for BackupService
-"""
-import base64
 import logging
-from typing import Dict, Any
+from typing import Dict, Optional
 
 from models import db
+
+from .restore import RestorePlan
+from .restore.apply import apply_columns
 
 logger = logging.getLogger(__name__)
 
 
 class RestoreRbacMixin:
-    def _restore_groups(self, backup_data: Dict, results: Dict) -> None:
-        """Restore groups from backup data"""
+    def _restore_groups(self, backup_data: Dict, results: Dict,
+                        plan: Optional[RestorePlan] = None) -> None:
+        """Restore groups from backup data.
+
+        The nested `members` are not a column of the group: they are the
+        `group_members` section, mirrored inside their group for archives
+        written before it existed. They stay hand-written here so such an
+        archive still restores its memberships; a current archive carries the
+        flat section and the manifest-driven pass applies it.
+        """
         from models.group import Group, GroupMember
+        plan = plan if plan is not None else RestorePlan()
         for grp_data in backup_data.get('groups', []):
-            existing = Group.query.filter_by(name=grp_data['name']).first()
-            if existing:
-                existing.description = grp_data.get('description')
-                existing.permissions = grp_data.get('permissions')
-                group = existing
-            else:
-                group = Group(
-                    name=grp_data['name'],
-                    description=grp_data.get('description'),
-                    permissions=grp_data.get('permissions'),
-                )
+            group = Group.query.filter_by(name=grp_data['name']).first()
+            created = group is None
+            if created:
+                group = Group(name=grp_data['name'])
                 db.session.add(group)
-                db.session.flush()
+            apply_columns(group, 'groups', grp_data, plan)
+            if created:
+                db.session.flush()   # the members below need the group's id
+
             # Restore members
             for m_data in grp_data.get('members', []):
                 existing_m = GroupMember.query.filter_by(
@@ -41,83 +59,61 @@ class RestoreRbacMixin:
                     ))
             results['groups'] += 1
 
-    def _restore_custom_roles(self, backup_data: Dict, results: Dict) -> None:
+    def _restore_custom_roles(self, backup_data: Dict, results: Dict,
+                              plan: Optional[RestorePlan] = None) -> None:
         """Restore custom roles from backup data"""
         from models.rbac import CustomRole
+        plan = plan if plan is not None else RestorePlan()
         for role_data in backup_data.get('custom_roles', []):
-            existing = CustomRole.query.filter_by(name=role_data['name']).first()
-            if existing:
-                existing.description = role_data.get('description')
-                existing.permissions = role_data.get('permissions')
-                existing.is_system = role_data.get('is_system', False)
-            else:
-                new_role = CustomRole(
-                    name=role_data['name'],
-                    description=role_data.get('description'),
-                    permissions=role_data.get('permissions'),
-                    is_system=role_data.get('is_system', False),
-                )
-                db.session.add(new_role)
+            role = CustomRole.query.filter_by(name=role_data['name']).first()
+            if role is None:
+                role = CustomRole(name=role_data['name'])   # NOT NULL
+                db.session.add(role)
+            apply_columns(role, 'custom_roles', role_data, plan)
             results['custom_roles'] += 1
 
-    def _restore_templates(self, backup_data: Dict, results: Dict) -> None:
-        """Restore certificate templates from backup data"""
+    def _restore_templates(self, backup_data: Dict, results: Dict,
+                           plan: Optional[RestorePlan] = None) -> None:
+        """Restore certificate templates from backup data.
+
+        Ten columns were applied out of a model that holds far more, so a
+        restored template kept the target's key size, EKU, SANs and policy
+        while carrying the archive's name.
+        """
         from models.certificate_template import CertificateTemplate as CT
+        plan = plan if plan is not None else RestorePlan()
         for t_data in backup_data.get('certificate_templates', []):
-            existing = CT.query.filter_by(name=t_data['name']).first()
-            if existing:
-                existing.description = t_data.get('description')
-                existing.template_type = t_data.get('template_type')
-                existing.key_type = t_data.get('key_type')
-                existing.validity_days = t_data.get('validity_days')
-                existing.digest = t_data.get('digest')
-                existing.dn_template = t_data.get('dn_template')
-                existing.extensions_template = t_data.get('extensions_template')
-                existing.is_system = t_data.get('is_system', False)
-                existing.is_active = t_data.get('is_active', True)
-            else:
-                new_t = CT(
+            template = CT.query.filter_by(name=t_data['name']).first()
+            if template is None:
+                # name, template_type and extensions_template are NOT NULL
+                template = CT(
                     name=t_data['name'],
-                    description=t_data.get('description'),
-                    template_type=t_data.get('template_type', 'custom'),
-                    key_type=t_data.get('key_type'),
-                    validity_days=t_data.get('validity_days'),
-                    digest=t_data.get('digest'),
-                    dn_template=t_data.get('dn_template'),
-                    extensions_template=t_data.get('extensions_template', '{}'),
-                    is_system=t_data.get('is_system', False),
-                    is_active=t_data.get('is_active', True),
-                    created_by=t_data.get('created_by'),
-                )
-                db.session.add(new_t)
+                    template_type=t_data.get('template_type') or 'custom',
+                    extensions_template=t_data.get('extensions_template') or '{}')
+                db.session.add(template)
+            apply_columns(template, 'certificate_templates', t_data, plan)
             results['certificate_templates'] += 1
 
-    def _restore_truststore(self, backup_data: Dict, results: Dict) -> None:
-        """Restore trusted certificates from backup data"""
+    def _restore_truststore(self, backup_data: Dict, results: Dict,
+                            plan: Optional[RestorePlan] = None) -> None:
+        """Restore trusted certificates from backup data.
+
+        An existing entry had five columns written onto it, so it kept the
+        target's subject, issuer, serial and validity dates while holding the
+        archive's PEM: a row describing a certificate it was not.
+        """
         from models.truststore import TrustedCertificate
+        plan = plan if plan is not None else RestorePlan()
         for tc_data in backup_data.get('trusted_certificates', []):
-            existing = TrustedCertificate.query.filter_by(
+            trusted = TrustedCertificate.query.filter_by(
                 fingerprint_sha256=tc_data['fingerprint_sha256']
             ).first()
-            if existing:
-                existing.name = tc_data.get('name')
-                existing.description = tc_data.get('description')
-                existing.certificate_pem = tc_data.get('certificate_pem')
-                existing.purpose = tc_data.get('purpose')
-                existing.notes = tc_data.get('notes')
-            else:
-                new_tc = TrustedCertificate(
-                    name=tc_data.get('name', ''),
-                    description=tc_data.get('description'),
-                    certificate_pem=tc_data.get('certificate_pem', ''),
+            if trusted is None:
+                # name, certificate_pem and fingerprint_sha256 are NOT NULL
+                trusted = TrustedCertificate(
                     fingerprint_sha256=tc_data['fingerprint_sha256'],
-                    fingerprint_sha1=tc_data.get('fingerprint_sha1'),
-                    subject=tc_data.get('subject'),
-                    issuer=tc_data.get('issuer'),
-                    serial_number=tc_data.get('serial_number'),
-                    purpose=tc_data.get('purpose'),
-                    added_by=tc_data.get('added_by'),
-                    notes=tc_data.get('notes'),
-                )
-                db.session.add(new_tc)
+                    name=tc_data.get('name') or '',
+                    certificate_pem=tc_data.get('certificate_pem') or '')
+                db.session.add(trusted)
+            apply_columns(trusted, 'trusted_certificates', tc_data, plan)
             results['trusted_certificates'] += 1

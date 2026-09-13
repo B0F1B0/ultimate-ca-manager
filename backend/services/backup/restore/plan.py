@@ -11,6 +11,7 @@ group membership, an API key or a client certificate could land on whichever
 user happened to hold that id here.
 """
 import base64
+from datetime import date, datetime
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -201,11 +202,29 @@ def _identity_key(values: Dict[str, Any], fields: Tuple[str, ...]) -> Tuple:
 
 
 def _normalise(value: Any) -> Any:
+    """One spelling for a value that identifies a row, whichever side it
+    comes from.
+
+    The archive carries a timestamp as an ISO string with a `T` in it; the
+    database hands back a `datetime`, whose `str()` uses a space. Compared as
+    text they never matched, so a section identified partly by a timestamp --
+    a key recovery request is (certificate, when it was asked for) -- found no
+    existing row to update, created a second one, and then had it deleted
+    again by the replacement pass, which saw an identity the archive "did not
+    hold". The section came out of a restore empty.
+    """
     if isinstance(value, bytes):
         return base64.b64encode(value).decode()
     if value is None:
         return None
-    return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    text = str(value)
+    try:
+        return datetime.fromisoformat(text.replace('Z', '+00:00')).isoformat()
+    except ValueError:
+        return text
 
 
 def _index_of(section: Section) -> Dict[Tuple, Any]:

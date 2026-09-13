@@ -626,15 +626,14 @@ def _seed_target_history():
 # What a restore onto another installation can and cannot place
 # ---------------------------------------------------------------------------
 
-# Sections whose references a manifest-driven restore cannot resolve on an
-# installation that does not already hold the rows they point at, because
-# `apply_section` asks a plan indexed before the first write. The columns are
-# NOT NULL, so the whole restore aborts rather than writing an unlinked row;
-# `TestSectionsARestoreCannotPlaceOnAFreshInstallation` pins each one.
-ABORTS_THE_RESTORE = (
-    'role_permissions', 'group_members', 'webauthn_credentials',
-    'deploy_bindings', 'ca_template_pins', 'key_recovery_requests',
-)
+# Sections whose references a manifest-driven restore could not resolve on an
+# installation that does not already hold the rows they point at: the plan was
+# indexed before the first write, the columns are NOT NULL, and the whole
+# restore aborted rather than writing an unlinked row. `apply_section` now
+# refreshes the index of the sections it points at before resolving, so the
+# list is empty and `TestSectionsARestorePlacesOnAFreshInstallation` keeps it
+# that way.
+ABORTS_THE_RESTORE = ()
 
 # Sections a restore writes with the source's numeric id and repairs at the
 # very end, in `relink_references`. SQLite enforces no foreign key, so the
@@ -663,6 +662,13 @@ RESTORABLE_SECTIONS = tuple(
         'scep_profiles', 'deploy_targets', 'scan_profiles', 'scan_runs',
         'discovered_certificates', 'smtp_config', 'ad_connector',
         'webhook_endpoints',
+        # These six used to abort the restore outright: their references
+        # point at rows the same restore creates, and the plan was indexed
+        # before the first write. `apply_section` now rebuilds the index of
+        # the sections it points at, so they are ordinary sections of the
+        # round trip like any other.
+        'role_permissions', 'group_members', 'webauthn_credentials',
+        'deploy_bindings', 'ca_template_pins', 'key_recovery_requests',
     ) if name not in ABORTS_THE_RESTORE
 )
 
@@ -914,29 +920,22 @@ NOT_EXERCISED = {
         "the same place",
 }
 
-# Sections the restore drops on the floor, pinned by
-# `TestWhatARestoreDropsWithoutSayingSo`; their references cannot be checked
-# because the rows are not there to check.
-_NEVER_RESTORED = (
-    "the section is named in RESTORED_SECTIONS and no restorer writes it, so "
-    "the row is exported, announced as restored and never written")
-_PRUNED_AFTER_BEING_RESTORED = (
-    "the row is written and then removed by the replacing pass: its identity "
-    "holds a foreign key, so the identity the archive carries (the source's "
-    "number) is not the identity the row has here, and it reads as a row the "
-    "archive does not carry")
-
 # Relations a restore places wrongly on another installation. Pinned, not
 # accepted: each is a link that quietly points at nothing once the ids are
-# not the source's, and this table is what makes a fix visible.
-KNOWN_TO_NOT_SURVIVE = {
-    ('approval_requests', 'certificate_id'): _PRUNED_AFTER_BEING_RESTORED,
-    ('approval_requests', 'requester_id'): _PRUNED_AFTER_BEING_RESTORED,
-    ('msca_requests', 'msca_id'): _NEVER_RESTORED,
-    ('scan_runs', 'scan_profile_id'): _NEVER_RESTORED,
-    ('discovered_certificates', 'scan_profile_id'): _NEVER_RESTORED,
-    ('discovered_certificates', 'ucm_certificate_id'): _NEVER_RESTORED,
-}
+# not the source's, and this table is what makes a fix visible. It is empty,
+# and `_assert_every_reference_landed` fails in both directions -- when a
+# relation stops landing and when one listed here starts landing again.
+#
+# What used to be in it, and what closed it:
+#  - msca_requests, scan_runs, discovered_certificates were named in
+#    RESTORED_SECTIONS with no restorer behind them: exported, announced as
+#    restored, never written. They go through the manifest-driven path now.
+#  - approval_requests was written and then removed by the replacing pass:
+#    its identity holds foreign keys, so the identity the archive carries
+#    (the source's numbers) was not the identity the row has here, and it
+#    read as a row the archive does not carry. The pass translates the
+#    archived identity through the plan before comparing.
+KNOWN_TO_NOT_SURVIVE: dict = {}
 
 
 def _assert_every_reference_landed(restored):
@@ -1095,44 +1094,45 @@ class TestWhatPostgreSQLRefuses:
                     f"'{section_name}' no longer restores on SQLite either")
 
 
-class TestWhatARestoreDropsWithoutSayingSo:
-    """Rows the archive carries, the restore reports, and nobody writes.
+class TestWhatARestoreUsedToDropWithoutSayingSo:
+    """Rows the archive carried, the restore reported, and nobody wrote.
 
-    `restore_backup` names the sections it did not apply so an administrator
+    `restore_backup` names the sections it did not apply, so an administrator
     is never told a restore is complete while part of the archive was passed
-    over. These sections are on the list of what it *does* apply, and nothing
-    applies them: the count comes back silent, the row never arrives, and the
-    only way to find out is to go looking for the history it held.
+    over. These sections were on the list of what it *does* apply and nothing
+    applied them: the count came back silent, the row never arrived, and the
+    only way to find out was to go looking for the history it held.
+
+    They go through the manifest-driven path now, and `approval_requests`,
+    which was written and then deleted by the pass that makes a restore a
+    replacement, survives it: the archived identity is translated through the
+    plan before being compared, so a row identified by what it points at is
+    no longer read as a row the archive does not carry.
     """
 
     @pytest.mark.parametrize('section_name',
                              ['msca_requests', 'scan_runs',
                               'discovered_certificates'])
-    def test_the_section_is_announced_as_restored_and_is_not(
+    def test_the_section_is_restored_and_not_merely_announced(
             self, app, restored_on_sqlite, section_name):
         assert len(restored_on_sqlite.archived(section_name)) == 1, \
             'the archive should carry the row this scenario wrote'
-        assert section_name not in restored_on_sqlite.results['sections_not_restored'], \
-            'the restore does say it left this section out, so it is not silent'
+        assert section_name not in restored_on_sqlite.results['sections_not_restored']
         with restored_on_sqlite.open(app):
-            assert _model(section_name).query.count() == 0, (
-                f"'{section_name}' now has a restorer -- take it out of "
-                'KNOWN_TO_NOT_SURVIVE and out of this test')
+            assert _model(section_name).query.count() == 1, (
+                f"'{section_name}' is announced as restored and is not")
 
-    def test_an_approval_request_is_written_and_then_taken_away(
+    def test_an_approval_request_survives_the_replacing_pass(
             self, app, restored_on_sqlite):
-        """Restored, then removed by the pass that makes a restore a
-        replacement: `approval_requests` is identified by (certificate_id,
-        created_at), and the certificate_id the archive carries is the
-        source's. The row the restore has just written has this
-        installation's, so it reads as a row the archive does not carry and
-        the replacement deletes it."""
+        """`approval_requests` is identified by (certificate_id, created_at),
+        and the certificate_id the archive carries is the source's. The row
+        the restore had just written held this installation's, so it read as
+        a row the archive does not carry and the replacement deleted it."""
         assert len(restored_on_sqlite.archived('approval_requests')) == 1
-        assert restored_on_sqlite.results.get('approval_requests') == 1, \
-            'the restore reports having applied the approval request'
+        assert restored_on_sqlite.results.get('approval_requests') == 1
         with restored_on_sqlite.open(app):
-            assert _model('approval_requests').query.count() == 0, \
-                'the approval request survives now; this test can go'
+            assert _model('approval_requests').query.count() == 1, \
+                'the approval request was written and then taken away again'
 
 
 class TestReferencesTheManifestCannotResolve:
@@ -1165,39 +1165,20 @@ class TestReferencesTheManifestCannotResolve:
                 'entry in NOT_EXERCISED can both go')
 
 
-class TestSectionsARestoreCannotPlaceOnAFreshInstallation:
-    """Sections whose references a restore cannot resolve, pinned one by one.
+class TestNothingAbortsARestoreAnyMore:
+    """Six sections used to make a restore onto a fresh installation
+    impossible: their references point at rows the same restore creates, the
+    plan was indexed before the first write, and every one of those columns is
+    NOT NULL, so the restore died after having written everything before it.
 
-    `apply_section` resolves a reference through the plan's index of the
-    target, and that index is taken before the first write. On the machine the
-    archive came from the rows are already there and the index answers; on a
-    fresh installation they are created by this very restore and the index
-    knows nothing about them, so the reference resolves to None. Every column
-    below is NOT NULL, so the restore does not write an unlinked row -- it
-    dies, after having written everything before it, and the administrator is
-    told the archive is invalid.
-
-    `relink_references` would repair all of it, but it runs at the end, and
-    the restore never gets there. A `plan.refresh()` before the manifest-driven
-    sections, or resolving on the session the way `_reference` does in
-    `restore_extended`, is what these tests are waiting for.
+    They are part of the ordinary round trip above now, which is the real
+    proof; what is left here is the guard that keeps the list empty.
     """
 
-    @pytest.mark.parametrize('section_name', ABORTS_THE_RESTORE)
-    def test_the_restore_dies_rather_than_placing_it(self, app, source,
-                                                     section_name):
-        blob, _archive = source.archive_of(
-            *(RESTORABLE_SECTIONS + (section_name,)))
-        keys = Keys(source.directory, f'target-{section_name}')
-        with _installation(
-                app, f"sqlite:///{source.directory / f'{section_name}.db'}", keys):
-            with app.app_context():
-                _seed_target_history()
-                with pytest.raises(IntegrityError) as refused:
-                    _service().restore_backup(blob, PASSWORD)
-        table = _model(section_name).__tablename__
-        assert table in str(refused.value), (
-            f"the restore failed, but not on {table}: {refused.value}")
+    def test_the_list_of_sections_that_abort_is_empty(self):
+        assert ABORTS_THE_RESTORE == (), (
+            'a section aborts a restore again: its references resolve to '
+            'nothing on an installation that does not already hold them')
 
     def test_nothing_else_was_left_out_of_the_round_trip(self):
         """The sections this file restores, and the ones it cannot, together
@@ -1217,16 +1198,19 @@ class TestSectionsARestoreCannotPlaceOnAFreshInstallation:
 #                         what the whole design is for;
 #   'key-encryption key'  encrypted with the master key rather than the
 #                         database key;
-#   'the clear'           restored readable but no longer encrypted at rest,
-#                         because the restorer assigns the raw column instead
-#                         of the property that encrypts, or because the column
-#                         has no such property and the route that normally
-#                         writes it is not in the picture;
+#   'the clear'           held readable in the column, which for some of them
+#                         is where the application reads it from
+#                         (`pyotp.TOTP(user.totp_secret)`,
+#                         `json.loads(provider.config)`): putting a ciphertext
+#                         there would restore an account whose MFA can no
+#                         longer be verified;
 #   'nothing'             not restored at all: the section's restorer writes a
 #                         hand-picked list of columns and this is not on it.
 #
-# The last two are gaps, not decisions. They are pinned here so that moving a
-# column between them is something somebody chose to do.
+# 'nothing' is always a gap. 'the clear' is a gap only where the model has a
+# property that encrypts and the restorer went around it; where the column is
+# what the application itself reads, it is the right answer. They are pinned
+# here so that moving a column between them is something somebody chose.
 AT_REST_AFTER_A_RESTORE = {
     # Put back under the target's database key, as the design intends.
     ('acme_eab_credentials', 'hmac_key_b64'): 'database key',
@@ -1234,30 +1218,38 @@ AT_REST_AFTER_A_RESTORE = {
     ('dns_providers', 'credentials'): 'database key',
     ('microsoft_cas', 'password'): 'database key',
 
-    # Written through the raw column rather than the property that encrypts
-    # (sso, smtp), or held in a column with no such property, encrypted by
-    # whichever route writes it and by nothing during a restore.
+    # Put back under the target's database key now that their restorers go
+    # through the manifest-driven path instead of assigning the private
+    # column behind the property.
+    ('smtp_config', 'smtp_password'): 'database key',
+    ('sso_providers', 'ldap_bind_password'): 'database key',
+    ('sso_providers', 'oauth2_client_secret'): 'database key',
+    # And these two were on no restorer's list at all.
+    ('smtp_config', 'smtp_oauth_client_secret'): 'database key',
+    ('smtp_config', 'smtp_oauth_refresh_token'): 'database key',
+
+    # Readable in the column, which is where the application reads them: the
+    # MFA secret is handed straight to pyotp, the HSM configuration straight
+    # to json.loads. The restore puts back what the source held.
+    ('users', 'backup_codes'): 'the clear',
+    ('users', 'totp_secret'): 'the clear',
+
+    # Still readable where a property that encrypts exists and the restorer
+    # goes around it, or where the writing route encrypts and the restore
+    # does not. These are the gaps left.
     ('deploy_targets', 'private_key'): 'the clear',
     ('hsm_providers', 'config'): 'the clear',
     ('scep_profiles', 'challenge_password'): 'the clear',
     ('scep_profiles', 'intune_client_secret'): 'the clear',
-    ('smtp_config', 'smtp_password'): 'the clear',
-    ('sso_providers', 'ldap_bind_password'): 'the clear',
-    ('sso_providers', 'oauth2_client_secret'): 'the clear',
     ('webhook_endpoints', 'secret'): 'the clear',
 
     # Never written by the restore at all:
-    #  - _restore_users applies six columns and neither of these is on the list;
-    #  - _restore_microsoft_cas and _restore_smtp_config likewise;
+    #  - _restore_microsoft_cas writes a hand-picked list of columns;
     #  - webhook_endpoints.auth_token is applied by the manifest-driven path,
-    #    which drops it before it reaches the branch that re-encrypts secrets:
+    #    which drops it before it reaches the branch that writes secrets:
     #    the column is named `_auth_token`, so `columns.get('auth_token')` is
     #    None and the row is skipped as "a column this version does not have".
     ('microsoft_cas', 'winrm_password'): 'nothing',
-    ('smtp_config', 'smtp_oauth_client_secret'): 'nothing',
-    ('smtp_config', 'smtp_oauth_refresh_token'): 'nothing',
-    ('users', 'backup_codes'): 'nothing',
-    ('users', 'totp_secret'): 'nothing',
     ('webhook_endpoints', 'auth_token'): 'nothing',
 
     # Carried as the source's own ciphertext and written back unchanged: the
