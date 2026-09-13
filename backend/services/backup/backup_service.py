@@ -33,6 +33,7 @@ from utils.datetime_utils import utc_now, utc_isoformat
 
 logger = logging.getLogger(__name__)
 
+from . import container
 from .errors import BackupExportError
 from .export_core import ExportCoreMixin
 from .export_extended import ExportExtendedMixin
@@ -58,19 +59,24 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
                    RestoreNotificationsMixin, RestorePoliciesMixin, RestoreExtendedMixin):
     """Service for creating encrypted system backups
 
-    Format v2 container layout:
+    Format v3 container layout (written today):
         [0:4]      magic = b'UCMB'
-        [4]        format_version = 0x02
+        [4]        format_version = 0x03
         [5]        flags (bit 0 = gzip-compressed plaintext)
         [6]        kdf_id (1=PBKDF2-SHA256, 2=Argon2id)
         [7]        reserved = 0x00
         [8:10]     metadata_len (big-endian uint16)
-        [10:10+N]  metadata JSON (unencrypted header: ucm_version, created_at,
-                   kdf params, salt_b64, nonce_b64)
+        [10:10+N]  metadata JSON (cleartext header: ucm_version, created_at,
+                   backup_type, kdf params, salt_b64, nonce_b64)
         [10+N:]    AES-256-GCM ciphertext (plaintext = gzipped JSON if flag set)
 
+    The whole header, bytes 0 to 10+N, is the GCM additional data: editing any
+    of it (the announced version, the backup type, the KDF profile, the salt)
+    breaks the tag. Format v2 is identical but authenticates only the magic,
+    so its header could be rewritten at will; it is still read, never written.
+
     Format v1 (legacy): raw 32-byte salt + 12-byte nonce + GCM ciphertext.
-    restore_backup() auto-detects format from magic bytes.
+    restore_backup() auto-detects the format from the magic bytes.
     """
 
     # v1/legacy constants (PBKDF2)
@@ -79,12 +85,18 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
     NONCE_SIZE = 12  # 96 bits for GCM
     SALT_SIZE = 32
 
-    # v2 constants
-    MAGIC = b'UCMB'
-    FORMAT_VERSION_V2 = 2
-    FLAG_GZIP = 0x01
-    KDF_PBKDF2 = 1
-    KDF_ARGON2ID = 2
+    # Container constants (the framing itself lives in container.py)
+    MAGIC = container.MAGIC
+    FORMAT_VERSION_V2 = container.FORMAT_VERSION_V2
+    FORMAT_VERSION_V3 = container.FORMAT_VERSION_V3
+    FLAG_GZIP = container.FLAG_GZIP
+    KDF_PBKDF2 = container.KDF_PBKDF2
+    KDF_ARGON2ID = container.KDF_ARGON2ID
+
+    # Logical schema of the payload, independent of the container framing. A
+    # reader refuses a schema it does not know before touching the database.
+    SCHEMA_VERSION = 3
+    MIN_READER_SCHEMA_VERSION = 3
 
     # Argon2id params (OWASP 2024 recommendation for sensitive data)
     ARGON2_TIME_COST = 3
@@ -214,6 +226,11 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
             'https_server': _section('https_server', self._export_https_files),
         }
 
+        # The logical schema of what was just collected: what a reader needs
+        # to decide, before touching the database, whether it can restore this
+        # archive and whether it arrived whole.
+        backup_data['metadata'].update(self._schema_metadata(backup_data, include))
+
         # Choose KDF: Argon2id if available, else strong PBKDF2
         if _ARGON2_AVAILABLE:
             kdf_id = self.KDF_ARGON2ID
@@ -254,31 +271,67 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
         flags = self.FLAG_GZIP
         plaintext = gzip.compress(final_json, compresslevel=6)
 
-        # Encrypt with AES-256-GCM
+        # Build the header first: it is the additional data the tag covers, so
+        # every byte an attacker could edit is authenticated with the payload.
         nonce = secrets.token_bytes(self.NONCE_SIZE)
-        ciphertext = AESGCM(master_key).encrypt(nonce, plaintext, self.MAGIC)
-
-        # Build v2 container
-        metadata = {
-            'format_version': self.FORMAT_VERSION_V2,
-            'ucm_version': self.app_version,
-            'created_at': utc_now().isoformat() + 'Z',
-            'backup_type': backup_type,
-            'kdf': kdf_params,
-            'salt_b64': base64.b64encode(salt).decode(),
-            'nonce_b64': base64.b64encode(nonce).decode(),
-        }
-        metadata_bytes = json.dumps(metadata, separators=(',', ':')).encode()
-        if len(metadata_bytes) > 65535:
-            raise ValueError("Backup metadata too large")
-
-        header = (
-            self.MAGIC
-            + bytes([self.FORMAT_VERSION_V2, flags, kdf_id, 0])
-            + struct.pack('>H', len(metadata_bytes))
-            + metadata_bytes
+        header = container.build_header(
+            format_version=self.FORMAT_VERSION_V3,
+            flags=flags,
+            kdf_id=kdf_id,
+            metadata={
+                'format_version': self.FORMAT_VERSION_V3,
+                'ucm_version': self.app_version,
+                'created_at': utc_now().isoformat() + 'Z',
+                'backup_type': backup_type,
+                'kdf': kdf_params,
+                'salt_b64': base64.b64encode(salt).decode(),
+                'nonce_b64': base64.b64encode(nonce).decode(),
+            },
         )
+
+        # Encrypt with AES-256-GCM, the full header as additional data
+        ciphertext = AESGCM(master_key).encrypt(nonce, plaintext, header)
+
         return header + ciphertext
+
+    def _schema_metadata(self, backup_data: Dict[str, Any],
+                         include: Dict[str, bool]) -> Dict[str, Any]:
+        """Describe the payload: schema, source dialect, sections and counts.
+
+        `database_type` used to say sqlite whatever the server ran on, and
+        nothing said how many rows a section was supposed to hold, so a
+        section truncated in transit restored as a smaller instance without a
+        word. Counts are checked by the reader before the first write.
+        """
+        sections = {}
+        excluded = []
+        for name, value in backup_data.items():
+            if name == 'metadata':
+                continue
+            if isinstance(value, list):
+                sections[name] = len(value)
+            elif isinstance(value, dict):
+                sections[name] = len(value)
+        for name, wanted in sorted(include.items()):
+            if not wanted:
+                excluded.append(name)
+
+        return {
+            'schema_version': self.SCHEMA_VERSION,
+            'min_reader_schema_version': self.MIN_READER_SCHEMA_VERSION,
+            'database_dialect': self._database_dialect(),
+            'sections': sections,
+            'excluded_sections': excluded,
+        }
+
+    @staticmethod
+    def _database_dialect() -> str:
+        """The dialect actually in use, not the one this code was written on."""
+        try:
+            return db.session.get_bind().dialect.name
+        except Exception:
+            logger.warning("Could not determine the database dialect for the backup")
+            return 'unknown'
 
     def _derive_argon2id(self, password: str, salt: bytes,
                           time_cost: int = None, memory_cost: int = None,

@@ -30,15 +30,18 @@ logger = logging.getLogger(__name__)
 
 class ExportCoreMixin:
     def _get_metadata(self, backup_type: str) -> Dict[str, Any]:
-        """Generate backup metadata"""
+        """Generate backup metadata.
+
+        The schema fields (version, dialect, sections, counts, exclusions) are
+        added by _schema_metadata() once the payload is known.
+        """
         return {
             'version': '1.0',
             'ucm_version': self.app_version,
-            'database_type': 'sqlite',  # TODO: detect from config
+            'database_type': self._database_dialect(),
             'created_at': utc_now().isoformat() + 'Z',
             'hostname': os.environ.get('FQDN', 'unknown'),
             'backup_type': backup_type,
-            'format_version': '2.0'
         }
 
     def _export_configuration(self, include: bool) -> Dict[str, Any]:

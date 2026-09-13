@@ -18,6 +18,70 @@ logger = logging.getLogger(__name__)
 
 
 class RestoreCoreMixin:
+    def _check_payload_schema(self, backup_data: Dict[str, Any]) -> None:
+        """Refuse a payload this version cannot restore.
+
+        Archives written before the schema was versioned carry none of these
+        fields; they are read as before, since their shape is the one this
+        code has always handled.
+        """
+        metadata = backup_data.get('metadata')
+        if metadata is None:
+            return
+        if not isinstance(metadata, dict):
+            raise ValueError("Invalid backup format: metadata is not an object")
+
+        schema_version = metadata.get('schema_version')
+        if schema_version is not None:
+            if isinstance(schema_version, bool) or not isinstance(schema_version, int):
+                raise ValueError("Invalid backup format: schema version is not a number")
+            if schema_version > self.SCHEMA_VERSION:
+                raise ValueError(
+                    f"This backup uses schema version {schema_version}, newer than "
+                    f"the {self.SCHEMA_VERSION} this server can restore. Upgrade "
+                    "UCM to restore it; nothing has been changed."
+                )
+
+        required = metadata.get('min_reader_schema_version')
+        if required is not None:
+            if isinstance(required, bool) or not isinstance(required, int):
+                raise ValueError(
+                    "Invalid backup format: minimum reader version is not a number")
+            if required > self.SCHEMA_VERSION:
+                raise ValueError(
+                    f"This backup requires a reader for schema version {required}; "
+                    f"this server reads up to {self.SCHEMA_VERSION}. Nothing has "
+                    "been changed."
+                )
+
+        self._check_section_counts(backup_data, metadata.get('sections'))
+
+    @staticmethod
+    def _check_section_counts(backup_data: Dict[str, Any], sections: Any) -> None:
+        """Compare each section against the count the archive announced."""
+        if sections is None:
+            return
+        if not isinstance(sections, dict):
+            raise ValueError("Invalid backup format: section counts are not an object")
+
+        for name, expected in sections.items():
+            if isinstance(expected, bool) or not isinstance(expected, int):
+                raise ValueError(
+                    f"Invalid backup format: count for section '{name}' is not a number")
+            if name not in backup_data:
+                raise ValueError(
+                    f"Incomplete backup: section '{name}' is announced but missing")
+            value = backup_data[name]
+            if not isinstance(value, (list, dict)):
+                raise ValueError(
+                    f"Invalid backup format: section '{name}' is neither a list nor "
+                    "an object")
+            if len(value) != expected:
+                raise ValueError(
+                    f"Incomplete backup: section '{name}' holds {len(value)} entries, "
+                    f"{expected} were written"
+                )
+
     def restore_backup(self, backup_bytes: bytes, password: str) -> Dict[str, Any]:
         """
         Restore from encrypted backup. Auto-detects format v1 (legacy) or v2.
@@ -35,6 +99,9 @@ class RestoreCoreMixin:
         else:
             master_key, backup_data = self._decrypt_v1(backup_bytes, password)
 
+        if not isinstance(backup_data, dict):
+            raise ValueError("Invalid backup format: the payload is not an object")
+
         # Verify checksum
         saved_checksum = backup_data.pop('checksum', None)
         if saved_checksum:
@@ -42,6 +109,12 @@ class RestoreCoreMixin:
             calc_checksum = hashlib.sha256(json_str.encode()).hexdigest()
             if calc_checksum != saved_checksum.get('value'):
                 raise ValueError("Backup checksum mismatch - file may be corrupted")
+
+        # Everything the payload claims about itself is checked here, before
+        # the first write: a schema this version cannot read, or a section
+        # holding fewer rows than the archive says it holds, must not be
+        # discovered halfway through a restore.
+        self._check_payload_schema(backup_data)
 
         # Initialize results
         results = {

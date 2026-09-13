@@ -1,10 +1,12 @@
 """
 Decrypt methods mixin for BackupService
+
+Reading a backup means running on bytes the caller chose. Every step below
+is bounded by container.py before it is computed: the framing, the KDF
+profile, the decompressed size, the shape of the JSON.
 """
-import json
-import gzip
-import struct
 import base64
+import json
 import logging
 from typing import Dict, Any, Tuple
 
@@ -23,6 +25,9 @@ except ImportError:
 from config.settings import Config
 from utils.datetime_utils import utc_now
 
+from . import container
+from .container import ContainerError
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,8 +38,15 @@ class BackupDecryptionError(ValueError):
 
 class DecryptMixin:
     def _decrypt_v1(self, backup_bytes: bytes, password: str) -> Tuple[bytes, Dict[str, Any]]:
-        """Decrypt legacy v1 format: [salt(32)][nonce(12)][ciphertext+tag]"""
-        if len(backup_bytes) < self.SALT_SIZE + self.NONCE_SIZE:
+        """Decrypt legacy v1 format: [salt(32)][nonce(12)][ciphertext+tag]
+
+        Unframed and unauthenticated beyond the payload itself, so there is no
+        header to check — but the payload bounds apply exactly as they do to a
+        current archive.
+        """
+        if len(backup_bytes) > container.MAX_CONTAINER_BYTES:
+            raise ContainerError("Backup file is too large to read")
+        if len(backup_bytes) < self.SALT_SIZE + self.NONCE_SIZE + container.GCM_TAG_SIZE:
             raise ValueError("Invalid backup file: too small")
 
         master_salt = backup_bytes[:self.SALT_SIZE]
@@ -48,86 +60,48 @@ class DecryptMixin:
         except Exception:
             raise BackupDecryptionError("Decryption failed - wrong password or corrupted file")
 
-        try:
-            backup_data = json.loads(plaintext.decode())
-        except json.JSONDecodeError:
-            raise ValueError("Invalid backup format: not valid JSON")
-
-        return master_key, backup_data
-
+        return master_key, container.json_loads_bounded(plaintext)
 
     def _decrypt_v2(self, backup_bytes: bytes, password: str) -> Tuple[bytes, Dict[str, Any]]:
-        """Decrypt v2 format: magic+version+flags+kdf+metadata+ciphertext"""
-        if len(backup_bytes) < 10:
-            raise ValueError("Invalid backup file: truncated header")
+        """Read a framed container, v2 or v3.
 
-        magic = backup_bytes[:4]
-        if magic != self.MAGIC:
-            raise ValueError("Invalid backup file: bad magic bytes")
+        The two differ in one respect, and it is the point of v3: v2 signs
+        only the magic, so its header could be rewritten without breaking the
+        tag, while v3 signs the whole header. Everything else — the bounds on
+        the KDF profile, the salt and nonce sizes, the decompressed size, the
+        shape of the JSON — applies to both.
+        """
+        metadata, header, ciphertext = container.parse_header(backup_bytes)
+        version = metadata['format_version']
+        kdf_id = metadata['kdf_id']
 
-        version = backup_bytes[4]
-        flags = backup_bytes[5]
-        kdf_id = backup_bytes[6]
-        # reserved = backup_bytes[7]
-
-        if version != self.FORMAT_VERSION_V2:
-            raise ValueError(f"Unsupported backup format version: {version}")
-
-        metadata_len = struct.unpack('>H', backup_bytes[8:10])[0]
-        if len(backup_bytes) < 10 + metadata_len + self.NONCE_SIZE:
-            raise ValueError("Invalid backup file: truncated")
-
-        metadata_bytes = backup_bytes[10:10 + metadata_len]
-        ciphertext = backup_bytes[10 + metadata_len:]
-
-        try:
-            metadata = json.loads(metadata_bytes.decode())
-        except json.JSONDecodeError:
-            raise ValueError("Invalid backup metadata")
-
-        # Derive key
-        salt = base64.b64decode(metadata['salt_b64'])
-        nonce = base64.b64decode(metadata['nonce_b64'])
-        kdf_params = metadata.get('kdf', {})
+        salt, nonce, kdf_params = container.validate_kdf(kdf_id, metadata)
 
         if kdf_id == self.KDF_ARGON2ID:
             if not _ARGON2_AVAILABLE:
                 raise ValueError("Backup uses Argon2id but argon2-cffi is not installed")
             master_key = self._derive_argon2id(
                 password, salt,
-                time_cost=kdf_params.get('time_cost', self.ARGON2_TIME_COST),
-                memory_cost=kdf_params.get('memory_cost', self.ARGON2_MEMORY_COST),
-                parallelism=kdf_params.get('parallelism', self.ARGON2_PARALLELISM),
-                hash_len=kdf_params.get('hash_len', self.KEY_SIZE),
-            )
-        elif kdf_id == self.KDF_PBKDF2:
-            master_key = self._derive_pbkdf2(
-                password, salt, kdf_params.get('iterations', self.PBKDF2_ITERATIONS_V2)
+                time_cost=kdf_params['time_cost'],
+                memory_cost=kdf_params['memory_cost'],
+                parallelism=kdf_params['parallelism'],
+                hash_len=kdf_params['hash_len'],
             )
         else:
-            raise ValueError(f"Unknown KDF id: {kdf_id}")
+            master_key = self._derive_pbkdf2(password, salt, kdf_params['iterations'])
 
-        # Decrypt
+        # v3 authenticates the canonical header; v2 only ever authenticated
+        # the magic, and is read that way so old archives still open.
+        aad = header if version == self.FORMAT_VERSION_V3 else self.MAGIC
         try:
-            # v2 uses magic bytes as AAD to authenticate the container
-            plaintext = AESGCM(master_key).decrypt(nonce, ciphertext, self.MAGIC)
+            plaintext = AESGCM(master_key).decrypt(nonce, ciphertext, aad)
         except Exception:
             raise BackupDecryptionError("Decryption failed - wrong password or corrupted file")
 
-        # Decompress if gzipped
-        if flags & self.FLAG_GZIP:
-            try:
-                plaintext = gzip.decompress(plaintext)
-            except Exception:
-                raise ValueError("Invalid backup: gzip decompression failed")
+        if metadata['flags'] & self.FLAG_GZIP:
+            plaintext = container.decompress_bounded(plaintext)
 
-        try:
-            backup_data = json.loads(plaintext.decode())
-        except json.JSONDecodeError:
-            raise ValueError("Invalid backup format: not valid JSON")
-
-        return master_key, backup_data
-
+        return master_key, container.json_loads_bounded(plaintext)
 
     def _decrypt_private_key(self, encrypted_data: Dict[str, str], master_key: bytes) -> str:
         """Decrypt individual private key"""
