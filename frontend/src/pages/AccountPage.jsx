@@ -525,6 +525,8 @@ export default function AccountPage() {
         blob = await accountService.downloadMTLSCertificate(exportCert.id, {
           format: 'pkcs12',
           password: options.password,
+          includeChain: options.includeChain,
+          includeRoot: options.includeRoot,
           legacy: options.legacy,
         })
       } else {
