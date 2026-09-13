@@ -153,10 +153,11 @@ class StagedFiles:
     def publish(self) -> List[Path]:
         """Publish every staged file, or leave the destinations as they were.
 
-        Called after the commit. Each destination is read before it is
-        replaced, so a failure on any file can undo the replaces that already
-        happened; the failure is then raised, because the database is
-        committed and the caller has to be told the files do not match it.
+        Called with the database work done but not yet committed: each
+        destination is read before it is replaced, so a failure on any file
+        undoes the replaces that already happened, and the caller rolls the
+        database back. What the staging holds is kept until `discard()`, so a
+        commit that fails afterwards can still call `unpublish()`.
         """
         published: List[Path] = []
         try:
@@ -173,7 +174,6 @@ class StagedFiles:
             self._compensate()
             raise
 
-        self.discard()
         return published
 
     def _capture_previous(self, entry: _Staged) -> None:
@@ -203,6 +203,15 @@ class StagedFiles:
         # effect, so a failing fsync must still compensate this file.
         entry.published = True
         _fsync_directory(directory)
+
+    def unpublish(self) -> None:
+        """Undo a successful publication.
+
+        The database commit happens after the files are in place, so a commit
+        that fails leaves files describing a restore that did not happen. This
+        puts the destinations back to what they held.
+        """
+        self._compensate()
 
     def _compensate(self) -> None:
         """Put the published destinations back, newest publication first.

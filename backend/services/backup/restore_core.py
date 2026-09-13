@@ -20,8 +20,37 @@ from .restore.files import StagedFiles
 from .manifest import SECTIONS
 from .restore.apply import apply_columns, apply_section, relink_references
 from .restore.replace import replace_sections
+from .restore.settings import restore_encrypted_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _archived_datetime(where: str, column: str, value: Any):
+    """The instant the archive recorded for a row, or a refusal naming it.
+
+    Each restorer used to parse its own dates behind `except Exception:
+    return None`, so a revocation date, a validity date or an expiry the
+    archive could not be read from simply became NULL: a revoked CA came
+    back revoked with no date, and a certificate lost the day it stopped
+    being valid, without a line anywhere saying so.
+
+    An absent value is still absent — the column is nullable and an archive
+    written before it existed says nothing about it. A value that is there
+    and is not a date is the archive contradicting itself, and stops the
+    restore. The message is a `BackupSchemaError` because that is the one
+    the routes hand back to the administrator verbatim.
+    """
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (TypeError, ValueError) as exc:
+        raise BackupSchemaError(
+            f"Invalid backup: {where} holds {value!r} as its {column}, which "
+            "is not a date. Nothing has been changed."
+        ) from exc
 
 
 # Sections this restore path knows how to apply. The export carries more
@@ -262,15 +291,17 @@ class RestoreCoreMixin:
                 if mode == 'replace':
                     results['removed'] = self._remove_what_the_archive_omits(
                         backup_data, plan)
-        except Exception:
-            staged.discard()
-            raise
 
-        try:
-            staged.publish()
+                # Published inside the transaction, so a file that cannot be
+                # placed rolls the database back with it. The window that
+                # remains is the commit itself, and it is compensated below.
+                staged.publish()
         except Exception:
-            logger.exception("Restore: the database was restored but its files "
-                             "could not be published")
+            # The commit is the last thing the block does: if it is what
+            # failed, the files are already in place and describe a restore
+            # that did not happen.
+            staged.unpublish()
+            staged.discard()
             raise
         finally:
             staged.discard()
@@ -404,15 +435,10 @@ class RestoreCoreMixin:
     def _apply_ca_revocation(ca, ca_data: Dict) -> None:
         """Carry the CA's revocation state back (#343): a restore that drops
         it brings a revoked CA back as active and able to sign again."""
-        from datetime import datetime as _dt
+        where = f"certificate authority {ca_data.get('refid') or ca_data.get('descr')}"
 
-        def _dt_or_none(val):
-            if not val:
-                return None
-            try:
-                return _dt.fromisoformat(str(val).replace('Z', '+00:00'))
-            except Exception:
-                return None
+        def _dt_or_none(column, val):
+            return _archived_datetime(where, column, val)
 
         if 'revoked' not in ca_data:
             # A backup written before the fields existed says nothing about
@@ -420,29 +446,23 @@ class RestoreCoreMixin:
             # revoked_serials entry keeps saying revoked (review of #347)
             return
         ca.revoked = bool(ca_data.get('revoked', False))
-        ca.revoked_at = _dt_or_none(ca_data.get('revoked_at'))
+        ca.revoked_at = _dt_or_none('revoked_at', ca_data.get('revoked_at'))
         ca.revoke_reason = ca_data.get('revoke_reason')
-        ca.invalidity_at = _dt_or_none(ca_data.get('invalidity_at'))
+        ca.invalidity_at = _dt_or_none('invalidity_at', ca_data.get('invalidity_at'))
 
     @staticmethod
     def _apply_ca_fields(ca, ca_data: Dict) -> None:
         """Apply the exported settings a restore used to drop: validity dates,
         origin, CDP/OCSP/AIA/CPS publication settings and the offline state.
         Fields absent from an older backup leave the record as it is."""
-        from datetime import datetime as _dt
-
-        def _dt_or_none(val):
-            if not val:
-                return None
-            try:
-                return _dt.fromisoformat(str(val).replace('Z', '+00:00'))
-            except Exception:
-                return None
+        where = f"certificate authority {ca_data.get('refid') or ca_data.get('descr')}"
 
         if 'valid_from' in ca_data:
-            ca.valid_from = _dt_or_none(ca_data.get('valid_from'))
+            ca.valid_from = _archived_datetime(where, 'valid_from',
+                                               ca_data.get('valid_from'))
         if 'valid_to' in ca_data:
-            ca.valid_to = _dt_or_none(ca_data.get('valid_to'))
+            ca.valid_to = _archived_datetime(where, 'valid_to',
+                                             ca_data.get('valid_to'))
         for column in ('imported_from', 'created_by', 'cdp_enabled', 'cdp_url', 'ocsp_enabled',
                        'ocsp_url', 'aia_ca_issuers_enabled', 'aia_ca_issuers_url', 'cps_enabled',
                        'cps_uri', 'cps_oid', 'path_length'):
@@ -462,16 +482,7 @@ class RestoreCoreMixin:
 
     def _restore_revoked_serials(self, backup_data: Dict, results: Dict) -> None:
         """Restore the persistent revocation records (#343)."""
-        from datetime import datetime as _dt
         from models.revoked_serial import RevokedSerial
-
-        def _dt_or_none(val):
-            if not val:
-                return None
-            try:
-                return _dt.fromisoformat(str(val).replace('Z', '+00:00'))
-            except Exception:
-                return None
 
         results.setdefault('revoked_serials', 0)
         results.setdefault('revoked_serials_skipped', 0)
@@ -479,31 +490,49 @@ class RestoreCoreMixin:
         # would fail the foreign key on PostgreSQL and abort the whole restore
         known = {ca.refid for ca in CA.query.with_entities(CA.refid).all()}
         known.update(c.get('refid') for c in backup_data.get('certificate_authorities', []) if c.get('refid'))
-        for rs_data in backup_data.get('revoked_serials', []):
+        for position, rs_data in enumerate(backup_data.get('revoked_serials', [])):
             caref = rs_data.get('caref')
             serial = rs_data.get('serial_number')
             if not caref or not serial:
-                continue
+                # Both columns are NOT NULL on the model, so no export writes
+                # such a row: it used to be dropped without a word, which for
+                # a revocation record means a certificate silently coming back
+                # valid.
+                raise BackupSchemaError(
+                    f"Invalid backup: revoked serial {position} names "
+                    "neither a serial number nor the authority that revoked "
+                    "it. Nothing has been changed.")
             if caref not in known:
+                # The one tolerated skip of this section: the record names a
+                # CA that is neither in this database nor in the archive, so
+                # there is nothing here for it to revoke. Writing it would
+                # break the foreign key on PostgreSQL; the serial and the CA
+                # are named so the skip can be read in the log.
                 logger.warning(f"Revoked serial {serial} skipped: CA {caref} is unknown")
                 results['revoked_serials_skipped'] += 1
                 continue
+            where = f"revoked serial {serial} of CA {caref}"
             existing = RevokedSerial.query.filter_by(
                 caref=caref, serial_number=serial
             ).first()
-            valid_to = _dt_or_none(rs_data.get('valid_to')) or utc_now()
+            valid_to = _archived_datetime(
+                where, 'valid_to', rs_data.get('valid_to')) or utc_now()
+            revoked_at = _archived_datetime(
+                where, 'revoked_at', rs_data.get('revoked_at'))
+            invalidity_at = _archived_datetime(
+                where, 'invalidity_at', rs_data.get('invalidity_at'))
             if existing:
-                existing.revoked_at = _dt_or_none(rs_data.get('revoked_at')) or existing.revoked_at
+                existing.revoked_at = revoked_at or existing.revoked_at
                 existing.revoke_reason = rs_data.get('revoke_reason')
-                existing.invalidity_at = _dt_or_none(rs_data.get('invalidity_at'))
+                existing.invalidity_at = invalidity_at
                 existing.valid_to = valid_to
             else:
                 db.session.add(RevokedSerial(
                     caref=caref,
                     serial_number=serial,
-                    revoked_at=_dt_or_none(rs_data.get('revoked_at')) or utc_now(),
+                    revoked_at=revoked_at or utc_now(),
                     revoke_reason=rs_data.get('revoke_reason'),
-                    invalidity_at=_dt_or_none(rs_data.get('invalidity_at')),
+                    invalidity_at=invalidity_at,
                     valid_to=valid_to,
                     certificate_id=None,
                 ))
@@ -575,16 +604,6 @@ class RestoreCoreMixin:
         its subject, serial, SANs, source, template and renewal history stayed
         as they were while the restore reported success.
         """
-        from datetime import datetime as _dt
-
-        def _parse_dt(val):
-            if not val:
-                return None
-            try:
-                return _dt.fromisoformat(val.replace('Z', '+00:00'))
-            except Exception:
-                return None
-
         plan = plan if plan is not None else RestorePlan.build(backup_data)
 
         for cert_data in backup_data.get('certificates', []):
@@ -627,11 +646,14 @@ class RestoreCoreMixin:
                 )
             if prv_b64:
                 cert.prv = prv_b64
+            where = f"certificate {cert_data.get('refid')}"
             cert.revoked = bool(cert_data.get('revoked', False))
-            cert.revoked_at = _parse_dt(cert_data.get('revoked_at'))
+            cert.revoked_at = _archived_datetime(where, 'revoked_at',
+                                                 cert_data.get('revoked_at'))
             cert.revoke_reason = cert_data.get('revoke_reason')
             if 'invalidity_at' in cert_data:
-                cert.invalidity_at = _parse_dt(cert_data.get('invalidity_at'))
+                cert.invalidity_at = _archived_datetime(
+                    where, 'invalidity_at', cert_data.get('invalidity_at'))
             cert.archived = bool(cert_data.get('archived', False))
             results['certificates'] += 1
 
@@ -664,51 +686,50 @@ class RestoreCoreMixin:
             results['acme_accounts'] += 1
 
     def _restore_acme_eab_credentials(self, backup_data: Dict, results: Dict) -> None:
-        """Restore ACME EAB credentials from backup data (RFC 8555)"""
-        try:
-            from models.acme_models import AcmeEabCredential
-            from datetime import datetime as _dt
+        """Restore ACME EAB credentials from backup data (RFC 8555).
 
-            def _parse_dt(v):
-                if not v:
-                    return None
-                try:
-                    return _dt.fromisoformat(v.replace('Z', '+00:00'))
-                except Exception:
-                    return None
+        The whole section used to sit inside one `except Exception`, so a
+        single unreadable row, or a model this build does not have, dropped
+        every external account binding the archive carried: the ACME clients
+        bound to them would simply stop being able to register, and the
+        restore reported success. Nothing is caught here any more.
+        """
+        from models.acme_models import AcmeEabCredential
 
-            for eab in backup_data.get('acme_eab_credentials', []):
-                kid = eab.get('kid')
-                if not kid or not eab.get('hmac_key_b64'):
-                    continue
-                existing = AcmeEabCredential.query.filter_by(kid=kid).first()
-                if existing:
-                    existing.hmac_key_b64 = eab['hmac_key_b64']
-                    existing.label = eab.get('label')
-                    existing.status = eab.get('status', 'active')
-                    existing.used_at = _parse_dt(eab.get('used_at'))
-                    existing.used_by_account_id = eab.get('used_by_account_id')
-                    existing.revoked_at = _parse_dt(eab.get('revoked_at'))
-                    existing.revoked_by_user_id = eab.get('revoked_by_user_id')
-                    existing.expires_at = _parse_dt(eab.get('expires_at'))
-                else:
-                    new_eab = AcmeEabCredential(
-                        kid=kid,
-                        hmac_key_b64=eab['hmac_key_b64'],
-                        label=eab.get('label'),
-                        created_by_user_id=eab.get('created_by_user_id'),
-                        expires_at=_parse_dt(eab.get('expires_at')),
-                        used_at=_parse_dt(eab.get('used_at')),
-                        used_by_account_id=eab.get('used_by_account_id'),
-                        revoked_at=_parse_dt(eab.get('revoked_at')),
-                        revoked_by_user_id=eab.get('revoked_by_user_id'),
-                        status=eab.get('status', 'active'),
-                    )
-                    db.session.add(new_eab)
-                results.setdefault('acme_eab_credentials', 0)
-                results['acme_eab_credentials'] += 1
-        except Exception as e:
-            logger.warning(f"Failed to restore acme_eab_credentials: {e}")
+        results.setdefault('acme_eab_credentials', 0)
+        for eab in backup_data.get('acme_eab_credentials', []):
+            kid = eab.get('kid')
+            if not kid or not eab.get('hmac_key_b64'):
+                continue
+            where = f"ACME EAB credential {kid}"
+            expires_at = _archived_datetime(where, 'expires_at', eab.get('expires_at'))
+            used_at = _archived_datetime(where, 'used_at', eab.get('used_at'))
+            revoked_at = _archived_datetime(where, 'revoked_at', eab.get('revoked_at'))
+            existing = AcmeEabCredential.query.filter_by(kid=kid).first()
+            if existing:
+                existing.hmac_key_b64 = eab['hmac_key_b64']
+                existing.label = eab.get('label')
+                existing.status = eab.get('status', 'active')
+                existing.used_at = used_at
+                existing.used_by_account_id = eab.get('used_by_account_id')
+                existing.revoked_at = revoked_at
+                existing.revoked_by_user_id = eab.get('revoked_by_user_id')
+                existing.expires_at = expires_at
+            else:
+                new_eab = AcmeEabCredential(
+                    kid=kid,
+                    hmac_key_b64=eab['hmac_key_b64'],
+                    label=eab.get('label'),
+                    created_by_user_id=eab.get('created_by_user_id'),
+                    expires_at=expires_at,
+                    used_at=used_at,
+                    used_by_account_id=eab.get('used_by_account_id'),
+                    revoked_at=revoked_at,
+                    revoked_by_user_id=eab.get('revoked_by_user_id'),
+                    status=eab.get('status', 'active'),
+                )
+                db.session.add(new_eab)
+            results['acme_eab_credentials'] += 1
 
     def _restore_settings(self, backup_data: Dict, results: Dict) -> None:
         """Restore system settings from backup data"""
@@ -728,38 +749,70 @@ class RestoreCoreMixin:
                 db.session.add(new_config)
             results['settings'] += 1
 
+        # Settings the archive carries in the clear because they are stored
+        # encrypted: written back encrypted with this installation's key.
+        results['encrypted_settings'] = restore_encrypted_settings(
+            configuration if isinstance(configuration, dict) else {},
+            (configuration or {}).get('encrypted_settings') or [])
+
     def _regenerate_files(self) -> None:
-        """Regenerate CA and certificate files on disk"""
+        """Write the files that materialise the restored rows on disk.
+
+        Every failure here used to be `pass`: a restore that could not write
+        a single file still reported success. Two kinds are distinguished,
+        because they do not mean the same thing.
+
+        A write that fails — no space left, a read-only directory — stops the
+        restore. It runs inside the transaction, so the rows go back with it
+        and the instance stays as it was, which is the only outcome that
+        matches what the caller is told.
+
+        Material that cannot be decoded is a warning naming the row, and the
+        restore goes on. This walks every authority and certificate in the
+        database, not only the ones the archive carried: a row whose stored
+        key predates this installation's KEY_ENCRYPTION_KEY was already
+        unreadable before the restore, so nothing is lost by not mirroring
+        it, and refusing would make an instance holding one such row
+        impossible to restore at all. What the archive itself brought cannot
+        land here: it was just encoded by this process, a few lines above.
+        """
         from utils.file_naming import ca_cert_path, ca_key_path, cert_cert_path, cert_key_path, cert_csr_path
+        from utils.key_codec import load_pem_bytes
 
         for ca in CA.query.all():
             if ca.crt:
                 try:
                     cert_pem = base64.b64decode(ca.crt)
-                    p = ca_cert_path(ca)
+                except (ValueError, TypeError) as exc:
+                    logger.warning(
+                        "Restore: the stored certificate of CA %s could not be "
+                        "decoded (%s); its file was not written", ca.id, exc)
+                else:
                     Config.CA_DIR.mkdir(parents=True, exist_ok=True)
-                    p.write_bytes(cert_pem)
-                except Exception:
-                    pass
+                    ca_cert_path(ca).write_bytes(cert_pem)
             if ca.prv:
                 try:
-                    from utils.key_codec import load_pem_bytes
                     prv_pem = load_pem_bytes(ca.prv, context=f"CA {ca.id}")
+                except ValueError as exc:
+                    logger.warning(
+                        "Restore: the stored key of CA %s could not be read "
+                        "(%s); it was not mirrored on disk", ca.id, exc)
+                else:
                     mirror_private_key(
                         ca_key_path(ca), prv_pem, context=f"restored CA {ca.id}"
                     )
-                except Exception:
-                    pass
 
         for cert in Certificate.query.all():
             if cert.crt:
                 try:
                     cert_pem_bytes = base64.b64decode(cert.crt)
-                    p = cert_cert_path(cert)
+                except (ValueError, TypeError) as exc:
+                    logger.warning(
+                        "Restore: the stored certificate %s could not be "
+                        "decoded (%s); its file was not written", cert.id, exc)
+                else:
                     Config.CERT_DIR.mkdir(parents=True, exist_ok=True)
-                    p.write_bytes(cert_pem_bytes)
-                except Exception:
-                    pass
+                    cert_cert_path(cert).write_bytes(cert_pem_bytes)
             if cert.csr:
                 try:
                     csr_data = cert.csr
@@ -767,18 +820,24 @@ class RestoreCoreMixin:
                         csr_bytes = csr_data.encode('utf-8')
                     else:
                         csr_bytes = base64.b64decode(csr_data)
-                    p = cert_csr_path(cert)
-                    p.write_bytes(csr_bytes)
-                except Exception:
-                    pass
+                except (ValueError, TypeError, AttributeError) as exc:
+                    logger.warning(
+                        "Restore: the stored CSR of certificate %s could not "
+                        "be decoded (%s); its file was not written",
+                        cert.id, exc)
+                else:
+                    cert_csr_path(cert).write_bytes(csr_bytes)
             if cert.prv:
                 try:
-                    from utils.key_codec import load_pem_bytes
                     prv_pem_bytes = load_pem_bytes(cert.prv, context=f"certificate {cert.id}")
+                except ValueError as exc:
+                    logger.warning(
+                        "Restore: the stored key of certificate %s could not "
+                        "be read (%s); it was not mirrored on disk",
+                        cert.id, exc)
+                else:
                     mirror_private_key(
                         cert_key_path(cert),
                         prv_pem_bytes,
                         context=f"restored certificate {cert.id}",
                     )
-                except Exception:
-                    pass

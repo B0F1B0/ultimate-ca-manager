@@ -21,7 +21,7 @@ def _mode(path):
 
 class TestStagingTouchesNothing:
     """Staging happens while the transaction can still roll back, so a
-    destination must look untouched until the commit has happened."""
+    destination must look untouched until publication."""
 
     def test_a_staged_file_is_not_at_its_destination(self, tmp_path):
         destination = tmp_path / 'keys' / 'ca-1.key'
@@ -74,20 +74,44 @@ class TestPublicationWritesEverything:
         assert destination.read_bytes() == b'restored key'
         assert _mode(destination) == 0o600
 
-    def test_publish_leaves_no_staged_copy_behind(self, tmp_path):
+    def test_the_staging_survives_publication_until_discarded(self, tmp_path):
+        """Publication happens before the database commit, so what it needs to
+        undo itself has to outlive it: the caller discards once the commit is
+        through."""
         staged = StagedFiles()
         staged.stage(tmp_path / 'ca.key', b'key')
         staging_dir = staged.staging_dir
 
         staged.publish()
+        assert staging_dir.exists(), 'the staging is needed to unpublish'
 
+        staged.discard()
         assert not staging_dir.exists()
         assert staged.staging_dir is None
 
 
+class TestPublicationCanBeUndone:
+    def test_unpublish_puts_the_destinations_back(self, tmp_path):
+        """A commit that fails after publication must not leave files
+        describing a restore that did not happen."""
+        destination = tmp_path / 'https_cert.pem'
+        destination.write_bytes(b'the certificate in use')
+
+        staged = StagedFiles()
+        staged.stage(destination, b'the certificate from the archive')
+        staged.publish()
+        assert destination.read_bytes() == b'the certificate from the archive'
+
+        staged.unpublish()
+        assert destination.read_bytes() == b'the certificate in use'
+        staged.discard()
+
+
 class TestFailedPublicationCompensates:
-    """The commit has already happened when publication starts, so a failure
-    partway must not leave the files of two different states side by side."""
+    """Publication happens with the database work done but not yet committed,
+    so a failure partway must not leave the files of two different states side
+    by side: what it overwrote goes back, and the caller rolls the database
+    back with it."""
 
     def _fail_on(self, monkeypatch, target):
         real_replace = os.replace

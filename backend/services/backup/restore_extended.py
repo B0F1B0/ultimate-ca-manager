@@ -13,11 +13,42 @@ from models import db
 from config.settings import Config
 from utils.datetime_utils import to_naive_utc, utc_now
 
+from .errors import BackupSchemaError
 from .export_generic import REFERENCE_SUFFIX, load_model
 from .manifest import SECTIONS
 from .restore.plan import RestorePlan, RestoreValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def _missing_support(section_name: str, rows, feature: str) -> None:
+    """Say which section an installation without `feature` cannot take.
+
+    The import of an optional model is the one failure here that is not a
+    loss: the rows describe a feature this build does not have, so there is
+    nothing on this installation for them to be applied to. It used to
+    `break` without a word, which is the same outcome without the sentence
+    that lets an administrator see it happened.
+    """
+    logger.warning(
+        "Restore: this installation has no %s support; the %d row(s) of "
+        "section '%s' in the archive were not applied",
+        feature, len(rows), section_name)
+
+
+def _required(where: str, row: Dict[str, Any], column: str) -> Any:
+    """A column the row cannot be written without, or a refusal naming it.
+
+    Raised as a schema error rather than left to the KeyError it used to be:
+    the routes return this message to the administrator, and "SSH certificate
+    3 names no authority" is what they need, not "Restore failed".
+    """
+    value = row.get(column)
+    if value in (None, ''):
+        raise BackupSchemaError(
+            f"Invalid backup: {where} has no {column}, which it cannot be "
+            "restored without. Nothing has been changed.")
+    return value
 
 
 def _timestamp(where: str, column: str, value: Any,
@@ -130,14 +161,24 @@ def _existing_row(section_name: str, identity: Dict[str, Any]):
 
 class RestoreExtendedMixin:
     def _restore_ssh_cas(self, backup_data: Dict, results: Dict, master_key: bytes) -> None:
-        """Restore SSH certificate authorities from backup data"""
+        """Restore SSH certificate authorities from backup data.
+
+        A key that cannot be decrypted stops the restore. It used to be a
+        warning: the authority was created with an empty private key and
+        committed, so the restore reported success and left an SSH CA that
+        can sign nothing and that nobody was told about.
+        """
         results.setdefault('ssh_cas', 0)
-        for sca_data in backup_data.get('ssh_cas', []):
-            try:
-                from models.ssh import SSHCertificateAuthority
-                from security.encryption import encrypt_private_key
-            except Exception:
-                break
+        rows = backup_data.get('ssh_cas', [])
+        if not rows:
+            return
+        try:
+            from models.ssh import SSHCertificateAuthority
+            from security.encryption import encrypt_private_key
+        except ImportError:
+            _missing_support('ssh_cas', rows, 'SSH')
+            return
+        for sca_data in rows:
             refid = sca_data.get('refid')
             existing = SSHCertificateAuthority.query.filter_by(refid=refid).first() if refid else None
             if existing:
@@ -159,164 +200,203 @@ class RestoreExtendedMixin:
                 created_by=sca_data.get('created_by'),
                 owner_group_id=sca_data.get('owner_group_id'),
             )
-            prv = sca_data.get('private_key_pem_encrypted') or sca_data.get('_private_key_plaintext')
-            if prv:
+            encrypted = sca_data.get('private_key_pem_encrypted')
+            prv = sca_data.get('_private_key_plaintext')
+            if encrypted:
                 try:
-                    if 'private_key_pem_encrypted' in sca_data:
-                        prv = self._decrypt_private_key(sca_data['private_key_pem_encrypted'], master_key)
-                    sca.private_key = encrypt_private_key(prv)
-                except Exception as e:
-                    logger.warning(f"Failed to restore SSH CA private key: {e}")
+                    prv = self._decrypt_private_key(encrypted, master_key)
+                except Exception as exc:
+                    raise BackupSchemaError(
+                        f"Invalid backup: the private key of SSH CA "
+                        f"{refid or sca_data.get('descr') or '(unnamed)'} could "
+                        "not be decrypted. Restoring it would create an "
+                        "authority that can sign nothing; nothing has been "
+                        "changed."
+                    ) from exc
+            if prv:
+                sca.private_key = encrypt_private_key(prv)
             db.session.add(sca)
-            try:
-                db.session.commit()
-                results['ssh_cas'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"SSH CA restore failed: {e}")
+            results['ssh_cas'] += 1
+
+        # One flush for the section, not a commit per row: the restore is one
+        # transaction, and a row that cannot be written must take it down
+        # rather than become the warning it used to be.
+        db.session.flush()
 
     def _restore_ssh_certificates(self, backup_data: Dict, results: Dict) -> None:
-        """Restore SSH certificates from backup data"""
+        """Restore SSH certificates from backup data.
+
+        A row that cannot be written is the restore's failure, not a line in
+        a log: a missing authority or an unreadable date used to drop the
+        certificate and let the restore report the ones that worked.
+        """
         results.setdefault('ssh_certificates', 0)
-        for sc_data in backup_data.get('ssh_certificates', []):
-            try:
-                from models.ssh import SSHCertificate
-            except Exception:
-                break
+        rows = backup_data.get('ssh_certificates', [])
+        if not rows:
+            return
+        try:
+            from models.ssh import SSHCertificate
+        except ImportError:
+            _missing_support('ssh_certificates', rows, 'SSH')
+            return
+        for position, sc_data in enumerate(rows):
+            where = f"SSH certificate {sc_data.get('refid') or position}"
             refid = sc_data.get('refid')
             if refid and SSHCertificate.query.filter_by(refid=refid).first():
                 continue
-            try:
-                sc = SSHCertificate(
-                    refid=refid or str(uuid.uuid4()),
-                    descr=sc_data.get('descr'),
-                    ssh_ca_id=sc_data['ssh_ca_id'],
-                    cert_type=sc_data.get('cert_type', 'user'),
-                    key_id=sc_data.get('key_id', ''),
-                    public_key=sc_data.get('public_key', ''),
-                    certificate=sc_data.get('certificate', ''),
-                    principals=sc_data.get('principals', ''),
-                    serial=sc_data.get('serial', 0),
-                    valid_from=datetime.fromisoformat(sc_data['valid_from']) if sc_data.get('valid_from') else utc_now(),
-                    valid_to=datetime.fromisoformat(sc_data['valid_to']) if sc_data.get('valid_to') else utc_now(),
-                    key_type=sc_data.get('key_type', 'ed25519'),
-                    fingerprint=sc_data.get('fingerprint', ''),
-                    extensions=sc_data.get('extensions'),
-                    critical_options=sc_data.get('critical_options'),
-                    revoked=bool(sc_data.get('revoked', False)),
-                    revoked_at=datetime.fromisoformat(sc_data['revoked_at']) if sc_data.get('revoked_at') else None,
-                    revoke_reason=sc_data.get('revoke_reason'),
-                    source=sc_data.get('source', 'web'),
-                    created_by=sc_data.get('created_by'),
-                    owner_group_id=sc_data.get('owner_group_id'),
-                )
-                db.session.add(sc)
-                db.session.commit()
-                results['ssh_certificates'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"SSH cert restore failed: {e}")
+            sc = SSHCertificate(
+                refid=refid or str(uuid.uuid4()),
+                descr=sc_data.get('descr'),
+                ssh_ca_id=_required(where, sc_data, 'ssh_ca_id'),
+                cert_type=sc_data.get('cert_type', 'user'),
+                key_id=sc_data.get('key_id', ''),
+                public_key=sc_data.get('public_key', ''),
+                certificate=sc_data.get('certificate', ''),
+                principals=sc_data.get('principals', ''),
+                serial=sc_data.get('serial', 0),
+                valid_from=_timestamp(where, 'valid_from', sc_data.get('valid_from')) or utc_now(),
+                valid_to=_timestamp(where, 'valid_to', sc_data.get('valid_to')) or utc_now(),
+                key_type=sc_data.get('key_type', 'ed25519'),
+                fingerprint=sc_data.get('fingerprint', ''),
+                extensions=sc_data.get('extensions'),
+                critical_options=sc_data.get('critical_options'),
+                revoked=bool(sc_data.get('revoked', False)),
+                revoked_at=_timestamp(where, 'revoked_at', sc_data.get('revoked_at')),
+                revoke_reason=sc_data.get('revoke_reason'),
+                source=sc_data.get('source', 'web'),
+                created_by=sc_data.get('created_by'),
+                owner_group_id=sc_data.get('owner_group_id'),
+            )
+            db.session.add(sc)
+            results['ssh_certificates'] += 1
+
+        db.session.flush()
 
     def _restore_microsoft_cas(self, backup_data: Dict, results: Dict) -> None:
-        """Restore Microsoft certificate authorities from backup data"""
+        """Restore Microsoft certificate authorities from backup data.
+
+        A connector the archive carries and this restore cannot write is a
+        CA that will not answer on the restored instance; it fails the
+        restore instead of disappearing into a warning.
+        """
         results.setdefault('microsoft_cas', 0)
-        for msca_data in backup_data.get('microsoft_cas', []):
-            try:
-                from models.msca import MicrosoftCA
-            except Exception:
-                break
-            if MicrosoftCA.query.filter_by(name=msca_data.get('name')).first():
+        rows = backup_data.get('microsoft_cas', [])
+        if not rows:
+            return
+        try:
+            from models.msca import MicrosoftCA
+        except ImportError:
+            _missing_support('microsoft_cas', rows, 'Microsoft CA')
+            return
+        for position, msca_data in enumerate(rows):
+            where = f"Microsoft CA {msca_data.get('name') or position}"
+            if msca_data.get('name') and MicrosoftCA.query.filter_by(
+                    name=msca_data['name']).first():
                 continue
-            try:
-                msca = MicrosoftCA(
-                    name=msca_data['name'],
-                    server=msca_data.get('server'),
-                    ca_name=msca_data.get('ca_name'),
-                    auth_method=msca_data.get('auth_method', 'ntlm'),
-                    username=msca_data.get('username'),
-                    password=msca_data.get('password'),
-                    client_cert_pem=msca_data.get('client_cert_pem'),
-                    client_key_pem=msca_data.get('client_key_pem'),
-                    kerberos_principal=msca_data.get('kerberos_principal'),
-                    kerberos_keytab_path=msca_data.get('kerberos_keytab_path'),
-                    use_ssl=msca_data.get('use_ssl', True),
-                    verify_ssl=msca_data.get('verify_ssl', True),
-                    ca_bundle=msca_data.get('ca_bundle'),
-                    default_template=msca_data.get('default_template'),
-                    enabled=msca_data.get('enabled', True),
-                    created_by=msca_data.get('created_by'),
-                )
-                db.session.add(msca)
-                db.session.commit()
-                results['microsoft_cas'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"MSCA restore failed: {e}")
+            msca = MicrosoftCA(
+                name=_required(where, msca_data, 'name'),
+                server=msca_data.get('server'),
+                ca_name=msca_data.get('ca_name'),
+                auth_method=msca_data.get('auth_method', 'ntlm'),
+                username=msca_data.get('username'),
+                password=msca_data.get('password'),
+                client_cert_pem=msca_data.get('client_cert_pem'),
+                client_key_pem=msca_data.get('client_key_pem'),
+                kerberos_principal=msca_data.get('kerberos_principal'),
+                kerberos_keytab_path=msca_data.get('kerberos_keytab_path'),
+                use_ssl=msca_data.get('use_ssl', True),
+                verify_ssl=msca_data.get('verify_ssl', True),
+                ca_bundle=msca_data.get('ca_bundle'),
+                default_template=msca_data.get('default_template'),
+                enabled=msca_data.get('enabled', True),
+                created_by=msca_data.get('created_by'),
+            )
+            db.session.add(msca)
+            results['microsoft_cas'] += 1
+
+        db.session.flush()
 
     def _restore_scan_profiles(self, backup_data: Dict, results: Dict) -> None:
-        """Restore scan profiles from backup data"""
+        """Restore scan profiles from backup data.
+
+        A profile the archive carries and this restore drops is a discovery
+        scan that will never run again on the restored instance, so it fails
+        the restore rather than being logged and passed over.
+        """
         results.setdefault('scan_profiles', 0)
-        for sp_data in backup_data.get('scan_profiles', []):
-            try:
-                from models.discovered_certificate import ScanProfile
-            except Exception:
-                break
-            if ScanProfile.query.filter_by(name=sp_data.get('name')).first():
+        rows = backup_data.get('scan_profiles', [])
+        if not rows:
+            return
+        try:
+            from models.discovered_certificate import ScanProfile
+        except ImportError:
+            _missing_support('scan_profiles', rows, 'certificate discovery')
+            return
+        for position, sp_data in enumerate(rows):
+            where = f"scan profile {sp_data.get('name') or position}"
+            if sp_data.get('name') and ScanProfile.query.filter_by(
+                    name=sp_data['name']).first():
                 continue
-            try:
-                sp = ScanProfile(
-                    name=sp_data['name'],
-                    description=sp_data.get('description'),
-                    targets=sp_data.get('targets', '[]'),
-                    ports=sp_data.get('ports', '[443]'),
-                    schedule_enabled=sp_data.get('schedule_enabled', False),
-                    schedule_interval_minutes=sp_data.get('schedule_interval_minutes'),
-                    notify_on_new=sp_data.get('notify_on_new', True),
-                    notify_on_change=sp_data.get('notify_on_change', True),
-                    notify_on_expiry=sp_data.get('notify_on_expiry', True),
-                    timeout=sp_data.get('timeout', 5),
-                    max_workers=sp_data.get('max_workers', 10),
-                    resolve_dns=sp_data.get('resolve_dns', True),
-                )
-                db.session.add(sp)
-                db.session.commit()
-                results['scan_profiles'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"Scan profile restore failed: {e}")
+            sp = ScanProfile(
+                name=_required(where, sp_data, 'name'),
+                description=sp_data.get('description'),
+                targets=sp_data.get('targets', '[]'),
+                ports=sp_data.get('ports', '[443]'),
+                schedule_enabled=sp_data.get('schedule_enabled', False),
+                schedule_interval_minutes=sp_data.get('schedule_interval_minutes'),
+                notify_on_new=sp_data.get('notify_on_new', True),
+                notify_on_change=sp_data.get('notify_on_change', True),
+                notify_on_expiry=sp_data.get('notify_on_expiry', True),
+                timeout=sp_data.get('timeout', 5),
+                max_workers=sp_data.get('max_workers', 10),
+                resolve_dns=sp_data.get('resolve_dns', True),
+            )
+            db.session.add(sp)
+            results['scan_profiles'] += 1
+
+        db.session.flush()
 
     def _restore_hsm_keys(self, backup_data: Dict, results: Dict) -> None:
-        """Restore HSM keys from backup data"""
+        """Restore HSM keys from backup data.
+
+        A key that does not come back is a CA that cannot sign: the
+        authorities are relinked to these rows afterwards, so losing one
+        here would restore an HSM-backed CA with no key to reach for. The
+        failure stops the restore instead of being logged.
+        """
         results.setdefault('hsm_keys', 0)
-        for k_data in backup_data.get('hsm_keys', []):
-            try:
-                from models.hsm import HsmKey
-            except Exception:
-                break
-            try:
-                existing = HsmKey.query.filter_by(
-                    provider_id=k_data['provider_id'],
-                    key_identifier=k_data.get('key_identifier'),
-                ).first()
-                if existing:
-                    continue
-                hk = HsmKey(
-                    provider_id=k_data['provider_id'],
-                    key_identifier=k_data.get('key_identifier'),
-                    label=k_data.get('label'),
-                    algorithm=k_data.get('algorithm'),
-                    key_type=k_data.get('key_type'),
-                    purpose=k_data.get('purpose'),
-                    public_key_pem=k_data.get('public_key_pem'),
-                    is_extractable=k_data.get('is_extractable', False),
-                    extra_data=k_data.get('extra_data'),
-                )
-                db.session.add(hk)
-                db.session.commit()
-                results['hsm_keys'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"HSM key restore failed: {e}")
+        rows = backup_data.get('hsm_keys', [])
+        if not rows:
+            return
+        try:
+            from models.hsm import HsmKey
+        except ImportError:
+            _missing_support('hsm_keys', rows, 'HSM')
+            return
+        for position, k_data in enumerate(rows):
+            where = f"HSM key {k_data.get('key_identifier') or position}"
+            provider_id = _required(where, k_data, 'provider_id')
+            existing = HsmKey.query.filter_by(
+                provider_id=provider_id,
+                key_identifier=k_data.get('key_identifier'),
+            ).first()
+            if existing:
+                continue
+            hk = HsmKey(
+                provider_id=provider_id,
+                key_identifier=k_data.get('key_identifier'),
+                label=k_data.get('label'),
+                algorithm=k_data.get('algorithm'),
+                key_type=k_data.get('key_type'),
+                purpose=k_data.get('purpose'),
+                public_key_pem=k_data.get('public_key_pem'),
+                is_extractable=k_data.get('is_extractable', False),
+                extra_data=k_data.get('extra_data'),
+            )
+            db.session.add(hk)
+            results['hsm_keys'] += 1
+
+        db.session.flush()
 
     def _restore_approval_requests(self, backup_data: Dict, results: Dict,
                                    plan: RestorePlan) -> None:

@@ -6,6 +6,8 @@ from typing import Dict, Any
 
 from models import db
 
+from .errors import BackupSchemaError
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +96,16 @@ class RestoreAuthMixin:
             results['api_keys'] += 1
 
     def _restore_auth_certificates(self, backup_data: Dict, results: Dict) -> None:
-        """Restore authentication certificates from backup data"""
+        """Restore authentication certificates from backup data.
+
+        The certificate a client authenticates with is stored as bytes and
+        travels base64-encoded. An archive written before that carries the
+        PEM text itself, which is why the text is recognised rather than
+        decoded: it used to be fed to the base64 decoder and kept only
+        because the failure was caught, and a value that was neither of the
+        two became the UTF-8 bytes of whatever it was — a login certificate
+        nobody could ever present, restored as a success.
+        """
         import base64
         from models.auth_certificate import AuthCertificate
         for ac_data in backup_data.get('auth_certificates', []):
@@ -103,10 +114,17 @@ class RestoreAuthMixin:
             ).first()
             cert_pem_val = ac_data.get('cert_pem')
             if isinstance(cert_pem_val, str) and cert_pem_val:
-                try:
-                    cert_pem_val = base64.b64decode(cert_pem_val)
-                except Exception:
+                if cert_pem_val.lstrip().startswith('-----BEGIN'):
                     cert_pem_val = cert_pem_val.encode('utf-8')
+                else:
+                    try:
+                        cert_pem_val = base64.b64decode(cert_pem_val)
+                    except ValueError as exc:   # binascii.Error is one
+                        raise BackupSchemaError(
+                            "Invalid backup: the certificate of authentication "
+                            f"certificate {ac_data.get('cert_serial')} is "
+                            "neither PEM nor base64. Nothing has been changed."
+                        ) from exc
             if existing:
                 existing.cert_pem = cert_pem_val
                 existing.cert_subject = ac_data.get('cert_subject', '')

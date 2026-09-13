@@ -52,15 +52,21 @@ class ExportCoreMixin:
             return {}
 
         config = {}
+        encrypted_keys = []
 
         # Get all system config entries
         system_configs = SystemConfig.query.all()
         for sc in system_configs:
-            # Skip sensitive data unless explicitly included
-            if sc.encrypted:
-                continue
-
             val = sc.value
+            # A setting is secret either because the row says so or because
+            # its value is ciphertext (the scheduled-backup password is stored
+            # that way). Both used to leave the restored installation without
+            # it: the first was skipped outright, the second travelled as
+            # ciphertext bound to a database key the target does not have.
+            from utils.encryption import is_encrypted
+            if sc.encrypted or (isinstance(val, str) and is_encrypted(val)):
+                val = decrypt_stored_secret(val, label=f"setting {sc.key}")
+                encrypted_keys.append(sc.key)
             if isinstance(val, bytes):
                 try:
                     val = val.decode('utf-8')
@@ -83,7 +89,10 @@ class ExportCoreMixin:
                 'session_timeout': int(os.environ.get('SESSION_TIMEOUT', 3600)),
                 'jwt_expiration': int(os.environ.get('JWT_EXPIRATION', 86400))
             },
-            'settings': config
+            'settings': config,
+            # Which settings the target has to store encrypted again, with the
+            # key of the installation restoring them.
+            'encrypted_settings': encrypted_keys,
         }
 
 
