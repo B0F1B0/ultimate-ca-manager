@@ -189,7 +189,11 @@ jobs:
           INITIAL_ADMIN_PASSWORD: changeme123
           CSRF_DISABLED: 'true'
           UCM_DEV_MODE: 'true'
-          DATABASE_URL: postgresql://ucm:ucm_ci_password@localhost:5432/ucm_test
+          # No DATABASE_URL here on purpose: the application reads it and would
+          # run the whole test app against PostgreSQL, where the harness never
+          # created the schema, so every fixture died on the migration ledger.
+          # These tests keep their own SQLite instance and reach PostgreSQL
+          # through the two variables below, each building its own engine.
           UCM_TEST_POSTGRES_URL: postgresql://ucm:ucm_ci_password@localhost:5432/ucm_test
           UCM_TEST_PG_URL: postgresql://ucm_migtest:ucm_migtest_ci@localhost:5432/ucm_migtest
         run: |
