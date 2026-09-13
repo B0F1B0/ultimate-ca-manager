@@ -92,9 +92,14 @@ class TestExportFailuresAbortTheBackup:
         from services.backup.errors import BackupExportError
         with app.app_context():
             svc = _service()
-            monkeypatch.setattr(type(svc), '_export_users',
-                                lambda self, include: (_ for _ in ()).throw(
-                                    RuntimeError('table is gone')))
+            import services.backup.backup_service as service_module
+
+            def explode(name, index):
+                if name == 'users':
+                    raise RuntimeError('table is gone')
+                return []
+
+            monkeypatch.setattr(service_module, 'export_section', explode)
             with pytest.raises(BackupExportError) as exc:
                 svc.create_backup('Correct-Horse-Battery-9')
             assert 'users' in str(exc.value)
@@ -612,8 +617,9 @@ class TestSecretsAndFilesCannotBeDroppedSilently:
                 monkeypatch.setattr(
                     enc, 'decrypt_value',
                     lambda value: None if value == stored else real_decrypt(value))
+                from services.backup.export_generic import IdentityIndex, export_section
                 with pytest.raises(BackupExportError) as exc:
-                    _service()._export_dns_providers(True)
+                    export_section('dns_providers', IdentityIndex())
                 assert 'review-dns' in str(exc.value)
             finally:
                 db.session.delete(provider)

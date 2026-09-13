@@ -57,6 +57,37 @@ class RestoreCoreMixin:
                 )
 
         self._check_section_counts(backup_data, metadata.get('sections'))
+        self._check_section_digests(backup_data, metadata.get('section_digests'))
+
+    @staticmethod
+    def _check_section_digests(backup_data: Dict[str, Any], digests: Any) -> None:
+        """Compare each section against the digest the archive recorded.
+
+        The payload checksum says the archive is damaged; this says which
+        section, which is what decides whether a restore is worth attempting.
+        """
+        if digests is None:
+            return
+        if not isinstance(digests, dict):
+            raise BackupSchemaError(
+                "Invalid backup format: section digests are not an object")
+
+        for name, expected in digests.items():
+            if name not in backup_data:
+                raise BackupSchemaError(
+                    f"Incomplete backup: section '{name}' is announced but missing")
+            try:
+                canonical = json.dumps(backup_data[name], sort_keys=True,
+                                       default=str).encode()
+            except (TypeError, ValueError):
+                raise BackupSchemaError(
+                    f"Invalid backup format: section '{name}' cannot be read back")
+            if hashlib.sha256(canonical).hexdigest() != expected:
+                raise BackupSchemaError(
+                    f"Corrupted backup: section '{name}' does not match the "
+                    "digest recorded when it was written. Nothing has been "
+                    "changed."
+                )
 
     @staticmethod
     def _check_section_counts(backup_data: Dict[str, Any], sections: Any) -> None:

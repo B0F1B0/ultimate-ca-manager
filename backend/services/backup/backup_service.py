@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 from . import container
 from .errors import BackupExportError
+from .export_generic import IdentityIndex, export_section, identity_of, load_model
+from .manifest import SECTIONS
 from .export_core import ExportCoreMixin
 from .export_extended import ExportExtendedMixin
 from .decrypt_mixin import DecryptMixin
@@ -45,6 +47,16 @@ from .restore_notifications import RestoreNotificationsMixin
 from .restore_policies import RestorePoliciesMixin
 from .restore_extended import RestoreExtendedMixin
 
+
+
+# Callers (and older archives) name a few sections differently from the
+# manifest; both spellings are accepted on the way in.
+_INCLUDE_ALIASES = {
+    'cas': 'certificate_authorities',
+    'templates': 'certificate_templates',
+    'policies': 'certificate_policies',
+    'truststore': 'trusted_certificates',
+}
 
 
 class BackupPasswordError(ValueError):
@@ -130,45 +142,19 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
         # Validate password
         self._validate_password(password)
 
-        # Default includes
+        # What a backup carries is decided by the manifest: everything it
+        # declares, minus the sections marked historical, which are opt-in.
+        default_include = {
+            name: not section.optional for name, section in SECTIONS.items()
+        }
         if include is None:
-            include = {
-                'cas': True,
-                'certificates': True,
-                'users': True,
-                'configuration': True,
-                'acme_accounts': True,
-                'acme_eab_credentials': True,
-                'email_password': False,
-                'groups': True,
-                'custom_roles': True,
-                'certificate_templates': True,
-                'trusted_certificates': True,
-                'sso_providers': True,
-                'hsm_providers': True,
-                'api_keys': True,
-                'smtp_config': True,
-                'notification_config': True,
-                'certificate_policies': True,
-                'auth_certificates': True,
-                'dns_providers': True,
-                'acme_domains': True,
-                'acme_local_domains': True,
-                'ssh_cas': True,
-                'ssh_certificates': True,
-                'microsoft_cas': True,
-                'msca_requests': True,
-                'scan_profiles': True,
-                'scan_runs': False,  # historical, can be large
-                'discovered_certificates': False,  # historical, can be large
-                'approval_requests': True,  # pending approvals matter
-                'scep_requests': False,  # historical
-                'acme_client_orders': False,  # historical
-                'hsm_keys': True,
-                'audit_logs': False,  # opt-in, tamper-evident chain, can be huge
-            }
+            include = default_include
+        else:
+            merged = dict(default_include)
+            for key, wanted in include.items():
+                merged[_INCLUDE_ALIASES.get(key, key)] = wanted
+            include = merged
 
-        # Build backup data structure
         def _section(name, fn, *args, **kwargs):
             """Run one exporter; any failure aborts the backup.
 
@@ -188,49 +174,37 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
                     f"Section '{name}' could not be exported"
                 ) from exc
 
-        backup_data = {
-            'metadata': self._get_metadata(backup_type),
-            'configuration': _section('configuration', self._export_configuration, include.get('configuration', True)),
-            'users': _section('users', self._export_users, include.get('users', True)),
-            'certificate_authorities': _section('certificate_authorities', self._export_cas, include.get('cas', True)),
-            'certificates': _section('certificates', self._export_certificates, include.get('certificates', True)),
-            # The list carries CA revocations as well: exported with either
-            'revoked_serials': _section('revoked_serials', self._export_revoked_serials, include.get('certificates', True) or include.get('cas', True)),
-            'acme_accounts': _section('acme_accounts', self._export_acme_accounts, include.get('acme_accounts', True)),
-            'acme_eab_credentials': _section('acme_eab_credentials', self._export_acme_eab_credentials, include.get('acme_eab_credentials', True)),
-            'groups': _section('groups', self._export_groups, include.get('groups', True)),
-            'custom_roles': _section('custom_roles', self._export_custom_roles, include.get('custom_roles', True)),
-            'certificate_templates': _section('certificate_templates', self._export_templates, include.get('certificate_templates', True)),
-            'trusted_certificates': _section('trusted_certificates', self._export_truststore, include.get('trusted_certificates', True)),
-            'sso_providers': _section('sso_providers', self._export_sso_providers, include.get('sso_providers', True)),
-            'hsm_providers': _section('hsm_providers', self._export_hsm_providers, include.get('hsm_providers', True)),
-            'api_keys': _section('api_keys', self._export_api_keys, include.get('api_keys', True)),
-            'smtp_config': _section('smtp_config', self._export_smtp_config, include.get('smtp_config', True)),
-            'notification_config': _section('notification_config', self._export_notification_config, include.get('notification_config', True)),
-            'certificate_policies': _section('certificate_policies', self._export_policies, include.get('certificate_policies', True)),
-            'auth_certificates': _section('auth_certificates', self._export_auth_certificates, include.get('auth_certificates', True)),
-            'dns_providers': _section('dns_providers', self._export_dns_providers, include.get('dns_providers', True)),
-            'acme_domains': _section('acme_domains', self._export_acme_domains, include.get('acme_domains', True)),
-            'acme_local_domains': _section('acme_local_domains', self._export_acme_local_domains, include.get('acme_local_domains', True)),
-            'ssh_cas': _section('ssh_cas', self._export_ssh_cas, include.get('ssh_cas', True)),
-            'ssh_certificates': _section('ssh_certificates', self._export_ssh_certificates, include.get('ssh_certificates', True)),
-            'microsoft_cas': _section('microsoft_cas', self._export_microsoft_cas, include.get('microsoft_cas', True)),
-            'msca_requests': _section('msca_requests', self._export_msca_requests, include.get('msca_requests', True)),
-            'scan_profiles': _section('scan_profiles', self._export_scan_profiles, include.get('scan_profiles', True)),
-            'scan_runs': _section('scan_runs', self._export_scan_runs, include.get('scan_runs', False)),
-            'discovered_certificates': _section('discovered_certificates', self._export_discovered_certificates, include.get('discovered_certificates', False)),
-            'approval_requests': _section('approval_requests', self._export_approval_requests, include.get('approval_requests', True)),
-            'scep_requests': _section('scep_requests', self._export_scep_requests, include.get('scep_requests', False)),
-            'acme_client_orders': _section('acme_client_orders', self._export_acme_client_orders, include.get('acme_client_orders', False)),
-            'hsm_keys': _section('hsm_keys', self._export_hsm_keys, include.get('hsm_keys', True)),
-            'audit_logs': _section('audit_logs', self._export_audit_logs, include.get('audit_logs', False)),
-            'https_server': _section('https_server', self._export_https_files),
+        index = IdentityIndex()
+        custom_exporters = {
+            'configuration': self._export_configuration,
+            'certificate_authorities': self._export_cas,
+            'certificates': self._export_certificates,
+            'revoked_serials': self._export_revoked_serials,
+            'ssh_cas': self._export_ssh_cas,
         }
 
-        # The logical schema of what was just collected: what a reader needs
-        # to decide, before touching the database, whether it can restore this
-        # archive and whether it arrived whole.
-        backup_data['metadata'].update(self._schema_metadata(backup_data, include))
+        backup_data = {'metadata': self._get_metadata(backup_type)}
+        for name, section in SECTIONS.items():
+            wanted = include.get(name, not section.optional)
+            if not wanted:
+                backup_data[name] = {} if name == 'configuration' else []
+                continue
+
+            if name in custom_exporters:
+                rows = _section(name, custom_exporters[name], True)
+                if section.custom and name != 'configuration':
+                    rows = _section(
+                        name, self._merge_with_manifest, name, rows, index)
+            else:
+                rows = _section(name, export_section, name, index)
+            backup_data[name] = rows
+
+        # Files, not a table: the HTTPS certificate and key the server serves
+        backup_data['https_server'] = _section('https_server', self._export_https_files)
+
+        # Two sections are also carried nested, where the current restore
+        # still reads them. The flat sections are the ones to build on.
+        _section('nesting', self._nest_legacy_sections, backup_data)
 
         # Choose KDF: Argon2id if available, else strong PBKDF2. The profile
         # written here is the one the reader whitelists, taken from the same
@@ -254,6 +228,11 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
 
         # Encrypt private keys individually (uses same master_key + PBKDF2 per-key salt for legacy compat)
         backup_data = self._encrypt_private_keys(backup_data, master_key)
+
+        # The logical schema of what was just collected, written once the
+        # payload is final: counts and digests have to describe the bytes the
+        # archive carries, not an earlier state of them.
+        backup_data['metadata'].update(self._schema_metadata(backup_data, include))
 
         # Calculate checksum of plaintext
         json_str = json.dumps(backup_data, indent=2, sort_keys=True)
@@ -293,6 +272,55 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
 
         return header + ciphertext
 
+    @staticmethod
+    def _nest_legacy_sections(backup_data):
+        """Mirror group members and WebAuthn credentials inside their owner.
+
+        They are exported as sections of their own, by stable identity; this
+        keeps the nested copies the current restore path reads, so the two
+        halves of the change can land one after the other.
+        """
+        members_by_group = {}
+        for row in backup_data.get('group_members', []):
+            members_by_group.setdefault(row.get('group_id'), []).append(
+                {'user_id': row.get('user_id'), 'role': row.get('role')})
+        for group in backup_data.get('groups', []):
+            group['members'] = members_by_group.get(group.get('id'), [])
+
+        creds_by_user = {}
+        for row in backup_data.get('webauthn_credentials', []):
+            creds_by_user.setdefault(row.get('user_id'), []).append({
+                'credential_id': row.get('credential_id'),
+                'public_key': row.get('public_key'),
+                'sign_count': row.get('sign_count'),
+                'name': row.get('name'),
+                'aaguid': row.get('aaguid'),
+            })
+        for user in backup_data.get('users', []):
+            user['webauthn_credentials'] = creds_by_user.get(user.get('id'), [])
+
+    def _merge_with_manifest(self, section_name, rows, index):
+        """Complete a hand-written section with every column of its model.
+
+        The dedicated exporters carry what is not a column (a PEM, a decrypted
+        key, a list of URLs). Everything else comes from the manifest, so a
+        column added to the model reaches the archive without anyone having to
+        remember this function exists.
+        """
+        from .manifest import SECTIONS as _SECTIONS
+        section = _SECTIONS[section_name]
+        generic = export_section(section_name, index)
+        by_identity = {
+            tuple(str(row.get(name)) for name in section.identity): row
+            for row in generic
+        }
+        merged = []
+        for row in rows:
+            key = tuple(str(row.get(name)) for name in section.identity)
+            base = by_identity.get(key, {})
+            merged.append({**base, **row})
+        return merged
+
     def _schema_metadata(self, backup_data: Dict[str, Any],
                          include: Dict[str, bool]) -> Dict[str, Any]:
         """Describe the payload: schema, source dialect, sections and counts.
@@ -320,8 +348,44 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
             'min_reader_schema_version': self.MIN_READER_SCHEMA_VERSION,
             'database_dialect': self._database_dialect(),
             'sections': sections,
+            'section_digests': self._section_digests(backup_data),
             'excluded_sections': excluded,
+            'key_mismatches': self._key_mismatches(backup_data),
         }
+
+    @staticmethod
+    def _key_mismatches(backup_data: Dict[str, Any]) -> List[str]:
+        """Records whose stored key is not their certificate's.
+
+        Carried so a restore can refuse the pair with a name to give the
+        administrator, and so the state is visible in the archive rather than
+        only in a log line on the machine that wrote it.
+        """
+        found = []
+        for section in ('certificate_authorities', 'certificates', 'ssh_cas'):
+            for row in backup_data.get(section, []):
+                if isinstance(row, dict) and row.get('_key_mismatch'):
+                    found.append(f"{section}:{row.get('refid')}")
+        return found
+
+    @staticmethod
+    def _section_digests(backup_data: Dict[str, Any]) -> Dict[str, str]:
+        """A digest per section, so a restore can tell which one arrived short.
+
+        The whole-payload checksum says an archive is damaged; these say
+        where, which is what an administrator needs to decide whether the
+        damage touches the authorities or an optional history.
+        """
+        digests = {}
+        for name, value in backup_data.items():
+            if name == 'metadata':
+                continue
+            try:
+                canonical = json.dumps(value, sort_keys=True, default=str).encode()
+            except (TypeError, ValueError):
+                continue
+            digests[name] = hashlib.sha256(canonical).hexdigest()
+        return digests
 
     @staticmethod
     def _database_dialect() -> str:

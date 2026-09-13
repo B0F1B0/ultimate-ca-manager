@@ -253,8 +253,12 @@ def test_scep_history_export_carries_the_profile(app, create_ca):
     req_id = _request(app, ca['id'], 'export.example.test', profile_id)
     try:
         with app.app_context():
-            items = ExportExtendedMixin()._export_scep_requests(True)
+            from services.backup.export_generic import IdentityIndex, export_section
+            items = export_section('scep_requests', IdentityIndex())
             mine = [i for i in items if i['transaction_id'] == 'txn-export.example.test']
-            assert mine and mine[0]['profile_id'] == profile_id and mine[0]['renewal'] is False
+            # The manifest exports the column itself (renewal_of), not the
+            # derived boolean the hand-written exporter used to compute.
+            assert mine and mine[0]['profile_id'] == profile_id
+            assert mine[0]['renewal_of'] is None
     finally:
         _cleanup(app, req_id, profile_id)

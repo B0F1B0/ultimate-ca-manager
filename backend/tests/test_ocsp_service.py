@@ -1206,6 +1206,12 @@ class TestResponderKeyOwnership:
                                         __import__('cryptography.hazmat.primitives.asymmetric.padding', fromlist=['PKCS1v15']).PKCS1v15(),
                                         resp.signature_hash_algorithm)
 
+            # The session database is shared: a pair left deliberately
+            # mismatched is recorded by every backup taken afterwards.
+            SystemConfig.query.filter_by(key=f"ocsp_responder_cert_{ca['id']}").delete()
+            db.session.delete(row)
+            db.session.commit()
+
     def test_the_right_key_passes(self, app, create_ca):
         with app.app_context():
             ca = create_ca(cn='Key Ownership OK CA')
