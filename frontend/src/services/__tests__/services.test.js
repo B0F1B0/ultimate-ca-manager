@@ -202,6 +202,7 @@ describe('certificatesService', () => {
       format: 'pkcs12',
       include_key: false,
       include_chain: false,
+      include_root: false,
       password: 'test',
       legacy: false,
     })

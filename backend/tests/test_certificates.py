@@ -570,7 +570,10 @@ class TestExportIncludeChainFlag:
         cert_id = cert.get('id')
         r = auth_client.post(
             f'{BASE}/{cert_id}/export',
-            json={'format': 'pkcs12', 'password': 'testpass123', 'include_chain': True},
+            json={
+                'format': 'pkcs12', 'password': 'testpass123',
+                'include_chain': True, 'include_root': True,
+            },
         )
         assert r.status_code == 200
         assert self._count_p12_chain(r.data) >= 1
@@ -590,7 +593,10 @@ class TestExportIncludeChainFlag:
         cert_id = cert.get('id')
         r = auth_client.post(
             f'{BASE}/{cert_id}/export',
-            json={'format': 'pfx', 'password': 'testpass123', 'include_chain': True},
+            json={
+                'format': 'pfx', 'password': 'testpass123',
+                'include_chain': True, 'include_root': True,
+            },
         )
         assert r.status_code == 200
         assert self._count_p12_chain(r.data) >= 1
@@ -605,9 +611,37 @@ class TestExportIncludeChainFlag:
     def test_pem_with_include_chain_returns_chain(self, auth_client, create_cert):
         cert = create_cert(cn='pem-chain.example.com')
         cert_id = cert.get('id')
-        r = auth_client.get(f'{BASE}/{cert_id}/export?format=pem&include_chain=true')
+        r = auth_client.get(
+            f'{BASE}/{cert_id}/export?format=pem&include_chain=true&include_root=true'
+        )
         assert r.status_code == 200
         assert r.data.count(b'BEGIN CERTIFICATE') >= 2
+
+    def test_pem_chain_excludes_root_by_default(
+        self, auth_client, create_ca, create_cert
+    ):
+        root = create_ca(cn='PEM Root Exclusion')
+        intermediate = create_ca(
+            cn='PEM Intermediate Exclusion',
+            type='intermediate',
+            parentCAId=root['id'],
+        )
+        cert = create_cert(
+            cn='pem-root-exclusion.example.com', ca_id=intermediate['id']
+        )
+
+        without_root = auth_client.get(
+            f'{BASE}/{cert["id"]}/export?format=pem&include_chain=true'
+        )
+        with_root = auth_client.get(
+            f'{BASE}/{cert["id"]}/export'
+            '?format=pem&include_chain=true&include_root=true'
+        )
+
+        assert without_root.status_code == 200
+        assert without_root.data.count(b'BEGIN CERTIFICATE') == 2
+        assert with_root.status_code == 200
+        assert with_root.data.count(b'BEGIN CERTIFICATE') == 3
 
 
 # ============================================================================

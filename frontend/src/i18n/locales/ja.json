@@ -4156,6 +4156,8 @@
     "download": "ダウンロード",
     "includeChain": "CA チェーンを含める",
     "includeChainDesc": "発行元のCA証明書を含める",
+    "includeRoot": "ルートCAを含める",
+    "includeRootDesc": "TLSサーバーでは通常不要です",
     "includeKey": "秘密鍵を含める",
     "includeKeyDesc": "エクスポートに秘密鍵を添付する",
     "pkcs12Note": "PKCS#12は常に秘密鍵を含みます",

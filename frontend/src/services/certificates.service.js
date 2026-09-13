@@ -41,6 +41,7 @@ export const certificatesService = {
       format,
       include_key: options.includeKey ?? false,
       include_chain: options.includeChain ?? false,
+      include_root: options.includeRoot ?? false,
       password: options.password,
       legacy: options.legacy ?? false,
     }, { responseType: 'blob' })
