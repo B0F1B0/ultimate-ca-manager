@@ -565,16 +565,6 @@ def clean_dangling_rows(app):
     return removed
 
 
-@pytest.fixture(autouse=True)
-def _detect_orphans(app, request):
-    yield
-    from tests.conftest import clean_dangling_rows
-    removed = clean_dangling_rows(app)
-    if removed:
-        with open('/tmp/claude-0/leaks.log', 'a') as fh:
-            fh.write(f'{removed} orphan(s) after {request.node.nodeid}\n')
-
-
 def clean_unreadable_secrets(app):
     """Delete rows of the shared test database whose secrets do not decrypt.
 

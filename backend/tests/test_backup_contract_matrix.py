@@ -374,6 +374,12 @@ class TestEverySecretTravelsReadable:
         assert unexpected == [], (
             f'secrets left the installation as ciphertext: {unexpected}')
 
+        if not key_encryption.is_enabled:
+            # Nothing is stored encrypted on this installation, so nothing can
+            # travel encrypted either: the debt below is about what happens
+            # when at-rest encryption is on, and there is nothing to check.
+            return
+
         # The other direction: a secret that is readable now and still listed
         # here hides the next one.
         fixed = sorted(
