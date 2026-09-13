@@ -90,3 +90,74 @@ class TestConcurrentCreationsDoNotCollide:
             with backup_operation_lock(purpose='a backup in flight'):
                 # The scheduled pass gives up rather than delete underneath it
                 assert schedule.run_backup_retention() == 0
+
+
+class TestAFullDiskPublishesNothing:
+    """The gate: a write that cannot complete leaves no archive behind, whole
+    or partial, and nothing to clean up by hand."""
+
+    def test_no_archive_and_no_temporary_file_survive(self, app, backup_dir,
+                                                      monkeypatch):
+        import errno
+        import os as os_module
+
+        with app.app_context():
+            before = set(os_module.listdir(backup_dir))
+
+            def no_space(fd):
+                raise OSError(errno.ENOSPC, 'No space left on device')
+
+            monkeypatch.setattr(os_module, 'fsync', no_space)
+
+            with pytest.raises(OSError) as failure:
+                storage.create_archive(b'UCMB' + bytes([3, 1, 2, 0]) + b'x' * 4096)
+            assert failure.value.errno == errno.ENOSPC
+
+        leftovers = set(os_module.listdir(backup_dir)) - before
+        # The lock file is created on demand and kept on purpose; everything
+        # else would be debris from a backup that never happened.
+        assert leftovers <= {'.ucm_backup_operation.lock'}, sorted(leftovers)
+        assert not list(backup_dir.glob('ucm_backup_*.ucmbkp'))
+
+    def test_a_scheduled_run_that_cannot_write_says_so(self, app, backup_dir,
+                                                       monkeypatch):
+        """It fails, it is recorded as failed, and it does not pretend."""
+        import errno
+        import os as os_module
+        from models import SystemConfig, db
+        from services.backup import schedule
+
+        with app.app_context():
+            for key, value in (('auto_backup_enabled', 'true'),
+                               ('backup_frequency', 'daily'),
+                               ('backup_password', 'Correct-Horse-Battery-9')):
+                row = SystemConfig.query.filter_by(key=key).first()
+                if row:
+                    row.value = value
+                else:
+                    db.session.add(SystemConfig(key=key, value=value))
+            SystemConfig.query.filter_by(key='backup.last_run').delete()
+            db.session.commit()
+            schedule._LAST_ATTEMPT['at'] = None
+
+            def no_space(fd):
+                raise OSError(errno.ENOSPC, 'No space left on device')
+
+            monkeypatch.setattr(os_module, 'fsync', no_space)
+            try:
+                with pytest.raises(OSError):
+                    schedule.run_scheduled_backup()
+
+                monkeypatch.undo()
+                status = schedule.get_schedule()
+                assert status['last_outcome'] == 'failed'
+                assert status['last_outcome_reason']
+                assert schedule._LAST_ATTEMPT['at'] is None, \
+                    'a run that wrote nothing must be tried again'
+            finally:
+                schedule._LAST_ATTEMPT['at'] = None
+                row = SystemConfig.query.filter_by(key='auto_backup_enabled').first()
+                if row:
+                    row.value = 'false'
+                SystemConfig.query.filter_by(key='backup_password').delete()
+                db.session.commit()

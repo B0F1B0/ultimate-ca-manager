@@ -460,9 +460,10 @@ def _create_scheduled_backup(sched: dict, now: datetime, password: str) -> dict:
     try:
         backup_bytes = BackupService().create_backup(password)
 
-        filename = f"ucm_backup_{now.strftime('%Y%m%d_%H%M%S')}.ucmbkp"
-        storage.publish_validated_archive(
-            Config.BACKUP_DIR, filename, backup_bytes)
+        # The same naming as every other archive: a name to the second could
+        # collide with a manual backup taken in the same second, and the
+        # shared helper allocates a unique one and retries if it has to.
+        _path, filename = storage.create_archive(backup_bytes)
 
         # Only now: the archive exists, it reads back as written, and it is
         # recorded. An export or write that failed before this point leaves

@@ -329,31 +329,35 @@ def bulk_delete_backups():
     failed = 0
     processed_names = set()
 
-    for raw_name in names:
-        try:
-            backup_file, safe_filename = storage.resolve_archive(raw_name)
-        except (ValueError, PermissionError):
-            invalid += 1
-            continue
-
-        # Avoid counting or attempting the same file multiple times.
-        if safe_filename in processed_names:
-            continue
-        processed_names.add(safe_filename)
-
-        try:
-            if not backup_file.is_file() or backup_file.is_symlink():
-                missing += 1
+    # One lock for the whole batch: a backup being written while this runs is
+    # not yet recorded, and retention deciding what to keep at the same moment
+    # would be reading a directory changing under it.
+    with backup_operation_lock(timeout=30, purpose='deleting backups'):
+        for raw_name in names:
+            try:
+                backup_file, safe_filename = storage.resolve_archive(raw_name)
+            except (ValueError, PermissionError):
+                invalid += 1
                 continue
 
-            backup_file.unlink()
-            deleted += 1
+            # Avoid counting or attempting the same file multiple times.
+            if safe_filename in processed_names:
+                continue
+            processed_names.add(safe_filename)
 
-        except FileNotFoundError:
-            missing += 1
-        except OSError:
-            logger.exception("Failed to bulk-delete backup: %s", safe_filename)
-            failed += 1
+            try:
+                if not backup_file.is_file() or backup_file.is_symlink():
+                    missing += 1
+                    continue
+
+                backup_file.unlink()
+                deleted += 1
+
+            except FileNotFoundError:
+                missing += 1
+            except OSError:
+                logger.exception("Failed to bulk-delete backup: %s", safe_filename)
+                failed += 1
 
     _safe_audit_log(
         action="backup_delete",

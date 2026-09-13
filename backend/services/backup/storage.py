@@ -231,6 +231,16 @@ def validate_and_record(path, expected: bytes) -> dict:
 def publish_validated_archive(
         backup_dir: Path, filename: str, data: bytes) -> Path:
     """Publish an archive only if its bytes can be durably validated."""
+    from .locking import backup_operation_lock
+
+    # Safe on its own: the lock is reentrant, so a caller already holding it
+    # (the scheduled run, a route creating an archive) pays nothing, and one
+    # that forgot is still serialised against retention and deletions.
+    with backup_operation_lock(timeout=30, purpose='publishing an archive'):
+        return _publish_validated_archive(backup_dir, filename, data)
+
+
+def _publish_validated_archive(backup_dir, filename: str, data: bytes):
     path = write_archive_atomically(backup_dir, filename, data)
     try:
         validate_and_record(path, data)

@@ -8,6 +8,7 @@ from utils.response import success_response, error_response, no_content_response
 from models import db, SystemConfig
 from services.audit_service import AuditService
 from services.backup import storage
+from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.settings_contract import (
     BackupSettingError,
     validate_backup_password,
@@ -229,8 +230,15 @@ def delete_backup(filename):
         return error_response('Access denied', 403)
 
     try:
-        if backup_file.is_file() and not backup_file.is_symlink():
-            backup_file.unlink()
+        # Same lock as every other operation on this directory: a deletion
+        # while an archive is being written would race the catalogue that
+        # vouches for it.
+        with backup_operation_lock(timeout=15, purpose='deleting a backup'):
+            if backup_file.is_file() and not backup_file.is_symlink():
+                backup_file.unlink()
+    except BackupBusyError as busy:
+        logger.info("Delete refused: %s", busy)
+        return error_response(str(busy), 409)
     except OSError:
         logger.exception("Failed to delete backup: %s", safe_filename)
         return error_response('Failed to delete backup', 500)
