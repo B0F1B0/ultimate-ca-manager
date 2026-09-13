@@ -247,3 +247,49 @@ class TestSectionAccounting:
         with app.app_context():
             with pytest.raises(BackupSchemaError, match="section 'groups'"):
                 _service()._check_payload_schema(altered)
+
+
+class TestTheRestoreSaysWhatItLeavesBehind:
+    """The export is ahead of the restore: what is carried but not applied is
+    named, instead of passing for a complete restore."""
+
+    def test_a_carried_but_unapplied_section_is_reported(self, app):
+        from services.webhook_service import WebhookEndpoint
+        with app.app_context():
+            endpoint = WebhookEndpoint(name='manifest-report-hook',
+                                       url='https://hook.example.test/x',
+                                       events='["certificate.issued"]')
+            db.session.add(endpoint)
+            db.session.commit()
+            try:
+                svc = _service()
+                blob = svc.create_backup(PASSWORD)
+                results = svc.restore_backup(blob, PASSWORD)
+                assert 'webhook_endpoints' in results['sections_not_restored']
+            finally:
+                db.session.delete(endpoint)
+                db.session.commit()
+
+    def test_the_route_says_it_too(self, app, auth_client):
+        import io
+        from services.webhook_service import WebhookEndpoint
+        with app.app_context():
+            endpoint = WebhookEndpoint(name='manifest-route-hook',
+                                       url='https://hook.example.test/y',
+                                       events='["certificate.issued"]')
+            db.session.add(endpoint)
+            db.session.commit()
+            blob = _service().create_backup(PASSWORD)
+
+        try:
+            response = auth_client.post(
+                '/api/v2/system/restore',
+                data={'password': PASSWORD, 'file': (io.BytesIO(blob), 'a.ucmbkp')},
+                content_type='multipart/form-data')
+            assert response.status_code == 200, response.data
+            message = json.loads(response.data)['message']
+            assert 'does not restore' in message and 'webhook_endpoints' in message
+        finally:
+            with app.app_context():
+                WebhookEndpoint.query.filter_by(name='manifest-route-hook').delete()
+                db.session.commit()

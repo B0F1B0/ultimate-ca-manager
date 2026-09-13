@@ -19,6 +19,23 @@ from .errors import BackupSchemaError
 logger = logging.getLogger(__name__)
 
 
+# Sections this restore path knows how to apply. The export carries more
+# than this (the manifest is ahead of the restore), so what is not applied is
+# reported rather than passed over: an archive holding webhook endpoints and
+# deployment targets must not restore as a success that silently dropped them.
+RESTORED_SECTIONS = {
+    'users', 'certificate_authorities', 'certificates', 'revoked_serials',
+    'acme_accounts', 'acme_eab_credentials', 'configuration', 'groups',
+    'custom_roles', 'certificate_templates', 'trusted_certificates',
+    'sso_providers', 'hsm_providers', 'hsm_keys', 'api_keys', 'smtp_config',
+    'notification_config', 'certificate_policies', 'auth_certificates',
+    'dns_providers', 'acme_domains', 'acme_local_domains', 'ssh_cas',
+    'ssh_certificates', 'microsoft_cas', 'msca_requests', 'scan_profiles',
+    'scan_runs', 'discovered_certificates', 'approval_requests',
+    'scep_requests', 'acme_client_orders', 'audit_logs', 'https_server',
+}
+
+
 class RestoreCoreMixin:
     def _check_payload_schema(self, backup_data: Dict[str, Any]) -> None:
         """Refuse a payload this version cannot restore.
@@ -153,6 +170,19 @@ class RestoreCoreMixin:
         # discovered halfway through a restore.
         self._check_payload_schema(backup_data)
 
+        # Named before anything is written, so the answer can say what this
+        # version will not put back even though the archive carries it.
+        not_restored = sorted(
+            name for name, value in backup_data.items()
+            if name not in ('metadata', 'checksum')
+            and name not in RESTORED_SECTIONS
+            and value
+        )
+        if not_restored:
+            logger.warning(
+                "Restore: the archive carries sections this version does not "
+                "apply: %s", ', '.join(not_restored))
+
         # Initialize results
         results = {
             'users': 0,
@@ -177,6 +207,7 @@ class RestoreCoreMixin:
             'acme_local_domains': 0,
             'https_server': 0,
             'revoked_serials': 0,
+            'sections_not_restored': not_restored,
         }
 
         # Core restores

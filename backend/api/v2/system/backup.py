@@ -505,8 +505,16 @@ def restore_backup():
             success=True,
         )
 
+        not_restored = results.get('sections_not_restored') or []
+        message = "Backup restored successfully"
+        if not_restored:
+            # The archive carries more than this version applies; saying so is
+            # the difference between a restore and a restore that looked fine.
+            message += (". The archive also holds sections this version does "
+                        "not restore: " + ", ".join(not_restored))
+
         return success_response(
-            message="Backup restored successfully",
+            message=message,
             data=results,
         )
 

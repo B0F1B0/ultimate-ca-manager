@@ -280,14 +280,21 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
         keeps the nested copies the current restore path reads, so the two
         halves of the change can land one after the other.
         """
-        members_by_group = {}
+        # Only mirror what was actually exported: excluding the flat section
+        # must not empty the nested copy the current restore reads from.
+        if backup_data.get('group_members'):
+            members_by_group = {}
+        else:
+            members_by_group = None
+
         for row in backup_data.get('group_members', []):
             members_by_group.setdefault(row.get('group_id'), []).append(
                 {'user_id': row.get('user_id'), 'role': row.get('role')})
-        for group in backup_data.get('groups', []):
-            group['members'] = members_by_group.get(group.get('id'), [])
+        if members_by_group is not None:
+            for group in backup_data.get('groups', []):
+                group['members'] = members_by_group.get(group.get('id'), [])
 
-        creds_by_user = {}
+        creds_by_user = {} if backup_data.get('webauthn_credentials') else None
         for row in backup_data.get('webauthn_credentials', []):
             creds_by_user.setdefault(row.get('user_id'), []).append({
                 'credential_id': row.get('credential_id'),
@@ -296,8 +303,9 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
                 'name': row.get('name'),
                 'aaguid': row.get('aaguid'),
             })
-        for user in backup_data.get('users', []):
-            user['webauthn_credentials'] = creds_by_user.get(user.get('id'), [])
+        if creds_by_user is not None:
+            for user in backup_data.get('users', []):
+                user['webauthn_credentials'] = creds_by_user.get(user.get('id'), [])
 
     def _merge_with_manifest(self, section_name, rows, index):
         """Complete a hand-written section with every column of its model.
