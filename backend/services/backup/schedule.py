@@ -247,9 +247,8 @@ def run_scheduled_backup() -> dict:
         backup_bytes = BackupService().create_backup(password)
 
         filename = f"ucm_backup_{now.strftime('%Y%m%d_%H%M%S')}.ucmbkp"
-        filepath = storage.write_archive_atomically(
+        storage.publish_validated_archive(
             Config.BACKUP_DIR, filename, backup_bytes)
-        storage.validate_and_record(filepath, backup_bytes)
 
         # Only now: the archive exists, it reads back as written, and it is
         # recorded. An export or write that failed before this point leaves

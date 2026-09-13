@@ -7,6 +7,7 @@ disk are the bytes the service produced, so every archive written here is read
 back and recorded with its size and SHA-256. Retention protects the most
 recent file that still matches its record.
 """
+from contextlib import contextmanager
 import hashlib
 import json
 import logging
@@ -21,8 +22,39 @@ from .errors import BackupValidationError
 logger = logging.getLogger(__name__)
 
 CATALOG_NAME = '.ucm_backup_catalog.json'
+_CATALOG_LOCK_NAME = '.ucm_backup_catalog.lock'
 _CATALOG_VERSION = 1
 _READ_CHUNK = 1024 * 1024
+
+
+def _fsync_directory(path: Path) -> None:
+    """Make directory-entry changes durable before reporting success."""
+    flags = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0)
+    fd = os.open(path, flags)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+@contextmanager
+def _catalog_lock(backup_dir: Path):
+    """Serialize the catalogue read-modify-write across workers."""
+    import fcntl
+
+    backup_dir = Path(backup_dir)
+    lock_path = backup_dir / _CATALOG_LOCK_NAME
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    locked = False
+    try:
+        os.chmod(lock_path, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        locked = True
+        yield
+    finally:
+        if locked:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 def write_archive_atomically(backup_dir: Path, filename: str, data: bytes) -> Path:
@@ -36,6 +68,7 @@ def write_archive_atomically(backup_dir: Path, filename: str, data: bytes) -> Pa
 
     temp_path = None
     destination = backup_dir / filename
+    published = False
     try:
         fd, temp_path = tempfile.mkstemp(
             dir=str(backup_dir), prefix='.ucm_backup_', suffix='.tmp')
@@ -46,16 +79,26 @@ def write_archive_atomically(backup_dir: Path, filename: str, data: bytes) -> Pa
         os.chmod(temp_path, 0o600)
 
         os.link(temp_path, destination)
+        published = True
         os.unlink(temp_path)
         temp_path = None
+        _fsync_directory(backup_dir)
         return destination
     except Exception:
+        if published:
+            try:
+                destination.unlink(missing_ok=True)
+                _fsync_directory(backup_dir)
+            except OSError:
+                logger.exception(
+                    "Could not roll back backup publication %s", destination)
+        raise
+    finally:
         if temp_path:
             try:
                 os.unlink(temp_path)
             except OSError:
-                pass
-        raise
+                logger.warning("Could not remove temporary backup %s", temp_path)
 
 
 def digest_of(path) -> tuple:
@@ -104,6 +147,7 @@ def _write_catalog(backup_dir, archives: dict) -> None:
         os.chmod(temp_path, 0o600)
         os.replace(temp_path, catalog_path(backup_dir))
         temp_path = None
+        _fsync_directory(backup_dir)
     finally:
         if temp_path:
             try:
@@ -112,47 +156,61 @@ def _write_catalog(backup_dir, archives: dict) -> None:
                 pass
 
 
-def validate_and_record(path, expected: bytes) -> dict:
-    """Read the archive back and record it, or refuse it.
+def _remove_failed_archive(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+        _fsync_directory(path.parent)
+    except OSError:
+        logger.exception("Could not remove failed backup %s", path)
 
-    Called once the file is published: a short write, a full disk or a
-    truncating collision shows up here rather than on the day of a restore.
-    """
+
+def validate_and_record(path, expected: bytes) -> dict:
+    """Read the archive back and record it, or remove it."""
     path = Path(path)
     try:
         size, sha256 = digest_of(path)
+        if size != len(expected) or sha256 != hashlib.sha256(expected).hexdigest():
+            raise BackupValidationError(
+                f"The backup {path.name} did not read back as it was written "
+                f"({size} bytes on disk for {len(expected)} written)"
+            )
+
+        entry = {
+            'size': size,
+            'sha256': sha256,
+            'recorded_at': utc_isoformat(utc_now()),
+        }
+        backup_dir = path.parent
+        with _catalog_lock(backup_dir):
+            archives = read_catalog(backup_dir)
+            archives[path.name] = entry
+            # Drop records of archives that are gone, so the catalogue cannot
+            # grow without bound or vouch for a name a new file might reuse.
+            for name in list(archives):
+                if not (backup_dir / name).is_file():
+                    del archives[name]
+            _write_catalog(backup_dir, archives)
+        return entry
+    except BackupValidationError:
+        _remove_failed_archive(path)
+        raise
     except OSError as exc:
+        _remove_failed_archive(path)
         raise BackupValidationError(
-            f"The backup {path.name} could not be read back after writing"
+            f"The backup {path.name} could not be validated after writing"
         ) from exc
 
-    if size != len(expected) or sha256 != hashlib.sha256(expected).hexdigest():
-        raise BackupValidationError(
-            f"The backup {path.name} did not read back as it was written "
-            f"({size} bytes on disk for {len(expected)} written)"
-        )
 
-    entry = {
-        'size': size,
-        'sha256': sha256,
-        'recorded_at': utc_isoformat(utc_now()),
-    }
-    backup_dir = path.parent
-    archives = read_catalog(backup_dir)
-    archives[path.name] = entry
-    # Drop records of archives that are gone, so the catalogue cannot grow
-    # without bound and cannot vouch for a name a new file might reuse.
-    for name in list(archives):
-        if not (Path(backup_dir) / name).is_file():
-            del archives[name]
+def publish_validated_archive(
+        backup_dir: Path, filename: str, data: bytes) -> Path:
+    """Publish an archive only if its bytes can be durably validated."""
+    path = write_archive_atomically(backup_dir, filename, data)
     try:
-        _write_catalog(backup_dir, archives)
-    except OSError as exc:
-        raise BackupValidationError(
-            f"The backup {path.name} was written but could not be recorded "
-            "as validated"
-        ) from exc
-    return entry
+        validate_and_record(path, data)
+    except Exception:
+        _remove_failed_archive(path)
+        raise
+    return path
 
 
 def matches_record(path, entry: dict) -> bool:

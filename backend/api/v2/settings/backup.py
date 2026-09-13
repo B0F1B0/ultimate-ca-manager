@@ -4,11 +4,14 @@ Settings - Backup management + schedule + history routes
 
 from flask import request
 from auth.unified import require_auth
+from config.settings import Config
 from utils.response import success_response, error_response, no_content_response
 from models import db, SystemConfig
 from services.audit_service import AuditService
+from services.backup import storage
 from utils.datetime_utils import utc_now
 import logging
+import secrets
 
 from . import bp
 
@@ -29,9 +32,6 @@ def get_backup_settings():
 @require_auth(['admin:system'])
 def create_backup():
     """Create backup now"""
-    import os
-    import secrets
-
     try:
         from services.backup_service import (
             BackupService, BackupExportError, BackupPasswordError,
@@ -54,14 +54,10 @@ def create_backup():
         service = BackupService()
         backup_bytes = service.create_backup(password)
 
-        # Save to disk
-        filename = f"ucm_backup_{utc_now().strftime('%Y%m%d_%H%M%S')}.ucmbkp"
-        backup_dir = "/opt/ucm/data/backups"
-        os.makedirs(backup_dir, exist_ok=True)
-
-        filepath = os.path.join(backup_dir, filename)
-        with open(filepath, 'wb') as f:
-            f.write(backup_bytes)
+        timestamp = utc_now().strftime('%Y%m%d_%H%M%S_%f')
+        filename = f"ucm_backup_{timestamp}_{secrets.token_hex(6)}.ucmbkp"
+        filepath = storage.publish_validated_archive(
+            Config.BACKUP_DIR, filename, backup_bytes)
 
         AuditService.log_action(
             action='system_backup',
@@ -74,7 +70,7 @@ def create_backup():
         response_data = {
             'filename': filename,
             'size': len(backup_bytes),
-            'path': filepath
+            'path': str(filepath)
         }
 
         # Include generated password in response so user can save it
@@ -159,7 +155,7 @@ def download_backup(filename):
     from pathlib import Path
     import os
 
-    backup_dir = Path("/opt/ucm/data/backups")
+    backup_dir = Path(Config.BACKUP_DIR)
 
     # SECURITY: Sanitize filename to prevent path traversal
     safe_filename = secure_filename(os.path.basename(filename))
@@ -195,7 +191,7 @@ def delete_backup(filename):
     from pathlib import Path
     import os
 
-    backup_dir = Path("/opt/ucm/data/backups")
+    backup_dir = Path(Config.BACKUP_DIR)
 
     # SECURITY: Sanitize filename to prevent path traversal
     safe_filename = secure_filename(os.path.basename(filename))

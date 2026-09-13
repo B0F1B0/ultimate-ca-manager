@@ -114,15 +114,6 @@ def _new_backup_filename() -> str:
     return f"ucm_backup_{timestamp}_{uuid4().hex[:12]}.ucmbkp"
 
 
-def _write_backup_atomically(backup_dir: Path, filename: str, data: bytes) -> Path:
-    """Write a backup atomically with owner-only permissions.
-
-    Thin wrapper over the service helper so this route, the scheduled backup
-    and retention all agree on how an archive reaches disk.
-    """
-    return storage.write_archive_atomically(backup_dir, filename, data)
-
-
 @bp.route("/api/v2/system/backup", methods=["POST"])
 @bp.route("/api/v2/system/backup/create", methods=["POST"])
 @require_auth(["admin:system"])
@@ -153,7 +144,8 @@ def create_backup():
         for _ in range(5):
             filename = _new_backup_filename()
             try:
-                filepath = _write_backup_atomically(backup_dir, filename, backup_bytes)
+                filepath = storage.publish_validated_archive(
+                    backup_dir, filename, backup_bytes)
                 break
             except FileExistsError:
                 continue
@@ -161,11 +153,6 @@ def create_backup():
         if filepath is None or filename is None:
             logger.error("Could not allocate a unique backup filename")
             return error_response("Failed to save backup", 500)
-
-        # Read the archive back and record its size and digest: retention
-        # protects the most recent archive that still matches its record, and
-        # a short write shows up here rather than on the day of a restore.
-        storage.validate_and_record(filepath, backup_bytes)
 
         _safe_audit_log(
             action="system_backup",

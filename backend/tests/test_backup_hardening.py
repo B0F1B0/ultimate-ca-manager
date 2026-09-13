@@ -6,7 +6,9 @@ archives, a DB password copied into the audit trail.
 """
 import json
 import os
+import threading
 import time
+from unittest.mock import mock_open
 
 import pytest
 
@@ -332,6 +334,7 @@ class TestPublicationDecidesTheRetryGuard:
             self, app, tmp_path, monkeypatch):
         """A short write is a failed run, not a restore point."""
         from services.backup import schedule, storage
+        from services.backup.errors import BackupValidationError
         with app.app_context():
             self._enable(tmp_path, monkeypatch)
             try:
@@ -341,12 +344,126 @@ class TestPublicationDecidesTheRetryGuard:
                 monkeypatch.setattr(
                     storage, 'digest_of',
                     lambda path: (3, 'deadbeef'))  # as if the file were short
-                with pytest.raises(Exception):
+                with pytest.raises(BackupValidationError):
                     schedule.run_scheduled_backup()
                 assert schedule._LAST_ATTEMPT['at'] is None, \
                     'a run that produced no provable archive must be retried'
+                assert not list(tmp_path.glob('ucm_backup_*.ucmbkp')), \
+                    'a failed validation must not leave a listed archive'
             finally:
                 self._disable()
+
+
+class TestValidatedArchivePublication:
+    def test_catalog_updates_are_serialized(self, tmp_path, monkeypatch):
+        from services.backup import storage
+        first = storage.write_archive_atomically(
+            tmp_path, 'ucm_backup_a.ucmbkp', b'archive-a')
+        second = storage.write_archive_atomically(
+            tmp_path, 'ucm_backup_b.ucmbkp', b'archive-b')
+        original_write = storage._write_catalog
+        first_write_started = threading.Event()
+        second_write_started = threading.Event()
+        release_first_write = threading.Event()
+        write_count = 0
+        count_lock = threading.Lock()
+
+        def delayed_write(backup_dir, archives):
+            nonlocal write_count
+            with count_lock:
+                write_count += 1
+                call_number = write_count
+            if call_number == 1:
+                first_write_started.set()
+                assert release_first_write.wait(timeout=5)
+            else:
+                second_write_started.set()
+            return original_write(backup_dir, archives)
+
+        monkeypatch.setattr(storage, '_write_catalog', delayed_write)
+        errors = []
+
+        def record(path, payload):
+            try:
+                storage.validate_and_record(path, payload)
+            except Exception as exc:
+                errors.append(exc)
+
+        threads = [
+            threading.Thread(target=record, args=(first, b'archive-a')),
+            threading.Thread(target=record, args=(second, b'archive-b')),
+        ]
+        threads[0].start()
+        assert first_write_started.wait(timeout=5)
+        threads[1].start()
+        second_write_started.wait(timeout=0.2)
+        release_first_write.set()
+        for thread in threads:
+            thread.join(timeout=5)
+
+        assert all(not thread.is_alive() for thread in threads)
+        assert not errors
+        assert set(storage.read_catalog(tmp_path)) == {first.name, second.name}
+
+    def test_catalog_failure_removes_the_unvalidated_archive(
+            self, tmp_path, monkeypatch):
+        from services.backup import storage
+        from services.backup.errors import BackupValidationError
+        path = storage.write_archive_atomically(
+            tmp_path, 'ucm_backup_catalog_failure.ucmbkp', b'archive')
+        monkeypatch.setattr(
+            storage, '_write_catalog',
+            lambda *args: (_ for _ in ()).throw(OSError('disk full')))
+
+        with pytest.raises(BackupValidationError):
+            storage.validate_and_record(path, b'archive')
+
+        assert not path.exists()
+
+    def test_archive_and_catalog_directory_entries_are_synced(
+            self, tmp_path, monkeypatch):
+        from services.backup import storage
+        synced = []
+        monkeypatch.setattr(
+            storage, '_fsync_directory', lambda path: synced.append(path),
+            raising=False)
+
+        path = storage.write_archive_atomically(
+            tmp_path, 'ucm_backup_synced.ucmbkp', b'archive')
+        storage.validate_and_record(path, b'archive')
+
+        assert synced.count(tmp_path) >= 2
+
+    def test_legacy_create_route_uses_validated_publication(
+            self, auth_client, tmp_path, monkeypatch):
+        import api.v2.settings.backup as routes
+        from config.settings import Config
+        from services.backup import storage
+        from services.backup_service import BackupService
+        calls = []
+
+        monkeypatch.setattr(Config, 'BACKUP_DIR', tmp_path, raising=False)
+        monkeypatch.setattr(
+            BackupService, 'create_backup',
+            lambda self, password: b'archive')
+        monkeypatch.setattr(routes, 'open', mock_open(), raising=False)
+        monkeypatch.setattr(routes.AuditService, 'log_action',
+                            lambda **kwargs: None)
+        monkeypatch.setattr(
+            storage, 'publish_validated_archive',
+            lambda backup_dir, filename, data: calls.append(
+                (backup_dir, filename, data)) or tmp_path / filename,
+            raising=False)
+
+        response = auth_client.post(
+            '/api/v2/settings/backup/create',
+            data=json.dumps({'password': 'Correct-Horse-Battery-9'}),
+            content_type='application/json')
+
+        assert response.status_code == 200, response.data
+        assert len(calls) == 1
+        assert calls[0][0] == tmp_path
+        assert calls[0][2] == b'archive'
 
 
 class TestDatabaseCredentialsStayOutOfTheAudit:
