@@ -2704,7 +2704,9 @@
       "loadFailed": "データベース状態の取得に失敗",
       "switchInitiated": "バックエンド切替を開始しました。再接続中...",
       "switchFailed": "バックエンド切替に失敗",
-      "migrateFailed": "データ移行に失敗"
+      "migrateFailed": "データ移行に失敗",
+      "droppedColumns": "このマイグレーションが引き継がなかった列: {{columns}}。これらの値は新しいバックエンドにはありません。",
+      "sourceDrift": "スナップショット取得後に移行元で {{tables}} 個のテーブルが変化しました。これらの行は新しいバックエンドにはありません。このインスタンスへの書き込みを止め、静止した移行元から再度移行してください。"
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (職場/学校)",
     "smtpOauthRedirectUriUseDefault": "デフォルトを使用",

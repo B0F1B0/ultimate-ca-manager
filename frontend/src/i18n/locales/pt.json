@@ -2704,7 +2704,9 @@
       "loadFailed": "Falha ao carregar estado do banco",
       "switchInitiated": "Troca de backend iniciada. Reconectando...",
       "switchFailed": "Falha ao trocar backend",
-      "migrateFailed": "Falha ao migrar dados"
+      "migrateFailed": "Falha ao migrar dados",
+      "droppedColumns": "Colunas deixadas para trás por esta migração: {{columns}}. Os seus valores não estão no novo backend.",
+      "sourceDrift": "{{tables}} tabela(s) mudaram na origem depois de o snapshot ser tirado. Essas linhas não estão no novo backend: pare as escritas nesta instância e migre novamente a partir de uma origem em repouso."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (trabalho/escola)",
     "smtpOauthRedirectUriUseDefault": "Usar padrão",

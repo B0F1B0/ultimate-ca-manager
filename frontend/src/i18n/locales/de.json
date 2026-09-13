@@ -2704,7 +2704,9 @@
       "loadFailed": "Datenbankstatus konnte nicht geladen werden",
       "switchInitiated": "Backend-Wechsel gestartet. Verbinde neu...",
       "switchFailed": "Backend-Wechsel fehlgeschlagen",
-      "migrateFailed": "Datenmigration fehlgeschlagen"
+      "migrateFailed": "Datenmigration fehlgeschlagen",
+      "droppedColumns": "Von dieser Migration zurückgelassene Spalten: {{columns}}. Ihre Werte sind nicht im neuen Backend vorhanden.",
+      "sourceDrift": "{{tables}} Tabelle(n) haben sich in der Quelle nach der Momentaufnahme geändert. Diese Zeilen sind nicht im neuen Backend: Stoppen Sie die Schreibzugriffe auf diese Instanz und migrieren Sie erneut von einer ruhenden Quelle."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (Arbeit/Schule)",
     "smtpOauthRedirectUriUseDefault": "Standard verwenden",

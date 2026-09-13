@@ -2705,7 +2705,9 @@
       "loadFailed": "Failed to load database status",
       "switchInitiated": "Backend switch initiated. Reconnecting...",
       "switchFailed": "Failed to switch backend",
-      "migrateFailed": "Failed to migrate data"
+      "migrateFailed": "Failed to migrate data",
+      "droppedColumns": "Columns left behind by this migration: {{columns}}. Their values are not on the new backend.",
+      "sourceDrift": "{{tables}} table(s) changed on the source after the snapshot was taken. Those rows are not on the new backend: stop writing to this instance and migrate again from a quiet source."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (work/school)",
     "smtpOauthRedirectUriUseDefault": "Use default",

@@ -2704,7 +2704,9 @@
       "loadFailed": "加载数据库状态失败",
       "switchInitiated": "后端切换已发起。正在重连...",
       "switchFailed": "后端切换失败",
-      "migrateFailed": "数据迁移失败"
+      "migrateFailed": "数据迁移失败",
+      "droppedColumns": "本次迁移舍弃的列：{{columns}}。它们的值不在新后端中。",
+      "sourceDrift": "快照之后源端有 {{tables}} 张表发生了变化。这些行不在新后端中：请停止对本实例的写入，并从静止的源重新迁移。"
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365（工作/学校）",
     "smtpOauthRedirectUriUseDefault": "使用默认值",

@@ -15,7 +15,7 @@ import { useNotification } from '../../contexts'
 
 export default function DatabaseBackendSection() {
   const { t } = useTranslation()
-  const { showError, showSuccess } = useNotification()
+  const { showError, showSuccess, showWarning } = useNotification()
 
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -75,10 +75,30 @@ export default function DatabaseBackendSection() {
     try {
       const res = await databaseService.migrateData(targetUrl.trim())
       const stats = res.data?.stats || {}
+      // The proof is what makes the manual Docker restart a decision rather
+      // than a leap: the operator sees the same verified figures the native
+      // path acted on before it restarted itself.
+      const verified = `${stats.tables_migrated} tables, ${stats.rows_migrated} rows verified`
       const msg = res.data?.docker
-        ? res.data?.next_step || res.message
-        : `${res.message} (${stats.tables_migrated} tables, ${stats.rows_migrated} rows)`
+        ? `${res.data?.next_step || res.message} (${verified})`
+        : `${res.message} (${verified})`
       showSuccess(msg)
+      // What the migration knowingly left behind. Carried all the way to the
+      // API and then shown to nobody is the same as never having measured it.
+      const dropped = Object.entries(stats.dropped_columns || {})
+        .flatMap(([table, columns]) =>
+          Object.entries(columns)
+            .filter(([, entry]) => entry?.values)
+            .map(([column, entry]) => `${table}.${column} (${entry.values})`))
+      if (dropped.length) {
+        showWarning(t('settings.backend.droppedColumns', {
+          columns: dropped.join(', '),
+        }))
+      }
+      const drift = Object.keys(stats.source_drift || {}).length
+      if (drift) {
+        showWarning(t('settings.backend.sourceDrift', { tables: drift }))
+      }
       setConfirmAction(null)
     } catch (e) {
       showError(e.message || t('settings.backend.migrateFailed'))

@@ -899,7 +899,7 @@
     "sourceWeb": "Interface web",
     "orphanDescription": "AC non trouvée",
     "archived": "Archivé",
-    "archivedDescription": "Remplacé par un renouvellement ou un ré-enrôlement, conservé pour l\u2019historique",
+    "archivedDescription": "Remplacé par un renouvellement ou un ré-enrôlement, conservé pour l’historique",
     "noCertificates": "Aucun certificat trouvé",
     "confirmRevoke": "Êtes-vous sûr de vouloir révoquer ce certificat ?",
     "revokeWarning": "La révocation d'un certificat est permanente et irréversible. Le certificat sera ajouté à la CRL et ne sera plus approuvé par aucun client vérifiant le statut de révocation. Ne procédez que si vous êtes certain que ce certificat doit être définitivement invalidé.",
@@ -2880,7 +2880,9 @@
       "loadFailed": "Échec du chargement de l'état de la base",
       "switchInitiated": "Bascule initiée. Reconnexion...",
       "switchFailed": "Échec du changement de backend",
-      "migrateFailed": "Échec de la migration"
+      "migrateFailed": "Échec de la migration",
+      "droppedColumns": "Colonnes abandonnées par cette migration : {{columns}}. Leurs valeurs ne sont pas sur le nouveau backend.",
+      "sourceDrift": "{{tables}} table(s) ont changé sur la source après la prise du snapshot. Ces lignes ne sont pas sur le nouveau backend : arrêtez les écritures sur cette instance et relancez la migration depuis une source au repos."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (pro/école)",
     "smtpOauthRedirectUriUseDefault": "Utiliser par défaut",

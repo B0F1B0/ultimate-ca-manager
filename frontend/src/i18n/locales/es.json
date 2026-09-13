@@ -2704,7 +2704,9 @@
       "loadFailed": "Error al cargar el estado de la base",
       "switchInitiated": "Cambio de backend iniciado. Reconectando...",
       "switchFailed": "Error al cambiar el backend",
-      "migrateFailed": "Error al migrar datos"
+      "migrateFailed": "Error al migrar datos",
+      "droppedColumns": "Columnas que esta migración deja atrás: {{columns}}. Sus valores no están en el nuevo backend.",
+      "sourceDrift": "{{tables}} tabla(s) cambiaron en el origen después de tomar la instantánea. Esas filas no están en el nuevo backend: detenga las escrituras en esta instancia y vuelva a migrar desde un origen en reposo."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (trabajo/escuela)",
     "smtpOauthRedirectUriUseDefault": "Usar predeterminado",

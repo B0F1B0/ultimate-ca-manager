@@ -2704,7 +2704,9 @@
       "loadFailed": "Caricamento stato database fallito",
       "switchInitiated": "Cambio backend avviato. Riconnessione...",
       "switchFailed": "Cambio backend fallito",
-      "migrateFailed": "Migrazione dati fallita"
+      "migrateFailed": "Migrazione dati fallita",
+      "droppedColumns": "Colonne lasciate indietro da questa migrazione: {{columns}}. I loro valori non sono presenti nel nuovo backend.",
+      "sourceDrift": "{{tables}} tabella/e sono cambiate nell’origine dopo lo snapshot. Quelle righe non sono nel nuovo backend: interrompi le scritture su questa istanza e migra di nuovo da un’origine a riposo."
     },
     "smtpOauthProvider_microsoft365": "Microsoft 365 (lavoro/scuola)",
     "smtpOauthRedirectUriUseDefault": "Usa predefinito",
