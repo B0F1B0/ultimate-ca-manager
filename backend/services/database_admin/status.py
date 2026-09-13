@@ -13,7 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from config.settings import Config, is_docker
 from models import db
 
-from .helpers import _redact_uri, _human_size, _short_err
+from .helpers import _live_database_url, _redact_uri, _human_size, _short_err
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +21,18 @@ MIN_POSTGRES_MAJOR = 13
 
 
 def get_status() -> dict:
-    """Return current backend status: type, version, size, table count, health."""
-    db_uri = Config.SQLALCHEMY_DATABASE_URI
+    """Return current backend status: type, version, size, table count, health.
+
+    Read from the engine the application is connected to, not from the
+    module-level configuration: an application object configured differently
+    would otherwise be described by the wrong database entirely, size and
+    file included.
+    """
+    try:
+        db_uri = str(_live_database_url())
+    except Exception:
+        # Nothing is connected yet; the configuration is all there is to say.
+        db_uri = Config.SQLALCHEMY_DATABASE_URI
     backend = "postgresql" if db_uri.startswith("postgresql") else "sqlite"
 
     info = {

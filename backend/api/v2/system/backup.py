@@ -4,6 +4,11 @@ System Backup Operations
 
 from services.backup import storage
 from services.backup.locking import BackupBusyError, backup_operation_lock
+from services.database_admin.lock import (
+    MigrationBusyError,
+    database_migration_lock,
+    pending_switch_refusal,
+)
 from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.settings_contract import (
     BackupSettingError,
@@ -451,8 +456,27 @@ def restore_backup():
                 "mode must be 'replace' (the archive becomes this instance) or "
                 "'merge' (the archive is added to it)", 400)
 
+        # Between a backend switch being written and the service restarting
+        # onto it, this instance still runs on the backend being left behind:
+        # a restore landing here would be discarded by the restart.
+        pending = pending_switch_refusal()
+        if pending:
+            return error_response(pending, 409)
+
+        # A restore rewrites the whole database, which is the largest
+        # concurrent write a migration could be reading through. They take
+        # the same lock so one never sees the other half-done.
         service = BackupService()
-        results = service.restore_backup(backup_bytes, password, mode=mode)
+        try:
+            with database_migration_lock(purpose='the restore'):
+                results = service.restore_backup(
+                    backup_bytes, password, mode=mode)
+        except MigrationBusyError as busy:
+            # The lock is shared with the backend switch, so the holder may
+            # be either; the message names what was refused, not what holds it.
+            return error_response(
+                f"{busy} A backend migration or another restore is still "
+                "running.", 409)
 
         _safe_audit_log(
             action="system_restore",

@@ -1,0 +1,641 @@
+"""The whole migration, end to end, and every way it must refuse to finish.
+
+The gate for this work: the same-backend and cross-backend matrix, a source
+that keeps being written to while it is read, a target that holds anything at
+all, and a failure of the snapshot, the verification, the bootstrap or the
+configuration write — each of which must forbid the switch rather than
+produce a half-migrated installation nobody was told about.
+"""
+import json
+import os
+from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine, inspect, text
+
+from config.settings import DATA_DIR
+from models import db
+from services.database_admin import migration, persistence, snapshot, verify
+from services.database_admin.lock import (
+    clear_switch_pending,
+    switch_pending,
+    switch_pending_path,
+)
+from services.database_admin.verify import VerificationError
+
+_PG_URL = os.environ.get('UCM_TEST_PG_URL')
+_needs_pg = pytest.mark.skipif(
+    not _PG_URL, reason='UCM_TEST_PG_URL not set; skipping PostgreSQL matrix')
+
+
+def _require_a_dumpable_bench():
+    """Skip with the reason that actually applies, evaluated when asked.
+
+    pg_dump refuses to dump a server newer than itself, and a migration away
+    from PostgreSQL now requires a verified dump, so on such a host the
+    migration refuses by design (that refusal is pinned in
+    `tests/test_database_migration_snapshot.py`). What cannot be exercised
+    there is the successful path.
+
+    Deliberately not evaluated at import time: this opens a connection, and
+    a module-level call would do it during collection, in every xdist worker,
+    for a test that may not even be selected.
+    """
+    import shutil
+    import subprocess
+
+    if not shutil.which('pg_dump'):
+        pytest.skip('pg_dump is not installed')
+
+    try:
+        client = subprocess.run(['pg_dump', '--version'], capture_output=True,
+                                text=True, timeout=10).stdout.split()[2]
+    except Exception as exc:                     # pragma: no cover - toolchain
+        pytest.skip(f'pg_dump --version could not be read: {exc}')
+
+    engine = create_engine(_PG_URL, pool_pre_ping=True)
+    try:
+        with engine.connect() as conn:
+            server = conn.execute(text('SHOW server_version')).scalar()
+    except Exception as exc:
+        pytest.skip(f'the PostgreSQL bench could not be reached: {exc}')
+    finally:
+        engine.dispose()
+
+    if int(client.split('.')[0]) < int(str(server).split('.')[0]):
+        pytest.skip(
+            f'pg_dump {client} cannot dump a PostgreSQL {server} server, and '
+            'a migration away from PostgreSQL requires a verified dump')
+
+
+@pytest.fixture(autouse=True)
+def _a_source_that_satisfies_its_own_schema(app):
+    """These tests read the shared database as a database, not as a fixture.
+
+    Other files write rows through the ORM with foreign keys SQLite never
+    enforces, so whether this one sees a consistent source depends on which
+    files ran before it on this worker. The migration refuses such a source
+    on purpose — that refusal has its own test — so here it is cleaned first.
+    """
+    from tests.conftest import clean_dangling_rows
+
+    clean_dangling_rows(app)
+    yield
+
+
+@pytest.fixture
+def sqlite_target(tmp_path):
+    return f"sqlite:///{tmp_path / 'target.db'}"
+
+
+@pytest.fixture
+def pg_target():
+    """An empty PostgreSQL target, dropped and recreated around the test."""
+    engine = create_engine(_PG_URL, pool_pre_ping=True)
+    with engine.begin() as conn:
+        conn.execute(text('DROP SCHEMA public CASCADE'))
+        conn.execute(text('CREATE SCHEMA public'))
+    engine.dispose()
+    yield _PG_URL
+    engine = create_engine(_PG_URL, pool_pre_ping=True)
+    with engine.begin() as conn:
+        conn.execute(text('DROP SCHEMA public CASCADE'))
+        conn.execute(text('CREATE SCHEMA public'))
+    engine.dispose()
+
+
+@pytest.fixture
+def restart_signal():
+    """The file the watcher polls; absent unless a restart was requested."""
+    signal = Path(DATA_DIR) / '.restart_requested'
+    signal.unlink(missing_ok=True)
+    yield signal
+    signal.unlink(missing_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def switch_marker():
+    """No test inherits another's pending switch."""
+    clear_switch_pending()
+    yield switch_pending_path()
+    clear_switch_pending()
+
+
+@pytest.fixture
+def env_file():
+    """The sandboxed ucm.env, as the conftest redirected it."""
+    path = Path(persistence.UCM_ENV_PATH)
+    before = path.read_text() if path.exists() else None
+    yield path
+    if before is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(before)
+
+
+def _counts(url, tables):
+    engine = create_engine(url)
+    try:
+        with engine.connect() as conn:
+            return {
+                name: conn.execute(
+                    text(f'SELECT COUNT(*) FROM "{name}"')).scalar()
+                for name in tables
+            }
+    finally:
+        engine.dispose()
+
+
+class TestTheMatrix:
+    def test_sqlite_to_sqlite_copies_and_verifies_everything(
+            self, app, create_ca, sqlite_target):
+        create_ca(cn='Matrix Round Trip CA')
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is True, message
+        assert stats['rows_migrated'] > 0
+        assert stats['validation']['ok'] is True
+        assert set(stats['validation']['checks']) >= {
+            'row_counts', 'foreign_keys', 'unique_constraints',
+            'sequences', 'schema', 'secrets'}
+        assert stats['snapshot']['sha256']
+        assert 'snapshot' in stats['source_view']
+
+        copied = _counts(sqlite_target, ['users', 'certificate_authorities'])
+        assert copied['users'] == stats['tables']['users']
+        assert copied['certificate_authorities'] >= 1
+
+    def test_every_source_table_reaches_the_target(self, app, sqlite_target):
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+            source_tables = set(inspect(db.engine).get_table_names())
+
+        assert ok is True, message
+        # Nothing is allowed to go missing quietly: what the source has, the
+        # plan copied, and the plan is what the statistics report.
+        assert source_tables - set(stats['tables']) <= {'alembic_version'}
+
+    @_needs_pg
+    def test_sqlite_to_postgresql(self, app, create_ca, pg_target):
+        create_ca(cn='Matrix To PostgreSQL CA')
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(pg_target)
+
+        assert ok is True, message
+        assert stats['rows_migrated'] > 0
+        copied = _counts(pg_target, ['users', 'certificate_authorities'])
+        assert copied['users'] == stats['tables']['users']
+
+    @_needs_pg
+    def test_postgresql_to_sqlite(self, app, create_ca, pg_target,
+                                  sqlite_target):
+        """The other direction, from a PostgreSQL source read under
+        REPEATABLE READ rather than from a file."""
+        _require_a_dumpable_bench()
+        create_ca(cn='Matrix From PostgreSQL CA')
+        with app.app_context():
+            ok, message, _ = migration.migrate_data(pg_target)
+        assert ok is True, message
+
+        pg_engine = create_engine(pg_target, pool_pre_ping=True)
+        try:
+            with app.app_context():
+                # Point the application's own engine at PostgreSQL: the
+                # migration reads the database that is connected, which is
+                # exactly what this test needs it to do.
+                engines = db._app_engines[app]
+                original = engines[None]
+                engines[None] = pg_engine
+                db.session.remove()
+                try:
+                    ok, message, stats = migration.migrate_data(sqlite_target)
+                finally:
+                    engines[None] = original
+                    db.session.remove()
+        finally:
+            pg_engine.dispose()
+
+        assert ok is True, message
+        assert 'REPEATABLE READ' in stats['source_view']
+        assert stats['rows_migrated'] > 0
+        assert stats['snapshot']['backend'] == 'postgresql'
+        assert 'pg_restore' in stats['snapshot']['verified']
+
+        copied = _counts(sqlite_target, ['certificate_authorities'])
+        assert copied['certificate_authorities'] >= 1
+
+
+class TestTheSourceKeepsBeingWrittenTo:
+    def test_a_row_written_during_the_copy_is_wholly_in_or_wholly_out(
+            self, app, create_ca, create_cert, sqlite_target, monkeypatch):
+        """The copy used to read one table at a time from a live database, so
+        a certificate issued between the read of its issuer and the read of
+        the certificates table arrived on the target without its issuer.
+
+        The write happens from this thread, between the view being fixed and
+        the copy running, rather than from a real concurrent writer: what is
+        being pinned is that the view precedes the write and covers both
+        tables at once, which a second thread would only make harder to
+        observe.
+        """
+        real_copy = migration.copy_tables
+        written = {}
+
+        def write_then_copy(source, target_engine, plan, **kwargs):
+            if not written:
+                ca = create_ca(cn='Written During The Copy CA')
+                cert = create_cert(cn='written-during.example.com',
+                                   ca_id=ca['id'])
+                written.update(ca_refid=ca['refid'], cert_refid=cert['refid'])
+            return real_copy(source, target_engine, plan, **kwargs)
+
+        monkeypatch.setattr(migration, 'copy_tables', write_then_copy)
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is True, message
+        assert written, 'the concurrent write never happened'
+
+        engine = create_engine(sqlite_target)
+        try:
+            with engine.connect() as conn:
+                has_ca = conn.execute(text(
+                    'SELECT COUNT(*) FROM certificate_authorities '
+                    'WHERE refid = :r'), {'r': written['ca_refid']}).scalar()
+                has_cert = conn.execute(text(
+                    'SELECT COUNT(*) FROM certificates WHERE refid = :r'),
+                    {'r': written['cert_refid']}).scalar()
+        finally:
+            engine.dispose()
+
+        # The view being copied was fixed before the write happened, so both
+        # rows are outside it. What must never happen is one without the other.
+        assert has_ca == has_cert == 0
+
+        # And the operator is told, rather than left to discover it: the two
+        # rows exist on the source and not on the target, which nothing else
+        # in the pipeline can see (both counts agree about the image copied).
+        assert stats['source_drift'], 'the drift must be measured'
+        assert stats['source_drift'].get('certificates') == 1
+        assert stats['source_drift'].get('certificate_authorities') == 1
+        assert 'NOT on the target' in message
+
+
+class TestEachStepIsActuallyWired:
+    """A function that refuses correctly and is never called refuses nothing.
+    These pin the call sites rather than the functions."""
+
+    def test_a_schema_that_did_not_come_out_complete_stops_the_migration(
+            self, app, sqlite_target, monkeypatch):
+        """create_all reports nothing when it cannot create a table: an
+        existing object of the same name, a revoked privilege. The copy would
+        be the thing to find out, one table at a time, halfway through."""
+        from models import db as _db
+
+        real_create = migration._create_target_schema
+
+        def create_then_lose_one(target_engine, target_is_pg):
+            real_create(target_engine, target_is_pg)
+            with target_engine.begin() as conn:
+                conn.execute(text('DROP TABLE certificate_templates'))
+
+        monkeypatch.setattr(
+            migration, '_create_target_schema', create_then_lose_one)
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is False
+        assert 'certificate_templates' in message
+        assert 'incomplete after creation' in message
+        assert stats['rows_migrated'] == 0
+
+    def test_what_is_left_behind_reaches_the_statistics(
+            self, app, sqlite_target, monkeypatch):
+        """The count is computed, carried to the API and shown; a call site
+        that dropped it would leave the operator with the sentence alone."""
+        sentinel = {'group_members': {'created_at': {'reason': 'r', 'values': 7}}}
+        monkeypatch.setattr(
+            migration, 'dropped_columns', lambda source, target: sentinel)
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is True, message
+        assert stats['dropped_columns'] == sentinel
+
+    def test_the_target_carries_the_applied_migrations_ledger(
+            self, app, sqlite_target):
+        """`_migrations` is created by the migration runner, not by a model,
+        so create_all knows nothing about it. A target without it re-runs
+        every schema migration on first boot against data that has them."""
+        with app.app_context():
+            ok, message, _ = migration.migrate_data(sqlite_target)
+
+        assert ok is True, message
+        engine = create_engine(sqlite_target)
+        try:
+            assert '_migrations' in inspect(engine).get_table_names()
+        finally:
+            engine.dispose()
+
+    def test_a_copy_that_fails_partway_leaves_the_target_empty(
+            self, app, sqlite_target, monkeypatch):
+        """One transaction for the whole copy: a target holding half a
+        migration is a target someone has to reason about."""
+        from services.database_admin import copy as copy_module
+
+        real_copy_one = copy_module._copy_one
+        seen = []
+
+        def fail_on_certificates(source, dst, entry, **kwargs):
+            seen.append(entry.name)
+            if entry.name == 'certificates':
+                raise RuntimeError('the disk went away')
+            return real_copy_one(source, dst, entry, **kwargs)
+
+        monkeypatch.setattr(copy_module, '_copy_one', fail_on_certificates)
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is False
+        assert stats['refusal'] == 'copy'
+        assert 'users' in seen, 'the test never reached a later table'
+
+        engine = create_engine(sqlite_target)
+        try:
+            with engine.connect() as conn:
+                assert conn.execute(
+                    text('SELECT COUNT(*) FROM users')).scalar() == 0
+        finally:
+            engine.dispose()
+
+
+class TestASourceThatBreaksItsOwnRules:
+    def test_an_orphan_row_in_the_source_stops_the_migration(
+            self, app, sqlite_target):
+        """SQLite enforces no foreign key unless asked to, and UCM's
+        connections never have, so an installation accumulates orphan rows
+        for years. PostgreSQL does enforce them: copying those rows either
+        produces a database that contradicts its own schema, or kills the
+        migration halfway through on a driver error naming one row."""
+        with app.app_context():
+            db.session.execute(text(
+                'INSERT INTO group_members (group_id, user_id, role) '
+                'VALUES (987654, 987655, :role)'), {'role': 'member'})
+            db.session.commit()
+            try:
+                ok, message, stats = migration.migrate_data(sqlite_target)
+            finally:
+                db.session.execute(text(
+                    'DELETE FROM group_members WHERE group_id = 987654'))
+                db.session.commit()
+
+        assert ok is False
+        assert stats['refusal'] == 'preflight'
+        assert 'group_members' in message
+        assert 'the current database' in message
+        assert stats['snapshot'] is None, \
+            'the refusal must come before an hour of dumping'
+
+
+class TestATargetThatHoldsAnything:
+    def _prepare(self, app, url, table, statement):
+        engine = create_engine(url)
+        try:
+            with app.app_context():
+                db.metadata.create_all(engine)
+            with engine.begin() as conn:
+                conn.execute(text(statement))
+        finally:
+            engine.dispose()
+
+    def test_a_row_in_a_table_nobody_used_to_check_is_refused(
+            self, app, sqlite_target):
+        """The check counted users, certificates and a table called 'cas'
+        which has not existed under that name for years."""
+        self._prepare(
+            app, sqlite_target, 'system_config',
+            "INSERT INTO system_config (key, value) "
+            "VALUES ('leftover', 'from another installation')")
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is False
+        assert stats['refusal'] == 'preflight'
+        assert 'system_config' in message
+        assert stats['snapshot'] is None, 'nothing should have been snapshotted'
+
+    def test_a_table_from_another_application_is_refused(
+            self, app, sqlite_target):
+        engine = create_engine(sqlite_target)
+        try:
+            with engine.begin() as conn:
+                conn.execute(text('CREATE TABLE some_other_app (id INTEGER)'))
+        finally:
+            engine.dispose()
+
+        with app.app_context():
+            ok, message, stats = migration.migrate_data(sqlite_target)
+
+        assert ok is False
+        assert stats['refusal'] == 'preflight'
+        assert 'some_other_app' in message
+
+
+class TestNothingSwitchesUnlessEverythingPassed:
+    def _post(self, auth_client, route, payload):
+        return auth_client.post(f'/api/v2/database/{route}',
+                                data=json.dumps(payload),
+                                content_type='application/json')
+
+    def test_a_snapshot_that_failed_forbids_the_switch(
+            self, auth_client, sqlite_target, env_file, restart_signal,
+            monkeypatch):
+        monkeypatch.setattr(snapshot, '_backup_current_db',
+                            lambda reasons=None, details=None: None)
+        before = env_file.read_text()
+
+        response = self._post(auth_client, 'migrate',
+                              {'database_url': sqlite_target})
+
+        assert response.status_code == 409, response.data
+        assert env_file.read_text() == before
+        assert not restart_signal.exists()
+
+    def test_a_verification_that_failed_forbids_the_switch(
+            self, auth_client, sqlite_target, env_file, restart_signal,
+            monkeypatch):
+        def refuse(*args, **kwargs):
+            raise VerificationError('users: 12 rows copied, 11 on the target')
+
+        monkeypatch.setattr(migration, 'verify_migration', refuse)
+        before = env_file.read_text()
+
+        response = self._post(auth_client, 'migrate',
+                              {'database_url': sqlite_target})
+
+        assert response.status_code == 500, response.data
+        assert '11 on the target' in json.loads(response.data)['message']
+        assert env_file.read_text() == before
+        assert not restart_signal.exists()
+
+    def test_a_bootstrap_that_failed_forbids_the_switch(
+            self, auth_client, sqlite_target, env_file, restart_signal,
+            monkeypatch):
+        import api.v2.database as route_module
+
+        monkeypatch.setattr(
+            route_module.svc, 'bootstrap_auth_to_target',
+            lambda url: (False, 'group_members: no counterpart on the target',
+                         {'refusal': 'preflight'}))
+        before = env_file.read_text()
+
+        response = self._post(auth_client, 'switch',
+                              {'database_url': sqlite_target})
+
+        assert response.status_code == 409, response.data
+        assert env_file.read_text() == before
+        assert not restart_signal.exists()
+
+    def test_a_configuration_that_could_not_be_written_forbids_the_restart(
+            self, auth_client, sqlite_target, restart_signal, monkeypatch):
+        import api.v2.database as route_module
+
+        called = []
+
+        def refuse(url):
+            called.append(url)
+            return False, 'Permission denied writing the configuration', None
+
+        monkeypatch.setattr(
+            route_module.svc, 'persist_database_url_with_backup', refuse)
+
+        response = self._post(auth_client, 'migrate',
+                              {'database_url': sqlite_target})
+
+        assert response.status_code == 500, response.data
+        # Named, so the test cannot pass on any other 500: the data did
+        # migrate, and it is the configuration write that stopped the switch.
+        assert called == [sqlite_target], 'the configuration was never written'
+        message = json.loads(response.data)['message']
+        assert 'could not persist config' in message
+        assert not restart_signal.exists()
+
+    def test_a_restart_that_cannot_be_requested_puts_the_configuration_back(
+            self, auth_client, sqlite_target, env_file, restart_signal,
+            monkeypatch):
+        """A configuration naming a backend the service was never restarted
+        onto moves the instance hours later, with nobody watching."""
+        import api.v2.database as route_module
+
+        monkeypatch.setattr(
+            route_module, 'restart_ucm_service',
+            lambda: (False, 'the restart signal could not be written'))
+        before = env_file.read_text()
+
+        response = self._post(auth_client, 'migrate',
+                              {'database_url': sqlite_target})
+
+        assert response.status_code == 500, response.data
+        assert 'put back' in json.loads(response.data)['message']
+        assert env_file.read_text() == before
+        assert 'DATABASE_URL' not in env_file.read_text()
+
+
+class TestNothingElseSwitchesUntilTheRestart:
+    """The lock is released when the request returns, but the restart it
+    asked for happens afterwards: a watcher unit picks up a signal file. A
+    second migration in that window would rewrite the configuration again and
+    the service would come up on whichever one wrote last."""
+
+    def _migrate(self, auth_client, target):
+        return auth_client.post(
+            '/api/v2/database/migrate',
+            data=json.dumps({'database_url': target}),
+            content_type='application/json')
+
+    def test_a_switch_that_has_not_been_applied_refuses_the_next_one(
+            self, auth_client, tmp_path, env_file, restart_signal):
+        first = self._migrate(auth_client, f"sqlite:///{tmp_path / 'one.db'}")
+        assert first.status_code == 200, first.data
+        assert restart_signal.exists()
+        assert switch_pending() is not None
+
+        second = self._migrate(auth_client, f"sqlite:///{tmp_path / 'two.db'}")
+
+        assert second.status_code == 409, second.data
+        message = json.loads(second.data)['message']
+        assert 'has not restarted yet' in message
+        assert 'DATABASE_URL' in env_file.read_text()
+
+    def test_the_marker_carries_no_password(
+            self, auth_client, tmp_path, env_file, restart_signal, monkeypatch):
+        import api.v2.database as route_module
+
+        monkeypatch.setattr(route_module.svc, 'migrate_data',
+                            lambda url: (True, 'ok', {'tables': {}}))
+        target = 'postgresql://ucm:S3cret-For-Review@db.example:5432/ucm'
+        assert self._migrate(auth_client, target).status_code == 200
+
+        assert 'S3cret-For-Review' not in switch_pending_path().read_text()
+        assert 'ucm' in switch_pending()['backend']
+
+    def test_a_restore_is_refused_until_the_restart(
+            self, auth_client, tmp_path, env_file, restart_signal):
+        """Between the configuration being written and the service restarting
+        onto it, this instance still runs on the backend being left behind:
+        a restore landing here would be discarded by the restart."""
+        import io
+
+        assert self._migrate(
+            auth_client, f"sqlite:///{tmp_path / 'one.db'}").status_code == 200
+
+        response = auth_client.post(
+            '/api/v2/system/restore',
+            data={'password': 'Correct-Horse-Battery-9',
+                  'file': (io.BytesIO(b'not read'), 'b.ucmbkp')},
+            content_type='multipart/form-data')
+
+        assert response.status_code == 409, response.data
+        assert 'has not restarted yet' in json.loads(response.data)['message']
+
+    def test_a_restart_clears_the_marker(self, auth_client, tmp_path,
+                                         env_file, restart_signal):
+        assert self._migrate(
+            auth_client, f"sqlite:///{tmp_path / 'one.db'}").status_code == 200
+        assert switch_pending() is not None
+
+        clear_switch_pending()  # what app startup does
+
+        assert switch_pending() is None
+
+
+class TestTheProofIsReturnedEitherWay:
+    def test_docker_gets_the_same_validation_as_the_native_path(
+            self, auth_client, sqlite_target, monkeypatch):
+        """The manual restart deserves the same evidence as the automatic
+        one: under Docker the operator is the one taking the decision."""
+        import api.v2.database as route_module
+
+        monkeypatch.setattr(route_module, 'is_docker', lambda: True)
+
+        response = auth_client.post(
+            '/api/v2/database/migrate',
+            data=json.dumps({'database_url': sqlite_target}),
+            content_type='application/json')
+
+        assert response.status_code == 200, response.data
+        data = json.loads(response.data)['data']
+        assert data['docker'] is True
+        assert data['restart_initiated'] is False
+        proof = data['proof']
+        assert proof['snapshot']['sha256']
+        assert proof['validation']
+        assert proof['rows'] > 0

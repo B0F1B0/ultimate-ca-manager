@@ -520,7 +520,8 @@ class TestDatabaseCredentialsStayOutOfTheAudit:
                             lambda **kw: recorded.append(kw))
         monkeypatch.setattr(
             routes.svc, 'migrate_data',
-            lambda url: (False, f'target not empty: {url}', {'tables': 0}))
+            lambda url: (False, f'target not empty: {url}',
+                         {'tables': 0, 'refusal': 'preflight'}))
 
         uri = 'postgresql://alice:S3cret-For-Review@db.example:5432/ucm'
         r = auth_client.post('/api/v2/database/migrate',

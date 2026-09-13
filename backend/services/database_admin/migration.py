@@ -1,26 +1,58 @@
-"""
-Database Admin — data migration and auth bootstrap functions.
-"""
+"""Moving an installation to another database backend, or refusing to.
 
+The sequence is deliberately rigid, and every step is allowed to stop it:
+
+1. the target answers, and holds nothing (``preflight``);
+2. the source is whole — nothing in it already breaks its own foreign keys,
+   which SQLite never enforced and which PostgreSQL will (``verify``);
+3. the source is snapshotted and the snapshot is read back (``snapshot``);
+4. the schema is built on the target and checked, column by column;
+5. the source is read through one consistent view and streamed over in
+   batches (``copy``);
+6. what landed is counted, joined, deduplicated and decrypted (``verify``);
+7. only then does the caller persist ``ucm.env`` and restart.
+
+What this file no longer does is as important as what it does. It does not
+report success with a list of ``skipped`` tables and ``dropped_columns``; it
+does not carry on when the snapshot could not be taken; it does not return
+before anything has been verified. Each of those was a way for an operator to
+be told that a migration had worked when it had not.
+"""
 import logging
 import re
-from typing import Tuple
+from typing import Dict, List, Tuple
 
 from sqlalchemy import create_engine, inspect, text
 
+from .copy import (
+    CopyError,
+    consistent_live_source,
+    consistent_source,
+    copy_tables,
+)
 from .helpers import (
-    _backup_current_db,
-    _detect_boolean_columns,
-    _detect_json_columns,
     _force_register_all_models,
-    _normalize_row,
     _reset_pg_sequences,
     _short_err,
     _topo_sort_tables,
-    _try_disable_fks,
-    _try_reenable_fks,
 )
+from .lock import MigrationBusyError, database_migration_lock
+from .preflight import (
+    LEGACY_COLUMNS,
+    PreflightError,
+    TablePlan,
+    build_copy_plan,
+    check_target_is_empty,
+    check_target_schema,
+    dropped_columns,
+)
+from .snapshot import SnapshotError, create_source_snapshot
 from .status import test_connection
+from .verify import (
+    VerificationError,
+    check_declared_foreign_keys,
+    verify_migration,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +72,16 @@ def _safe_ident(name: str) -> str:
         raise ValueError(f"Unsafe SQL identifier: {name!r}")
     return name
 
+
 # Tables that must be present on a target backend even when an admin switches
 # WITHOUT migrating data, so we don't lock everyone out of the new empty DB.
-# Order matters: parents before children to satisfy FKs without disabling them.
+# This is the SET to carry over; the ORDER to insert them in is computed from
+# the target's own foreign keys in ``_bootstrap_plan``. It used to be this
+# hand-written order, described as "parents before children" while ``users``
+# — a child of ``pro_custom_roles`` and ``pro_sso_providers`` — sat first: on
+# a PostgreSQL target with a role that cannot disable constraints, which is
+# the very case the fallback exists for, a switch from an installation using
+# custom roles or SSO died on a foreign key violation.
 BOOTSTRAP_AUTH_TABLES = (
     "users",
     "groups",
@@ -59,6 +98,189 @@ BOOTSTRAP_AUTH_TABLES = (
 )
 
 
+def _migrations_ddl(target_is_pg: bool) -> str:
+    """The one table that is not part of the SQLAlchemy metadata.
+
+    The migration runner owns it, so ``create_all`` knows nothing about it,
+    and a target without it would re-run every schema migration on first
+    boot against data that already has them applied.
+    """
+    identity = (
+        "id SERIAL PRIMARY KEY" if target_is_pg
+        else "id INTEGER PRIMARY KEY AUTOINCREMENT"
+    )
+    return f"""
+        CREATE TABLE IF NOT EXISTS _migrations (
+            {identity},
+            name VARCHAR(255) NOT NULL UNIQUE,
+            applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """
+
+
+def _create_target_schema(target_engine, target_is_pg: bool) -> None:
+    """Build the whole schema on the target before a single row is copied."""
+    from models import db as _db
+
+    _db.metadata.create_all(target_engine)
+    # Its own transaction, so it commits before the bulk load begins: if the
+    # copy then fails, the operator still sees a target with a schema rather
+    # than one that looks half-created.
+    with target_engine.begin() as tx:
+        tx.execute(text(_migrations_ddl(target_is_pg)))
+
+
+def _bootstrap_plan(source_engine, target_engine) -> List[TablePlan]:
+    """Which columns of the auth tables are copied by a backend switch.
+
+    Unlike a full migration this is a fixed, ordered list of tables, but the
+    same rule applies to their columns: a column present on the source and
+    absent from the target is a refusal, not a line in a ``skipped`` list. A
+    switch that quietly dropped ``users.totp_secret`` would lock out every
+    administrator with MFA enabled.
+    """
+    source_insp = inspect(source_engine)
+    target_insp = inspect(target_engine)
+    source_tables = set(source_insp.get_table_names())
+    target_tables = set(target_insp.get_table_names())
+
+    # Parents first, decided by the target's constraints: those are the ones
+    # that will be enforced when the rows arrive.
+    wanted = set(BOOTSTRAP_AUTH_TABLES)
+    ordered = [t for t in _topo_sort_tables(target_insp) if t in wanted]
+    ordered += [t for t in BOOTSTRAP_AUTH_TABLES if t not in set(ordered)]
+
+    plan: List[TablePlan] = []
+    for name in ordered:
+        if name not in source_tables:
+            raise PreflightError(
+                f"Table '{name}' is missing from the current database; "
+                "the backend switch was not started.")
+        if name not in target_tables:
+            raise PreflightError(
+                f"Table '{name}' could not be created on the target; "
+                "the backend switch was not started.")
+
+        source_cols = [c['name'] for c in source_insp.get_columns(name)]
+        target_cols = {c['name'] for c in target_insp.get_columns(name)}
+        # The same standing approval a full migration honours: an
+        # installation still carries columns the models dropped long ago
+        # (`group_members.created_at` is one, and this list copies
+        # `group_members`), and the target, built from the models, has
+        # nowhere to put them. Anything else missing is a refusal.
+        approved = LEGACY_COLUMNS.get(name, {})
+        missing = [c for c in source_cols
+                   if c not in target_cols and c not in approved]
+        if missing:
+            raise PreflightError(
+                f"Column '{name}.{missing[0]}' has no counterpart on the "
+                "target; the backend switch was not started.")
+
+        copied = [c for c in source_cols if c in target_cols]
+        unquotable = [c for c in copied if not _SAFE_IDENT_RE.match(c)]
+        if unquotable:
+            # Filtering it out is how a switch quietly leaves an MFA secret
+            # behind: a column that cannot be addressed cannot be copied, and
+            # that is a refusal.
+            raise PreflightError(
+                f"Column '{name}.{unquotable[0]}' is not a plain SQL "
+                "identifier, so it cannot be copied safely; the backend "
+                "switch was not started.")
+
+        plan.append(TablePlan(name=name, columns=tuple(copied)))
+
+    return plan
+
+
+def _source_drift(copied: Dict[str, int]) -> Dict[str, int]:
+    """How far the live source moved while it was being copied.
+
+    The copy reads a fixed image of the source — a snapshot file on SQLite, a
+    ``REPEATABLE READ`` transaction on PostgreSQL — and the verification
+    compares the target to what that image held. Both are then in perfect
+    agreement about a target that is missing every row written since. On an
+    instance still serving requests that is a certificate issued, an audit
+    entry, an ACME order: real work, silently left on the old backend.
+
+    Stopping writes for the duration is the operator's decision to make, not
+    ours, so this does not refuse anything. It measures the gap and says so,
+    which is the one thing nothing else in the pipeline does.
+    """
+    from models import db as _db
+
+    drift: Dict[str, int] = {}
+    try:
+        with _db.engine.connect() as conn:
+            for table, copied_rows in copied.items():
+                try:
+                    now = conn.execute(
+                        text(f'SELECT COUNT(*) FROM "{_safe_ident(table)}"')
+                    ).scalar()
+                except Exception:
+                    # A table that cannot be counted now says nothing about
+                    # what was copied; the copy itself already succeeded.
+                    continue
+                if now is not None and int(now) != copied_rows:
+                    drift[table] = int(now) - copied_rows
+    except Exception as exc:
+        logger.warning("Could not measure the source drift: %s",
+                       _short_err(str(exc)))
+    return drift
+
+
+def _check_source_integrity() -> Dict[str, object]:
+    """Refuse to copy a database that already breaks its own foreign keys.
+
+    SQLite enforces no foreign key unless a connection asks it to, and UCM's
+    never has, so an installation can carry orphan rows for years without
+    anything saying so. Copying them into PostgreSQL produces a database that
+    contradicts its own schema — or, with a role that cannot disable the
+    constraints, a migration that dies halfway through on a driver error
+    naming one row.
+
+    Checked here rather than only after the copy, so that the operator is
+    told before an hour of copying, and told about the database it is
+    actually true of: their own. It is a check of the source as it stands
+    now, not of the snapshot taken a moment later, so it is the fast answer
+    rather than the authoritative one — that is ``verify_migration`` on the
+    target, which runs on exactly what was copied.
+    """
+    from models import db as _db
+
+    try:
+        # Against the foreign keys the models declare, not the ones this
+        # database happens to carry: the target is built from the models, so
+        # those are the constraints the data will have to satisfy — including
+        # the ones SQLite could never add to a table it had already created.
+        return check_declared_foreign_keys(
+            _db.engine, side='the current database')
+    except VerificationError as exc:
+        raise PreflightError(
+            f"{exc}. The migration was not started: those rows cannot be "
+            "copied into a database that enforces foreign keys. Remove them "
+            "(or restore the rows they point at) and retry."
+        ) from exc
+
+
+def _target_has_users(target_engine) -> bool:
+    """Whether the target is already a provisioned installation.
+
+    Fail-closed: a target whose ``users`` table cannot be read is treated as
+    populated, because bootstrapping over an installation that is already in
+    use is the one outcome that has no undo.
+    """
+    try:
+        if 'users' not in inspect(target_engine).get_table_names():
+            return False
+        with target_engine.connect() as probe:
+            row = probe.execute(text('SELECT COUNT(*) FROM "users"')).fetchone()
+        return bool(row and row[0])
+    except Exception as exc:
+        raise PreflightError(
+            f"The target's users table could not be read "
+            f"({_short_err(str(exc))}); the backend switch was not started.")
+
+
 def bootstrap_auth_to_target(target_url: str) -> Tuple[bool, str, dict]:
     """
     Copy auth/RBAC/SSO/MFA tables from the current DB to a fresh target so
@@ -69,310 +291,252 @@ def bootstrap_auth_to_target(target_url: str) -> Tuple[bool, str, dict]:
 
     Safe to call against an empty target. If the target already has any users,
     bootstrap is skipped (we assume the operator manages that DB themselves).
+
+    Every table goes over in **one** transaction. It used to be one
+    transaction per table, with each failure appended to a ``skipped`` list
+    and the whole thing reported as a success as long as ``users`` alone had
+    made it: an administrator could land on a target holding their account
+    but none of their group memberships, their custom role or their SSO
+    provider — locked out of everything they were not personally granted.
     """
     # Force-load every model module so db.metadata.create_all() sees them.
     # Some modules (webhooks, …) are only imported when their feature runs.
     _force_register_all_models()
 
-    stats = {"tables_bootstrapped": 0, "rows_copied": 0, "skipped": []}
+    stats: Dict[str, object] = {
+        "tables_bootstrapped": 0,
+        "rows_copied": 0,
+        "tables": {},
+        "target_written": False,
+    }
+    target_engine = None
     try:
-        from models import db as _db
-        source_engine = _db.engine
         target_engine = create_engine(target_url, pool_pre_ping=True)
-
-        # Build schema on target via SQLAlchemy metadata (safe to call repeatedly)
-        _db.metadata.create_all(target_engine)
-
         target_is_pg = target_url.startswith("postgresql")
-        source_is_pg = str(source_engine.url).startswith("postgresql")
 
-        target_insp = inspect(target_engine)
-        target_tables = set(target_insp.get_table_names())
-        target_cols_by_table = {
-            t: {c["name"] for c in target_insp.get_columns(t)} for t in target_tables
-        }
-        target_json_cols = _detect_json_columns(target_insp, target_tables)
-        target_bool_cols = _detect_boolean_columns(target_insp, target_tables)
+        if _target_has_users(target_engine):
+            return True, "Target already has users; bootstrap skipped.", stats
 
-        # Refuse to bootstrap if target already has users (already provisioned)
-        if "users" in target_tables:
-            with target_engine.connect() as probe:
-                row = probe.execute(text('SELECT COUNT(*) FROM users')).fetchone()
-                if row and row[0] and row[0] > 0:
-                    target_engine.dispose()
-                    return True, "Target already has users; bootstrap skipped.", stats
+        # From here on the target carries a schema, which changes what the
+        # operator has to do before retrying.
+        stats["target_written"] = True
+        _create_target_schema(target_engine, target_is_pg)
 
-        with source_engine.connect() as src:
-            for table_name in BOOTSTRAP_AUTH_TABLES:
-                if table_name not in target_tables:
-                    stats["skipped"].append(f"{table_name} (missing on target)")
-                    continue
-                try:
-                    table_q = _safe_ident(table_name)
-                    target_cols = target_cols_by_table[table_name]
-                    rows = list(src.execute(text(f'SELECT * FROM "{table_q}"')).mappings())
-                    if not rows:
-                        stats["tables_bootstrapped"] += 1
-                        continue
-                    src_cols = list(rows[0].keys())
-                    cols = [c for c in src_cols if c in target_cols and _SAFE_IDENT_RE.match(c)]
-                    if not cols:
-                        stats["skipped"].append(f"{table_name} (no overlapping columns)")
-                        continue
-                    placeholders = ", ".join(f":{c}" for c in cols)
-                    col_list = ", ".join(f'"{c}"' for c in cols)
-                    insert_sql = text(
-                        f'INSERT INTO "{table_q}" ({col_list}) VALUES ({placeholders})'
-                    )
-                    json_cols_here = target_json_cols.get(table_name, set())
-                    bool_cols_here = target_bool_cols.get(table_name, set())
-                    # Per-table transaction: a single bad row on PG poisons the
-                    # whole tx (InFailedSqlTransaction), so isolate each table.
-                    with target_engine.begin() as dst:
-                        _try_disable_fks(dst, target_is_pg)
-                        for row in rows:
-                            d = _normalize_row(
-                                dict(row),
-                                source_is_pg,
-                                target_is_pg,
-                                json_cols_here,
-                                bool_cols_here,
-                            )
-                            d = {c: d.get(c) for c in cols}
-                            dst.execute(insert_sql, d)
-                    stats["tables_bootstrapped"] += 1
-                    stats["rows_copied"] += len(rows)
-                except Exception as e:
-                    err = f"{table_name}: {_short_err(str(e))}"
-                    logger.error(f"Bootstrap error on table {err}")
-                    stats["skipped"].append(err)
+        with consistent_live_source() as (src, source_view, source_is_pg):
+            plan = _bootstrap_plan(src.engine, target_engine)
+            result = copy_tables(
+                src, target_engine, plan,
+                source_is_pg=source_is_pg, target_is_pg=target_is_pg)
 
         if target_is_pg:
             _reset_pg_sequences(target_engine)
 
-        target_engine.dispose()
+        stats["tables"] = dict(result.tables)
+        stats["tables_bootstrapped"] = len(result.tables)
+        stats["rows_copied"] = result.rows
+        stats["source_view"] = source_view
 
-        # If users table failed, lockout is guaranteed — surface as failure.
-        if stats["rows_copied"] == 0 or any(
-            s.startswith("users:") or s.startswith("users ") for s in stats["skipped"]
-        ):
+        if not result.tables.get('users'):
+            stats["refusal"] = "verification"
             return (
                 False,
-                "Bootstrap failed for users table — switch aborted to prevent lockout",
+                "No user account reached the target — switch aborted to "
+                "prevent lockout",
                 stats,
             )
 
+        report = verify_migration(
+            target_engine, result.tables, target_is_pg=target_is_pg)
+        stats["validation"] = report
+
         return True, "Auth tables bootstrapped to target", stats
 
+    except (PreflightError, CopyError, VerificationError) as exc:
+        logger.error("Bootstrap refused: %s", exc)
+        stats["refusal"] = _refusal_kind(exc)
+        return False, f"Bootstrap failed: {exc}", stats
     except Exception as e:
         logger.exception("bootstrap_auth_to_target failed")
+        stats["refusal"] = "error"
         return False, f"Bootstrap failed: {_short_err(str(e))}", stats
+    finally:
+        if target_engine is not None:
+            target_engine.dispose()
 
 
 def migrate_data(target_url: str) -> Tuple[bool, str, dict]:
     """
     Migrate all data from current backend → target_url.
-    Steps:
-      1. Validate target connection
-      2. Backup current DB (file copy for SQLite, pg_dump for PG)
-      3. Dump all rows from current DB
-      4. Create schema on target via SQLAlchemy create_all
-      5. Load rows into target
-      6. Reset PG sequences if target is PG
-      7. Return success — caller persists URL + restarts
-    On failure: target is left in whatever state it reached. Caller should NOT
-    persist the URL. Source DB is untouched.
+
+    Steps, in order, each of which can stop the migration:
+      1. the target answers and is empty (no UCM table holds a row, no
+         unknown table, no partial UCM table);
+      2. the source does not already break its own foreign keys;
+      3. the source is snapshotted and the snapshot is read back;
+      4. the schema is created on the target and checked;
+      5. every table is streamed over from one consistent view of the source;
+      6. counts, foreign keys, unique constraints, sequences, schema and
+         secret decryption are checked on the target.
+
+    On failure: the target is left in whatever state it reached, the caller
+    must NOT persist the URL, and the source is untouched. The message says
+    whether the target has to be reset, and names the snapshot when one was
+    taken and verified before the failure.
     """
     # Force-load every model module so db.metadata.create_all() sees them.
     _force_register_all_models()
 
-    stats = {
+    stats: Dict[str, object] = {
         "tables_migrated": 0,
         "rows_migrated": 0,
-        "backup_path": None,
-        "errors": [],
+        "snapshot": None,
+        "tables": {},
         "dropped_columns": {},
+        "source_drift": {},
+        "target_written": False,
     }
 
     ok, msg = test_connection(target_url)
     if not ok:
+        stats["refusal"] = "preflight"
         return False, f"Target unreachable: {msg}", stats
 
-    # Refuse if target already contains UCM data (avoid silent data clobbering / partial states)
-    # NOTE: this check is fail-closed. If we cannot inspect the target, we
-    # refuse to migrate rather than risk overwriting an existing database.
+    target_engine = None
     try:
-        probe_engine = create_engine(target_url, pool_pre_ping=True)
-        probe_insp = inspect(probe_engine)
-        existing_tables = [
-            t for t in probe_insp.get_table_names()
-            if not t.startswith("_") and t != "alembic_version"
-        ]
-        non_empty = []
-        if existing_tables:
-            with probe_engine.connect() as probe:
-                # Check a few canonical tables — if any has rows, we refuse
-                for tname in ("users", "cas", "certificates"):
-                    if tname in existing_tables:
-                        try:
-                            row = probe.execute(text(f'SELECT COUNT(*) FROM "{tname}"')).fetchone()
-                            if row and row[0] and row[0] > 0:
-                                non_empty.append(f"{tname}={row[0]}")
-                        except Exception as inner:
-                            # Fail-closed: treat unreadable canonical tables as
-                            # potentially populated to avoid silent overwrite.
-                            logger.warning(
-                                f"Could not verify emptiness of '{tname}' on target ({inner}); "
-                                "treating as non-empty for safety."
-                            )
-                            non_empty.append(f"{tname}=?")
-        probe_engine.dispose()
-        if non_empty:
-            target_is_pg = target_url.startswith("postgresql")
-            cleanup_hint = (
-                'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
-                if target_is_pg else 'rm <target>.db'
-            )
-            return False, (
-                f"Target database is not empty ({', '.join(non_empty)}). "
-                f"Refusing to overwrite. To reset the target, run: {cleanup_hint}"
-            ), stats
-    except Exception as e:
-        # Inspector itself failed — fail-closed.
-        return False, (
-            f"Could not inspect target database to verify it is empty ({e}). "
-            "Refusing to migrate. Verify connectivity and permissions."
-        ), stats
-
-    # 1. Backup source
-    try:
-        backup_path = _backup_current_db()
-        stats["backup_path"] = str(backup_path) if backup_path else None
-    except Exception as e:
-        return False, f"Backup failed: {e}", stats
-
-    # 2. Migrate
-    try:
-        from models import db as _db
-        source_engine = _db.engine
         target_engine = create_engine(target_url, pool_pre_ping=True)
-
-        # Build schema on target via SQLAlchemy metadata (covers all models
-        # registered above by _force_register_all_models)
-        _db.metadata.create_all(target_engine)
-
-        # Create _migrations table on target (not part of SQLAlchemy metadata).
-        # Isolate in its own transaction so it commits BEFORE the main data copy
-        # begins — if the FK-disabling step fails, we don't lose track that the
-        # schema was created.
         target_is_pg = target_url.startswith("postgresql")
-        source_is_pg = str(source_engine.url).startswith("postgresql")
+
+        # 1. Nothing is touched until the target is known to be empty.
+        # Kept as a count rather than a table-by-table listing: what the
+        # operator (and the audit entry) needs is that every table was looked
+        # at, not sixty lines of zeroes.
+        inspected = check_target_is_empty(target_engine)
+        stats["target_inspected"] = {
+            'tables': len(inspected), 'rows': sum(inspected.values())}
+
+        # 2. The source has to be copyable before it is worth dumping.
+        stats["source_integrity"] = _check_source_integrity()
+
+        # 3. No migration without a rollback point that has been read back.
+        snapshot = create_source_snapshot()
+        # The proof names the snapshot; where the instance keeps it is not
+        # the caller's business, and these statistics go to the audit log.
+        stats["snapshot"] = snapshot.as_proof()
+
+        # 4. Schema first, checked before a row is inserted. From here on
+        # the target has been written to, which changes what the operator
+        # has to do before retrying.
+        stats["target_written"] = True
+        _create_target_schema(target_engine, target_is_pg)
+        check_target_schema(target_engine)
+
+        # 5. One consistent view of the source, streamed over in batches.
+        with consistent_source(snapshot) as (src, source_view, source_is_pg):
+            plan = build_copy_plan(src.engine, target_engine)
+            # What the standing approval in preflight.LEGACY_COLUMNS costs on
+            # this particular database. Reported rather than merely allowed:
+            # an operator who is told which columns were left behind, and
+            # why, can check the claim.
+            stats["dropped_columns"] = dropped_columns(src.engine, target_engine)
+            result = copy_tables(
+                src, target_engine, plan,
+                source_is_pg=source_is_pg, target_is_pg=target_is_pg)
+
+        stats["source_view"] = source_view
+        stats["tables"] = dict(result.tables)
+        stats["tables_migrated"] = len(result.tables)
+        stats["rows_migrated"] = result.rows
+
+        # Sequences are reset before they are verified: a sequence left
+        # behind the data is a primary-key violation on the first insert
+        # after the switch, and the check below is what makes it blocking.
         if target_is_pg:
-            migrations_ddl = """
-                CREATE TABLE IF NOT EXISTS _migrations (
-                    id SERIAL PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL UNIQUE,
-                    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-        else:
-            migrations_ddl = """
-                CREATE TABLE IF NOT EXISTS _migrations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name VARCHAR(255) NOT NULL UNIQUE,
-                    applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            """
-        with target_engine.begin() as _mig_tx:
-            _mig_tx.execute(text(migrations_ddl))
-
-        # Copy each table
-        # Pre-fetch inspectors before opening transactions (SQLite locking)
-        src_insp = inspect(source_engine)
-        target_insp = inspect(target_engine)
-        target_tables = set(target_insp.get_table_names())
-        target_cols_by_table = {
-            t: {c["name"] for c in target_insp.get_columns(t)} for t in target_tables
-        }
-        target_json_cols = _detect_json_columns(target_insp, target_tables)
-        target_bool_cols = _detect_boolean_columns(target_insp, target_tables)
-        src_table_names = _topo_sort_tables(src_insp)
-
-        with source_engine.connect() as src, target_engine.begin() as dst:
-            # Disable FK checks during bulk load to avoid ordering issues.
-            # Falls back gracefully if the PG user is not a superuser
-            # (session_replication_role is superuser-only) — in that case we
-            # rely on the topological order computed above. The helper
-            # isolates the SET in a savepoint: a refusal must not roll back
-            # (and thereby close) this context-managed transaction (#126, #305).
-            fk_disabled = _try_disable_fks(dst, target_is_pg)
-
-            for table_name in src_table_names:
-                if table_name.startswith("_") and table_name != "_migrations":
-                    continue  # skip internal tables but keep _migrations
-                if table_name not in target_tables:
-                    logger.warning(f"Skipping table {table_name}: not in target schema")
-                    continue
-                try:
-                    table_q = _safe_ident(table_name)
-                    target_cols = target_cols_by_table[table_name]
-                    rows = list(src.execute(text(f'SELECT * FROM "{table_q}"')).mappings())
-                    if not rows:
-                        stats["tables_migrated"] += 1
-                        continue
-                    src_cols = list(rows[0].keys())
-                    cols = [c for c in src_cols if c in target_cols and _SAFE_IDENT_RE.match(c)]
-                    dropped = [c for c in src_cols if c not in target_cols]
-                    if dropped:
-                        logger.warning(f"{table_name}: dropping columns absent in target: {dropped}")
-                        stats["dropped_columns"][table_name] = dropped
-                    if not cols:
-                        logger.warning(f"{table_name}: no overlapping columns, skipping")
-                        continue
-                    placeholders = ", ".join(f":{c}" for c in cols)
-                    col_list = ", ".join(f'"{c}"' for c in cols)
-                    insert_sql = text(
-                        f'INSERT INTO "{table_q}" ({col_list}) VALUES ({placeholders})'
-                    )
-                    json_cols_here = target_json_cols.get(table_name, set())
-                    bool_cols_here = target_bool_cols.get(table_name, set())
-                    for row in rows:
-                        d = _normalize_row(
-                            dict(row),
-                            source_is_pg,
-                            target_is_pg,
-                            json_cols_here,
-                            bool_cols_here,
-                        )
-                        d = {c: d.get(c) for c in cols}
-                        dst.execute(insert_sql, d)
-                    stats["tables_migrated"] += 1
-                    stats["rows_migrated"] += len(rows)
-                except Exception as e:
-                    err = f"{table_name}: {_short_err(str(e))}"
-                    logger.error(f"Migration error on table {err}")
-                    stats["errors"].append(err)
-                    raise
-
-            _try_reenable_fks(dst, target_is_pg, fk_disabled)
-
-        # Reset PG sequences if target is PG
-        if target_url.startswith("postgresql"):
             _reset_pg_sequences(target_engine)
 
-        target_engine.dispose()
-        return True, "Data migrated successfully", stats
+        # 6. What landed is checked before the caller is told it can switch.
+        stats["validation"] = verify_migration(
+            target_engine, result.tables, target_is_pg=target_is_pg)
 
+        # Measured last, so it covers the whole copy and its verification.
+        drift = _source_drift(result.tables)
+        stats["source_drift"] = drift
+
+        message = "Data migrated and verified"
+        if drift:
+            written = sum(count for count in drift.values() if count > 0)
+            message += (
+                f". {written} row(s) reached the source after the snapshot "
+                f"was taken ({len(drift)} table(s) moved) and are NOT on the "
+                "target: stop writing to this instance before switching, or "
+                "migrate again from a quiet source"
+            )
+        return True, message, stats
+
+    except (PreflightError, SnapshotError, CopyError, VerificationError) as exc:
+        logger.error("Migration refused: %s", exc)
+        stats["refusal"] = _refusal_kind(exc)
+        return False, f"{exc}{_rollback_hint(target_url, stats)}", stats
     except Exception as e:
         logger.exception("Data migration failed")
-        target_is_pg = target_url.startswith("postgresql")
-        cleanup_hint = (
-            'Reset the target before retrying: DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
-            if target_is_pg else
-            'Reset the target before retrying: delete the target SQLite file.'
-        )
+        stats["refusal"] = "error"
         return False, (
-            f"Migration failed: {_short_err(str(e))}. "
-            f"Target may be in a partial state. {cleanup_hint} "
-            f"Source database is untouched (backup at {stats.get('backup_path')})."
+            f"Migration failed: {_short_err(str(e))}."
+            f"{_rollback_hint(target_url, stats)}"
         ), stats
+    finally:
+        if target_engine is not None:
+            target_engine.dispose()
+
+
+# What kind of refusal the caller is looking at. The HTTP layer turns a
+# refusal that happened before anything was written into 409 Conflict and a
+# failure during the work into 500, and it must not do that by matching on
+# the wording of a message.
+_REFUSAL_KINDS = (
+    (PreflightError, 'preflight'),
+    (SnapshotError, 'snapshot'),
+    (CopyError, 'copy'),
+    (VerificationError, 'verification'),
+)
+
+
+def _refusal_kind(exc: Exception) -> str:
+    for kind, name in _REFUSAL_KINDS:
+        if isinstance(exc, kind):
+            return name
+    return 'error'
+
+
+def _rollback_hint(target_url: str, stats: dict) -> str:
+    """What the operator has to do next, and what they still have.
+
+    The snapshot is named only when one was actually taken and verified:
+    pointing at a rollback point that does not exist is how an operator
+    deletes the database they still needed.
+    """
+    hint = " The source database is untouched."
+
+    # Only tell the operator to reset the target if the migration got far
+    # enough to write to it: sending someone to drop a schema that this
+    # migration never created is how an unrelated database gets dropped.
+    if stats.get("target_written"):
+        cleanup = (
+            'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+            if target_url.startswith("postgresql")
+            else 'delete the target SQLite file'
+        )
+        hint += f" Reset the target before retrying: {cleanup}"
+
+    snapshot = stats.get("snapshot") or {}
+    if snapshot.get("name"):
+        hint += f" A verified snapshot of the source was kept ({snapshot['name']})."
+    return hint
+
+
+__all__ = [
+    'BOOTSTRAP_AUTH_TABLES',
+    'MigrationBusyError',
+    'bootstrap_auth_to_target',
+    'database_migration_lock',
+    'migrate_data',
+]

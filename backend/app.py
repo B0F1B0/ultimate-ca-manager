@@ -207,6 +207,12 @@ def create_app(config_name=None):
             "before restarting the service."
         )
     
+    # A backend switch that asked for this restart has now been applied: the
+    # configuration read above is the new one. Clearing the marker is what
+    # lets the next migration start (see services/database_admin/lock.py).
+    from services.database_admin.lock import clear_switch_pending
+    clear_switch_pending()
+
     # Initialize extensions
     db.init_app(app)
     migrate = Migrate(app, db)

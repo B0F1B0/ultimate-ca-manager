@@ -7,9 +7,9 @@ Used by status.py, persistence.py, and migration.py.
 import os
 import re
 import json
-import shutil
 import logging
 import subprocess
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
@@ -83,6 +83,20 @@ def _restrict(path: Path) -> None:
         pass
 
 
+def _reserve(path: Path) -> None:
+    """Claim a snapshot filename, or raise because someone else has it.
+
+    Two migrations starting in the same second used to compute the same
+    timestamped name, and the second one would write over the first one's
+    rollback artefact. The name now carries a UUID, and it is still created
+    with ``O_EXCL`` rather than merely assumed free: exclusive creation is
+    what makes the claim, a unique-looking name is only what makes the claim
+    succeed.
+    """
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+    os.close(fd)
+
+
 def _discard(path: Path) -> None:
     """Remove a failed/partial backup artefact.
 
@@ -147,14 +161,33 @@ def _redact_uri(uri: str) -> str:
     return _URI_QUERY_PASSWORD_RE.sub(r"\1=***", redacted)
 
 
+# An absolute filesystem path of at least two segments. Driver and OS errors
+# quote the file they failed on, which is how "/opt/ucm/data/backups/..." and
+# "/etc/ucm/ucm.env" end up in an API response and in an audit entry that is
+# forwarded to syslog. A single slash ("and/or", "read/write") is left alone.
+_ABSOLUTE_PATH_RE = re.compile(r"(?:/[\w.+@-]+){2,}/?")
+
+
+def _scrub_paths(msg: str) -> str:
+    """Reduce absolute paths to their last component.
+
+    The operator needs to know *which file*, not where this installation
+    keeps it: the directory layout is the instance's business, and these
+    messages travel to callers and to the audit log.
+    """
+    return _ABSOLUTE_PATH_RE.sub(
+        lambda m: m.group(0).rstrip('/').rsplit('/', 1)[-1] or '/', msg)
+
+
 def _short_err(msg: str, limit: int = 200) -> str:
-    """Collapse an error to one short line with any embedded DB password removed.
+    """Collapse an error to one short line, without the password or the layout.
 
     These strings are surfaced to API callers, and driver/engine errors happily
-    echo the connection URI they failed on. Redaction runs before truncation so
-    a password cannot survive as a partial fragment.
+    echo the connection URI they failed on and the file they could not open.
+    Redaction runs before truncation so a password cannot survive as a partial
+    fragment.
     """
-    msg = _redact_uri(msg.replace("\n", " ").strip())
+    msg = _scrub_paths(_redact_uri(msg.replace("\n", " ").strip()))
     return msg[:limit] + "..." if len(msg) > limit else msg
 
 
@@ -166,45 +199,103 @@ def _human_size(n: int) -> str:
     return f"{n:.1f} PB"
 
 
-def _snapshot_sqlite(src: Path, dst: Path) -> None:
-    """Copy a live SQLite database consistently.
+def _live_database_url():
+    """The URL the application's engine is connected to.
 
-    ``shutil.copy2`` is not atomic and this runs while the app is still
-    serving requests, so a commit landing mid-copy leaves a snapshot with
-    torn pages and no ``-journal`` beside it to recover from — useless as the
-    rollback artefact for a migration. sqlite3's online backup API takes a
-    proper read lock instead. A raw copy stays as the fallback so a backup is
-    never skipped outright.
+    ``make_url`` is still used for the fallback because it percent-decodes
+    credentials, which ``urlparse`` does not: ``p%40ss`` would otherwise
+    reach ``pg_dump`` verbatim and fail authentication.
+    """
+    from models import db as _db
+
+    return _db.engine.url
+
+
+def _live_sqlite_connection():
+    """The sqlite3 connection the application is actually using, if any.
+
+    The snapshot has to be of the database the migration will copy, and that
+    is the one the engine is connected to — not whatever the module-level
+    configuration says, which a differently-configured application object (or
+    a test suite) makes a different database entirely. It is also the only
+    way to snapshot a database that has no file at all.
+    """
+    from models import db as _db
+
+    raw = _db.engine.raw_connection()
+    return raw, (getattr(raw, 'driver_connection', None)
+                 or getattr(raw, 'connection', None) or raw)
+
+
+# How long the snapshot waits for the application to finish a write before
+# giving up. A migration is a deliberate operation, so waiting a little is
+# right; waiting forever, which is what a backup from the application's own
+# connection does when that connection is mid-write, is not.
+_SQLITE_SNAPSHOT_TIMEOUT = 30.0
+
+
+def _snapshot_sqlite(src: Optional[Path], dst: Path) -> str:
+    """Copy the live SQLite database consistently, or raise.
+
+    sqlite3's online backup API takes a proper read lock, so the copy is a
+    transactionally consistent image rather than a set of pages read while
+    the application was writing between them. It runs from a second
+    connection to the same file: from the application's own connection it
+    cannot fail — it *blocks*, forever, whenever that connection is in the
+    middle of a write — and a worker stuck there would hold the migration
+    lock with it. A database with no file (``:memory:``) has no second
+    connection to open, so there the live one is the only choice.
+
+    There is deliberately no fall back to ``shutil.copy2``. This artefact is
+    not only the rollback point: on SQLite it is also what the copy reads
+    from, so a raw copy of a database being written to would seed the target
+    with torn pages, and ``quick_check`` — which validates b-tree structure,
+    not rows — would call it sound.
 
     The import is local by design: a PostgreSQL deployment never reaches this
     branch and must not need ``sqlite3`` merely to import this module.
-    ImportError is an Exception, so that case degrades to the raw copy too.
     """
+    import sqlite3
+
+    if src is not None:
+        source = sqlite3.connect(str(src), timeout=_SQLITE_SNAPSHOT_TIMEOUT)
+        method = 'online backup of the database file'
+        close_source = source.close
+    else:
+        raw, source = _live_sqlite_connection()
+        method = 'online backup from the live connection'
+        close_source = raw.close
+
     try:
-        import sqlite3
-
-        source = sqlite3.connect(str(src))
+        target = sqlite3.connect(str(dst))
         try:
-            target = sqlite3.connect(str(dst))
-            try:
-                source.backup(target)
-                return
-            finally:
-                target.close()
+            source.backup(target)
         finally:
-            source.close()
-    except Exception as e:
-        logger.warning(
-            "SQLite online backup failed (%s); falling back to a raw file copy.",
-            _short_err(str(e)),
-        )
-        _discard(dst)
+            target.close()
+    finally:
+        close_source()
 
-    shutil.copy2(src, dst)
+    return method
 
 
-def _backup_current_db() -> Optional[Path]:
-    """Backup current DB before migration. Returns backup path or None."""
+def _backup_current_db(reasons: Optional[list] = None,
+                       details: Optional[dict] = None) -> Optional[Path]:
+    """Backup current DB before migration. Returns backup path or None.
+
+    ``reasons`` collects one short sentence per failure. Returning None used
+    to be the whole story, which left the caller telling an operator that the
+    snapshot "could not be taken" while the actual cause — a pg_dump older
+    than the server it is dumping, a full disk, a missing binary — sat in a
+    log line they had no reason to look for.
+    """
+    def refuse(message: str) -> None:
+        if reasons is not None:
+            reasons.append(message)
+
+    def record(**values) -> None:
+        if details is not None:
+            details.update(values)
+
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
     # Raw DB copies hold password hashes and config — owner-only access.
@@ -213,14 +304,22 @@ def _backup_current_db() -> Optional[Path]:
     except OSError:
         pass
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    # Sortable for a human reading the directory, unique for two migrations
+    # starting within the same second.
+    stamp = (
+        f"{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
+        f"-{uuid.uuid4().hex}"
+    )
 
-    # make_url() percent-decodes credentials; urlparse() does not, so p%40ss
-    # would reach pg_dump verbatim and fail auth.
+    # The URL of the database the application is connected to, not the one
+    # the module-level configuration names: an application object configured
+    # differently — a test suite, a second instance in the same process —
+    # would otherwise have a snapshot taken of a database it never reads.
     try:
-        url = make_url(Config.SQLALCHEMY_DATABASE_URI)
+        url = _live_database_url()
     except Exception as e:
         logger.error("Unusable database URI: %s", _short_err(str(e)))
+        refuse(f"the database in use could not be identified ({_short_err(str(e))})")
         return None
 
     # get_backend_name() strips the driver suffix, so sqlite+pysqlite:// and
@@ -228,21 +327,34 @@ def _backup_current_db() -> Optional[Path]:
     backend = url.get_backend_name()
 
     if backend == "sqlite":
-        if not url.database or url.database == ":memory:":
-            return None  # nothing on disk to snapshot
+        # A database with no file of its own is still snapshotted: the online
+        # backup runs from the live connection, which is where the data is.
+        src = None
+        if url.database and url.database != ":memory:":
+            src = Path(url.database)
+            if not src.exists():
+                logger.error("SQLite database file does not exist: %s", src)
+                refuse("the SQLite database file named by the configuration "
+                       "does not exist")
+                return None
 
-        src = Path(url.database)
-        if not src.exists():
-            logger.error("SQLite database file does not exist: %s", src)
+        dst = BACKUP_DIR / f"ucm-sqlite-{stamp}.db"
+        try:
+            # Outside the try below: a name already claimed by another
+            # migration must not be discarded as if it were ours.
+            _reserve(dst)
+        except OSError as e:
+            logger.error("Could not claim a snapshot name: %s", _short_err(str(e)))
+            refuse(f"the snapshot file could not be created ({_short_err(str(e))})")
             return None
 
-        dst = BACKUP_DIR / f"ucm-sqlite-{timestamp}.db"
         try:
-            _snapshot_sqlite(src, dst)
+            record(method=_snapshot_sqlite(src, dst))
             _restrict(dst)
         except OSError as e:
             _discard(dst)
             logger.error("SQLite backup failed: %s", _short_err(str(e)))
+            refuse(f"the SQLite online backup failed ({_short_err(str(e))})")
             return None
         except Exception as e:
             _discard(dst)
@@ -250,6 +362,7 @@ def _backup_current_db() -> Optional[Path]:
                 "Unexpected SQLite backup failure: %s",
                 _short_err(str(e)),
             )
+            refuse(f"the SQLite online backup failed ({_short_err(str(e))})")
             return None
 
         logger.info("SQLite backup created: %s", dst)
@@ -258,9 +371,10 @@ def _backup_current_db() -> Optional[Path]:
 
     if backend != "postgresql":
         logger.error("No backup strategy for database backend '%s'", backend)
+        refuse(f"there is no snapshot strategy for the '{backend}' backend")
         return None
 
-    output = BACKUP_DIR / f"ucm-pg-{timestamp}.dump"
+    output = BACKUP_DIR / f"ucm-pg-{stamp}.dump"
 
     # Connection details in libpq env vars, not argv: prevents argument injection
     # from values starting with '-'. Empty values are removed (not blanked) so
@@ -307,6 +421,7 @@ def _backup_current_db() -> Optional[Path]:
     ]
 
     try:
+        _reserve(output)
         result = subprocess.run(
             cmd,
             env=env,
@@ -314,16 +429,24 @@ def _backup_current_db() -> Optional[Path]:
             timeout=300,
             check=False,
         )
+    except FileExistsError:
+        logger.error("A snapshot already claims %s", output.name)
+        refuse("the snapshot file could not be created: the name is taken")
+        return None
     except FileNotFoundError:
         logger.error("pg_dump not found. Install postgresql-client.")
+        _discard(output)
+        refuse("pg_dump was not found; install the PostgreSQL client tools")
         return None
     except subprocess.TimeoutExpired:
         logger.error("pg_dump timed out after 300s")
         _discard(output)
+        refuse("pg_dump did not finish within 300 seconds")
         return None
     except Exception as e:
         logger.error("PostgreSQL backup failed: %s", _short_err(str(e)))
         _discard(output)
+        refuse(f"pg_dump could not be run ({_short_err(str(e))})")
         return None
 
     if result.returncode != 0:
@@ -334,9 +457,11 @@ def _backup_current_db() -> Optional[Path]:
         )
         logger.error("pg_dump failed: %s", _short_err(stderr))
         _discard(output)
+        refuse(f"pg_dump failed: {_short_err(stderr)}")
         return None
 
     _restrict(output)
+    record(method='pg_dump, custom format')
     logger.info("PostgreSQL backup created: %s", output)
     _prune_db_migration_snapshots()
     return output
@@ -475,6 +600,11 @@ def _normalize_row(
         elif encode_json and k in json_cols:
             # PG json/jsonb: always send JSON-encoded text.
             # - dict/list → encode (psycopg2 would send a list as PG ARRAY).
+            # - "" → NULL. SQLite happily stores an empty string where the
+            #   model declares JSON; PG has no such value, and '""' (a JSON
+            #   string) would be a different thing from "no document". The
+            #   distinction between '' and NULL does not survive, and that is
+            #   the closest of the two.
             # - str → pass if valid JSON, else wrap (bare text in a JSON column
             #   is rejected by PG and aborts the entire migration).
             if isinstance(v, (dict, list)):

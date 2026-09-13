@@ -141,11 +141,11 @@ class TestTheHolderIsNeverLockedOut:
     def test_a_nested_operation_does_not_block_itself(self, backup_dir):
         with backup_operation_lock(purpose='run now'):
             with backup_operation_lock(purpose='retention'):
-                depth = locking._local.state['depth']
+                depth = locking.operation_lock_depth()
             assert depth == 2
-            assert locking._local.state['depth'] == 1
+            assert locking.operation_lock_depth() == 1
 
-        assert locking._local.state['depth'] == 0
+        assert locking.operation_lock_depth() == 0
 
     def test_the_lock_is_only_released_by_the_outermost_block(self, backup_dir):
         with backup_operation_lock():
@@ -218,7 +218,7 @@ class TestTheLockSurvivesFailures:
             with backup_operation_lock(purpose='scheduled backup'):
                 raise RuntimeError('export failed')
 
-        assert locking._local.state['depth'] == 0
+        assert locking.operation_lock_depth() == 0
         assert _thread_result(_take_it, timeout=0).get('value') == 'taken'
 
     def test_a_busy_lock_leaves_no_nesting_behind(self, backup_dir, holder):
@@ -226,7 +226,7 @@ class TestTheLockSurvivesFailures:
             with backup_operation_lock():
                 pass
 
-        assert locking._local.state['depth'] == 0
+        assert locking.operation_lock_depth() == 0
 
 
 class TestTheLockFileIsNotAnArchive:

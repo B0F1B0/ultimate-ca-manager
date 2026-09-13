@@ -10,6 +10,11 @@ from utils.response import success_response, error_response
 from utils.trusted_proxy import client_ip
 from models import CA, Certificate, db
 from services.audit_service import AuditService
+from services.database_admin.lock import (
+    MigrationBusyError,
+    database_migration_lock,
+)
+from services.database_admin.persistence import update_env_file
 from pathlib import Path
 import os
 import shutil
@@ -485,52 +490,58 @@ def rotate_secrets():
         if not env_path.exists():
             return error_response(f"Environment file not found: {env_path}", 500)
 
-        try:
-            # Backup current .env
-            backup_path = env_path.with_suffix(f'.env.backup-{utc_now().strftime("%Y%m%d_%H%M%S")}')
-            shutil.copy(env_path, backup_path)
-
-            # Read and update .env
-            env_content = env_path.read_text()
-            lines = env_content.splitlines()
-            new_lines = []
+        def _replace_secret(existing: str) -> str:
+            """Swap SECRET_KEY and drop the old JWT keys, keep everything else."""
+            lines = []
             key_found = False
-
-            for line in lines:
+            for line in existing.splitlines():
                 stripped = line.strip()
                 if stripped.startswith('SECRET_KEY='):
-                    new_lines.append(f'SECRET_KEY={new_secret}')
+                    lines.append(f'SECRET_KEY={new_secret}')
                     key_found = True
                 elif stripped.startswith('JWT_SECRET_KEY'):
                     continue  # Remove old JWT keys
                 else:
-                    new_lines.append(line)
-
+                    lines.append(line)
             if not key_found:
-                new_lines.append(f'SECRET_KEY={new_secret}')
+                lines.append(f'SECRET_KEY={new_secret}')
+            return '\n'.join(lines) + '\n'
 
-            env_path.write_text('\n'.join(new_lines) + '\n')
+        try:
+            # The same file the backend switch writes, through the same
+            # writer: a truncating write here would destroy the DATABASE_URL
+            # a migration has just verified, and a plain read-then-write can
+            # interleave with one. The migration lock covers the second half.
+            with database_migration_lock(purpose='rotating the session secret'):
+                ok, message, _backup = update_env_file(
+                    env_path, _replace_secret,
+                    verify=lambda observed: f'SECRET_KEY={new_secret}' in observed,
+                    what='SECRET_KEY',
+                )
+                if not ok:
+                    return error_response(message, 500)
 
-            # Log the rotation
-            AuditService.log_action(
-                action='secrets_rotated',
-                resource_type='security',
-                details=f'Session secret key rotated. Backup: {backup_path.name}',
-                success=True
-            )
+                # Log the rotation
+                AuditService.log_action(
+                    action='secrets_rotated',
+                    resource_type='security',
+                    details='Session secret key rotated',
+                    success=True
+                )
 
-            # Restart service
-            from utils.service_manager import restart_service as do_restart
-            do_restart()
+                # Restart service
+                from utils.service_manager import restart_service as do_restart
+                do_restart()
 
             return success_response(
                 data={
                     'rotated': True,
-                    'backup': str(backup_path),
                     'note': 'Service is restarting. All users will need to log in again.'
                 },
                 message='Session secret rotated successfully. Service restarting.'
             )
+        except MigrationBusyError as busy:
+            return error_response(str(busy), 409)
 
         except Exception as e:
             current_app.logger.error(f"Failed to rotate secrets: {e}")
