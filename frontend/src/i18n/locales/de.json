@@ -4156,6 +4156,8 @@
     "download": "Herunterladen",
     "includeChain": "CA-Kette einschließen",
     "includeChainDesc": "Ausstellende CA-Zertifikate einbeziehen",
+    "includeRoot": "Root-CA einschließen",
+    "includeRootDesc": "Für TLS-Server normalerweise nicht erforderlich",
     "includeKey": "Privaten Schlüssel einschließen",
     "includeKeyDesc": "Privaten Schlüssel dem Export beifügen",
     "pkcs12Note": "PKCS#12 enthält immer den privaten Schlüssel",

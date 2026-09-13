@@ -622,6 +622,10 @@ GET /api/v2/certificates/{cert_id}/export?format=pem&include_key=true
 POST /api/v2/certificates/{cert_id}/export
 {"format": "pkcs12", "password": "export-password", "include_chain": true}
 
+# Include the self-signed Root CA as an explicit opt-in
+POST /api/v2/certificates/{cert_id}/export
+{"format": "pkcs12", "password": "export-password", "include_chain": true, "include_root": true}
+
 # PKCS12 compatibility profile (3DES/SHA-1) for Android 15 and earlier, macOS 14 and
 # earlier, Windows Server 2016 and earlier, Java before 8u301 / 11.0.1 (#331)
 POST /api/v2/certificates/{cert_id}/export
@@ -630,9 +634,16 @@ POST /api/v2/certificates/{cert_id}/export
 # DER format
 GET /api/v2/certificates/{cert_id}/export?format=der
 
-# Full chain
-GET /api/v2/certificates/{cert_id}/export?format=chain
+# TLS chain: leaf plus intermediates, without the self-signed trust anchor
+GET /api/v2/certificates/{cert_id}/export?format=pem&include_chain=true
 ```
+
+`include_chain` applies to PEM, PKCS#7, PKCS#12/PFX and JKS exports. When it is
+`true`, `include_root` controls whether the final self-signed Root CA is also
+packaged. `include_root` defaults to `false`, because a TLS server normally sends
+the leaf and intermediate certificates while clients keep the Root CA in their
+trust store. Both options, as well as `include_key` and `legacy`, must be actual
+JSON booleans in POST bodies; strings such as `"false"` are rejected.
 
 ### Renew Certificate
 ```http
@@ -843,7 +854,8 @@ GET /api/v2/user-certificates/{id}
 ### Export User Certificate
 ```http
 GET /api/v2/user-certificates/{id}/export?format=pem&include_key=true&include_chain=true
-GET /api/v2/user-certificates/{id}/export?format=pkcs12&password=mypassword
+POST /api/v2/user-certificates/{id}/export
+{"format": "pkcs12", "password": "mypassword", "include_chain": true, "include_root": false}
 ```
 
 **Query Parameters**:
@@ -852,6 +864,7 @@ GET /api/v2/user-certificates/{id}/export?format=pkcs12&password=mypassword
 | format | string | `pem` (default) or `pkcs12` |
 | include_key | bool | Include private key (default: true) |
 | include_chain | bool | Include CA chain (default: true) |
+| include_root | bool | Include the final self-signed Root CA when the chain is included (default: false) |
 | password | string | PKCS12 password (required for pkcs12, min 8 chars) |
 | legacy | bool | PKCS12 compatibility profile, 3DES/SHA-1 instead of AES-256/SHA-256 (default: false) |
 

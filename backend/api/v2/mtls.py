@@ -32,6 +32,7 @@ from services.mtls_enrollment import (
 from utils.response import success_response, error_response, created_response
 from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
+from utils.export_options import json_boolean, query_boolean
 
 logger = logging.getLogger(__name__)
 
@@ -360,11 +361,22 @@ def download_mtls_certificate(cert_id):
         data = request.get_json() or {}
         fmt = str(data.get('format', 'pem')).lower()
         password = data.get('password', '')
-        legacy = legacy_flag(data.get('legacy'))  # 3DES/SHA-1 profile (#331)
+        try:
+            include_chain = json_boolean(data, 'include_chain', True)
+            include_root = json_boolean(data, 'include_root', False)
+            legacy_value = json_boolean(data, 'legacy', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
+        legacy = legacy_flag(legacy_value)  # 3DES/SHA-1 profile (#331)
     else:
         fmt = request.args.get('format', 'pem')
         password = request.args.get('password', '')
         legacy = False
+        try:
+            include_chain = query_boolean(request.args, 'include_chain', True)
+            include_root = query_boolean(request.args, 'include_root', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         # SECURITY: never accept PKCS12 passwords via query string (proxy logs).
         if password or fmt in ('p12', 'pkcs12'):
             if password:
@@ -408,25 +420,11 @@ def download_mtls_certificate(cert_id):
             return error_response('Stored private key is unusable for PKCS12 export', 500)
         x509_cert = cx509.load_pem_x509_certificate(cert_pem, default_backend())
 
-        # Build CA chain with cycle detection
-        ca_certs = []
-        if cert.caref:
-            seen_cas = set()
-            ca = CA.query.filter_by(refid=cert.caref).first()
-            while ca and len(ca_certs) < 10:
-                if ca.refid in seen_cas:
-                    logger.warning(f"Circular CA reference detected: {ca.refid}")
-                    break
-                seen_cas.add(ca.refid)
-                if ca.crt:
-                    try:
-                        ca_certs.append(cx509.load_pem_x509_certificate(
-                            base64.b64decode(ca.crt), default_backend()
-                        ))
-                    except Exception as e:
-                        logger.error(f"Failed to load CA cert {ca.refid}: {e}")
-                        break
-                ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
+        from api.v2.certificates.export import _build_ca_chain
+        ca_certs = (
+            _build_ca_chain(cert, cert_pem, include_root=include_root)
+            if include_chain else []
+        )
 
         p12_bytes = pkcs12.serialize_key_and_certificates(
             name=f'{user.username}-mtls'.encode(),

@@ -202,6 +202,7 @@ describe('certificatesService', () => {
       format: 'pkcs12',
       include_key: false,
       include_chain: false,
+      include_root: false,
       password: 'test',
       legacy: false,
     })
@@ -660,6 +661,55 @@ describe('accountService', () => {
   it('deleteMTLSCertificate → DELETE /mtls/certificates/:id', async () => {
     await accountService.deleteMTLSCertificate(7)
     expect(mockApiClient.delete).toHaveBeenCalledWith('/mtls/certificates/7')
+  })
+
+  it('downloadMTLSCertificate sends chain and root options for PKCS#12', async () => {
+    await accountService.downloadMTLSCertificate(7, {
+      format: 'pkcs12',
+      password: 'test-password',
+      includeChain: true,
+      includeRoot: true,
+    })
+    expect(mockApiClient.post).toHaveBeenCalledWith(
+      '/mtls/certificates/7/download',
+      {
+        format: 'pkcs12',
+        password: 'test-password',
+        include_chain: true,
+        include_root: true,
+        legacy: false,
+      },
+      { responseType: 'blob' },
+    )
+  })
+})
+
+describe('userCertificatesService', () => {
+  let userCertificatesService
+
+  beforeEach(async () => {
+    const mod = await import('../user-certificates.service')
+    userCertificatesService = mod.userCertificatesService
+  })
+
+  it('export sends the explicit Root CA choice', async () => {
+    await userCertificatesService.export(9, 'pem', {
+      includeKey: false,
+      includeChain: true,
+      includeRoot: true,
+    })
+    expect(mockApiClient.post).toHaveBeenCalledWith(
+      '/user-certificates/9/export',
+      {
+        format: 'pem',
+        include_key: false,
+        include_chain: true,
+        include_root: true,
+        password: undefined,
+        legacy: false,
+      },
+      { responseType: 'blob' },
+    )
   })
 })
 

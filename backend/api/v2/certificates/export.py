@@ -26,6 +26,10 @@ from models.truststore import TrustedCertificate
 from utils.response import success_response, error_response
 from utils.sanitize import sanitize_filename
 from utils.key_codec import load_pem_bytes
+from utils.cert_issuer import (
+    authority_key_identifier_hex, certificate_signed_by, is_self_signed,
+)
+from utils.export_options import json_boolean, query_boolean
 from . import bp
 
 logger = logging.getLogger(__name__)
@@ -46,6 +50,13 @@ def _split_pem_certs(pem_bytes):
     return certs
 
 
+def _normalized_key_identifier(value):
+    """Normalize a persisted AKI/SKI regardless of case or separators."""
+    if not value:
+        return None
+    return str(value).replace(':', '').replace('-', '').replace(' ', '').lower()
+
+
 def _resolve_issuer_cert(cert):
     """Find the issuer certificate of *cert* among locally known sources.
 
@@ -54,39 +65,47 @@ def _resolve_issuer_cert(cert):
     a missing chain when it is neither stored inline nor reachable via `caref`.
     """
     issuer_dn = cert.issuer.rfc4514_string()
+    aki = authority_key_identifier_hex(cert)
+    candidates = []
+    seen = set()
 
-    aki = None
-    try:
-        aki_ext = cert.extensions.get_extension_for_class(x509.AuthorityKeyIdentifier)
-        if aki_ext.value.key_identifier:
-            aki = aki_ext.value.key_identifier.hex()
-    except x509.ExtensionNotFound:
-        pass
+    def add_managed(rows):
+        for row in rows:
+            identity = ('ca', row.id)
+            if row.crt and identity not in seen:
+                seen.add(identity)
+                candidates.append(('managed', row))
 
-    # 1. Managed CAs — prefer AKI→SKI, then subject DN
-    ca = None
+    # Imported identifiers are not guaranteed to use UCM's usual upper-case,
+    # colon-separated representation. Normalize them before shortlisting. Even
+    # an identifier match is only a shortlist: the signature remains decisive.
     if aki:
-        ca = CA.query.filter(CA.ski == aki).first()
-    if ca is None:
-        ca = CA.query.filter(CA.subject == issuer_dn).first()
-    if ca is not None and ca.crt:
-        try:
-            return x509.load_pem_x509_certificate(base64.b64decode(ca.crt), default_backend())
-        except Exception:
-            pass
+        normalized_aki = _normalized_key_identifier(aki)
+        add_managed(
+            row for row in CA.query.filter(CA.ski.isnot(None)).all()
+            if _normalized_key_identifier(row.ski) == normalized_aki
+        )
+    add_managed(CA.query.filter(CA.subject == issuer_dn).all())
 
-    # 2. Trust Store — by issuer DN
-    tc = TrustedCertificate.query.filter_by(subject=issuer_dn).first()
-    if tc is not None and tc.certificate_pem:
+    for row in TrustedCertificate.query.filter_by(subject=issuer_dn).all():
+        identity = ('trust', row.id)
+        if row.certificate_pem and identity not in seen:
+            seen.add(identity)
+            candidates.append(('trust', row))
+
+    for source, row in candidates:
         try:
-            return x509.load_pem_x509_certificate(tc.certificate_pem.encode(), default_backend())
+            pem = base64.b64decode(row.crt) if source == 'managed' else row.certificate_pem.encode()
+            candidate = x509.load_pem_x509_certificate(pem, default_backend())
+            if candidate.subject == cert.issuer and certificate_signed_by(cert, candidate):
+                return candidate
         except Exception:
-            pass
+            continue
     return None
 
 
-def _build_ca_chain(certificate, cert_pem):
-    """Build the issuing CA chain (excluding the leaf) for chain-aware exports.
+def _build_ca_chain(certificate, cert_pem, include_root=True):
+    """Build the issuing CA chain, preserving the historical full-chain default.
 
     Order of preference:
       1. The chain already stored inline with the certificate (ACME / imported
@@ -120,7 +139,7 @@ def _build_ca_chain(certificate, cert_pem):
     guard = 0
     while top is not None and guard < 10:
         guard += 1
-        if top.subject.rfc4514_string() == top.issuer.rfc4514_string():
+        if is_self_signed(top):
             break  # self-signed root reached
         nxt = _resolve_issuer_cert(top)
         if nxt is None:
@@ -131,6 +150,14 @@ def _build_ca_chain(certificate, cert_pem):
         seen.add(fp)
         chain.append(nxt)
         top = nxt
+
+    # TLS servers normally send the leaf plus intermediate CA certificates.
+    # The self-signed trust anchor belongs in the client's trust store and is
+    # excluded by default. Keep an explicit opt-in for packaging/import uses.
+    if not include_root and chain:
+        top = chain[-1]
+        if is_self_signed(top):
+            chain.pop()
 
     return chain
 
@@ -165,12 +192,19 @@ def export_all_certificates():
     if request.method == 'POST' and request.is_json:
         data = request.get_json()
         export_format = data.get('format', 'pem').lower()
-        include_chain = bool(data.get('include_chain', False))
+        try:
+            include_chain = json_boolean(data, 'include_chain', False)
+            legacy_value = json_boolean(data, 'legacy', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         password = data.get('password')
-        legacy = legacy_flag(data.get('legacy'))  # 3DES/SHA-1 profile (#331)
+        legacy = legacy_flag(legacy_value)  # 3DES/SHA-1 profile (#331)
     else:
         export_format = request.args.get('format', 'pem').lower()
-        include_chain = request.args.get('include_chain', 'false').lower() == 'true'
+        try:
+            include_chain = query_boolean(request.args, 'include_chain', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         password = request.args.get('password')
         legacy = False
 
@@ -236,6 +270,7 @@ def export_certificate(cert_id):
         format: pem (default), der, pkcs12, jks
         include_key: bool - Include private key (PEM only)
         include_chain: bool - Include CA chain (PEM only)
+        include_root: bool - Include self-signed Root CA (default: false)
         password: string - Required for PKCS12 and JKS
     """
 
@@ -250,16 +285,25 @@ def export_certificate(cert_id):
     if request.method == 'POST' and request.is_json:
         data = request.get_json()
         export_format = data.get('format', 'pem').lower()
-        include_key = bool(data.get('include_key', False))
-        include_chain = bool(data.get('include_chain', False))
+        try:
+            include_key = json_boolean(data, 'include_key', False)
+            include_chain = json_boolean(data, 'include_chain', False)
+            include_root = json_boolean(data, 'include_root', False)
+            legacy_value = json_boolean(data, 'legacy', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         password = data.get('password')
         # PKCS#12 compatibility profile (3DES/SHA-1) for importers that
         # reject the AES-256/SHA-256 default (#331)
-        legacy = legacy_flag(data.get('legacy'))
+        legacy = legacy_flag(legacy_value)
     else:
         export_format = request.args.get('format', 'pem').lower()
-        include_key = request.args.get('include_key', 'false').lower() == 'true'
-        include_chain = request.args.get('include_chain', 'false').lower() == 'true'
+        try:
+            include_key = query_boolean(request.args, 'include_key', False)
+            include_chain = query_boolean(request.args, 'include_chain', False)
+            include_root = query_boolean(request.args, 'include_root', False)
+        except ValueError as exc:
+            return error_response(str(exc), 400)
         password = request.args.get('password')
         legacy = False
         # SECURITY: never accept passwords via query string
@@ -288,6 +332,11 @@ def export_certificate(cert_id):
 
     try:
         cert_pem = base64.b64decode(certificate.crt)
+        stored_certs = _split_pem_certs(cert_pem)
+        leaf_pem = (
+            stored_certs[0].public_bytes(serialization.Encoding.PEM)
+            if stored_certs else cert_pem
+        )
 
         # Private key only export
         if export_format == 'key':
@@ -308,7 +357,9 @@ def export_certificate(cert_id):
             )
 
         if export_format == 'pem':
-            result = cert_pem
+            # A stored certificate may already contain an inline full chain.
+            # Start with the leaf only so include_chain/include_root are honored.
+            result = leaf_pem
             content_type = 'application/x-pem-file'
             filename = f"{sanitize_filename(certificate.descr or certificate.refid)}.crt"
 
@@ -321,18 +372,13 @@ def export_certificate(cert_id):
                 filename = f"{sanitize_filename(certificate.descr or certificate.refid)}_with_key.pem"
 
             # Include CA chain if requested
-            if include_chain and certificate.caref:
-                ca = CA.query.filter_by(refid=certificate.caref).first()
-                while ca:
-                    if ca.crt:
-                        ca_cert = base64.b64decode(ca.crt)
-                        if not result.endswith(b'\n'):
-                            result += b'\n'
-                        result += ca_cert
-                    if ca.caref:
-                        ca = CA.query.filter_by(refid=ca.caref).first()
-                    else:
-                        break
+            if include_chain:
+                for ca_cert in _build_ca_chain(
+                    certificate, cert_pem, include_root=include_root
+                ):
+                    if not result.endswith(b'\n'):
+                        result += b'\n'
+                    result += ca_cert.public_bytes(serialization.Encoding.PEM)
                 if include_key:
                     filename = f"{sanitize_filename(certificate.descr or certificate.refid)}_full_chain.pem"
                 else:
@@ -365,7 +411,10 @@ def export_certificate(cert_id):
             private_key = serialization.load_pem_private_key(key_pem, password=None, backend=default_backend())
 
             # Build CA chain if requested (inline stored chain or managed CA)
-            ca_certs = _build_ca_chain(certificate, cert_pem) if include_chain else []
+            ca_certs = (
+                _build_ca_chain(certificate, cert_pem, include_root=include_root)
+                if include_chain else []
+            )
 
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=(certificate.descr or certificate.refid).encode(),
@@ -384,18 +433,14 @@ def export_certificate(cert_id):
         elif export_format == 'pkcs7' or export_format == 'p7b':
             # Create temporary PEM file
             with tempfile.NamedTemporaryFile(mode='wb', suffix='.pem', delete=False) as f:
-                f.write(cert_pem)
+                f.write(leaf_pem)
                 # Include CA chain if requested
-                if include_chain and certificate.caref:
-                    ca = CA.query.filter_by(refid=certificate.caref).first()
-                    while ca:
-                        if ca.crt:
-                            f.write(b'\n')
-                            f.write(base64.b64decode(ca.crt))
-                        if ca.caref:
-                            ca = CA.query.filter_by(refid=ca.caref).first()
-                        else:
-                            break
+                if include_chain:
+                    for ca_cert in _build_ca_chain(
+                        certificate, cert_pem, include_root=include_root
+                    ):
+                        f.write(b'\n')
+                        f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
                 pem_file = f.name
 
             try:
@@ -426,7 +471,10 @@ def export_certificate(cert_id):
             private_key = serialization.load_pem_private_key(key_pem, password=None, backend=default_backend())
 
             # Build CA chain if requested (inline stored chain or managed CA)
-            ca_certs = _build_ca_chain(certificate, cert_pem) if include_chain else []
+            ca_certs = (
+                _build_ca_chain(certificate, cert_pem, include_root=include_root)
+                if include_chain else []
+            )
 
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=(certificate.descr or certificate.refid).encode(),
@@ -465,7 +513,9 @@ def export_certificate(cert_id):
             cert_chain = [("X.509", cert_der)]
 
             if include_chain:
-                for ca_cert in _build_ca_chain(certificate, cert_pem):
+                for ca_cert in _build_ca_chain(
+                    certificate, cert_pem, include_root=include_root
+                ):
                     cert_chain.append(("X.509", ca_cert.public_bytes(serialization.Encoding.DER)))
 
             ts = int(time.time() * 1000)

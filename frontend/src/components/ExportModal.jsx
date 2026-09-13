@@ -45,6 +45,7 @@ export function ExportModal({
   const { t } = useTranslation()
   const [format, setFormat] = useState('pem')
   const [includeChain, setIncludeChain] = useState(true)
+  const [includeRoot, setIncludeRoot] = useState(false)
   const [includeKey, setIncludeKey] = useState(false)
   const [password, setPassword] = useState('')
   // PKCS#12 compatibility profile (3DES/SHA-1) for importers that reject the
@@ -57,6 +58,7 @@ export function ExportModal({
     if (open) {
       setFormat(defaultFormat)
       setIncludeChain(true)
+      setIncludeRoot(false)
       setIncludeKey(false)
       setPassword('')
       setLegacy(false)
@@ -84,6 +86,7 @@ export function ExportModal({
     try {
       await onExport(format, {
         includeChain,
+        includeRoot,
         includeKey: effectiveIncludeKey,
         password: (isPkcs12 || isJks) ? password : undefined,
         legacy: isPkcs12 ? legacy : undefined,
@@ -167,6 +170,22 @@ export function ExportModal({
               <div className="text-xs text-text-tertiary">{t('export.includeChainDesc', 'Include issuing CA certificates')}</div>
             </div>
           </label>
+
+          {/* Root trust anchors are normally installed on clients, not served. */}
+          {entityType === 'certificate' && includeChain && (
+            <label className="flex items-center gap-2.5 px-3 py-2 ml-6 rounded-lg hover:bg-bg-secondary transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={includeRoot}
+                onChange={(e) => setIncludeRoot(e.target.checked)}
+                className="w-4 h-4 rounded accent-accent-primary"
+              />
+              <div>
+                <div className="text-sm text-text-primary">{t('export.includeRoot', 'Include Root CA')}</div>
+                <div className="text-xs text-text-tertiary">{t('export.includeRootDesc', 'Usually unnecessary for TLS servers')}</div>
+              </div>
+            </label>
+          )}
 
           {/* Include private key — only if key exists AND user has permission */}
           {hasPrivateKey && canExportKey && !isPkcs12 && !isJks && (

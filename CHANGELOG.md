@@ -9,6 +9,9 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ## [Unreleased]
 
+### Added
+- Certificate exports in PEM, PKCS#7, PKCS#12/PFX and JKS now omit the self-signed Root CA by default while retaining intermediate certificates, with an explicit **Include Root CA** option for packaging and import use cases. The option is also honored by account and user-certificate exports; deployment fullchains retain their previous complete-chain behavior. Issuer reconstruction now normalizes AKI/SKI identifiers and verifies signatures, so homonymous CAs and self-issued rollover certificates cannot produce the wrong chain
+
 ### Security
 - A backup archive's header was not covered by its authentication tag: only the four magic bytes were, so the announced format version, the backup type, the UCM version, the creation date and the whole key-derivation profile could be rewritten in place without the archive being refused. Archives are now written in a new container version whose entire canonical header is the authenticated data, and any edit to it is reported as a wrong password or an invalid file. Archives in the previous format are still restored, under every bound described below
 - The key-derivation parameters were read from that unauthenticated header and handed to Argon2id or PBKDF2 unchecked, before anything had been authenticated: a file of a few hundred bytes could ask for terabytes of memory or billions of iterations, and take the worker down with it. A restore now accepts only the profiles UCM emits, each within a fixed range (memory, parallelism, time cost, iterations, output length), and refuses a salt or a nonce of the wrong size, before deriving any key

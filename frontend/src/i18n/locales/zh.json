@@ -4156,6 +4156,8 @@
     "download": "下载",
     "includeChain": "包含CA链",
     "includeChainDesc": "包含签发CA证书",
+    "includeRoot": "包含根CA",
+    "includeRootDesc": "TLS服务器通常不需要",
     "includeKey": "包含私钥",
     "includeKeyDesc": "将私钥附加到导出",
     "pkcs12Note": "PKCS#12始终包含私钥",
