@@ -66,7 +66,8 @@ class TestCrlConfigApi:
         assert get_json(r)['data']['crl_publish_interval_hours'] is None
 
     def test_config_requires_auth(self, client):
-        assert client.get('/api/v2/crl/1/config').status_code == 401
+        response = client.get('/api/v2/crl/1/config')
+        assert response.status_code == 401, response.data
         assert _post(client, '/api/v2/crl/1/config', {}).status_code == 401
 
     def test_validity_above_1825_rejected(self, auth_client, create_ca):

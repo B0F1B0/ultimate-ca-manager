@@ -35,10 +35,12 @@ class TestAuthRequired:
     """All CRL/OCSP endpoints must return 401 without authentication."""
 
     def test_list_crls_requires_auth(self, client):
-        assert client.get(CRL_BASE).status_code == 401
+        response = client.get(CRL_BASE)
+        assert response.status_code == 401, response.data
 
     def test_get_crl_requires_auth(self, client):
-        assert client.get(f'{CRL_BASE}/1').status_code == 401
+        response = client.get(f'{CRL_BASE}/1')
+        assert response.status_code == 401, response.data
 
     def test_regenerate_crl_requires_auth(self, client):
         r = client.post(f'{CRL_BASE}/1/regenerate')
@@ -49,10 +51,12 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_ocsp_status_requires_auth(self, client):
-        assert client.get(f'{OCSP_BASE}/status').status_code == 401
+        response = client.get(f'{OCSP_BASE}/status')
+        assert response.status_code == 401, response.data
 
     def test_ocsp_stats_requires_auth(self, client):
-        assert client.get(f'{OCSP_BASE}/stats').status_code == 401
+        response = client.get(f'{OCSP_BASE}/stats')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================

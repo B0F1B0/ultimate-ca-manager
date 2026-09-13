@@ -44,31 +44,37 @@ class TestAuthRequired:
     """All truststore endpoints require authentication."""
 
     def test_stats_requires_auth(self, client):
-        assert client.get(f'{TS}/stats').status_code == 401
+        response = client.get(f'{TS}/stats')
+        assert response.status_code == 401, response.data
 
     def test_import_requires_auth(self, client):
         assert post_json(client, f'{TS}/import', {}).status_code == 401
 
     def test_list_requires_auth(self, client):
-        assert client.get(TS).status_code == 401
+        response = client.get(TS)
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         assert post_json(client, TS, {}).status_code == 401
 
     def test_get_by_id_requires_auth(self, client):
-        assert client.get(f'{TS}/999').status_code == 401
+        response = client.get(f'{TS}/999')
+        assert response.status_code == 401, response.data
 
     def test_delete_requires_auth(self, client):
-        assert client.delete(f'{TS}/999').status_code == 401
+        response = client.delete(f'{TS}/999')
+        assert response.status_code == 401, response.data
 
     def test_sync_requires_auth(self, client):
         assert post_json(client, f'{TS}/sync', {}).status_code == 401
 
     def test_export_requires_auth(self, client):
-        assert client.get(f'{TS}/export').status_code == 401
+        response = client.get(f'{TS}/export')
+        assert response.status_code == 401, response.data
 
     def test_expiring_requires_auth(self, client):
-        assert client.get(f'{TS}/expiring').status_code == 401
+        response = client.get(f'{TS}/expiring')
+        assert response.status_code == 401, response.data
 
     def test_add_from_ca_requires_auth(self, client):
         assert post_json(client, f'{TS}/add-from-ca/test-ref', {}).status_code == 401

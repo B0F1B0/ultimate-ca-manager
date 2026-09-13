@@ -80,37 +80,44 @@ class TestSSHAuthRequired:
     """All SSH endpoints must return 401 without authentication."""
 
     def test_list_ssh_cas_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/cas').status_code == 401
+        response = client.get('/api/v2/ssh/cas')
+        assert response.status_code == 401, response.data
 
     def test_create_ssh_ca_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/cas', VALID_USER_CA)
         assert r.status_code == 401, r.data
 
     def test_get_ssh_ca_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/cas/1').status_code == 401
+        response = client.get('/api/v2/ssh/cas/1')
+        assert response.status_code == 401, response.data
 
     def test_update_ssh_ca_requires_auth(self, client):
         r = put_json(client, '/api/v2/ssh/cas/1', {'descr': 'x'})
         assert r.status_code == 401, r.data
 
     def test_delete_ssh_ca_requires_auth(self, client):
-        assert client.delete('/api/v2/ssh/cas/1').status_code == 401
+        response = client.delete('/api/v2/ssh/cas/1')
+        assert response.status_code == 401, response.data
 
     def test_get_ssh_ca_public_key_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/cas/1/public-key').status_code == 401
+        response = client.get('/api/v2/ssh/cas/1/public-key')
+        assert response.status_code == 401, response.data
 
     def test_list_ssh_certificates_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/certificates').status_code == 401
+        response = client.get('/api/v2/ssh/certificates')
+        assert response.status_code == 401, response.data
 
     def test_sign_ssh_certificate_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/certificates', {})
         assert r.status_code == 401, r.data
 
     def test_get_ssh_certificate_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/certificates/1').status_code == 401
+        response = client.get('/api/v2/ssh/certificates/1')
+        assert response.status_code == 401, response.data
 
     def test_delete_ssh_certificate_requires_auth(self, client):
-        assert client.delete('/api/v2/ssh/certificates/1').status_code == 401
+        response = client.delete('/api/v2/ssh/certificates/1')
+        assert response.status_code == 401, response.data
 
     def test_revoke_ssh_certificate_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/certificates/1/revoke', {})
@@ -121,7 +128,8 @@ class TestSSHAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_ssh_stats_requires_auth(self, client):
-        assert client.get('/api/v2/ssh/stats').status_code == 401
+        response = client.get('/api/v2/ssh/stats')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================

@@ -15,13 +15,15 @@ def _patch(client, data):
 
 class TestAuth:
     def test_get_requires_auth(self, client):
-        assert client.get(URL).status_code == 401
+        response = client.get(URL)
+        assert response.status_code == 401, response.data
 
     def test_patch_requires_auth(self, client):
         assert _patch(client, {'enabled': True}).status_code == 401
 
     def test_run_requires_auth(self, client):
-        assert client.post(URL_RUN).status_code == 401
+        response = client.post(URL_RUN)
+        assert response.status_code == 401, response.data
 
 
 class TestGet:

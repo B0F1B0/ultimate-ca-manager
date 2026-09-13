@@ -77,9 +77,10 @@ def _a_source_that_satisfies_its_own_schema(app):
     files ran before it on this worker. The migration refuses such a source
     on purpose — that refusal has its own test — so here it is cleaned first.
     """
-    from tests.conftest import clean_dangling_rows
+    from tests.conftest import clean_dangling_rows, clean_unreadable_secrets
 
     clean_dangling_rows(app)
+    clean_unreadable_secrets(app)
     yield
 
 

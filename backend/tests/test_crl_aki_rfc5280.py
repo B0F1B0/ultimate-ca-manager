@@ -164,10 +164,12 @@ class TestCrlAkiSecurityAndAuth:
     """Security / auth gates around CRL regenerate (unchanged by #202)."""
 
     def test_regenerate_requires_auth(self, client):
-        assert client.post(f'{CRL_BASE}/1/regenerate').status_code == 401
+        response = client.post(f'{CRL_BASE}/1/regenerate')
+        assert response.status_code == 401, response.data
 
     def test_delta_regenerate_requires_auth(self, client):
-        assert client.post(f'{CRL_BASE}/1/delta/regenerate').status_code == 401
+        response = client.post(f'{CRL_BASE}/1/delta/regenerate')
+        assert response.status_code == 401, response.data
 
 
 class TestCrlAkiServiceFallback:

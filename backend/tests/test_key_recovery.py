@@ -127,7 +127,8 @@ class TestReject:
 
 class TestList:
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/key-recovery').status_code == 401
+        response = client.get('/api/v2/key-recovery')
+        assert response.status_code == 401, response.data
 
     def test_list(self, auth_client, archived_cert):
         _open_request(auth_client, archived_cert)

@@ -36,10 +36,12 @@ class TestAuthRequired:
     """All webhook endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get(WH).status_code == 401
+        response = client.get(WH)
+        assert response.status_code == 401, response.data
 
     def test_get_requires_auth(self, client):
-        assert client.get(f'{WH}/999').status_code == 401
+        response = client.get(f'{WH}/999')
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         assert post_json(client, WH, {}).status_code == 401
@@ -48,7 +50,8 @@ class TestAuthRequired:
         assert put_json(client, f'{WH}/999', {}).status_code == 401
 
     def test_delete_requires_auth(self, client):
-        assert client.delete(f'{WH}/999').status_code == 401
+        response = client.delete(f'{WH}/999')
+        assert response.status_code == 401, response.data
 
     def test_toggle_requires_auth(self, client):
         assert post_json(client, f'{WH}/999/toggle', {}).status_code == 401
@@ -60,7 +63,8 @@ class TestAuthRequired:
         assert post_json(client, f'{WH}/999/regenerate-secret', {}).status_code == 401
 
     def test_events_requires_auth(self, client):
-        assert client.get(f'{WH}/events').status_code == 401
+        response = client.get(f'{WH}/events')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================

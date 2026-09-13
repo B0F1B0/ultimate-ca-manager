@@ -291,13 +291,16 @@ class TestCrlReasonHelperUnit:
 
 class TestCrlSecurityAuth:
     def test_regenerate_requires_auth(self, client):
-        assert client.post(f'{CRL_BASE}/1/regenerate').status_code == 401
+        response = client.post(f'{CRL_BASE}/1/regenerate')
+        assert response.status_code == 401, response.data
 
     def test_delta_regenerate_requires_auth(self, client):
-        assert client.post(f'{CRL_BASE}/1/delta/regenerate').status_code == 401
+        response = client.post(f'{CRL_BASE}/1/delta/regenerate')
+        assert response.status_code == 401, response.data
 
     def test_get_crl_requires_auth(self, client):
-        assert client.get(f'{CRL_BASE}/1').status_code == 401
+        response = client.get(f'{CRL_BASE}/1')
+        assert response.status_code == 401, response.data
 
 
 class TestCrlLabOpensslText:

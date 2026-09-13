@@ -40,39 +40,49 @@ class TestAuthRequired:
 
     # --- ACME Server (10) ---
     def test_acme_settings_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/settings').status_code == 401
+        response = client.get('/api/v2/acme/settings')
+        assert response.status_code == 401, response.data
 
     def test_acme_settings_patch_requires_auth(self, client):
         r = patch_json(client, '/api/v2/acme/settings', {'enabled': True})
         assert r.status_code == 401, r.data
 
     def test_acme_stats_requires_auth(self, client):
-        assert client.get('/api/v2/acme/stats').status_code == 401
+        response = client.get('/api/v2/acme/stats')
+        assert response.status_code == 401, response.data
 
     def test_acme_accounts_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/accounts').status_code == 401
+        response = client.get('/api/v2/acme/accounts')
+        assert response.status_code == 401, response.data
 
     def test_acme_account_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/accounts/1').status_code == 401
+        response = client.get('/api/v2/acme/accounts/1')
+        assert response.status_code == 401, response.data
 
     def test_acme_account_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/acme/accounts/1').status_code == 401
+        response = client.delete('/api/v2/acme/accounts/1')
+        assert response.status_code == 401, response.data
 
     def test_acme_orders_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/orders').status_code == 401
+        response = client.get('/api/v2/acme/orders')
+        assert response.status_code == 401, response.data
 
     def test_acme_account_orders_requires_auth(self, client):
-        assert client.get('/api/v2/acme/accounts/1/orders').status_code == 401
+        response = client.get('/api/v2/acme/accounts/1/orders')
+        assert response.status_code == 401, response.data
 
     def test_acme_account_challenges_requires_auth(self, client):
-        assert client.get('/api/v2/acme/accounts/1/challenges').status_code == 401
+        response = client.get('/api/v2/acme/accounts/1/challenges')
+        assert response.status_code == 401, response.data
 
     def test_acme_history_requires_auth(self, client):
-        assert client.get('/api/v2/acme/history').status_code == 401
+        response = client.get('/api/v2/acme/history')
+        assert response.status_code == 401, response.data
 
     # --- ACME Client (13) ---
     def test_client_settings_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/client/settings').status_code == 401
+        response = client.get('/api/v2/acme/client/settings')
+        assert response.status_code == 401, response.data
 
     def test_client_settings_patch_requires_auth(self, client):
         r = patch_json(client, '/api/v2/acme/client/settings', {'email': 'a@b.com'})
@@ -87,10 +97,12 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_client_orders_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/client/orders').status_code == 401
+        response = client.get('/api/v2/acme/client/orders')
+        assert response.status_code == 401, response.data
 
     def test_client_order_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/client/orders/1').status_code == 401
+        response = client.get('/api/v2/acme/client/orders/1')
+        assert response.status_code == 401, response.data
 
     def test_client_request_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/request', {'domains': ['example.com']})
@@ -101,14 +113,16 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_client_order_status_requires_auth(self, client):
-        assert client.get('/api/v2/acme/client/orders/1/status').status_code == 401
+        response = client.get('/api/v2/acme/client/orders/1/status')
+        assert response.status_code == 401, response.data
 
     def test_client_order_finalize_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/orders/1/finalize', {})
         assert r.status_code == 401, r.data
 
     def test_client_order_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/acme/client/orders/1').status_code == 401
+        response = client.delete('/api/v2/acme/client/orders/1')
+        assert response.status_code == 401, response.data
 
     def test_client_order_renew_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/orders/1/renew', {})
@@ -120,10 +134,12 @@ class TestAuthRequired:
 
     # --- ACME Domains (7) ---
     def test_domains_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/domains').status_code == 401
+        response = client.get('/api/v2/acme/domains')
+        assert response.status_code == 401, response.data
 
     def test_domains_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/domains/1').status_code == 401
+        response = client.get('/api/v2/acme/domains/1')
+        assert response.status_code == 401, response.data
 
     def test_domains_create_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/domains', {'domain': 'example.com'})
@@ -134,10 +150,12 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_domains_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/acme/domains/1').status_code == 401
+        response = client.delete('/api/v2/acme/domains/1')
+        assert response.status_code == 401, response.data
 
     def test_domains_resolve_requires_auth(self, client):
-        assert client.get('/api/v2/acme/domains/resolve?domain=test.com').status_code == 401
+        response = client.get('/api/v2/acme/domains/resolve?domain=test.com')
+        assert response.status_code == 401, response.data
 
     def test_domains_test_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/domains/test', {'domain': 'test.com'})
@@ -145,10 +163,12 @@ class TestAuthRequired:
 
     # --- ACME Local Domains (5) ---
     def test_local_domains_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/local-domains').status_code == 401
+        response = client.get('/api/v2/acme/local-domains')
+        assert response.status_code == 401, response.data
 
     def test_local_domains_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/local-domains/1').status_code == 401
+        response = client.get('/api/v2/acme/local-domains/1')
+        assert response.status_code == 401, response.data
 
     def test_local_domains_create_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/local-domains', {'domain': 'local.test'})
@@ -159,7 +179,8 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_local_domains_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/acme/local-domains/1').status_code == 401
+        response = client.delete('/api/v2/acme/local-domains/1')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================
@@ -1817,22 +1838,26 @@ class TestAcmeEabAuth:
     """EAB endpoints must require auth."""
 
     def test_eab_required_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/eab-required').status_code == 401
+        response = client.get('/api/v2/acme/eab-required')
+        assert response.status_code == 401, response.data
 
     def test_eab_required_put_requires_auth(self, client):
         assert put_json(client, '/api/v2/acme/eab-required', {'eab_required': True}).status_code == 401
 
     def test_eab_credentials_list_requires_auth(self, client):
-        assert client.get('/api/v2/acme/eab-credentials').status_code == 401
+        response = client.get('/api/v2/acme/eab-credentials')
+        assert response.status_code == 401, response.data
 
     def test_eab_credentials_create_requires_auth(self, client):
         assert post_json(client, '/api/v2/acme/eab-credentials', {}).status_code == 401
 
     def test_eab_credential_get_requires_auth(self, client):
-        assert client.get('/api/v2/acme/eab-credentials/1').status_code == 401
+        response = client.get('/api/v2/acme/eab-credentials/1')
+        assert response.status_code == 401, response.data
 
     def test_eab_credential_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/acme/eab-credentials/1').status_code == 401
+        response = client.delete('/api/v2/acme/eab-credentials/1')
+        assert response.status_code == 401, response.data
 
 
 class TestAcmeAuthorizationModel:

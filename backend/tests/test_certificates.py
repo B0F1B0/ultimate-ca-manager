@@ -39,26 +39,32 @@ class TestAuthRequired:
     """All endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get(BASE).status_code == 401
+        response = client.get(BASE)
+        assert response.status_code == 401, response.data
 
     def test_stats_requires_auth(self, client):
-        assert client.get(f'{BASE}/stats').status_code == 401
+        response = client.get(f'{BASE}/stats')
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         r = post_json(client, BASE, {'cn': 'x', 'ca_id': 1})
         assert r.status_code == 401, r.data
 
     def test_get_requires_auth(self, client):
-        assert client.get(f'{BASE}/1').status_code == 401
+        response = client.get(f'{BASE}/1')
+        assert response.status_code == 401, response.data
 
     def test_delete_requires_auth(self, client):
-        assert client.delete(f'{BASE}/1').status_code == 401
+        response = client.delete(f'{BASE}/1')
+        assert response.status_code == 401, response.data
 
     def test_export_all_requires_auth(self, client):
-        assert client.get(f'{BASE}/export').status_code == 401
+        response = client.get(f'{BASE}/export')
+        assert response.status_code == 401, response.data
 
     def test_export_single_requires_auth(self, client):
-        assert client.get(f'{BASE}/1/export').status_code == 401
+        response = client.get(f'{BASE}/1/export')
+        assert response.status_code == 401, response.data
 
     def test_revoke_requires_auth(self, client):
         r = post_json(client, f'{BASE}/1/revoke', {'reason': 'keyCompromise'})

@@ -64,7 +64,8 @@ class TestAuthRequired:
     """All CA endpoints must return 401 without authentication."""
 
     def test_list_cas_requires_auth(self, client):
-        assert client.get('/api/v2/cas').status_code == 401
+        response = client.get('/api/v2/cas')
+        assert response.status_code == 401, response.data
 
     def test_create_ca_requires_auth(self, client):
         r = post_json(client, '/api/v2/cas', VALID_ROOT_CA)
@@ -75,23 +76,28 @@ class TestAuthRequired:
         assert r.status_code == 401, r.data
 
     def test_get_ca_requires_auth(self, client):
-        assert client.get('/api/v2/cas/1').status_code == 401
+        response = client.get('/api/v2/cas/1')
+        assert response.status_code == 401, response.data
 
     def test_update_ca_requires_auth(self, client):
         r = patch_json(client, '/api/v2/cas/1', {'name': 'x'})
         assert r.status_code == 401, r.data
 
     def test_delete_ca_requires_auth(self, client):
-        assert client.delete('/api/v2/cas/1').status_code == 401
+        response = client.delete('/api/v2/cas/1')
+        assert response.status_code == 401, response.data
 
     def test_export_all_requires_auth(self, client):
-        assert client.get('/api/v2/cas/export').status_code == 401
+        response = client.get('/api/v2/cas/export')
+        assert response.status_code == 401, response.data
 
     def test_export_single_requires_auth(self, client):
-        assert client.get('/api/v2/cas/1/export').status_code == 401
+        response = client.get('/api/v2/cas/1/export')
+        assert response.status_code == 401, response.data
 
     def test_ca_certificates_requires_auth(self, client):
-        assert client.get('/api/v2/cas/1/certificates').status_code == 401
+        response = client.get('/api/v2/cas/1/certificates')
+        assert response.status_code == 401, response.data
 
     def test_bulk_delete_requires_auth(self, client):
         r = post_json(client, '/api/v2/cas/bulk/delete', {'ids': [1]})

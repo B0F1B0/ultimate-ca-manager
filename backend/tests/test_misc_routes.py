@@ -40,7 +40,8 @@ class TestSearch:
     """GET /api/v2/search"""
 
     def test_search_requires_auth(self, client):
-        assert client.get('/api/v2/search?q=test').status_code == 401
+        response = client.get('/api/v2/search?q=test')
+        assert response.status_code == 401, response.data
 
     def test_search_returns_results(self, auth_client):
         r = auth_client.get('/api/v2/search?q=test&limit=5')
@@ -96,16 +97,19 @@ class TestReportsAuth:
     """Reports endpoints require authentication."""
 
     def test_types_requires_auth(self, client):
-        assert client.get('/api/v2/reports/types').status_code == 401
+        response = client.get('/api/v2/reports/types')
+        assert response.status_code == 401, response.data
 
     def test_generate_requires_auth(self, client):
         assert post_json(client, '/api/v2/reports/generate', {}).status_code == 401
 
     def test_download_requires_auth(self, client):
-        assert client.get('/api/v2/reports/download/summary').status_code == 401
+        response = client.get('/api/v2/reports/download/summary')
+        assert response.status_code == 401, response.data
 
     def test_schedule_get_requires_auth(self, client):
-        assert client.get('/api/v2/reports/schedule').status_code == 401
+        response = client.get('/api/v2/reports/schedule')
+        assert response.status_code == 401, response.data
 
     def test_schedule_put_requires_auth(self, client):
         assert put_json(client, '/api/v2/reports/schedule', {}).status_code == 401
@@ -150,7 +154,8 @@ class TestSmartImportAuth:
         assert post_json(client, '/api/v2/import/execute', {}).status_code == 401
 
     def test_formats_requires_auth(self, client):
-        assert client.get('/api/v2/import/formats').status_code == 401
+        response = client.get('/api/v2/import/formats')
+        assert response.status_code == 401, response.data
 
 
 class TestSmartImport:
@@ -345,19 +350,22 @@ class TestPoliciesAuth:
     """Policies endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/policies').status_code == 401
+        response = client.get('/api/v2/policies')
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         assert post_json(client, '/api/v2/policies', {}).status_code == 401
 
     def test_get_requires_auth(self, client):
-        assert client.get('/api/v2/policies/999').status_code == 401
+        response = client.get('/api/v2/policies/999')
+        assert response.status_code == 401, response.data
 
     def test_update_requires_auth(self, client):
         assert put_json(client, '/api/v2/policies/999', {}).status_code == 401
 
     def test_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/policies/999').status_code == 401
+        response = client.delete('/api/v2/policies/999')
+        assert response.status_code == 401, response.data
 
     def test_toggle_requires_auth(self, client):
         assert post_json(client, '/api/v2/policies/999/toggle', {}).status_code == 401
@@ -406,10 +414,12 @@ class TestApprovalsAuth:
     """Approvals endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/approvals').status_code == 401
+        response = client.get('/api/v2/approvals')
+        assert response.status_code == 401, response.data
 
     def test_get_requires_auth(self, client):
-        assert client.get('/api/v2/approvals/999').status_code == 401
+        response = client.get('/api/v2/approvals/999')
+        assert response.status_code == 401, response.data
 
     def test_approve_requires_auth(self, client):
         assert post_json(client, '/api/v2/approvals/999/approve', {}).status_code == 401
@@ -418,7 +428,8 @@ class TestApprovalsAuth:
         assert post_json(client, '/api/v2/approvals/999/reject', {}).status_code == 401
 
     def test_stats_requires_auth(self, client):
-        assert client.get('/api/v2/approvals/stats').status_code == 401
+        response = client.get('/api/v2/approvals/stats')
+        assert response.status_code == 401, response.data
 
 
 class TestApprovals:
@@ -454,28 +465,33 @@ class TestGroupsAuth:
     """Groups endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/groups').status_code == 401
+        response = client.get('/api/v2/groups')
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         assert post_json(client, '/api/v2/groups', {}).status_code == 401
 
     def test_get_requires_auth(self, client):
-        assert client.get('/api/v2/groups/999').status_code == 401
+        response = client.get('/api/v2/groups/999')
+        assert response.status_code == 401, response.data
 
     def test_update_requires_auth(self, client):
         assert put_json(client, '/api/v2/groups/999', {}).status_code == 401
 
     def test_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/groups/999').status_code == 401
+        response = client.delete('/api/v2/groups/999')
+        assert response.status_code == 401, response.data
 
     def test_members_requires_auth(self, client):
-        assert client.get('/api/v2/groups/999/members').status_code == 401
+        response = client.get('/api/v2/groups/999/members')
+        assert response.status_code == 401, response.data
 
     def test_add_member_requires_auth(self, client):
         assert post_json(client, '/api/v2/groups/999/members', {}).status_code == 401
 
     def test_stats_requires_auth(self, client):
-        assert client.get('/api/v2/groups/stats').status_code == 401
+        response = client.get('/api/v2/groups/stats')
+        assert response.status_code == 401, response.data
 
 
 class TestGroups:
@@ -566,16 +582,20 @@ class TestUserCertificatesAuth:
     """User certificates endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/user-certificates').status_code == 401
+        response = client.get('/api/v2/user-certificates')
+        assert response.status_code == 401, response.data
 
     def test_stats_requires_auth(self, client):
-        assert client.get('/api/v2/user-certificates/stats').status_code == 401
+        response = client.get('/api/v2/user-certificates/stats')
+        assert response.status_code == 401, response.data
 
     def test_get_requires_auth(self, client):
-        assert client.get('/api/v2/user-certificates/999').status_code == 401
+        response = client.get('/api/v2/user-certificates/999')
+        assert response.status_code == 401, response.data
 
     def test_export_requires_auth(self, client):
-        assert client.get('/api/v2/user-certificates/999/export').status_code == 401
+        response = client.get('/api/v2/user-certificates/999/export')
+        assert response.status_code == 401, response.data
 
     def test_revoke_requires_auth(self, client):
         assert post_json(client, '/api/v2/user-certificates/999/revoke', {}).status_code == 401
@@ -611,22 +631,26 @@ class TestDNSProvidersAuth:
     """DNS provider endpoints require authentication."""
 
     def test_list_requires_auth(self, client):
-        assert client.get('/api/v2/dns-providers').status_code == 401
+        response = client.get('/api/v2/dns-providers')
+        assert response.status_code == 401, response.data
 
     def test_types_requires_auth(self, client):
-        assert client.get('/api/v2/dns-providers/types').status_code == 401
+        response = client.get('/api/v2/dns-providers/types')
+        assert response.status_code == 401, response.data
 
     def test_create_requires_auth(self, client):
         assert post_json(client, '/api/v2/dns-providers', {}).status_code == 401
 
     def test_get_requires_auth(self, client):
-        assert client.get('/api/v2/dns-providers/999').status_code == 401
+        response = client.get('/api/v2/dns-providers/999')
+        assert response.status_code == 401, response.data
 
     def test_update_requires_auth(self, client):
         assert patch_json(client, '/api/v2/dns-providers/999', {}).status_code == 401
 
     def test_delete_requires_auth(self, client):
-        assert client.delete('/api/v2/dns-providers/999').status_code == 401
+        response = client.delete('/api/v2/dns-providers/999')
+        assert response.status_code == 401, response.data
 
     def test_test_requires_auth(self, client):
         assert post_json(client, '/api/v2/dns-providers/999/test', {}).status_code == 401
@@ -680,13 +704,15 @@ class TestSCEPAuth:
     """SCEP endpoints require authentication."""
 
     def test_config_get_requires_auth(self, client):
-        assert client.get('/api/v2/scep/config').status_code == 401
+        response = client.get('/api/v2/scep/config')
+        assert response.status_code == 401, response.data
 
     def test_config_patch_requires_auth(self, client):
         assert patch_json(client, '/api/v2/scep/config', {}).status_code == 401
 
     def test_requests_requires_auth(self, client):
-        assert client.get('/api/v2/scep/requests').status_code == 401
+        response = client.get('/api/v2/scep/requests')
+        assert response.status_code == 401, response.data
 
     def test_approve_requires_auth(self, client):
         assert post_json(client, '/api/v2/scep/999/approve', {}).status_code == 401
@@ -695,10 +721,12 @@ class TestSCEPAuth:
         assert post_json(client, '/api/v2/scep/999/reject', {}).status_code == 401
 
     def test_stats_requires_auth(self, client):
-        assert client.get('/api/v2/scep/stats').status_code == 401
+        response = client.get('/api/v2/scep/stats')
+        assert response.status_code == 401, response.data
 
     def test_challenge_requires_auth(self, client):
-        assert client.get('/api/v2/scep/challenge/1').status_code == 401
+        response = client.get('/api/v2/scep/challenge/1')
+        assert response.status_code == 401, response.data
 
     def test_regenerate_challenge_requires_auth(self, client):
         assert post_json(client, '/api/v2/scep/challenge/1/regenerate', {}).status_code == 401

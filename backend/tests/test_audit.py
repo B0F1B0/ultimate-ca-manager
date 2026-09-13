@@ -30,26 +30,32 @@ class TestAuthRequired:
     """All audit endpoints must return 401 without authentication."""
 
     def test_list_logs_requires_auth(self, client):
-        assert client.get(f'{BASE}/logs').status_code == 401
+        response = client.get(f'{BASE}/logs')
+        assert response.status_code == 401, response.data
 
     def test_get_log_requires_auth(self, client):
-        assert client.get(f'{BASE}/logs/1').status_code == 401
+        response = client.get(f'{BASE}/logs/1')
+        assert response.status_code == 401, response.data
 
     def test_stats_requires_auth(self, client):
-        assert client.get(f'{BASE}/stats').status_code == 401
+        response = client.get(f'{BASE}/stats')
+        assert response.status_code == 401, response.data
 
     def test_actions_requires_auth(self, client):
-        assert client.get(f'{BASE}/actions').status_code == 401
+        response = client.get(f'{BASE}/actions')
+        assert response.status_code == 401, response.data
 
     def test_export_requires_auth(self, client):
-        assert client.get(f'{BASE}/export').status_code == 401
+        response = client.get(f'{BASE}/export')
+        assert response.status_code == 401, response.data
 
     def test_cleanup_requires_auth(self, client):
         r = post_json(client, f'{BASE}/cleanup', {'retention_days': 90})
         assert r.status_code == 401, r.data
 
     def test_verify_requires_auth(self, client):
-        assert client.get(f'{BASE}/verify').status_code == 401
+        response = client.get(f'{BASE}/verify')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================

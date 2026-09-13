@@ -247,7 +247,7 @@ def app():
         ('CA_DIR', 'data/ca'),
         ('CRL_DIR', 'data/crl'),
         ('CERT_DIR', 'data/certs'),
-        ('KEY_DIR', 'data/keys'),
+        ('PRIVATE_DIR', 'data/private'),
     ):
         if not hasattr(_Config, _name):
             continue
@@ -558,6 +558,66 @@ def clean_dangling_rows(app):
                     f'  LEFT JOIN "{parent_table}" p ON {on} '
                     f'  WHERE {not_null} AND p."{parent[0]}" IS NULL)'))
                 removed += result.rowcount or 0
+        if removed:
+            _db.session.commit()
+        else:
+            _db.session.rollback()
+    return removed
+
+
+@pytest.fixture(autouse=True)
+def _detect_orphans(app, request):
+    yield
+    from tests.conftest import clean_dangling_rows
+    removed = clean_dangling_rows(app)
+    if removed:
+        with open('/tmp/claude-0/leaks.log', 'a') as fh:
+            fh.write(f'{removed} orphan(s) after {request.node.nodeid}\n')
+
+
+def clean_unreadable_secrets(app):
+    """Delete rows of the shared test database whose secrets do not decrypt.
+
+    Companion to :func:`clean_dangling_rows`, for the same reason: fixtures
+    write placeholder values into encrypted columns, and a key rotated by one
+    file leaves rows the current key cannot read. Anything that reads this
+    database as a *database* rather than as a fixture then refuses it, by
+    design -- a migration will not copy a secret it cannot prove survived.
+
+    Returns the number of rows removed.
+    """
+    from sqlalchemy import text as _text
+    from models import db as _db
+
+    removed = 0
+    with app.app_context():
+        from services.database_admin.verify import encrypted_columns
+        from services.backup.key_material import decrypt_stored_secret
+
+        present = set(_db.inspect(_db.engine).get_table_names())
+        for table, column in encrypted_columns():
+            if table not in present:
+                continue
+            try:
+                rows = _db.session.execute(_text(
+                    f'SELECT rowid, "{column}" FROM "{table}" '
+                    f'WHERE "{column}" IS NOT NULL')).fetchall()
+            except Exception:
+                _db.session.rollback()
+                continue
+            doomed = []
+            for rowid, value in rows:
+                if not isinstance(value, str) or not value:
+                    continue
+                try:
+                    decrypt_stored_secret(value, label=f'{table}.{column}')
+                except Exception:
+                    doomed.append(rowid)
+            for rowid in doomed:
+                _db.session.execute(_text(
+                    f'DELETE FROM "{table}" WHERE rowid = :rowid'),
+                    {'rowid': rowid})
+                removed += 1
         if removed:
             _db.session.commit()
         else:

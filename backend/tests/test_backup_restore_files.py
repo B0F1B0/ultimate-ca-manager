@@ -26,7 +26,7 @@ class TestStagingTouchesNothing:
     def test_a_staged_file_is_not_at_its_destination(self, tmp_path):
         destination = tmp_path / 'keys' / 'ca-1.key'
 
-        with StagedFiles() as staged:
+        with StagedFiles(base_dir=tmp_path / 'staging') as staged:
             staged_path = staged.stage(destination, b'staged key')
 
             assert not destination.exists()
@@ -34,7 +34,7 @@ class TestStagingTouchesNothing:
             assert staged.destinations == [destination]
 
     def test_the_staging_directory_is_private_and_created_on_demand(self, tmp_path):
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         try:
             assert staged.staging_dir is None
 
@@ -52,10 +52,15 @@ class TestPublicationWritesEverything:
         key = tmp_path / 'private' / 'ca-1.key'
         cert = tmp_path / 'certs' / 'ca-1.crt'
 
-        with StagedFiles() as staged:
+        # `__exit__` keeps the staging on purpose when the block succeeds, so
+        # that a commit failing afterwards can still undo the publication. The
+        # caller discards it once the commit is through, and so does this test:
+        # staged content is key material in the clear.
+        with StagedFiles(base_dir=tmp_path / 'staging') as staged:
             staged.stage(key, b'-----BEGIN PRIVATE KEY-----\n')
             staged.stage(cert, b'-----BEGIN CERTIFICATE-----\n', mode=0o644)
             published = staged.publish()
+            staged.discard()
 
         assert published == [key, cert]
         assert key.read_bytes() == b'-----BEGIN PRIVATE KEY-----\n'
@@ -67,9 +72,10 @@ class TestPublicationWritesEverything:
         destination = tmp_path / 'https.key'
         destination.write_bytes(b'old key')
 
-        with StagedFiles() as staged:
+        with StagedFiles(base_dir=tmp_path / 'staging') as staged:
             staged.stage(destination, b'restored key')
             staged.publish()
+            staged.discard()
 
         assert destination.read_bytes() == b'restored key'
         assert _mode(destination) == 0o600
@@ -78,7 +84,7 @@ class TestPublicationWritesEverything:
         """Publication happens before the database commit, so what it needs to
         undo itself has to outlive it: the caller discards once the commit is
         through."""
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(tmp_path / 'ca.key', b'key')
         staging_dir = staged.staging_dir
 
@@ -97,7 +103,7 @@ class TestPublicationCanBeUndone:
         destination = tmp_path / 'https_cert.pem'
         destination.write_bytes(b'the certificate in use')
 
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(destination, b'the certificate from the archive')
         staged.publish()
         assert destination.read_bytes() == b'the certificate from the archive'
@@ -132,7 +138,7 @@ class TestFailedPublicationCompensates:
         previous_mode = _mode(first)
         self._fail_on(monkeypatch, second)
 
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(first, b'restored first')
         staged.stage(second, b'restored second')
 
@@ -152,7 +158,7 @@ class TestFailedPublicationCompensates:
         second = tmp_path / 'new' / 'ca-2.key'
         self._fail_on(monkeypatch, second)
 
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(created, b'restored first')
         staged.stage(second, b'restored second')
 
@@ -170,7 +176,7 @@ class TestFailedPublicationCompensates:
         first.write_bytes(b'previous first')
         self._fail_on(monkeypatch, second)
 
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(first, b'restored first')
         staged.stage(second, b'restored second')
 
@@ -178,7 +184,8 @@ class TestFailedPublicationCompensates:
             staged.publish()
         staged.discard()
 
-        assert sorted(p.name for p in tmp_path.iterdir()) == ['ca-1.key']
+        assert sorted(p.name for p in tmp_path.iterdir()) == [
+            'ca-1.key', 'staging']
 
 
 class TestDiscardLeavesNothing:
@@ -186,7 +193,7 @@ class TestDiscardLeavesNothing:
         key = tmp_path / 'ca.key'
         cert = tmp_path / 'ca.crt'
 
-        staged = StagedFiles()
+        staged = StagedFiles(base_dir=tmp_path / 'staging')
         staged.stage(key, b'key')
         staged.stage(cert, b'cert')
         staging_dir = staged.staging_dir
@@ -205,7 +212,7 @@ class TestDiscardLeavesNothing:
         staging_dir = None
 
         with pytest.raises(RuntimeError):
-            with StagedFiles() as staged:
+            with StagedFiles(base_dir=tmp_path / 'staging') as staged:
                 staged.stage(destination, b'restored')
                 staging_dir = staged.staging_dir
                 raise RuntimeError('the transaction failed')

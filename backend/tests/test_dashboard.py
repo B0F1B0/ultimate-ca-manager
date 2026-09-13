@@ -28,19 +28,24 @@ class TestAuthRequired:
     """Dashboard endpoints that require auth must return 401."""
 
     def test_dashboard_stats_requires_auth(self, client):
-        assert client.get(f'{DASH}/stats').status_code == 401
+        response = client.get(f'{DASH}/stats')
+        assert response.status_code == 401, response.data
 
     def test_recent_cas_requires_auth(self, client):
-        assert client.get(f'{DASH}/recent-cas').status_code == 401
+        response = client.get(f'{DASH}/recent-cas')
+        assert response.status_code == 401, response.data
 
     def test_expiring_certs_requires_auth(self, client):
-        assert client.get(f'{DASH}/expiring-certs').status_code == 401
+        response = client.get(f'{DASH}/expiring-certs')
+        assert response.status_code == 401, response.data
 
     def test_activity_requires_auth(self, client):
-        assert client.get(f'{DASH}/activity').status_code == 401
+        response = client.get(f'{DASH}/activity')
+        assert response.status_code == 401, response.data
 
     def test_certificate_trend_requires_auth(self, client):
-        assert client.get(f'{DASH}/certificate-trend').status_code == 401
+        response = client.get(f'{DASH}/certificate-trend')
+        assert response.status_code == 401, response.data
 
 
 # ============================================================

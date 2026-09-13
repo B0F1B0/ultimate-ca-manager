@@ -483,7 +483,11 @@ class TestCaControlEndpoints:
 
     def test_endpoints_require_auth(self, app, client, fake_ca):
         msca_id = _make_msca(app, 'CAC EP Anon P')
-        assert client.get(f'{BASE}/{msca_id}/ca/health').status_code == 401
-        assert client.get(f'{BASE}/{msca_id}/ca/pending').status_code == 401
-        assert client.post(f'{BASE}/{msca_id}/ca/pending/1/approve').status_code == 401
-        assert client.post(f'{BASE}/{msca_id}/ca/pending/1/deny').status_code == 401
+        response = client.get(f'{BASE}/{msca_id}/ca/health')
+        assert response.status_code == 401, response.data
+        response = client.get(f'{BASE}/{msca_id}/ca/pending')
+        assert response.status_code == 401, response.data
+        response = client.post(f'{BASE}/{msca_id}/ca/pending/1/approve')
+        assert response.status_code == 401, response.data
+        response = client.post(f'{BASE}/{msca_id}/ca/pending/1/deny')
+        assert response.status_code == 401, response.data
