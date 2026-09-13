@@ -48,7 +48,7 @@ class TestEndpointGating:
             _set_token('s3cr3t-scrape-token')
         try:
             r = client.get('/metrics')
-            assert r.status_code == 401
+            assert r.status_code == 401, r.data
             r2 = client.get('/metrics', headers={'Authorization': 'Bearer wrong'})
             assert r2.status_code == 401
         finally:

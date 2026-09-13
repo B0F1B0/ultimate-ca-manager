@@ -52,7 +52,7 @@ class TestPublicEndpoints:
 
     def test_stats_overview_requires_auth(self, client):
         r = client.get(STATS_OVERVIEW)
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_stats_overview_with_auth(self, auth_client):
         r = auth_client.get(STATS_OVERVIEW)
@@ -69,7 +69,7 @@ class TestPublicEndpoints:
 
     def test_system_status_requires_auth(self, client):
         r = client.get(f'{DASH}/system-status')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_system_status_with_auth(self, auth_client):
         r = auth_client.get(f'{DASH}/system-status')

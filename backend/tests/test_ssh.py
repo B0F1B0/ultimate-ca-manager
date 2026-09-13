@@ -84,14 +84,14 @@ class TestSSHAuthRequired:
 
     def test_create_ssh_ca_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/cas', VALID_USER_CA)
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_ssh_ca_requires_auth(self, client):
         assert client.get('/api/v2/ssh/cas/1').status_code == 401
 
     def test_update_ssh_ca_requires_auth(self, client):
         r = put_json(client, '/api/v2/ssh/cas/1', {'descr': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_ssh_ca_requires_auth(self, client):
         assert client.delete('/api/v2/ssh/cas/1').status_code == 401
@@ -104,7 +104,7 @@ class TestSSHAuthRequired:
 
     def test_sign_ssh_certificate_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/certificates', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_ssh_certificate_requires_auth(self, client):
         assert client.get('/api/v2/ssh/certificates/1').status_code == 401
@@ -114,11 +114,11 @@ class TestSSHAuthRequired:
 
     def test_revoke_ssh_certificate_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/certificates/1/revoke', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_generate_ssh_certificate_requires_auth(self, client):
         r = post_json(client, '/api/v2/ssh/certificates/generate', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_ssh_stats_requires_auth(self, client):
         assert client.get('/api/v2/ssh/stats').status_code == 401

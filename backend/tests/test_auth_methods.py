@@ -185,14 +185,14 @@ class TestPasswordLogin:
             'username': 'admin',
             'password': 'wrongpassword',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_login_nonexistent_user(self, client):
         r = _post(client, '/api/v2/auth/login/password', {
             'username': 'no_such_user',
             'password': 'anything',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_login_error_message_is_generic(self, client):
         """Should not reveal whether username or password is wrong."""
@@ -216,7 +216,7 @@ class TestLogin2FA:
         """2FA endpoint without prior password login returns 401."""
         c = app.test_client()
         r = _post(c, '/api/v2/auth/login/2fa', {'code': '123456'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_2fa_missing_code(self, app):
         """2FA endpoint with empty code returns 400 or 401."""
@@ -305,7 +305,7 @@ class TestWebAuthnVerify:
             'username': 'ghost_user',
             'response': {'id': 'fake'},
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -334,7 +334,7 @@ class TestLegacyLogin:
             'username': 'admin',
             'password': 'wrong',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

@@ -118,7 +118,7 @@ def test_kerberos_endpoint_challenges_without_authorization_header(client, xcep_
     monkeypatch.setattr(negotiate_auth, 'is_library_available', lambda: True)
     monkeypatch.setattr(negotiate_auth, 'is_configured', lambda: True)
     r = client.post(XCEP_KRB_URL)
-    assert r.status_code == 401
+    assert r.status_code == 401, r.data
     assert r.headers.get('WWW-Authenticate') == 'Negotiate'
 
 
@@ -130,7 +130,7 @@ def test_kerberos_endpoint_rejects_failed_negotiation(client, xcep_kerberos_conf
         lambda auth_header, connection_key: negotiate_auth.NegotiateResult(status='failed', error='bad ticket'),
     )
     r = client.post(XCEP_KRB_URL, headers={'Authorization': 'Negotiate bm90YXJlYWx0b2tlbg=='})
-    assert r.status_code == 401
+    assert r.status_code == 401, r.data
     assert r.headers.get('WWW-Authenticate') == 'Negotiate'
 
 

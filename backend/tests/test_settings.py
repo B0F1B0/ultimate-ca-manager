@@ -43,7 +43,7 @@ class TestAuthRequired:
 
     def test_patch_general_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/general', {'site_name': 'X'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     # Backup
     def test_get_backup_requires_auth(self, client):
@@ -51,12 +51,12 @@ class TestAuthRequired:
 
     def test_create_backup_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/backup/create', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_restore_backup_requires_auth(self, client):
         r = client.post('/api/v2/settings/backup/restore',
                         content_type='multipart/form-data')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_download_backup_requires_auth(self, client):
         assert client.get('/api/v2/settings/backup/test.ucmbkp/download').status_code == 401
@@ -69,7 +69,7 @@ class TestAuthRequired:
 
     def test_patch_backup_schedule_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/backup/schedule', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_backup_history_requires_auth(self, client):
         assert client.get('/api/v2/settings/backup/history').status_code == 401
@@ -80,26 +80,26 @@ class TestAuthRequired:
 
     def test_patch_email_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/email', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_test_email_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/email/test', {'email': 'a@b.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_email_template_requires_auth(self, client):
         assert client.get('/api/v2/settings/email/template').status_code == 401
 
     def test_patch_email_template_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/email/template', {'template': '<h1>'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_reset_email_template_requires_auth(self, client):
         r = client.post('/api/v2/settings/email/template/reset')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_preview_email_template_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/email/template/preview', {'template': ''})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     # Notifications
     def test_get_notifications_requires_auth(self, client):
@@ -107,7 +107,7 @@ class TestAuthRequired:
 
     def test_patch_notifications_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/notifications', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_notification_logs_requires_auth(self, client):
         assert client.get('/api/v2/settings/notifications/logs').status_code == 401
@@ -122,11 +122,11 @@ class TestAuthRequired:
 
     def test_patch_ldap_requires_auth(self, client):
         r = patch_json(client, '/api/v2/settings/ldap', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_test_ldap_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/ldap/test', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     # Webhooks
     def test_list_webhooks_requires_auth(self, client):
@@ -134,14 +134,14 @@ class TestAuthRequired:
 
     def test_create_webhook_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/webhooks', {'name': 'x', 'url': 'http://x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_webhook_requires_auth(self, client):
         assert client.delete('/api/v2/settings/webhooks/1').status_code == 401
 
     def test_test_webhook_requires_auth(self, client):
         r = post_json(client, '/api/v2/settings/webhooks/1/test', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

@@ -42,11 +42,11 @@ class TestAuthRequired:
 
     def test_regenerate_crl_requires_auth(self, client):
         r = client.post(f'{CRL_BASE}/1/regenerate')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_auto_regen_requires_auth(self, client):
         r = post_json(client, f'{CRL_BASE}/1/auto-regen', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_ocsp_status_requires_auth(self, client):
         assert client.get(f'{OCSP_BASE}/status').status_code == 401

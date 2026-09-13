@@ -87,7 +87,7 @@ class TestListUsers:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/users')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_users_list(self, auth_client):
         r = auth_client.get('/api/v2/users')
@@ -133,7 +133,7 @@ class TestCreateUser:
                             'role': 'viewer'
                         }),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_create_user_success(self, auth_client):
         r = auth_client.post('/api/v2/users',
@@ -277,7 +277,7 @@ class TestGetUser:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/users/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_admin_user(self, auth_client):
         r = auth_client.get('/api/v2/users/1')
@@ -308,7 +308,7 @@ class TestUpdateUser:
         r = client.put('/api/v2/users/1',
                        data=json.dumps({'full_name': 'Hacked'}),
                        content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_update_full_name(self, auth_client, create_user):
         user = create_user(username='tu_upd_name', email='tu_upd_name@test.local')
@@ -386,7 +386,7 @@ class TestDeleteUser:
 
     def test_requires_auth(self, client):
         r = client.delete('/api/v2/users/999')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_user_hard(self, auth_client, create_user):
         user = create_user(username='tu_del', email='tu_del@test.local')
@@ -418,7 +418,7 @@ class TestBulkDelete:
         r = client.post('/api/v2/users/bulk/delete',
                         data=json.dumps({'ids': [999]}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_delete_success(self, auth_client, create_user):
         u1 = create_user(username='tu_bulk1', email='tu_bulk1@test.local')
@@ -469,7 +469,7 @@ class TestResetPassword:
         r = client.post('/api/v2/users/1/reset-password',
                         data=json.dumps({'new_password': STRONG_PASSWORD}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_reset_password_success(self, auth_client, create_user):
         user = create_user(username='tu_resetpw', email='tu_resetpw@test.local')
@@ -511,7 +511,7 @@ class TestToggleUser:
 
     def test_requires_auth(self, client):
         r = client.patch('/api/v2/users/1/toggle')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_toggle_deactivate(self, auth_client, create_user):
         user = create_user(username='tu_toggle1', email='tu_toggle1@test.local')
@@ -555,7 +555,7 @@ class TestImportUsers:
 
     def test_requires_auth(self, client):
         r = client.post('/api/v2/users/import')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_import_csv_success(self, auth_client):
         csv_content = (
@@ -635,7 +635,7 @@ class TestUserMtlsCertificates:
 
     def test_list_mtls_requires_auth(self, client):
         r = client.get('/api/v2/users/1/mtls/certificates')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_list_mtls_nonexistent_user(self, auth_client):
         r = auth_client.get('/api/v2/users/99999/mtls/certificates')
@@ -653,7 +653,7 @@ class TestUserMtlsCertificates:
         r = client.post('/api/v2/users/1/mtls/certificates',
                         data=json.dumps({'mode': 'generate'}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_create_mtls_nonexistent_user(self, auth_client):
         r = auth_client.post('/api/v2/users/99999/mtls/certificates',
@@ -679,7 +679,7 @@ class TestUserMtlsCertificates:
 
     def test_delete_mtls_requires_auth(self, client):
         r = client.delete('/api/v2/users/1/mtls/certificates/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_mtls_nonexistent_user(self, auth_client):
         r = auth_client.delete('/api/v2/users/99999/mtls/certificates/1')
@@ -782,7 +782,7 @@ class TestLinkSSO:
         r = client.post('/api/v2/users/1/link-sso',
                         data=json.dumps({'provider_id': 1}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_link_and_unlink_roundtrip(self, app, auth_client):
         pid = self._provider_id(app)

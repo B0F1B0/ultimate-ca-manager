@@ -97,7 +97,7 @@ class TestAuthEndpoints:
         r = client.post('/api/v2/auth/login',
             data=json.dumps({'username': 'admin', 'password': 'wrongpass'}),
             content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_verify_unauthenticated_returns_401(self, client):
         """GET /auth/verify without session → 401 (fresh client)"""

@@ -39,31 +39,31 @@ class TestRBACAuthRequired:
 
     def test_permissions_requires_auth(self, client):
         r = client.get('/api/v2/rbac/permissions')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_list_roles_requires_auth(self, client):
         r = client.get('/api/v2/rbac/roles')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_create_role_requires_auth(self, client):
         r = _post_json(client, '/api/v2/rbac/roles', {'name': 'NoAuth'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_role_requires_auth(self, client):
         r = client.get('/api/v2/rbac/roles/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_update_role_requires_auth(self, client):
         r = _put_json(client, '/api/v2/rbac/roles/1', {'name': 'Updated'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_role_requires_auth(self, client):
         r = client.delete('/api/v2/rbac/roles/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_effective_perms_requires_auth(self, client):
         r = client.get('/api/v2/rbac/effective-permissions/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

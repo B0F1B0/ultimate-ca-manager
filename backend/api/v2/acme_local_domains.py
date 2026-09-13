@@ -9,6 +9,7 @@ from auth.unified import require_auth
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from models import db, AcmeLocalDomain, CA
+from services.acme import domain_match
 from services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -59,9 +60,15 @@ def create_local_domain():
     if not ca.crt:
         return error_response('Selected CA is awaiting its certificate', 400)
     
-    existing = AcmeLocalDomain.query.filter_by(domain=domain_name).first()
+    # `custom` and `*.custom` name the same zone, so they cannot be two
+    # entries: the second would never be reached and the operator could not
+    # tell which one was in force.
+    bare = domain_match.normalize(domain_name)
+    existing = AcmeLocalDomain.query.filter(
+        AcmeLocalDomain.domain.in_([bare, f'*.{bare}'])).first()
     if existing:
-        return error_response(f'Domain {domain_name} is already registered', 409)
+        return error_response(
+            f'Domain {existing.domain} is already registered', 409)
     
     domain = AcmeLocalDomain(
         domain=domain_name,
@@ -159,28 +166,15 @@ def delete_local_domain(domain_id):
 
 def find_local_domain_ca(domain: str) -> int | None:
     """Find which CA should sign for a local ACME domain.
-    
-    Uses hierarchical matching: exact → parent → grandparent.
+
+    Hierarchical matching, most specific first, and either spelling of each
+    level: an entry registered as ``*.custom`` used to match nothing at all,
+    so its orders went to the default CA (#352).
+
     Returns issuing_ca_id or None.
     """
-    domain = domain.strip().lower()
-    if domain.startswith('*.'):
-        domain = domain[2:]
-    
-    # Exact match
-    local = AcmeLocalDomain.query.filter_by(domain=domain).first()
-    if local:
-        return local.issuing_ca_id
-    
-    # Parent domains
-    parts = domain.split('.')
-    for i in range(1, len(parts)):
-        parent = '.'.join(parts[i:])
-        local = AcmeLocalDomain.query.filter_by(domain=parent).first()
-        if local:
-            return local.issuing_ca_id
-    
-    return None
+    local = domain_match.find(AcmeLocalDomain, domain)
+    return local.issuing_ca_id if local else None
 
 
 def _is_valid_domain(domain: str) -> bool:

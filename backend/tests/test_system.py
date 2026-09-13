@@ -194,7 +194,7 @@ class TestDatabaseReset:
         r = client.post('/api/v2/system/database/reset',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -233,7 +233,7 @@ class TestHttpsRegenerate:
         r = client.post('/api/v2/system/https/regenerate',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 class TestHttpsApply:
@@ -243,7 +243,7 @@ class TestHttpsApply:
         r = client.post('/api/v2/system/https/apply',
                         data=json.dumps({'cert_id': 1}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -305,7 +305,7 @@ class TestBackupBulkOps:
         r = client.post('/api/v2/system/backups/bulk-delete',
                         data=json.dumps({'filenames': ['x.ucmbkp']}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_delete_empty_list_rejected(self, auth_client):
         r = auth_client.post('/api/v2/system/backups/bulk-delete',
@@ -348,13 +348,13 @@ class TestRestore:
         r = client.post('/api/v2/system/restore',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_alias_auth_required(self, client):
         r = client.post('/api/v2/system/backup/restore',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -407,7 +407,7 @@ class TestEnableEncryption:
         r = client.post('/api/v2/system/security/enable-encryption',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_enable_purges_plaintext_key_files(
         self, auth_client, monkeypatch, tmp_path
@@ -446,7 +446,7 @@ class TestDisableEncryption:
         r = client.post('/api/v2/system/security/disable-encryption',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_disable_recreates_plaintext_key_files(
         self, app, auth_client, monkeypatch, tmp_path
@@ -509,7 +509,7 @@ class TestDownloadMasterKey:
 
     def test_auth_required(self, client):
         r = client.get('/api/v2/system/security/master-key/download')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_400_when_encryption_disabled(self, auth_client, monkeypatch):
         from security import encryption as enc
@@ -547,7 +547,7 @@ class TestEncryptAllKeys:
         r = client.post('/api/v2/system/security/encrypt-all-keys',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 class TestGenerateKey:
@@ -579,7 +579,7 @@ class TestRotateSecrets:
         r = client.post('/api/v2/system/security/rotate-secrets',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 class TestSecretsStatus:
@@ -965,7 +965,7 @@ class TestUpdatesInstall:
         r = client.post('/api/v2/system/updates/install',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -1062,4 +1062,4 @@ class TestServiceRestart:
         r = client.post('/api/v2/system/service/restart',
                         data=json.dumps({}),
                         content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data

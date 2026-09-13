@@ -68,18 +68,18 @@ class TestAuthRequired:
 
     def test_create_ca_requires_auth(self, client):
         r = post_json(client, '/api/v2/cas', VALID_ROOT_CA)
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_import_ca_requires_auth(self, client):
         r = client.post('/api/v2/cas/import', content_type='multipart/form-data')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_ca_requires_auth(self, client):
         assert client.get('/api/v2/cas/1').status_code == 401
 
     def test_update_ca_requires_auth(self, client):
         r = patch_json(client, '/api/v2/cas/1', {'name': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_ca_requires_auth(self, client):
         assert client.delete('/api/v2/cas/1').status_code == 401
@@ -95,11 +95,11 @@ class TestAuthRequired:
 
     def test_bulk_delete_requires_auth(self, client):
         r = post_json(client, '/api/v2/cas/bulk/delete', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_export_requires_auth(self, client):
         r = post_json(client, '/api/v2/cas/bulk/export', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================
@@ -840,7 +840,7 @@ class TestCAOffline:
         r = auth_client.post(f'/api/v2/cas/{ca["id"]}/restore', json={
             'password': 'WrongP@ssword2026!',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_restore_ca_without_password_rejected(self, auth_client, create_ca):
         ca = create_ca()
@@ -886,7 +886,7 @@ class TestCAOffline:
             },
             content_type='multipart/form-data',
         )
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_restore_file_exported_missing_file_rejected(self, auth_client, create_ca):
         ca = create_ca()

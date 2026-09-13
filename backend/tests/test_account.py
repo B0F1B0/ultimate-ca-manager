@@ -35,7 +35,7 @@ class TestGetProfile:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/profile')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_user_data(self, auth_client):
         r = auth_client.get('/api/v2/account/profile')
@@ -57,7 +57,7 @@ class TestUpdateProfile:
 
     def test_requires_auth(self, client):
         r = patch_json(client, '/api/v2/account/profile', {'email': 'a@b.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_update_email(self, auth_client):
         r = patch_json(auth_client, '/api/v2/account/profile',
@@ -120,7 +120,7 @@ class TestChangePassword:
             'current_password': 'changeme123',
             'new_password': 'NewPass456!',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_missing_current_password(self, auth_client):
         r = post_json(auth_client, '/api/v2/account/password', {
@@ -146,7 +146,7 @@ class TestChangePassword:
             'current_password': 'wrongpassword',
             'new_password': 'NewPass456!',
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_empty_body_returns_400(self, auth_client):
         r = auth_client.post('/api/v2/account/password',
@@ -185,7 +185,7 @@ class TestListAPIKeys:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/apikeys')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_list(self, auth_client):
         r = auth_client.get('/api/v2/account/apikeys')
@@ -200,7 +200,7 @@ class TestCreateAPIKey:
         r = post_json(client, '/api/v2/account/apikeys', {
             'name': 'test', 'permissions': ['read:certificates'],
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_missing_name(self, auth_client):
         r = post_json(auth_client, '/api/v2/account/apikeys', {
@@ -365,7 +365,7 @@ class TestGetAPIKey:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/apikeys/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_not_found(self, auth_client):
         r = auth_client.get('/api/v2/account/apikeys/99999')
@@ -392,7 +392,7 @@ class TestUpdateAPIKey:
 
     def test_requires_auth(self, client):
         r = patch_json(client, '/api/v2/account/apikeys/1', {'name': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_not_found(self, auth_client):
         r = patch_json(auth_client, '/api/v2/account/apikeys/99999',
@@ -420,7 +420,7 @@ class TestDeleteAPIKey:
 
     def test_requires_auth(self, client):
         r = client.delete('/api/v2/account/apikeys/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_not_found(self, auth_client):
         r = auth_client.delete('/api/v2/account/apikeys/99999')
@@ -450,7 +450,7 @@ class TestRegenerateAPIKey:
 
     def test_requires_auth(self, client):
         r = client.post('/api/v2/account/apikeys/1/regenerate')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_not_found(self, auth_client):
         r = auth_client.post('/api/v2/account/apikeys/99999/regenerate')
@@ -481,7 +481,7 @@ class TestEnable2FA:
 
     def test_requires_auth(self, client):
         r = client.post('/api/v2/account/2fa/enable')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_secret_and_qr(self, auth_client):
         r = auth_client.post('/api/v2/account/2fa/enable')
@@ -496,7 +496,7 @@ class TestConfirm2FA:
 
     def test_requires_auth(self, client):
         r = post_json(client, '/api/v2/account/2fa/confirm', {'code': '000000'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_missing_code(self, auth_client):
         r = post_json(auth_client, '/api/v2/account/2fa/confirm', {})
@@ -531,7 +531,7 @@ class TestDisable2FA:
 
     def test_requires_auth(self, client):
         r = post_json(client, '/api/v2/account/2fa/disable', {'code': '000000'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_empty_body_returns_400(self, auth_client):
         r = auth_client.post('/api/v2/account/2fa/disable',
@@ -564,7 +564,7 @@ class TestRecoveryCodes:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/2fa/recovery-codes')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_fails_when_2fa_not_enabled(self, auth_client):
         """Should return 400 when 2FA is not enabled."""
@@ -600,7 +600,7 @@ class TestRegenerateRecoveryCodes:
     def test_requires_auth(self, client):
         r = post_json(client, '/api/v2/account/2fa/recovery-codes/regenerate',
                       {'code': '000000'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_missing_code(self, auth_client):
         r = post_json(auth_client,
@@ -648,7 +648,7 @@ class TestListSessions:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/sessions')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_list(self, auth_client):
         r = auth_client.get('/api/v2/account/sessions')
@@ -661,7 +661,7 @@ class TestRevokeSession:
 
     def test_requires_auth(self, client):
         r = client.delete('/api/v2/account/sessions/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_not_found(self, auth_client):
         r = auth_client.delete('/api/v2/account/sessions/99999')
@@ -673,7 +673,7 @@ class TestRevokeAllSessions:
 
     def test_requires_auth(self, client):
         r = client.post('/api/v2/account/sessions/revoke-all')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_revoke_all_succeeds(self, auth_client):
         r = auth_client.post('/api/v2/account/sessions/revoke-all')
@@ -689,7 +689,7 @@ class TestActivityLog:
 
     def test_requires_auth(self, client):
         r = client.get('/api/v2/account/activity')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_returns_list(self, auth_client):
         r = auth_client.get('/api/v2/account/activity')

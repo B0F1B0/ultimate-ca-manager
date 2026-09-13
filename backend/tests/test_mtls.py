@@ -36,35 +36,35 @@ class TestMTLSAuthRequired:
 
     def test_settings_get_requires_auth(self, app):
         r = app.test_client().get('/api/v2/mtls/settings')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_settings_put_requires_auth(self, app):
         r = _put(app.test_client(), '/api/v2/mtls/settings', {'enabled': False})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_certificates_list_requires_auth(self, app):
         r = app.test_client().get('/api/v2/mtls/certificates')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_certificates_create_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/mtls/certificates')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_certificates_delete_requires_auth(self, app):
         r = app.test_client().delete('/api/v2/mtls/certificates/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_certificates_download_requires_auth(self, app):
         r = app.test_client().get('/api/v2/mtls/certificates/1/download')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_enroll_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/mtls/enroll')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_enroll_import_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/mtls/enroll-import')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_enroll_import_valid_pem_succeeds(self, app, auth_client, create_ca):
         """Regression: enroll-import 500ed with NameError (cert_pem undefined)
@@ -102,11 +102,11 @@ class TestMTLSAuthRequired:
 
     def test_available_certificates_requires_auth(self, app):
         r = app.test_client().get('/api/v2/mtls/available-certificates')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_assign_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/mtls/assign')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

@@ -35,47 +35,47 @@ class TestSSOAuthRequired:
 
     def test_list_providers_requires_auth(self, app):
         r = app.test_client().get('/api/v2/sso/providers')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_create_provider_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/sso/providers', {'name': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_provider_requires_auth(self, app):
         r = app.test_client().get('/api/v2/sso/providers/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_update_provider_requires_auth(self, app):
         r = _put(app.test_client(), '/api/v2/sso/providers/1', {'name': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_provider_requires_auth(self, app):
         r = app.test_client().delete('/api/v2/sso/providers/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_toggle_provider_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/sso/providers/1/toggle')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_test_provider_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/sso/providers/1/test')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_test_mapping_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/sso/providers/1/test-mapping')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_sessions_requires_auth(self, app):
         r = app.test_client().get('/api/v2/sso/sessions')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_saml_metadata_fetch_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/sso/saml/metadata/fetch')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_saml_certificates_requires_auth(self, app):
         r = app.test_client().get('/api/v2/sso/saml/certificates')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

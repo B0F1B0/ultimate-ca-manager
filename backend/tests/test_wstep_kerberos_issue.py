@@ -133,7 +133,7 @@ def test_issue_challenges_without_authorization_header(client, wstep_kerberos_co
     monkeypatch.setattr(negotiate_auth, 'is_configured', lambda: True)
     csr, _key = _make_csr()
     r = client.post(ISSUE_URL, data=_build_rst(csr))
-    assert r.status_code == 401
+    assert r.status_code == 401, r.data
     assert r.headers.get('WWW-Authenticate') == 'Negotiate'
 
 
@@ -146,7 +146,7 @@ def test_issue_rejects_failed_negotiation(client, wstep_kerberos_config, monkeyp
     )
     csr, _key = _make_csr()
     r = client.post(ISSUE_URL, data=_build_rst(csr), headers={'Authorization': 'Negotiate dG9rZW4='})
-    assert r.status_code == 401
+    assert r.status_code == 401, r.data
 
 
 def test_issue_succeeds_with_authenticated_negotiation(client, app, wstep_kerberos_config, monkeypatch):

@@ -46,7 +46,7 @@ class TestAuthRequired:
 
     def test_cleanup_requires_auth(self, client):
         r = post_json(client, f'{BASE}/cleanup', {'retention_days': 90})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_verify_requires_auth(self, client):
         assert client.get(f'{BASE}/verify').status_code == 401

@@ -46,7 +46,7 @@ class TestAuthRequired:
 
     def test_create_requires_auth(self, client):
         r = post_json(client, BASE, {'cn': 'x', 'ca_id': 1})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_requires_auth(self, client):
         assert client.get(f'{BASE}/1').status_code == 401
@@ -62,35 +62,35 @@ class TestAuthRequired:
 
     def test_revoke_requires_auth(self, client):
         r = post_json(client, f'{BASE}/1/revoke', {'reason': 'keyCompromise'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_key_requires_auth(self, client):
         r = post_json(client, f'{BASE}/1/key', {'key': 'x'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_renew_requires_auth(self, client):
         r = post_json(client, f'{BASE}/1/renew', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_import_requires_auth(self, client):
         r = client.post(f'{BASE}/import', content_type='multipart/form-data')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_revoke_requires_auth(self, client):
         r = post_json(client, f'{BASE}/bulk/revoke', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_renew_requires_auth(self, client):
         r = post_json(client, f'{BASE}/bulk/renew', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_delete_requires_auth(self, client):
         r = post_json(client, f'{BASE}/bulk/delete', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_bulk_export_requires_auth(self, client):
         r = post_json(client, f'{BASE}/bulk/export', {'ids': [1]})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================================

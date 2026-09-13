@@ -10,6 +10,7 @@ from auth.unified import require_auth
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from models import db, AcmeDomain, DnsProvider, CA
+from services.acme import domain_match
 from services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -310,10 +311,13 @@ def find_provider_for_domain(domain: str) -> dict | None:
     """
     Find the DNS provider for a given domain using hierarchical matching.
     
-    Resolution order:
-    1. Exact match: "api.example.com"
-    2. Parent domain: "example.com" (covers *.example.com)
+    Resolution order, most specific first, either spelling of each level:
+    1. Exact match: "api.example.com", or "*.api.example.com"
+    2. Parent domain: "example.com", or "*.example.com"
     3. Grandparent: "com" (unlikely but possible)
+
+    An entry registered with its wildcard spelling used to match nothing at
+    all, so its orders fell through to the default provider and CA (#352).
     
     Args:
         domain: The domain to resolve (e.g., "api.dev.example.com")
@@ -322,39 +326,17 @@ def find_provider_for_domain(domain: str) -> dict | None:
         dict with 'provider', 'matched_domain', 'is_wildcard_allowed', 'auto_approve', 'issuing_ca_id'
         or None if not found
     """
-    domain = domain.strip().lower()
-    
-    # Remove wildcard prefix if present
-    if domain.startswith('*.'):
-        domain = domain[2:]
-    
-    # Try exact match first
-    acme_domain = AcmeDomain.query.filter_by(domain=domain).first()
-    if acme_domain:
-        return {
-            'provider': acme_domain.dns_provider,
-            'matched_domain': acme_domain.domain,
-            'is_wildcard_allowed': acme_domain.is_wildcard_allowed,
-            'auto_approve': acme_domain.auto_approve,
-            'issuing_ca_id': acme_domain.issuing_ca_id,
-        }
-    
-    # Try parent domains
-    parts = domain.split('.')
-    for i in range(1, len(parts)):
-        parent = '.'.join(parts[i:])
-        acme_domain = AcmeDomain.query.filter_by(domain=parent).first()
-        if acme_domain:
-            return {
-                'provider': acme_domain.dns_provider,
-                'matched_domain': acme_domain.domain,
-                'is_wildcard_allowed': acme_domain.is_wildcard_allowed,
-                'auto_approve': acme_domain.auto_approve,
-                'issuing_ca_id': acme_domain.issuing_ca_id,
-            }
-    
-    # No match found
-    return None
+    acme_domain = domain_match.find(AcmeDomain, domain)
+    if not acme_domain:
+        return None
+
+    return {
+        'provider': acme_domain.dns_provider,
+        'matched_domain': acme_domain.domain,
+        'is_wildcard_allowed': acme_domain.is_wildcard_allowed,
+        'auto_approve': acme_domain.auto_approve,
+        'issuing_ca_id': acme_domain.issuing_ca_id,
+    }
 
 
 def _is_valid_domain(domain: str) -> bool:

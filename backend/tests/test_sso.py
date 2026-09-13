@@ -107,7 +107,7 @@ class TestSSOProviderCRUD:
         """GET /sso/providers → 401 without auth"""
         fresh = client.application.test_client()
         r = fresh.get('/api/v2/sso/providers')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_list_providers(self, auth_client):
         """GET /sso/providers → list"""

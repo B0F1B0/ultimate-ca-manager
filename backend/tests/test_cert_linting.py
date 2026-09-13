@@ -60,7 +60,7 @@ class TestService:
 class TestEndpoint:
     def test_requires_auth(self, client, lintable_cert):
         r = client.get(f"/api/v2/certificates/{lintable_cert['id']}/lint")
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_status_endpoint(self, auth_client):
         r = auth_client.get('/api/v2/certificates/lint/status')

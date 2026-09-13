@@ -49,25 +49,25 @@ class TestAuthRequired:
 
     def test_create_provider_requires_auth(self, client):
         r = post_json(client, f'{HSM_BASE}/providers', VALID_PROVIDER)
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_provider_requires_auth(self, client):
         assert client.get(f'{HSM_BASE}/providers/1').status_code == 401
 
     def test_update_provider_requires_auth(self, client):
         r = put_json(client, f'{HSM_BASE}/providers/1', {'name': 'Updated'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_provider_requires_auth(self, client):
         assert client.delete(f'{HSM_BASE}/providers/1').status_code == 401
 
     def test_test_provider_requires_auth(self, client):
         r = client.post(f'{HSM_BASE}/providers/1/test')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_sync_provider_requires_auth(self, client):
         r = client.post(f'{HSM_BASE}/providers/1/sync')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_list_keys_requires_auth(self, client):
         assert client.get(f'{HSM_BASE}/keys').status_code == 401
@@ -76,7 +76,7 @@ class TestAuthRequired:
         r = post_json(client, f'{HSM_BASE}/providers/1/keys', {
             'label': 'test', 'algorithm': 'RSA-2048'
         })
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_get_key_requires_auth(self, client):
         assert client.get(f'{HSM_BASE}/keys/1').status_code == 401
@@ -89,7 +89,7 @@ class TestAuthRequired:
 
     def test_sign_requires_auth(self, client):
         r = post_json(client, f'{HSM_BASE}/keys/1/sign', {'data': 'dGVzdA=='})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_provider_types_requires_auth(self, client):
         assert client.get(f'{HSM_BASE}/provider-types').status_code == 401
@@ -99,7 +99,7 @@ class TestAuthRequired:
 
     def test_install_dependencies_requires_auth(self, client):
         r = post_json(client, f'{HSM_BASE}/dependencies/install', {'provider': 'pkcs11'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

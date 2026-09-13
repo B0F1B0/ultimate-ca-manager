@@ -28,23 +28,23 @@ class TestWebAuthnAuthRequired:
 
     def test_list_credentials_requires_auth(self, app):
         r = app.test_client().get('/api/v2/webauthn/credentials')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_delete_credential_requires_auth(self, app):
         r = app.test_client().delete('/api/v2/webauthn/credentials/1')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_toggle_credential_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/webauthn/credentials/1/toggle')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_register_options_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/webauthn/register/options')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_register_verify_requires_auth(self, app):
         r = _post(app.test_client(), '/api/v2/webauthn/register/verify')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
 
 # ============================================================

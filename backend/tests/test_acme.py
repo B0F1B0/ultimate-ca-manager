@@ -44,7 +44,7 @@ class TestAuthRequired:
 
     def test_acme_settings_patch_requires_auth(self, client):
         r = patch_json(client, '/api/v2/acme/settings', {'enabled': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_acme_stats_requires_auth(self, client):
         assert client.get('/api/v2/acme/stats').status_code == 401
@@ -76,15 +76,15 @@ class TestAuthRequired:
 
     def test_client_settings_patch_requires_auth(self, client):
         r = patch_json(client, '/api/v2/acme/client/settings', {'email': 'a@b.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_proxy_register_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/proxy/register', {'email': 'a@b.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_proxy_unregister_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/proxy/unregister', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_orders_list_requires_auth(self, client):
         assert client.get('/api/v2/acme/client/orders').status_code == 401
@@ -94,29 +94,29 @@ class TestAuthRequired:
 
     def test_client_request_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/request', {'domains': ['example.com']})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_order_verify_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/orders/1/verify', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_order_status_requires_auth(self, client):
         assert client.get('/api/v2/acme/client/orders/1/status').status_code == 401
 
     def test_client_order_finalize_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/orders/1/finalize', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_order_delete_requires_auth(self, client):
         assert client.delete('/api/v2/acme/client/orders/1').status_code == 401
 
     def test_client_order_renew_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/orders/1/renew', {})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_client_account_register_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/client/account', {'email': 'a@b.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     # --- ACME Domains (7) ---
     def test_domains_list_requires_auth(self, client):
@@ -127,11 +127,11 @@ class TestAuthRequired:
 
     def test_domains_create_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/domains', {'domain': 'example.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_domains_update_requires_auth(self, client):
         r = put_json(client, '/api/v2/acme/domains/1', {'auto_approve': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_domains_delete_requires_auth(self, client):
         assert client.delete('/api/v2/acme/domains/1').status_code == 401
@@ -141,7 +141,7 @@ class TestAuthRequired:
 
     def test_domains_test_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/domains/test', {'domain': 'test.com'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     # --- ACME Local Domains (5) ---
     def test_local_domains_list_requires_auth(self, client):
@@ -152,11 +152,11 @@ class TestAuthRequired:
 
     def test_local_domains_create_requires_auth(self, client):
         r = post_json(client, '/api/v2/acme/local-domains', {'domain': 'local.test'})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_local_domains_update_requires_auth(self, client):
         r = put_json(client, '/api/v2/acme/local-domains/1', {'auto_approve': True})
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_local_domains_delete_requires_auth(self, client):
         assert client.delete('/api/v2/acme/local-domains/1').status_code == 401

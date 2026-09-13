@@ -25,7 +25,7 @@ class TestRequest:
     def test_requires_auth(self, client, archived_cert):
         r = client.post(f'/api/v2/certificates/{archived_cert}/key-recovery',
                         data=json.dumps({'reason': 'x'}), content_type='application/json')
-        assert r.status_code == 401
+        assert r.status_code == 401, r.data
 
     def test_reason_required(self, auth_client, archived_cert):
         r = auth_client.post(f'/api/v2/certificates/{archived_cert}/key-recovery',

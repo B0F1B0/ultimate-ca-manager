@@ -336,8 +336,10 @@ class OrderMixin:
         """Check whether an identifier should skip ACME challenges (issue #69).
 
         An identifier is auto-approved when either table matches the domain
-        (exact or parent, case-insensitive, wildcard-stripped) AND the entry
-        has ``auto_approve=True``.
+        (exact or parent, case-insensitive, either wildcard spelling) AND the
+        matching entry has ``auto_approve=True``. The match is the most
+        specific one, so a subdomain entry decides for itself rather than
+        inheriting a parent's answer.
 
         - ``AcmeLocalDomain`` — internal ACME issuance
         - ``AcmeDomain`` — DNS-provider-mapped issuance
@@ -347,25 +349,15 @@ class OrderMixin:
         if not domain:
             return False
         try:
-            normalized = domain.strip().lower()
-            if normalized.startswith('*.'):
-                normalized = normalized[2:]
-            if not normalized:
-                return False
-
             from models.acme_models import AcmeDomain, AcmeLocalDomain
+            from services.acme import domain_match
 
-            candidates = [normalized]
-            parts = normalized.split('.')
-            for i in range(1, len(parts)):
-                candidates.append('.'.join(parts[i:]))
-
-            for candidate in candidates:
-                local = AcmeLocalDomain.query.filter_by(domain=candidate).first()
-                if local and local.auto_approve:
-                    return True
-                public = AcmeDomain.query.filter_by(domain=candidate).first()
-                if public and public.auto_approve:
+            # Either spelling of each level: an entry registered as
+            # "*.custom" used to match nothing at all, so its identifiers
+            # kept being challenged whatever the operator had ticked (#352).
+            for model in (AcmeLocalDomain, AcmeDomain):
+                entry = domain_match.find(model, domain)
+                if entry and entry.auto_approve:
                     return True
         except Exception as exc:
             logger.error(f"auto_approve lookup failed for {domain}: {exc}")
