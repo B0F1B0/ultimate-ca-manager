@@ -17,7 +17,9 @@ from services.file_regen_service import mirror_private_key
 from .errors import BackupSchemaError
 from .restore import RestorePlan, single_transaction
 from .restore.files import StagedFiles
-from .restore.apply import apply_section
+from .manifest import SECTIONS
+from .restore.apply import apply_columns, apply_section, relink_references
+from .restore.replace import replace_sections
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +154,7 @@ class RestoreCoreMixin:
                     f"{expected} were written"
                 )
 
-    def restore_backup(self, backup_bytes: bytes, password: str) -> Dict[str, Any]:
+    def restore_backup(self, backup_bytes: bytes, password: str, *, mode: str = 'replace') -> Dict[str, Any]:
         """
         Restore from encrypted backup. Auto-detects format v1 (legacy) or v2.
 
@@ -240,10 +242,26 @@ class RestoreCoreMixin:
         # Files are written to a staging directory during the transaction and
         # published once it has committed, so the database and the files on
         # disk can never disagree about whether the restore happened.
+        if mode not in ('replace', 'merge'):
+            raise BackupSchemaError(
+                f"Unknown restore mode {mode!r}: use 'replace' (the archive "
+                "becomes the instance) or 'merge' (the archive is added to it)")
+        results['mode'] = mode
+
         staged = StagedFiles()
         try:
             with single_transaction():
                 self._apply_all(backup_data, results, master_key, plan, staged)
+
+                # Sections are applied in an order that cannot satisfy every
+                # reference at once, so they are resolved again now that every
+                # row exists: this is where an authority finds the HSM key the
+                # same restore has just created.
+                results['relinked'] = relink_references(backup_data, plan)
+
+                if mode == 'replace':
+                    results['removed'] = self._remove_what_the_archive_omits(
+                        backup_data, plan)
         except Exception:
             staged.discard()
             raise
@@ -263,12 +281,41 @@ class RestoreCoreMixin:
         # asking for a restart belongs (see invalidate_after_restore).
         return results
 
+    @staticmethod
+    def _remove_what_the_archive_omits(backup_data, plan):
+        """Make the restore a replacement, as the documentation says it is.
+
+        Only the sections the archive claims to describe are pruned. An
+        archive says so itself: the sections it left out on purpose are listed
+        in its metadata, and a section excluded at export time is one this
+        archive knows nothing about, not one it says is empty. An archive of
+        the authorities alone therefore replaces the authorities and leaves
+        the users, the settings and the histories exactly as they are.
+
+        One thing is refused outright: emptying the user table, which would
+        leave a server nobody can sign in to.
+        """
+        excluded = set(
+            (backup_data.get('metadata') or {}).get('excluded_sections') or [])
+        sections = {name for name, value in backup_data.items()
+                    if name in SECTIONS and isinstance(value, list)
+                    and name not in excluded}
+
+        if 'users' in sections and not backup_data.get('users'):
+            raise BackupSchemaError(
+                "Refusing to restore: this archive carries no users, and a "
+                "replacing restore would remove every account on this server. "
+                "Nothing has been changed."
+            )
+
+        return replace_sections(backup_data, plan, sections)
+
     def _apply_all(self, backup_data, results, master_key, plan, staged):
         """Every write of a restore, inside the one transaction."""
         # Core restores
         self._restore_users(backup_data, results)
-        self._restore_cas(backup_data, results, master_key)
-        self._restore_certificates(backup_data, results, master_key)
+        self._restore_cas(backup_data, results, master_key, plan)
+        self._restore_certificates(backup_data, results, master_key, plan)
         self._restore_revoked_serials(backup_data, results)
         self._restore_acme_accounts(backup_data, results)
         self._restore_acme_eab_credentials(backup_data, results)
@@ -315,8 +362,8 @@ class RestoreCoreMixin:
         self._restore_microsoft_cas(backup_data, results)
         self._restore_scan_profiles(backup_data, results)
         self._restore_hsm_keys(backup_data, results)
-        self._restore_approval_requests(backup_data, results)
-        self._restore_acme_client_orders(backup_data, results)
+        self._restore_approval_requests(backup_data, results, plan)
+        self._restore_acme_client_orders(backup_data, results, plan)
         self._restore_https_files(backup_data, results, staged)
 
         # Sections the manifest carries and the hand-written restorers never
@@ -462,10 +509,24 @@ class RestoreCoreMixin:
                 ))
             results['revoked_serials'] += 1
 
-    def _restore_cas(self, backup_data: Dict, results: Dict, master_key: bytes) -> None:
-        """Restore certificate authorities from backup data"""
+    def _restore_cas(self, backup_data: Dict, results: Dict, master_key: bytes,
+                     plan=None) -> None:
+        """Restore certificate authorities from backup data.
+
+        A CA that already exists here is written exactly like one being
+        created: every column the archive carries goes back. Restoring a
+        handful of fields onto an existing row left the CA holding its own
+        subject, serial, url_slug, path length, name constraints and CRL
+        cadence while claiming to be the archived one -- an instance matching
+        neither the archive nor its previous state.
+        """
+        # Called directly (tests, legacy paths) without the restore's plan:
+        # build one, so references still land on the row the archive names
+        # rather than on whatever holds that number here.
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+
         for ca_data in backup_data.get('certificate_authorities', []):
-            existing = CA.query.filter_by(refid=ca_data['refid']).first()
+            ca = CA.query.filter_by(refid=ca_data['refid']).first()
 
             # Decrypt private key if encrypted
             prv_pem = None
@@ -474,54 +535,46 @@ class RestoreCoreMixin:
                     ca_data['private_key_pem_encrypted'],
                     master_key
                 )
+            prv_b64 = base64.b64encode(prv_pem.encode()).decode() if prv_pem else None
+            if prv_b64:
+                from security.encryption import encrypt_private_key
+                prv_b64 = encrypt_private_key(prv_b64)
 
-            if existing:
-                existing.descr = ca_data.get('descr')
-                # '' is the sentinel for a CA awaiting its external
-                # certificate (migration 079) and the column is NOT NULL:
-                # writing None there aborted the whole restore
-                existing.crt = (
-                    base64.b64encode(ca_data['certificate_pem'].encode()).decode()
-                    if ca_data.get('certificate_pem') else ''
-                )
-                existing.csr = ca_data.get('csr_pem') or existing.csr
-                prv_b64 = base64.b64encode(prv_pem.encode()).decode() if prv_pem else None
-                if prv_b64:
-                    from security.encryption import encrypt_private_key
-                    prv_b64 = encrypt_private_key(prv_b64)
-                existing.prv = prv_b64
-                existing.serial_number = ca_data.get('serial_number') or existing.serial_number
-                existing.ski = ca_data.get('ski') or existing.ski
-                self._apply_ca_fields(existing, ca_data)
-                self._apply_ca_revocation(existing, ca_data)
-            else:
-                prv_b64 = base64.b64encode(prv_pem.encode()).decode() if prv_pem else None
-                if prv_b64:
-                    from security.encryption import encrypt_private_key
-                    prv_b64 = encrypt_private_key(prv_b64)
-                new_ca = CA(
-                    refid=ca_data['refid'],
-                    descr=ca_data.get('descr'),
-                    subject=ca_data.get('subject'),
-                    issuer=ca_data.get('issuer'),
-                    serial=ca_data.get('serial'),
-                    caref=ca_data.get('caref'),
-                    crt=(
-                        base64.b64encode(ca_data['certificate_pem'].encode()).decode()
-                        if ca_data.get('certificate_pem') else ''
-                    ),
-                    csr=ca_data.get('csr_pem'),
-                    prv=prv_b64,
-                    serial_number=ca_data.get('serial_number'),
-                    ski=ca_data.get('ski'),
-                )
-                self._apply_ca_fields(new_ca, ca_data)
-                self._apply_ca_revocation(new_ca, ca_data)
-                db.session.add(new_ca)
+            if ca is None:
+                # descr and crt are NOT NULL; both are overwritten below
+                ca = CA(refid=ca_data['refid'], descr=ca_data.get('descr'), crt='')
+                db.session.add(ca)
+
+            # Every column the manifest declares, references resolved through
+            # the plan. The key material and the PEMs are left out (the
+            # manifest marks them `handled`): only this method holds the
+            # archive's master key, so only it can put them back.
+            apply_columns(ca, 'certificate_authorities', ca_data, plan)
+
+            # '' is the sentinel for a CA awaiting its external certificate
+            # (migration 079) and the column is NOT NULL: writing None there
+            # aborted the whole restore
+            ca.crt = (
+                base64.b64encode(ca_data['certificate_pem'].encode()).decode()
+                if ca_data.get('certificate_pem') else ''
+            )
+            ca.csr = ca_data.get('csr_pem') or ca.csr
+            ca.prv = prv_b64
+            ca.serial_number = ca_data.get('serial_number') or ca.serial_number
+            ca.ski = ca_data.get('ski') or ca.ski
+            self._apply_ca_fields(ca, ca_data)
+            self._apply_ca_revocation(ca, ca_data)
             results['cas'] += 1
 
-    def _restore_certificates(self, backup_data: Dict, results: Dict, master_key: bytes) -> None:
-        """Restore certificates from backup data"""
+    def _restore_certificates(self, backup_data: Dict, results: Dict, master_key: bytes,
+                              plan=None) -> None:
+        """Restore certificates from backup data.
+
+        As for CAs, an existing row is written exactly like a new one. The
+        restore used to touch five fields on a certificate it found here, so
+        its subject, serial, SANs, source, template and renewal history stayed
+        as they were while the restore reported success.
+        """
         from datetime import datetime as _dt
 
         def _parse_dt(val):
@@ -532,8 +585,10 @@ class RestoreCoreMixin:
             except Exception:
                 return None
 
+        plan = plan if plan is not None else RestorePlan.build(backup_data)
+
         for cert_data in backup_data.get('certificates', []):
-            existing = Certificate.query.filter_by(refid=cert_data['refid']).first()
+            cert = Certificate.query.filter_by(refid=cert_data['refid']).first()
 
             # Decrypt private key if encrypted
             prv_pem = None
@@ -549,51 +604,35 @@ class RestoreCoreMixin:
                 from security.encryption import encrypt_private_key
                 prv_b64 = encrypt_private_key(prv_b64)
 
-            if existing:
-                existing.descr = cert_data.get('descr')
-                existing.crt = base64.b64encode(cert_data['certificate_pem'].encode()).decode() if cert_data.get('certificate_pem') else None
-                if prv_b64:
-                    existing.prv = prv_b64
-                existing.revoked = bool(cert_data.get('revoked', False))
-                existing.revoked_at = _parse_dt(cert_data.get('revoked_at'))
-                existing.revoke_reason = cert_data.get('revoke_reason')
-                if 'invalidity_at' in cert_data:
-                    existing.invalidity_at = _parse_dt(cert_data.get('invalidity_at'))
-                existing.archived = bool(cert_data.get('archived', False))
-            else:
-                new_cert = Certificate(
-                    refid=cert_data['refid'],
-                    descr=cert_data.get('descr'),
-                    caref=cert_data.get('caref'),
-                    cert_type=cert_data.get('cert_type'),
-                    subject=cert_data.get('subject'),
-                    issuer=cert_data.get('issuer'),
-                    serial_number=cert_data.get('serial_number'),
-                    valid_from=_parse_dt(cert_data.get('valid_from')),
-                    valid_to=_parse_dt(cert_data.get('valid_to')),
-                    key_algo=cert_data.get('key_algo'),
-                    san_dns=cert_data.get('san_dns'),
-                    san_ip=cert_data.get('san_ip'),
-                    san_email=cert_data.get('san_email'),
-                    san_uri=cert_data.get('san_uri'),
-                    ocsp_uri=cert_data.get('ocsp_uri'),
-                    ocsp_must_staple=bool(cert_data.get('ocsp_must_staple', False)),
-                    private_key_location=cert_data.get('private_key_location', 'stored'),
-                    revoked=bool(cert_data.get('revoked', False)),
-                    revoked_at=_parse_dt(cert_data.get('revoked_at')),
-                    revoke_reason=cert_data.get('revoke_reason'),
-                    invalidity_at=_parse_dt(cert_data.get('invalidity_at')),
-                    archived=bool(cert_data.get('archived', False)),
-                    imported_from=cert_data.get('imported_from'),
-                    created_by=cert_data.get('created_by'),
-                    source=cert_data.get('source', 'manual'),
-                    template_id=cert_data.get('template_id'),
-                    owner_group_id=cert_data.get('owner_group_id'),
-                    crt=base64.b64encode(cert_data['certificate_pem'].encode()).decode() if cert_data.get('certificate_pem') else None,
-                    csr=base64.b64encode(cert_data['csr_pem'].encode()).decode() if cert_data.get('csr_pem') else None,
-                    prv=prv_b64
+            if cert is None:
+                # descr is NOT NULL; overwritten by apply_columns below
+                cert = Certificate(refid=cert_data['refid'],
+                                   descr=cert_data.get('descr'))
+                db.session.add(cert)
+
+            # Every column of the section, references resolved through the
+            # plan; the PEMs and the key are `handled` and set right after.
+            apply_columns(cert, 'certificates', cert_data, plan)
+
+            cert.crt = (
+                base64.b64encode(cert_data['certificate_pem'].encode()).decode()
+                if cert_data.get('certificate_pem') else None
+            )
+            if 'csr_pem' in cert_data:
+                # Absent from a dict written before the column was carried:
+                # only an archive that says something about the CSR replaces it
+                cert.csr = (
+                    base64.b64encode(cert_data['csr_pem'].encode()).decode()
+                    if cert_data['csr_pem'] else None
                 )
-                db.session.add(new_cert)
+            if prv_b64:
+                cert.prv = prv_b64
+            cert.revoked = bool(cert_data.get('revoked', False))
+            cert.revoked_at = _parse_dt(cert_data.get('revoked_at'))
+            cert.revoke_reason = cert_data.get('revoke_reason')
+            if 'invalidity_at' in cert_data:
+                cert.invalidity_at = _parse_dt(cert_data.get('invalidity_at'))
+            cert.archived = bool(cert_data.get('archived', False))
             results['certificates'] += 1
 
     def _restore_acme_accounts(self, backup_data: Dict, results: Dict) -> None:

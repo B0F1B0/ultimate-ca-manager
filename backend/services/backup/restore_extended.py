@@ -5,13 +5,127 @@ import uuid
 import base64
 import logging
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict, Optional
+
+from sqlalchemy import inspect as sa_inspect
 
 from models import db
 from config.settings import Config
-from utils.datetime_utils import utc_now
+from utils.datetime_utils import to_naive_utc, utc_now
+
+from .export_generic import REFERENCE_SUFFIX, load_model
+from .manifest import SECTIONS
+from .restore.plan import RestorePlan, RestoreValidationError
 
 logger = logging.getLogger(__name__)
+
+
+def _timestamp(where: str, column: str, value: Any,
+               required: bool = False) -> Optional[datetime]:
+    """The instant the archive recorded, or a refusal.
+
+    A date that could not be parsed used to become None, so an approval
+    request came back without the creation date that identifies it and with
+    no trace of the value that was dropped.
+    """
+    if value in (None, ''):
+        if required:
+            raise RestoreValidationError(
+                f"Invalid backup: {where} has no {column}, which is part of "
+                "what identifies it; nothing has been changed")
+        return None
+    if isinstance(value, datetime):
+        return to_naive_utc(value)
+    try:
+        parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (TypeError, ValueError) as exc:
+        raise RestoreValidationError(
+            f"Invalid backup: {where} holds {value!r} as its {column}, which "
+            "is not a date; nothing has been changed") from exc
+    return to_naive_utc(parsed)
+
+
+def _reference(where: str, section_name: str, row: Dict[str, Any], column: str,
+               plan: RestorePlan) -> Optional[Any]:
+    """The id this installation holds for the row a reference points at.
+
+    The archive carries the source's numeric id and, beside it, the identity
+    of the row it pointed at; only the identity means anything here. The plan
+    answers from the index it took before the first write, so a row this very
+    restore has just created — the certificate an approval was waiting for,
+    the user who asked for it — is looked up again on the session.
+
+    A reference the archive carries and this installation cannot place stops
+    the restore: writing the source's number would attach the request to
+    whichever row happens to hold it here, and dropping it would turn an
+    approved request into one that looks like it is still waiting.
+    """
+    if row.get(column) is None:
+        return None                      # there was no link to carry
+    resolved = plan.resolve(section_name, row, column)
+    if resolved is None:
+        resolved = _target_id(section_name, row, column)
+    if resolved is None:
+        identity = row.get(f'{column}{REFERENCE_SUFFIX}')
+        raise RestoreValidationError(
+            f"Invalid backup: {where} points at a "
+            f"{SECTIONS[section_name].references[column]} row this "
+            f"installation does not have "
+            f"({identity or 'the archive carries no identity for it'}); "
+            "nothing has been changed")
+    return resolved
+
+
+def _target_id(section_name: str, row: Dict[str, Any], column: str) -> Optional[Any]:
+    """The referenced row's id, as the session sees it now.
+
+    The plan's index is a snapshot taken before the restore wrote anything;
+    this reads the same identity against the rows the restore has since
+    created, which is the difference between a full archive restoring onto a
+    fresh installation and one that refuses because its own users are not
+    there yet.
+    """
+    identity = row.get(f'{column}{REFERENCE_SUFFIX}')
+    if not identity:
+        return None
+    section = SECTIONS[SECTIONS[section_name].references[column]]
+    values = {field: identity.get(field) for field in section.identity}
+    if any(value is None for value in values.values()):
+        # An identity this version cannot read in full matches nothing here;
+        # looking it up would be a search for a row holding NULL.
+        return None
+    model = load_model(section)
+    found = model.query.filter_by(**values).first()
+    if found is None:
+        return None
+    primary = sa_inspect(model).primary_key
+    if len(primary) != 1:
+        return None
+    return getattr(found, primary[0].key)
+
+
+def _existing_row(section_name: str, identity: Dict[str, Any]):
+    """The row here that an archived row is, by the identity the manifest declares.
+
+    Looked up on the session rather than in the plan's index: for an approval
+    request the index holds the source's certificate id and an unparsed date,
+    neither of which is what this restore computes, and in both sections it
+    was taken before the first write, so a row an earlier row of the same
+    archive created would not be in it.
+
+    A row whose identity is empty is no row in particular: it is created
+    rather than matched against every other row that has none either. The
+    plan has already said so, as a warning, when it read the archive.
+    """
+    section = SECTIONS[section_name]
+    if tuple(identity) != section.identity:
+        raise RestoreValidationError(
+            f"Section '{section_name}' is identified by "
+            f"{', '.join(section.identity)}, not by "
+            f"{', '.join(identity)}")
+    if all(value in (None, '') for value in identity.values()):
+        return None
+    return load_model(section).query.filter_by(**identity).first()
 
 
 class RestoreExtendedMixin:
@@ -204,79 +318,109 @@ class RestoreExtendedMixin:
                 db.session.rollback()
                 logger.warning(f"HSM key restore failed: {e}")
 
-    def _restore_approval_requests(self, backup_data: Dict, results: Dict) -> None:
-        """Restore approval requests from backup data"""
-        results.setdefault('approval_requests', 0)
-        for ar_data in backup_data.get('approval_requests', []):
-            try:
-                from models.policy import ApprovalRequest
-            except Exception:
-                break
-            try:
-                ar = ApprovalRequest(
-                    request_type=ar_data.get('request_type', 'certificate'),
-                    certificate_id=ar_data.get('certificate_id'),
-                    request_data=ar_data.get('request_data'),
-                    policy_id=ar_data.get('policy_id'),
-                    requester_id=ar_data.get('requester_id'),
-                    requester_comment=ar_data.get('requester_comment'),
-                    status=ar_data.get('status', 'pending'),
-                    approvals=ar_data.get('approvals', '[]'),
-                    required_approvals=ar_data.get('required_approvals', 1),
-                )
-                if ar_data.get('expires_at'):
-                    try:
-                        ar.expires_at = datetime.fromisoformat(ar_data['expires_at'])
-                    except Exception:
-                        pass
-                if ar_data.get('resolved_at'):
-                    try:
-                        ar.resolved_at = datetime.fromisoformat(ar_data['resolved_at'])
-                    except Exception:
-                        pass
-                db.session.add(ar)
-                db.session.commit()
-                results['approval_requests'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"Approval request restore failed: {e}")
+    def _restore_approval_requests(self, backup_data: Dict, results: Dict,
+                                   plan: RestorePlan) -> None:
+        """Restore approval requests, once and with their dates.
 
-    def _restore_acme_client_orders(self, backup_data: Dict, results: Dict) -> None:
-        """Restore ACME client orders from backup data"""
+        Every row used to be created unconditionally, so restoring the same
+        archive twice left two copies of every pending request, each still
+        waiting on the same certificate. A request is now the row the
+        manifest says it is — the certificate it is about, as that
+        certificate is numbered *here*, and the instant it was created — so a
+        second restore updates what the first one wrote instead of adding to
+        it. The creation date is carried back rather than replaced by the
+        moment of the restore, which is also what makes the identity hold.
+        """
+        from models.policy import ApprovalRequest
+
+        results.setdefault('approval_requests', 0)
+        for position, ar_data in enumerate(backup_data.get('approval_requests', [])):
+            where = f"approval request {position}"
+            created_at = _timestamp(where, 'created_at', ar_data.get('created_at'),
+                                    required=True)
+            certificate_id = _reference(where, 'approval_requests', ar_data,
+                                        'certificate_id', plan)
+            requester_id = _reference(where, 'approval_requests', ar_data,
+                                      'requester_id', plan)
+            if requester_id is None:
+                raise RestoreValidationError(
+                    f"Invalid backup: {where} names no requester; an approval "
+                    "cannot be restored without the user who asked for it")
+
+            request = _existing_row('approval_requests',
+                                    {'certificate_id': certificate_id,
+                                     'created_at': created_at})
+            if request is None:
+                request = ApprovalRequest()
+                db.session.add(request)
+
+            # Applied to a row that already exists exactly as to a new one:
+            # a restore that left half the fields of an existing request as
+            # they were would match neither the archive nor what was here.
+            request.certificate_id = certificate_id
+            request.created_at = created_at
+            request.requester_id = requester_id
+            request.policy_id = _reference(where, 'approval_requests', ar_data,
+                                           'policy_id', plan)
+            request.request_type = ar_data.get('request_type', 'certificate')
+            request.request_data = ar_data.get('request_data')
+            request.requester_comment = ar_data.get('requester_comment')
+            request.status = ar_data.get('status', 'pending')
+            request.approvals = ar_data.get('approvals', '[]')
+            request.required_approvals = ar_data.get('required_approvals', 1)
+            request.expires_at = _timestamp(where, 'expires_at',
+                                            ar_data.get('expires_at'))
+            request.resolved_at = _timestamp(where, 'resolved_at',
+                                             ar_data.get('resolved_at'))
+            results['approval_requests'] += 1
+
+        db.session.flush()
+
+    def _restore_acme_client_orders(self, backup_data: Dict, results: Dict,
+                                    plan: RestorePlan) -> None:
+        """Restore the orders UCM placed with an external ACME CA, once.
+
+        An order is the one the CA knows under that URL, so restoring an
+        archive twice updates the order it already put back rather than
+        placing a second row for the same upstream order.
+        """
+        from models.acme_models import AcmeClientOrder
+
         results.setdefault('acme_client_orders', 0)
-        for o_data in backup_data.get('acme_client_orders', []):
-            try:
-                from models.acme_models import AcmeClientOrder
-            except Exception:
-                break
-            try:
-                order = AcmeClientOrder(
-                    domains=o_data.get('domains', '[]'),
-                    challenge_type=o_data.get('challenge_type', 'dns-01'),
-                    environment=o_data.get('environment', 'staging'),
-                    key_type=o_data.get('key_type', 'RSA-2048'),
-                    status=o_data.get('status', 'pending'),
-                    order_url=o_data.get('order_url'),
-                    account_url=o_data.get('account_url'),
-                    finalize_url=o_data.get('finalize_url'),
-                    certificate_url=o_data.get('certificate_url'),
-                    challenges_data=o_data.get('challenges_data'),
-                    dns_provider_id=o_data.get('dns_provider_id'),
-                    certificate_id=o_data.get('certificate_id'),
-                    renewal_enabled=o_data.get('renewal_enabled', True),
-                    is_proxy_order=o_data.get('is_proxy_order', False),
-                    dns_records_created=o_data.get('dns_records_created'),
-                    client_jwk_thumbprint=o_data.get('client_jwk_thumbprint'),
-                    upstream_order_url=o_data.get('upstream_order_url'),
-                    upstream_authz_urls=o_data.get('upstream_authz_urls'),
-                    error_message=o_data.get('error_message'),
-                )
+        for position, o_data in enumerate(backup_data.get('acme_client_orders', [])):
+            where = f"ACME client order {position}"
+            order = _existing_row('acme_client_orders',
+                                  {'order_url': o_data.get('order_url')})
+            if order is None:
+                order = AcmeClientOrder()
                 db.session.add(order)
-                db.session.commit()
-                results['acme_client_orders'] += 1
-            except Exception as e:
-                db.session.rollback()
-                logger.warning(f"ACME client order restore failed: {e}")
+
+            order.domains = o_data.get('domains', '[]')
+            order.challenge_type = o_data.get('challenge_type', 'dns-01')
+            order.environment = o_data.get('environment', 'staging')
+            order.key_type = o_data.get('key_type', 'RSA-2048')
+            order.status = o_data.get('status', 'pending')
+            order.order_url = o_data.get('order_url')
+            order.account_url = o_data.get('account_url')
+            order.finalize_url = o_data.get('finalize_url')
+            order.certificate_url = o_data.get('certificate_url')
+            order.challenges_data = o_data.get('challenges_data')
+            order.dns_provider_id = _reference(where, 'acme_client_orders', o_data,
+                                               'dns_provider_id', plan)
+            # The manifest carries no identity for the issued certificate, so
+            # there is nothing to resolve it against; the column is left as
+            # this restore has always written it.
+            order.certificate_id = o_data.get('certificate_id')
+            order.renewal_enabled = o_data.get('renewal_enabled', True)
+            order.is_proxy_order = o_data.get('is_proxy_order', False)
+            order.dns_records_created = o_data.get('dns_records_created')
+            order.client_jwk_thumbprint = o_data.get('client_jwk_thumbprint')
+            order.upstream_order_url = o_data.get('upstream_order_url')
+            order.upstream_authz_urls = o_data.get('upstream_authz_urls')
+            order.error_message = o_data.get('error_message')
+            results['acme_client_orders'] += 1
+
+        db.session.flush()
 
     def _restore_https_files(self, backup_data: Dict, results: Dict,
                              staged=None) -> None:

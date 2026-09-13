@@ -109,6 +109,20 @@ class RestorePlan:
                 continue
             self.target_ids[name] = _index_of(section)
 
+    def refresh(self, section_names=None) -> None:
+        """Rebuild the identity indexes from the database as it is now.
+
+        The plan is built before anything is written, so it only knows the
+        rows that existed then. Once the restore has created the rows the
+        archive carries, a reference pointing at one of them can be resolved,
+        which the first pass could not do.
+        """
+        for name in (section_names or list(self.target_ids)):
+            section = SECTIONS.get(name)
+            if section is None or name in _MAPPING_SECTIONS:
+                continue
+            self.target_ids[name] = _index_of(section)
+
     # -- using ------------------------------------------------------------
 
     def resolve(self, section_name: str, row: Dict[str, Any],

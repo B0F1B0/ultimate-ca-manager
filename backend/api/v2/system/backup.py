@@ -509,8 +509,17 @@ def restore_backup():
             logger.warning("Backup upload validation error: %s", exc)
             return error_response("Invalid backup file", 400)
 
+        # A restore replaces the instance with the archive, which is what the
+        # documentation has always described; merge is available for the rare
+        # case of pulling one archive's rows into a live instance.
+        mode = (request.form.get('mode') or 'replace').strip().lower()
+        if mode not in ('replace', 'merge'):
+            return error_response(
+                "mode must be 'replace' (the archive becomes this instance) or "
+                "'merge' (the archive is added to it)", 400)
+
         service = BackupService()
-        results = service.restore_backup(backup_bytes, password)
+        results = service.restore_backup(backup_bytes, password, mode=mode)
 
         _safe_audit_log(
             action="system_restore",

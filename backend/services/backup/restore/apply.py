@@ -29,6 +29,45 @@ from .plan import RestorePlan, RestoreValidationError
 logger = logging.getLogger(__name__)
 
 
+# Column objects and mapped attribute names per model, built once: a restore
+# walks thousands of rows and the mapper does not change between them.
+_MAPPING_CACHE: Dict[Any, Any] = {}
+
+
+def _mapping_of(model):
+    """(column by name, mapped attribute name by column name) for a model."""
+    cached = _MAPPING_CACHE.get(model)
+    if cached is None:
+        mapper = sa_inspect(model)
+        columns = {column.key: column for column in mapper.columns}
+        attribute_of = {}
+        for prop in mapper.column_attrs:
+            for column in prop.columns:
+                attribute_of[column.key] = prop.key
+        cached = (columns, attribute_of)
+        _MAPPING_CACHE[model] = cached
+    return cached
+
+
+def apply_columns(instance, section_name: str, row: Dict[str, Any],
+                  plan: RestorePlan) -> None:
+    """Put every column the archive carries for this row onto `instance`.
+
+    This is the whole of "restoring a row", and it is deliberately the same
+    call for a row being created and for one that already exists: the restore
+    used to set a hand-picked subset of fields on an existing certificate or
+    CA, so its subject, serial, SANs, template or CRL cadence stayed at
+    whatever the target happened to hold.
+
+    The columns the manifest marks `handled` are left out: a dedicated
+    restorer owns them because it is the one holding the archive's master key
+    (the PEMs and the private key). Everything else comes from here.
+    """
+    section = SECTIONS[section_name]
+    columns, attribute_of = _mapping_of(type(instance))
+    _apply_row(section_name, section, instance, row, columns, attribute_of, plan)
+
+
 def apply_section(section_name: str, rows: List[Dict[str, Any]],
                   plan: RestorePlan) -> int:
     """Create or update every row of a section. Returns the number applied.
@@ -39,12 +78,7 @@ def apply_section(section_name: str, rows: List[Dict[str, Any]],
     section = SECTIONS[section_name]
     model = load_model(section)
     mapper = sa_inspect(model)
-
-    columns = {column.key: column for column in mapper.columns}
-    attribute_of = {}
-    for prop in mapper.column_attrs:
-        for column in prop.columns:
-            attribute_of[column.key] = prop.key
+    columns, attribute_of = _mapping_of(model)
 
     primary = [column.key for column in mapper.primary_key]
     if len(primary) != 1:
@@ -114,3 +148,52 @@ def _coerce(value: Any, column, where: str) -> Any:
             f"Invalid backup: {where} does not hold a value this column can "
             f"take ({value!r})") from exc
     return value
+
+
+def relink_references(backup_data: Dict[str, Any], plan: RestorePlan) -> Dict[str, int]:
+    """Point every reference at the row it names, now that all rows exist.
+
+    Sections are applied in an order that cannot satisfy everything at once: a
+    certificate authority is restored before the HSM key it uses, so the first
+    pass had nothing to resolve its link against and left it empty. Rather
+    than order the sections by hand and hope, the references are resolved a
+    second time against the database as the restore has just left it.
+    """
+    plan.refresh()
+    relinked: Dict[str, int] = {}
+
+    for section_name, rows in backup_data.items():
+        section = SECTIONS.get(section_name)
+        if section is None or not section.references or not isinstance(rows, list):
+            continue
+
+        model = load_model(section)
+        mapper = sa_inspect(model)
+        attribute_of = {}
+        for prop in mapper.column_attrs:
+            for column in prop.columns:
+                attribute_of[column.key] = prop.key
+
+        changed = 0
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            target_id = plan.existing_id(section_name, row)
+            if target_id is None:
+                continue
+            instance = db.session.get(model, target_id)
+            if instance is None:
+                continue
+            for column in section.references:
+                if column not in row:
+                    continue
+                resolved = plan.resolve(section_name, row, column)
+                attribute = attribute_of.get(column, column)
+                if getattr(instance, attribute, None) != resolved:
+                    setattr(instance, attribute, resolved)
+                    changed += 1
+        if changed:
+            relinked[section_name] = changed
+
+    db.session.flush()
+    return relinked
