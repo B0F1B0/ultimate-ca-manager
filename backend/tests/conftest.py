@@ -400,17 +400,27 @@ def create_ca(auth_client):
 
 @pytest.fixture(scope='session')
 def create_cert(auth_client, create_ca):
-    """Factory fixture to create a certificate. Returns cert dict."""
+    """Factory fixture to create a certificate. Returns cert dict.
+
+    The default CA is remembered across the session, and one test resets the
+    database for real (`test_database_reset_records_itself`): every later
+    caller then asked for a CA id that no longer exists and got a 404. The
+    cache is rebuilt when the row behind it is gone, so a destructive test
+    costs its own file rather than every file after it in the run.
+    """
     _ca_cache = {}
     _counter = [0]
 
+    def _default_ca():
+        ca = create_ca(cn='Default Test CA')
+        _ca_cache['default'] = ca.get('id', ca.get('ca_id', 1))
+        return _ca_cache['default']
+
     def _create(cn=None, ca_id=None, **kwargs):
         _counter[0] += 1
-        if ca_id is None:
-            if 'default' not in _ca_cache:
-                ca = create_ca(cn='Default Test CA')
-                _ca_cache['default'] = ca.get('id', ca.get('ca_id', 1))
-            ca_id = _ca_cache['default']
+        from_cache = ca_id is None
+        if from_cache:
+            ca_id = _ca_cache.get('default') or _default_ca()
 
         data = {
             'cn': cn or f'test-cert-{_counter[0]}.example.com',
@@ -418,9 +428,16 @@ def create_cert(auth_client, create_ca):
             'validity_days': 365,
         }
         data.update(kwargs)
-        r = auth_client.post('/api/v2/certificates',
-                             data=json.dumps(data),
-                             content_type='application/json')
+
+        def _post():
+            return auth_client.post('/api/v2/certificates',
+                                    data=json.dumps(data),
+                                    content_type='application/json')
+
+        r = _post()
+        if r.status_code == 404 and from_cache and 'ca_id' not in kwargs:
+            data['ca_id'] = _default_ca()
+            r = _post()
         assert r.status_code in (200, 201), f'Create cert failed ({r.status_code}): {r.data}'
         result = json.loads(r.data)
         return result.get('data', result)

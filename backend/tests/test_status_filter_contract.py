@@ -125,7 +125,12 @@ class TestAKnownStatusStillFilters:
 
     def test_revoked_excludes_the_valid_one(self, auth_client, a_mixed_bag):
         keep, gone = a_mixed_bag
-        rows = _rows(auth_client.get('/api/v2/certificates?status=revoked'))
+        # Narrowed to this fixture's two rows: the default page is 20 long,
+        # and a full run leaves enough revoked certificates that the one
+        # made here lands on a later page.
+        rows = _rows(auth_client.get(
+            '/api/v2/certificates?status=revoked&search=status-filter-'
+            '&per_page=100'))
         names = {row.get('common_name') for row in rows}
         assert gone['common_name'] in names
         assert keep['common_name'] not in names
