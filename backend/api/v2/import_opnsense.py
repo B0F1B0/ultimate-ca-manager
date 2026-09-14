@@ -244,6 +244,13 @@ def _appliance_base_url(host, port):
         return None, malformed
 
     try:
+        # By name first: `validated_addresses` judges the addresses a name
+        # resolves to, and the deny-list also knows a handful of names that
+        # are metadata endpoints whatever they resolve to. Nothing is reachable
+        # without this -- those names answer addresses the next check refuses
+        # anyway, and a name that does not resolve fails closed -- but losing
+        # the layer would not have shown up anywhere.
+        validate_url_not_cloud_metadata(base_url)
         pin = validated_addresses(base_url)
     except ValueError as exc:
         logger.warning(f"OPNsense SSRF blocked: {exc}")
@@ -256,16 +263,18 @@ def _appliance_base_url(host, port):
 
 @contextmanager
 def _pinned(pin):
-    """Hold connections to the addresses the host was vetted on, if any."""
-    if pin is None:
-        yield
-        return
+    """Hold connections to the addresses the host was vetted on.
+
+    Required rather than optional: a default of `None` is the exact shape a
+    future caller's omission would take, and nothing downstream would notice
+    -- the client would simply resolve the name again.
+    """
     host, addresses = pin
     with pin_host(host, addresses):
         yield
 
 
-def _fetch_rows(session, base_url, api_key, api_secret, resource, pin=None):
+def _fetch_rows(session, base_url, api_key, api_secret, resource, pin):
     # Redirects are not followed: the appliance answers JSON on its API, so a
     # 3xx there is not a normal condition, and walking it would read the
     # answer of a host the deny-list never saw as if it were the appliance's

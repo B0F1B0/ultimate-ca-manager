@@ -420,3 +420,44 @@ class TestTheConnectionGoesWhereTheCheckLooked:
         assert pinned.get('addresses') == ['192.0.2.10'], (
             'the request was made without holding the connection to the '
             f'addresses the check looked at: {pinned}')
+
+
+class TestTheNameIsRefusedBeforeItIsResolved:
+    """A handful of names are metadata endpoints whatever they answer.
+
+    The deny-list knows them by name as well as by address. Judging only the
+    addresses a name resolves to loses that layer: nothing becomes reachable,
+    since those names answer addresses the address check refuses and a name
+    that does not resolve fails closed, but a layer that disappears without a
+    test is a layer nobody will notice is gone.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    @pytest.mark.parametrize('host', ['metadata.google.internal'])
+    def test_a_known_metadata_name_is_refused(self, auth_client, attempted,
+                                              route, host):
+        response = auth_client.post(route, json=_payload(host=host))
+
+        assert response.status_code == 400, (
+            f'{route} accepted host={host!r} and answered '
+            f'{response.status_code}')
+        assert attempted == []
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_the_name_is_judged_even_when_the_addresses_would_pass(
+            self, auth_client, attempted, monkeypatch, route):
+        """The layer, with the address check made harmless: only the name
+        can refuse here, so removing the by-name pass fails this."""
+        import api.v2.import_opnsense as opnsense
+
+        monkeypatch.setattr(
+            opnsense, 'validated_addresses',
+            lambda url, *a, **k: ('metadata.google.internal', ['192.0.2.10']))
+
+        response = auth_client.post(
+            route, json=_payload(host='metadata.google.internal'))
+
+        assert response.status_code == 400, (
+            f'{route} answered {response.status_code} for a name the '
+            'deny-list knows')
+        assert attempted == []
