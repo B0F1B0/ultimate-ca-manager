@@ -49,12 +49,13 @@ def spa(path):
     - If path is a file (has extension), try to serve it from frontend/
     - Otherwise serve index.html (React Router handles routing)
     """
-    # Don't catch API or protocol routes - let them 404 properly if not found
-    # Note: 'scep/' is the protocol endpoint, 'scep-config' is a React route (should NOT be excluded)
-    if path.startswith((
-        'api/', 'scep/', 'acme/', 'cdp/', 'ca/', 'ocsp/', 'tsa/', 'ssh/setup/', '.well-known/',
-        'ADPolicyProvider_CEP_', 'ADCertificateService_CES_',
-    )) or path in ('scep', 'ocsp', 'tsa'):
+    # Don't catch API or protocol routes - let them 404 properly if not found.
+    # The protocol list is shared with the CSRF exemption, the http→https
+    # exemption and the safe-mode allowlist (utils.public_endpoints), which is
+    # what keeps 'scep/' (the protocol endpoint) apart from 'scep-config' and
+    # 'tsa' apart from 'tsa-config' — both React routes that must be served.
+    from utils.public_endpoints import is_public_protocol_path
+    if path.startswith('api/') or is_public_protocol_path('/' + path):
         from utils.response import error_response
         return error_response('Not found', 404)
         

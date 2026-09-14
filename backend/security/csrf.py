@@ -46,20 +46,23 @@ CSRF_EXEMPT_PATHS = [
     # attacker a credential for it. Session callers hold a CSRF token, and
     # X-API-Key requests are exempted by the middleware anyway, so neither
     # legitimate caller needs a blanket path exemption.
-    '/acme/',                   # ACME protocol
-    '/scep/',                   # SCEP protocol  
-    '/.well-known/acme',        # ACME challenge
-    '/.well-known/est',         # EST protocol
-    '/ocsp',                    # OCSP protocol
-    '/cdp/',                    # CRL distribution
-    '/ca/',                     # AIA CA Issuers
-    '/tsa',                     # TSA timestamping (RFC 3161)
-    '/ssh/setup/',              # Public SSH CA setup scripts
-    '/ADPolicyProvider_CEP_',   # XCEP policy (Windows SOAP client, no session/token)
-    '/ADCertificateService_CES_',  # WSTEP enrollment (Windows SOAP client, no session/token)
     '/api/health',              # Health checks
     '/api/v2/health',           # Health checks (v2)
 ]
+
+# Protocol clients (ACME, SCEP, EST, OCSP, CRL, AIA, TSA, SSH setup, XCEP/WSTEP)
+# hold no session and no token, so every path they reach is exempt. The list
+# lives in utils.public_endpoints so the CSRF exemption, the http→https
+# exemption, the safe-mode allowlist and the SPA catch-all cannot drift apart.
+# is_exempt() matches by prefix, so the bare-path endpoints are appended with
+# their trailing slash form covered by the prefixes.
+from utils.public_endpoints import (  # noqa: E402
+    ACME_PREFIXES,
+    PROTOCOL_EXACT_PATHS,
+    PROTOCOL_PREFIXES,
+)
+
+CSRF_EXEMPT_PROTOCOL_PATHS = tuple(PROTOCOL_PREFIXES) + tuple(ACME_PREFIXES)
 
 
 class CSRFProtection:
@@ -147,6 +150,10 @@ class CSRFProtection:
     @classmethod
     def is_exempt(cls, path: str) -> bool:
         """Check if path is exempt from CSRF protection"""
+        if path in PROTOCOL_EXACT_PATHS:
+            return True
+        if path.startswith(CSRF_EXEMPT_PROTOCOL_PATHS):
+            return True
         for exempt in CSRF_EXEMPT_PATHS:
             if path.startswith(exempt):
                 return True

@@ -971,10 +971,8 @@ def create_app(config_name=None):
         def enforce_https():
             if not request.is_secure and request.url.startswith('http://'):
                 # Skip protocol endpoints — CRL/OCSP/SCEP/ACME/EST/XCEP/WSTEP clients often can't follow redirects
-                if request.path.startswith((
-                    '/cdp/', '/ca/', '/ocsp', '/scep/', '/acme/', '/.well-known/', '/tsa', '/ssh/setup/',
-                    '/ADPolicyProvider_CEP_', '/ADCertificateService_CES_',
-                )):
+                from utils.public_endpoints import is_public_protocol_path
+                if is_public_protocol_path(request.path):
                     return None
                 url = request.url.replace('http://', 'https://', 1)
                 url = url.replace(f':{config.HTTPS_PORT}', f':{config.HTTPS_PORT}')
@@ -994,12 +992,10 @@ def create_app(config_name=None):
             '/api/v2/system/security/encryption-status',
             '/static/', '/assets/', '/favicon',
             '/socket.io/',
-            # Protocol endpoints must remain available (revocation, enrollment)
-            '/cdp/', '/ca/', '/ocsp', '/scep/', '/acme/', '/.well-known/', '/tsa',
-            '/ssh/setup/',  # Public SSH CA setup scripts
-            '/ADPolicyProvider_CEP_', '/ADCertificateService_CES_',  # XCEP/WSTEP
         )
-        if request.path.startswith(allowed_prefixes):
+        # Protocol endpoints must remain available (revocation, enrollment)
+        from utils.public_endpoints import is_public_protocol_path
+        if request.path.startswith(allowed_prefixes) or is_public_protocol_path(request.path):
             return None
         
         # Allow frontend routes (no /api/ prefix)

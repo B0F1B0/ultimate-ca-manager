@@ -35,14 +35,25 @@ _HEALTH_PATHS = frozenset({
     '/metrics', '/api/v2/metrics',
     '/api/auth/verify', '/api/v2/auth/verify',
 })
-_PROTOCOL_PREFIXES = (
-    '/cdp/', '/ca/', '/ocsp', '/scep/', '/.well-known/', '/tsa', '/ssh/setup/',
+# Single source of truth for "this path belongs to a PKI protocol client, not
+# to the admin UI". app.py (http→https exemption, safe-mode allowlist),
+# security/csrf.py and api/ui_routes.py all derive their lists from here; each
+# used to carry its own copy, and they drifted.
+PROTOCOL_PREFIXES = (
+    '/cdp/', '/ca/', '/ocsp/', '/scep/', '/.well-known/', '/tsa/', '/ssh/setup/',
     # XCEP/WSTEP (services/wstep/__init__.py, api/xcep_protocol.py): real
     # Windows SOAP clients don't follow POST redirects, so these must never
     # get caught by the canonical-host redirect the way admin UI paths do.
     '/ADPolicyProvider_CEP_', '/ADCertificateService_CES_',
 )
-_ACME_PREFIXES = ('/acme/',)
+# Endpoints whose route is the bare path with nothing after it. They are kept
+# out of the prefix tuple because a bare prefix also matches its siblings:
+# '/tsa' matched '/tsa-config', the admin page for the timestamping settings.
+# A protocol path skips the canonical-admin redirect, the admin-vs-ACME
+# host-role check and the http→https upgrade, so that one missing slash
+# published an admin page on the ACME vhost and over cleartext HTTP.
+PROTOCOL_EXACT_PATHS = frozenset({'/ocsp', '/tsa'})
+ACME_PREFIXES = ('/acme/',)
 _STATIC_PREFIXES = ('/static/', '/assets/')
 
 # Hostnames that must never appear in operator-configured public URLs.
@@ -581,11 +592,21 @@ def _normalize_host(host: str) -> str:
 
 
 def is_protocol_path(path: str) -> bool:
-    return any(path.startswith(p) for p in _PROTOCOL_PREFIXES)
+    return path in PROTOCOL_EXACT_PATHS or path.startswith(PROTOCOL_PREFIXES)
 
 
 def is_acme_path(path: str) -> bool:
-    return any(path.startswith(p) for p in _ACME_PREFIXES)
+    return path.startswith(ACME_PREFIXES)
+
+
+def is_public_protocol_path(path: str) -> bool:
+    """Every path a PKI protocol client reaches, ACME included.
+
+    This is what the http→https exemption and the safe-mode allowlist need:
+    they do not care about the admin-vs-ACME vhost split that keeps
+    :func:`is_protocol_path` and :func:`is_acme_path` apart.
+    """
+    return is_protocol_path(path) or is_acme_path(path)
 
 
 def is_admin_ui_path(path: str) -> bool:
