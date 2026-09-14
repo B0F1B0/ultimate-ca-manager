@@ -83,7 +83,12 @@ class TestSourceFilter:
             c = db.session.get(Certificate, ids[0])
             c.source = None
             db.session.commit()
-        r = auth_client.get(f'{BASE}?source=manual&per_page=100')
+        # Narrowed by name, not by page. The suite shares one database and
+        # the page is capped at a hundred rows, so looking for this row in
+        # the first page of every manual certificate made the assertion
+        # depend on how many other tests had run first.
+        r = auth_client.get(
+            f'{BASE}?source=manual&search=srcflt-legacy-null&per_page=100')
         assert r.status_code == 200
         cns = [(c.get('common_name') or c.get('subject_cn')) for c in get_json(r)['data']]
         assert 'srcflt-legacy-null.test' in cns
