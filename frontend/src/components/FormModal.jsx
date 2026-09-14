@@ -17,6 +17,7 @@
  *   <Input label="Email" ... />
  * </FormModal>
  */
+import { useRef } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { LoadingSpinner } from './LoadingSpinner'
@@ -43,17 +44,28 @@ export function FormModal({
   // Footer customization
   footer,
 }) {
-  const handleSubmit = (e) => {
+  // Only four of the six call sites pass `loading`, so the submit button often
+  // stays live while the request runs and a second Enter re-runs the action.
+  // The ref guard is independent of that prop and costs no re-render.
+  const inFlight = useRef(false)
+
+  const handleSubmit = async (e) => {
     e?.preventDefault()
-    
+    if (inFlight.current) return
+    inFlight.current = true
+
     // Collect form data from the form element
     const form = e?.target
-    if (form && onSubmit) {
-      const formData = new FormData(form)
-      const data = Object.fromEntries(formData.entries())
-      onSubmit(data)
-    } else {
-      onSubmit?.()
+    try {
+      if (form && onSubmit) {
+        const formData = new FormData(form)
+        const data = Object.fromEntries(formData.entries())
+        await onSubmit(data)
+      } else {
+        await onSubmit?.()
+      }
+    } finally {
+      inFlight.current = false
     }
   }
 

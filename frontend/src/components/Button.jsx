@@ -41,6 +41,7 @@ export function Button({ children, variant = 'primary', size = 'sm', loading = f
   
   return (
     <button
+      {...props}
       className={cn(
         'inline-flex items-center justify-center rounded-md font-medium',
         'disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none',
@@ -50,8 +51,10 @@ export function Button({ children, variant = 'primary', size = 'sm', loading = f
         loading && 'pointer-events-none opacity-70',
         className
       )}
+      // Must stay AFTER the spread: a caller passing both `loading` and an
+      // explicit `disabled` would otherwise have its own `disabled={false}`
+      // overwrite the guard, leaving the button live during the request.
       disabled={loading || props.disabled}
-      {...props}
     >
       {loading ? (
         <>
