@@ -5,7 +5,7 @@ View and manage audit logs
 from flask import Blueprint, request, jsonify, g, Response
 from auth.unified import require_auth
 from services.audit_service import AuditService
-from utils.pagination import parse_request_pagination, parse_request_limit
+from utils.pagination import parse_date_filter, parse_request_pagination, parse_request_limit
 from utils.response import success_response, error_response
 from datetime import datetime
 import logging
@@ -54,18 +54,7 @@ def get_logs():
             success = success_param.lower() == 'true'
         
         # Parse date filters
-        date_from = None
-        date_to = None
-        if request.args.get('date_from'):
-            try:
-                date_from = datetime.fromisoformat(request.args.get('date_from').replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                pass
-        if request.args.get('date_to'):
-            try:
-                date_to = datetime.fromisoformat(request.args.get('date_to').replace('Z', '+00:00'))
-            except (ValueError, AttributeError):
-                pass
+        date_from, date_to = parse_date_filter()
         
         # Get logs
         logs, total, total_pages = AuditService.get_logs(
@@ -153,18 +142,7 @@ def export_logs():
     limit = parse_request_limit(10000, 50000)
     
     # Parse dates
-    date_from = None
-    date_to = None
-    if request.args.get('date_from'):
-        try:
-            date_from = datetime.fromisoformat(request.args.get('date_from').replace('Z', '+00:00'))
-        except (ValueError, AttributeError):
-            pass
-    if request.args.get('date_to'):
-        try:
-            date_to = datetime.fromisoformat(request.args.get('date_to').replace('Z', '+00:00'))
-        except (ValueError, AttributeError):
-            pass
+    date_from, date_to = parse_date_filter()
     
     data = AuditService.export_logs(
         format=format,

@@ -66,10 +66,25 @@ logger = logging.getLogger(__name__)
 _SAFE_IDENT_RE = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')
 
 
+def _display(name) -> str:
+    """Render a database-supplied name for a message bound for the API.
+
+    Same treatment as ``preflight._display`` and ``verify._display``, for the
+    same reason: these names come from an operator-supplied database and can
+    carry control characters, quotes or kilobytes of padding. This module was
+    the one that still put the raw value in its message.
+    """
+    cleaned = "".join(
+        char if char.isprintable() and char not in '"\\' else "?"
+        for char in str(name)
+    )
+    return cleaned[:64] + "..." if len(cleaned) > 64 else cleaned
+
+
 def _safe_ident(name: str) -> str:
     """Return *name* if it is a safe SQL identifier, else raise ValueError."""
     if not isinstance(name, str) or not _SAFE_IDENT_RE.match(name):
-        raise ValueError(f"Unsafe SQL identifier: {name!r}")
+        raise ValueError(f"Unsafe SQL identifier: {_display(name)!r}")
     return name
 
 
