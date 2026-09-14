@@ -272,9 +272,15 @@ def app():
         os.unlink(temp_db)
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture
 def client(app):
-    """Unauthenticated Flask test client."""
+    """Unauthenticated Flask test client, one per test.
+
+    It used to be session-scoped, so six thousand tests shared one cookie jar
+    and one server-side session. Tests asserting 401 failed intermittently
+    with a 200 and a full payload: something in the worker had filled that
+    session. A client with nothing to authenticate has no state worth sharing.
+    """
     return app.test_client()
 
 

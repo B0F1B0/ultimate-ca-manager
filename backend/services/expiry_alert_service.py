@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Dict, Any, List
 from models import db, Certificate
 from utils.datetime_utils import utc_now, utc_isoformat
+from utils.days_remaining import days_remaining as compute_days_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def get_expiring_certificates(days: int = 30, include_revoked: bool = False) -> 
     
     result = []
     for cert in certs:
-        days_until = (cert.valid_to - now).days if cert.valid_to else 0
+        days_until = compute_days_remaining(cert.valid_to, now)
         result.append({
             'id': cert.id,
             'serial_number': cert.serial_number,

@@ -6,6 +6,7 @@ import os
 import socket
 import ipaddress
 from datetime import datetime, timezone
+from utils.days_remaining import days_remaining as compute_days_remaining
 
 from flask import Blueprint
 from cryptography import x509
@@ -64,7 +65,7 @@ def cert_to_dict(cert):
         result['status'] = 'valid'
 
     # Days until expiry
-    days_left = (cert.not_valid_after_utc - now).days
+    days_left = compute_days_remaining(cert.not_valid_after_utc, now)
     result['days_until_expiry'] = days_left
 
     # Public key info

@@ -4,6 +4,8 @@ Per-endpoint rate limiting with configurable limits
 Configurable via environment variables in /etc/ucm/ucm.env
 """
 import ipaddress
+
+from utils.public_endpoints import PROTOCOL_EXACT_PATHS
 import os
 import time
 import logging
@@ -123,9 +125,20 @@ class RateLimitConfig:
             '/acme/': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
             '/scep/': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
             '/.well-known/est/': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
+            '/ocsp/': {'rpm': protocol_rpm, 'burst': protocol_burst},
             '/ocsp': {'rpm': protocol_rpm, 'burst': protocol_burst},
             '/cdp/': {'rpm': protocol_rpm, 'burst': protocol_burst},
-            
+
+            # The rest of utils/public_endpoints.PROTOCOL_PREFIXES. Missing
+            # here, they shared the `_default` bucket with the admin API: a
+            # timestamping client and the interface spent the same quota.
+            '/ca/': {'rpm': protocol_rpm, 'burst': protocol_burst},
+            '/tsa/': {'rpm': protocol_rpm, 'burst': protocol_burst},
+            '/tsa': {'rpm': protocol_rpm, 'burst': protocol_burst},
+            '/ssh/setup/': {'rpm': protocol_rpm, 'burst': protocol_burst},
+            '/ADPolicyProvider_CEP_': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
+            '/ADCertificateService_CES_': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
+
             # Default for unspecified endpoints
             '_default': {'rpm': standard_rpm, 'burst': standard_burst}
         }
@@ -173,13 +186,28 @@ class RateLimitConfig:
         for pattern, limit in cls._custom_limits.items():
             if path.startswith(pattern):
                 return limit
-        
+
+        exact = cls._exact_pattern(path)
+        if exact:
+            return cls._default_limits[exact]
+
         # Check default limits
         for pattern, limit in cls._default_limits.items():
-            if pattern != '_default' and path.startswith(pattern):
+            if pattern in PROTOCOL_EXACT_PATHS or pattern == '_default':
+                continue
+            if path.startswith(pattern):
                 return limit
         
         return cls._default_limits['_default']
+
+    @classmethod
+    def _exact_pattern(cls, path: str):
+        """A protocol route whose path is bare: `/tsa`, never `/tsa-config`."""
+        cls._load_limits()
+        for pattern in PROTOCOL_EXACT_PATHS:
+            if path == pattern and pattern in cls._default_limits:
+                return pattern
+        return None
     
     @classmethod
     def set_custom_limit(cls, path: str, rpm: int, burst: int):
@@ -258,9 +286,14 @@ class RateLimiter:
     def _get_key(self, ip: str, path: str) -> str:
         """Generate bucket key from IP and path pattern"""
         # Normalize path to pattern
+        exact = RateLimitConfig._exact_pattern(path)
+        if exact:
+            return f"{ip}:{exact}"
         default_limits = RateLimitConfig.get_default_limits()
         for pattern in default_limits.keys():
-            if pattern != '_default' and path.startswith(pattern):
+            if pattern in PROTOCOL_EXACT_PATHS or pattern == '_default':
+                continue
+            if path.startswith(pattern):
                 return f"{ip}:{pattern}"
         return f"{ip}:_default"
     

@@ -172,12 +172,8 @@ class DiscoveredCertificate(db.Model):
 
     @property
     def days_until_expiry(self):
-        if not self.not_after:
-            return None
-        na = self.not_after
-        if na.tzinfo is None:
-            na = na.replace(tzinfo=timezone.utc)
-        return (na - datetime.now(timezone.utc)).days
+        from utils.days_remaining import days_remaining
+        return days_remaining(self.not_after)
 
     def to_dict(self):
         return {
