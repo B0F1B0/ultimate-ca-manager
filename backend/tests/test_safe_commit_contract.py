@@ -50,15 +50,27 @@ class TestTheAnswerIsAPair:
         assert (not refusal) is False
 
     def test_no_route_tests_the_pair_instead_of_its_first_half(self):
-        """A source scan, because the mistake cannot be seen from a route's
-        behaviour until the day the commit actually fails.
+        """Read from the parsed source, not from its text.
 
-        Kept as a test rather than a comment: it is the only thing that stops
-        the ninth occurrence from being written."""
+        A scan by regular expression sees the mistake in a comment or in the
+        prose of a docstring as readily as in code, so a single line of
+        explanation anywhere in the tree could fail this test, or a call
+        written across two lines could slip past it. The `if` statements are
+        asked of the syntax tree instead.
+
+        Kept as a test rather than as a comment: it is the only thing that
+        stops the ninth occurrence from being written."""
+        import ast
         import os
-        import re
 
         here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        def calls_safe_commit(node):
+            call = node.operand if isinstance(node, ast.UnaryOp) else node
+            return (isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id == 'safe_commit')
+
         wrong = []
         for zone in ('api', 'services', 'utils', 'auth', 'security'):
             for base, _dirs, names in os.walk(os.path.join(here, zone)):
@@ -68,15 +80,18 @@ class TestTheAnswerIsAPair:
                     if not name.endswith('.py'):
                         continue
                     path = os.path.join(base, name)
-                    for number, line in enumerate(open(path), 1):
-                        if re.search(r'\bif\s+(not\s+)?safe_commit\s*\(', line):
+                    try:
+                        tree = ast.parse(open(path).read())
+                    except SyntaxError:
+                        continue
+                    for node in ast.walk(tree):
+                        if isinstance(node, ast.If) and calls_safe_commit(node.test):
                             wrong.append(
-                                f'{os.path.relpath(path, here)}:{number}')
+                                f'{os.path.relpath(path, here)}:{node.lineno}')
         assert wrong == [], (
             'these call sites test the pair safe_commit returns instead of '
-            'unpacking it, so their error branch can never run: '
-            f'{wrong}. Write `ok, err = safe_commit(...)` then `if not ok: '
-            'return err`.')
+            f'unpacking it, so their error branch can never run: {wrong}. '
+            'Write `ok, err = safe_commit(...)` then `if not ok: return err`.')
 
 
 class TestARouteDoesNotAnnounceWhatItDidNotWrite:
