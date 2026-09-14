@@ -1240,19 +1240,24 @@ MIIEvgIBADANBgkqhkiG9w0BAQE...
                 <div className="text-xs text-text-secondary mt-0.5">{t('csrs.rekeyAsCSRDescription')}</div>
               </div>
             </button>
-            <button
-              type="button"
-              onClick={() => handleRekeyAsCert(rekeyCSR)}
-              className="flex items-start gap-3 p-4 rounded-lg border border-border hover:border-accent-primary hover:bg-accent-primary-op5 transition-colors text-left"
-            >
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 icon-bg-emerald">
-                <Certificate size={20} weight="duotone" />
-              </div>
-              <div>
-                <div className="font-medium text-sm text-text-primary">{t('csrs.rekeyAsCert')}</div>
-                <div className="text-xs text-text-secondary mt-0.5">{t('csrs.rekeyAsCertDescription')}</div>
-              </div>
-            </button>
+            {/* Issuing lands on the certificates page, which needs
+                write:certificates: without it the navigation arrived and
+                nothing opened. */}
+            {canWrite('certificates') && (
+              <button
+                type="button"
+                onClick={() => handleRekeyAsCert(rekeyCSR)}
+                className="flex items-start gap-3 p-4 rounded-lg border border-border hover:border-accent-primary hover:bg-accent-primary-op5 transition-colors text-left"
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 icon-bg-emerald">
+                  <Certificate size={20} weight="duotone" />
+                </div>
+                <div>
+                  <div className="font-medium text-sm text-text-primary">{t('csrs.rekeyAsCert')}</div>
+                  <div className="text-xs text-text-secondary mt-0.5">{t('csrs.rekeyAsCertDescription')}</div>
+                </div>
+              </button>
+            )}
           </div>
           <div className="flex justify-end pt-2 border-t border-border">
             <Button type="button" variant="secondary" onClick={() => setShowRekeyChoice(false)}>

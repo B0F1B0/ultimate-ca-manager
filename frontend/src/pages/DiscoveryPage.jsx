@@ -32,7 +32,11 @@ export default function DiscoveryPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
   const { showSuccess, showError } = useNotification()
-  const { canWrite, canDelete } = usePermission()
+  const { canDelete, hasPermission } = usePermission()
+  // Scanning, profiles and the bulk operations ask for admin:system, which no
+  // role carries outside the admin wildcard. The page offered them on
+  // write:certificates and every one of those buttons answered 403.
+  const canScan = hasPermission('admin:system')
   const { subscribe } = useWebSocket({ showToasts: false })
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -404,7 +408,7 @@ export default function DiscoveryPage() {
       width: 80,
       render: (_, row) => (
         <div className="flex items-center gap-1">
-          {row.status === 'error' && canWrite('certificates') && (
+          {row.status === 'error' && canScan && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); handleRetryScan(row.target, row.port) }}
@@ -429,7 +433,7 @@ export default function DiscoveryPage() {
         </div>
       )
     }
-  ], [t, canWrite])
+  ], [t, canScan, canDelete])
 
   // ── Profile columns ───────────────────────────────────
   const profileColumns = useMemo(() => [
@@ -499,16 +503,18 @@ export default function DiscoveryPage() {
       width: 100,
       render: (_, row) => (
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleScanProfile(row.id) }}
-            disabled={scanning}
-            className="p-1.5 rounded-md hover:bg-bg-tertiary text-text-tertiary hover:text-accent-primary transition-colors disabled:opacity-40"
-            title={t('discovery.runScan')}
-          >
-            <Play size={14} />
-          </button>
-          {canWrite('certificates') && (
+          {canScan && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleScanProfile(row.id) }}
+              disabled={scanning}
+              className="p-1.5 rounded-md hover:bg-bg-tertiary text-text-tertiary hover:text-accent-primary transition-colors disabled:opacity-40"
+              title={t('discovery.runScan')}
+            >
+              <Play size={14} />
+            </button>
+          )}
+          {canScan && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setEditingProfile(row); setShowProfileForm(true) }}
@@ -518,7 +524,7 @@ export default function DiscoveryPage() {
               <Pencil size={14} />
             </button>
           )}
-          {canWrite('certificates') && (
+          {canScan && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: 'profile', id: row.id }) }}
@@ -531,7 +537,7 @@ export default function DiscoveryPage() {
         </div>
       )
     }
-  ], [t, scanning, handleScanProfile])
+  ], [t, scanning, canScan, handleScanProfile])
 
   // ── History columns ───────────────────────────────────
   const historyColumns = useMemo(() => [
@@ -643,12 +649,12 @@ export default function DiscoveryPage() {
               onChange: setPage,
               onPerPageChange: (v) => { setPerPage(v); setPage(1) }
             }}
-            toolbarActions={canWrite('certificates') && (
-              isMobile ? (
+            toolbarActions={(
+              isMobile ? (canScan && (
                 <Button type="button" size="lg" onClick={() => setShowQuickScan(true)} disabled={scanning} className="w-11 h-11 p-0">
                   <MagnifyingGlass size={22} weight="bold" />
                 </Button>
-              ) : (
+              )) : (
                 <div className="flex items-center gap-2 flex-wrap justify-end">
                   {scanning && scanProgress && scanProgress.total > 0 && (
                     <div className="flex items-center gap-2 text-xs text-text-secondary mr-1">
@@ -663,17 +669,19 @@ export default function DiscoveryPage() {
                   )}
                   {discovered.length > 0 && (
                     <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={handleBulkResolveDns}
-                        title={t('discovery.bulkResolveDns')}
-                      >
-                        <MapPin size={14} />
-                        {t('discovery.bulkResolveDns')}
-                      </Button>
-                      {stats.errors > 0 && (
+                      {canScan && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={handleBulkResolveDns}
+                          title={t('discovery.bulkResolveDns')}
+                        >
+                          <MapPin size={14} />
+                          {t('discovery.bulkResolveDns')}
+                        </Button>
+                      )}
+                      {canScan && stats.errors > 0 && (
                         <Button
                           type="button"
                           size="sm"
@@ -706,34 +714,38 @@ export default function DiscoveryPage() {
                         <Export size={14} />
                         {t('common.export')}
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setDeleteConfirm({ type: 'all' })}
-                        className="text-status-danger hover:text-status-danger"
-                      >
-                        <Trash size={14} />
-                        {t('discovery.deleteAll')}
-                      </Button>
+                      {canScan && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setDeleteConfirm({ type: 'all' })}
+                          className="text-status-danger hover:text-status-danger"
+                        >
+                          <Trash size={14} />
+                          {t('discovery.deleteAll')}
+                        </Button>
+                      )}
                     </>
                   )}
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setShowQuickScan(true)}
-                    disabled={scanning}
-                  >
-                    {scanning ? <ArrowsClockwise size={14} className="animate-spin" /> : <MagnifyingGlass size={14} />}
-                    {scanning ? t('discovery.scanning') : t('discovery.quickScan')}
-                  </Button>
+                  {canScan && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setShowQuickScan(true)}
+                      disabled={scanning}
+                    >
+                      {scanning ? <ArrowsClockwise size={14} className="animate-spin" /> : <MagnifyingGlass size={14} />}
+                      {scanning ? t('discovery.scanning') : t('discovery.quickScan')}
+                    </Button>
+                  )}
                 </div>
               )
             )}
             emptyIcon={Globe}
             emptyTitle={t('discovery.noResults')}
             emptyDescription={t('discovery.noResultsDesc')}
-            emptyAction={canWrite('certificates') && (
+            emptyAction={canScan && (
               <Button type="button" onClick={() => setShowQuickScan(true)}>
                 <MagnifyingGlass size={16} />
                 {t('discovery.quickScan')}
@@ -759,7 +771,7 @@ export default function DiscoveryPage() {
             sortable
             defaultSort={{ key: 'name', direction: 'asc' }}
             pagination={true}
-            toolbarActions={canWrite('certificates') && (
+            toolbarActions={canScan && (
               isMobile ? (
                 <Button type="button" size="lg" onClick={() => { setEditingProfile(null); setShowProfileForm(true) }} className="w-11 h-11 p-0">
                   <Plus size={22} weight="bold" />
@@ -774,7 +786,7 @@ export default function DiscoveryPage() {
             emptyIcon={FolderOpen}
             emptyTitle={t('discovery.noProfiles')}
             emptyDescription={t('discovery.noProfilesDesc')}
-            emptyAction={canWrite('certificates') && (
+            emptyAction={canScan && (
               <Button type="button" onClick={() => { setEditingProfile(null); setShowProfileForm(true) }}>
                 <Plus size={16} />
                 {t('discovery.createProfile')}

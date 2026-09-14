@@ -1902,6 +1902,7 @@
     "members": "Membres",
     "noGroups": "Aucun groupe trouvé",
     "noMembers": "Aucun membre trouvé",
+    "membersUpdated": "Membres mis à jour : {{added}} ajoutés, {{removed}} retirés",
     "namePlaceholder": "développeurs",
     "descriptionPlaceholder": "Équipe de développement",
     "confirmDelete": "Supprimer le groupe \"{{name}}\" ?",

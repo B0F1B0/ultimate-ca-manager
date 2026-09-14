@@ -612,7 +612,9 @@ export default function OperationsPage() {
 
   // Bulk action buttons
   const renderBulkActionButtons = useCallback(() => {
-    if (!resourceConfig) return null
+    // Every bulk route here is admin-only, and so is the page: keeping the
+    // bar on the same check means a routing change cannot expose it.
+    if (!resourceConfig || !isAdmin()) return null
     return (
       <div className="flex items-center gap-1.5">
         {resourceConfig.actions.includes('revoke') && (
@@ -653,7 +655,7 @@ export default function OperationsPage() {
         )}
       </div>
     )
-  }, [resourceConfig, selectedIds, bulkResourceType, t])
+  }, [resourceConfig, selectedIds, bulkResourceType, isAdmin, t])
 
   // Confirm modal content
   const getConfirmMessage = () => {

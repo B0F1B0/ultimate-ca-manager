@@ -1246,6 +1246,7 @@
     "members": "成员",
     "noGroups": "未找到组",
     "noMembers": "未找到成员",
+    "membersUpdated": "成员已更新：新增 {{added}} 个，移除 {{removed}} 个",
     "namePlaceholder": "开发人员",
     "descriptionPlaceholder": "开发团队",
     "confirmDelete": "删除组 \"{{name}}\"？",

@@ -221,7 +221,9 @@ export function CADetailsPanel({ ca, canWrite, canDelete, onExport, onDelete, on
             <Download size={14} /> {t('export.title')}
           </Button>
         )}
-        {canWrite('cas') && !ca.pending && (
+        {/* Pinning asks for write:cas AND write:templates; operator holds only
+            the first, so the button opened a modal that answered 403. */}
+        {canWrite('cas') && canWrite('templates') && !ca.pending && (
           <Button type="button" size="xs" variant="secondary" onClick={() => setShowPinsModal(true)}>
             <PushPin size={14} /> {t('templates.managePins')}
           </Button>

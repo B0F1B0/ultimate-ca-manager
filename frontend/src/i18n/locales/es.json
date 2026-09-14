@@ -1246,6 +1246,7 @@
     "members": "Miembros",
     "noGroups": "No se encontraron grupos",
     "noMembers": "No se encontraron miembros",
+    "membersUpdated": "Miembros actualizados: {{added}} añadidos, {{removed}} eliminados",
     "namePlaceholder": "desarrolladores",
     "descriptionPlaceholder": "Equipo de desarrollo",
     "confirmDelete": "Eliminar grupo \"{{name}}\"?",

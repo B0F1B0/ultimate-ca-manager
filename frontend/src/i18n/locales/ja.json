@@ -1246,6 +1246,7 @@
     "members": "メンバー",
     "noGroups": "グループが見つかりません",
     "noMembers": "メンバーが見つかりません",
+    "membersUpdated": "メンバーを更新しました: {{added}} 件追加、{{removed}} 件削除",
     "namePlaceholder": "開発者",
     "descriptionPlaceholder": "開発チーム",
     "confirmDelete": "グループ「{{name}}」を削除しますか？",

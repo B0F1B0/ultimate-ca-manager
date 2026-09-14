@@ -298,7 +298,7 @@ export function FloatingDetailWindow({ windowInfo }) {
     // Offline needs the key in UCM's own store, and a revoked CA stays visibly revoked (#348, review)
     onOffline: isCA && canWrite('cas') && !data.offline && !data.pending && !data.revoked && data.has_private_key && !data.uses_hsm ? handleOffline : null,
     onRestore: isCA && canWrite('cas') && data.offline ? handleRestore : null,
-    onManagePins: isCA && canWrite('cas') && !data.pending ? handleManagePins : null,
+    onManagePins: isCA && canWrite('cas') && canWrite('templates') && !data.pending ? handleManagePins : null,
     // External-CSR CA lifecycle (#298)
     canExport: !(isCA && data.pending),
     onDownloadCsr: isCA && data.has_csr ? handleDownloadCsr : null,
@@ -438,7 +438,7 @@ function DetailContent({ type, data, canWrite, canDelete, onExport, onDelete, on
         showActions={true}
         showPem={true}
         embedded={true}
-        canWrite={canWrite('cas')}
+        canWrite={canWrite('cas') && canWrite('templates')}
         canDelete={canDelete('cas')}
         onExport={onExport}
         onDelete={onDelete}

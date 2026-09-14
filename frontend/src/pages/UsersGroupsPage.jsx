@@ -332,7 +332,7 @@ export default function UsersGroupsPage() {
         ...toRemove.map(userId => groupsService.removeMember(selectedGroup.id, userId))
       ])
       
-      showSuccess(`Members updated: ${toAdd.length} added, ${toRemove.length} removed`)
+      showSuccess(t('groups.membersUpdated', { added: toAdd.length, removed: toRemove.length }))
       setShowMemberModal(false)
       loadData()
       
