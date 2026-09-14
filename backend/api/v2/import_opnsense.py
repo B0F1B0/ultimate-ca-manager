@@ -115,6 +115,49 @@ def _parse_cert(encoded_crt):
     return info
 
 
+def _canonical_host(host):
+    """The host written the way the HTTP client will resolve it, or None.
+
+    The deny-list resolves through `socket.getaddrinfo`, which converts a
+    unicode name with IDNA 2003; urllib3 converts it with IDNA 2008. The two
+    disagree: the name `fa` followed by a sharp s and `.example.com` is
+    `fass.example.com` for one and `xn--fa-hia.example.com` for the other. A
+    caller owning both records has a name checked as one host and reached as
+    another, with no hostile resolver and no race -- the very shape of defect
+    this function exists to close, one notch further along.
+
+    So the name is converted once, here, with the encoder the client uses,
+    and everything downstream works on the converted form. Addresses are left
+    alone: they are not names, and the converter refuses them.
+    """
+    import ipaddress
+
+    given = (host or '').strip()
+    if not given:
+        return None
+
+    bracketed = given.startswith('[') and given.endswith(']')
+    bare = given[1:-1] if bracketed else given
+    try:
+        address = ipaddress.ip_address(bare)
+    except ValueError:
+        if bracketed:
+            # Brackets mean an address literal. Dropping them and treating
+            # the contents as a name would make the checked string differ
+            # from the requested one all over again.
+            return None
+    else:
+        return f'[{address}]' if address.version == 6 else str(address)
+
+    if bare.isascii():
+        return bare.lower()
+    try:
+        import idna
+        return idna.encode(bare.lower(), strict=True, std3_rules=True).decode()
+    except Exception:
+        return None
+
+
 def _appliance_base_url(host, port):
     """The URL the appliance will actually be asked for, or a refusal.
 
@@ -126,9 +169,9 @@ def _appliance_base_url(host, port):
     name that was typed and the connection went to the metadata service, in a
     single request, under a permission the operator role holds.
 
-    So the port is required to be a port, the host to be nothing but a host,
-    and the deny-list is asked about the URL that will be requested rather
-    than about a prefix of it.
+    So the port is required to be a port, the host to be nothing but a host
+    written the way the client will resolve it, and the deny-list is asked
+    about the URL that will be requested rather than about a prefix of it.
 
     Returns (base_url, None) or (None, error response).
     """
@@ -143,16 +186,26 @@ def _appliance_base_url(host, port):
         return None, error_response(
             'Port must be a number between 1 and 65535', 400)
 
-    base_url = f"https://{host}:{number}"
-    parsed = urlparse(base_url)
-    # `hostname` is lower-cased and stripped of its brackets, so an IPv6
-    # literal is compared without them on both sides.
-    given = (host or '').strip().lower().strip('[]')
-    if (parsed.hostname != given or parsed.port != number
-            or parsed.username or parsed.password or parsed.path):
-        return None, error_response(
-            'Host must be a hostname or an IP address, without a port, a '
-            'path or credentials', 400)
+    malformed = error_response(
+        'Host must be a hostname or an IP address, without a port, a path '
+        'or credentials', 400)
+
+    canonical = _canonical_host(host)
+    if canonical is None:
+        return None, malformed
+
+    base_url = f"https://{canonical}:{number}"
+    try:
+        parsed = urlparse(base_url)
+        # `hostname` is lower-cased and stripped of its brackets, so an
+        # address literal is compared without them on both sides.
+        if (parsed.hostname != canonical.strip('[]') or parsed.port != number
+                or parsed.username or parsed.password or parsed.path):
+            return None, malformed
+    except ValueError:
+        # A bracketed value that is not an address: urlparse raises rather
+        # than answering, and the caller would have seen a server error.
+        return None, malformed
 
     try:
         validate_url_not_cloud_metadata(base_url)

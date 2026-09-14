@@ -170,3 +170,70 @@ class TestARedirectIsNotFollowed:
         assert seen.get('allow_redirects') is False, (
             'the import follows redirects, so a 3xx sends it to a host the '
             'deny-list never saw and its answer is read as the inventory')
+
+
+class TestTheNameCheckedIsTheNameResolved:
+    """The same defect as the port, one notch further along.
+
+    The deny-list resolves through `socket.getaddrinfo`, which converts a
+    unicode name with IDNA 2003; the HTTP client converts it with IDNA 2008.
+    They disagree, so a caller owning two records has the first name checked
+    and the second one reached, with no hostile resolver and no race.
+    """
+
+    UNICODE_HOST = 'fa\N{LATIN SMALL LETTER SHARP S}.example.test'
+
+    def test_the_two_encoders_really_disagree(self):
+        """Kept as a test: the day they agree, the case below proves nothing
+        and someone should know why it is still here."""
+        import idna
+
+        assert (self.UNICODE_HOST.encode('idna').decode()
+                != idna.encode(self.UNICODE_HOST, strict=True,
+                               std3_rules=True).decode())
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_the_request_carries_the_name_the_client_resolves(
+            self, auth_client, attempted, route):
+        import idna
+
+        auth_client.post(route, json=_payload(host=self.UNICODE_HOST,
+                                              port=8443))
+
+        if not attempted:
+            return      # refused outright is a sound answer too
+        expected = idna.encode(self.UNICODE_HOST, strict=True,
+                               std3_rules=True).decode()
+        assert attempted[0].startswith(f'https://{expected}:8443/'), (
+            f'the request went to {attempted[0]}, which is not the name the '
+            'deny-list was asked about')
+
+
+class TestTheOrdinaryFormsStillWork:
+    @pytest.mark.parametrize('route', ROUTES)
+    @pytest.mark.parametrize('host, reached', [
+        ('OPNSENSE.Example.Test', 'opnsense.example.test'),
+        ('opnsense.example.test.', 'opnsense.example.test.'),
+        ('192.0.2.10', '192.0.2.10'),
+        ('[2001:db8::1]', '[2001:db8::1]'),
+        ('2001:db8::1', '[2001:db8::1]'),
+    ])
+    def test_a_legitimate_appliance_is_still_reached(
+            self, auth_client, attempted, route, host, reached):
+        auth_client.post(route, json=_payload(host=host, port=8443))
+
+        assert attempted, f'{route} refused host={host!r}'
+        assert attempted[0].startswith(f'https://{reached}:8443/'), (
+            f'host={host!r} was contacted as {attempted[0]}')
+
+    @pytest.mark.parametrize('route', ROUTES)
+    @pytest.mark.parametrize('host', ['[abc]', '[]', '[', '[169.254.169.254]'])
+    def test_a_bracketed_value_that_is_not_an_address_is_named(
+            self, auth_client, attempted, route, host):
+        """These made `urlparse` raise, so the caller saw a server error
+        instead of being told what was wrong with their host."""
+        response = auth_client.post(route, json=_payload(host=host))
+
+        assert response.status_code == 400, (
+            f'{route} answered {response.status_code} for host={host!r}')
+        assert attempted == []
