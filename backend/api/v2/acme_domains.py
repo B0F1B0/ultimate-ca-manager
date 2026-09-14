@@ -345,8 +345,14 @@ def find_provider_for_domain(domain: str) -> dict | None:
 
 
 def _is_valid_domain(domain: str) -> bool:
-    """Validate domain format"""
-    import re
-    # Basic domain validation - allows subdomains and wildcards
-    pattern = r'^(\*\.)?([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$'
-    return bool(re.match(pattern, domain))
+    """Validate domain format.
+
+    Accepts standard domains, subdomains and wildcards. Bare TLDs ("local",
+    "internal") are refused here and accepted by the local-domain table: a
+    zone this table answers a challenge in is one a DNS provider hosts, and
+    no provider hosts a private TLD.
+
+    Accepted: example.com, foo.example.com, *.example.com
+    Rejected: local, *.local, *, ..com, com., single-char or numeric-only TLDs
+    """
+    return domain_match.is_valid_entry(domain, allow_single_label=False)

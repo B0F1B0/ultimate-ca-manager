@@ -11,9 +11,38 @@ order for that zone fell through to the default CA (#352).
 The two halves disagreed rather than one of them being wrong: the validator
 accepts ``*.local`` on purpose, so the lookup is what has to understand it.
 """
+import re
 from typing import List, Optional
 
 _WILDCARD = '*.'
+
+# A label: letter/digit at both ends, hyphens allowed inside, 63 characters max.
+_LABEL = r'[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?'
+# The last label is alphabetic and at least two characters, which is what keeps
+# `example.123` and a bare `a` out.
+_TLD = r'[a-zA-Z]{2,}'
+# `\Z` rather than `$`: in Python `$` also matches just before a trailing
+# newline, so `$` accepted "example.com\n" as a well-formed entry.
+_ENTRY_RE = {
+    False: re.compile(rf'\A(\*\.)?({_LABEL}\.)+{_TLD}\Z'),
+    True: re.compile(rf'\A(\*\.)?(({_LABEL}\.)+)?{_TLD}\Z'),
+}
+
+
+def is_valid_entry(domain: Optional[str], *, allow_single_label: bool) -> bool:
+    """Whether ``domain`` is a well-formed entry for one of the two tables.
+
+    Accepts a domain, a subdomain, and a single leading wildcard label.
+
+    ``allow_single_label`` is the only axis between the two tables, and it is
+    the local one that sets it: a bare private TLD ("local", "internal") is a
+    registrable entry there, so that ``find``'s parent-walking covers every
+    name under it (#290). The DNS-provider table has no such case -- a zone it
+    can answer a challenge in is one a provider hosts -- so it refuses them.
+    """
+    if not domain:
+        return False
+    return bool(_ENTRY_RE[bool(allow_single_label)].match(domain))
 
 
 def normalize(domain: Optional[str]) -> str:

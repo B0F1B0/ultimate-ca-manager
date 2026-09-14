@@ -2,7 +2,6 @@
 ACME Local Domains API Routes
 Manages domain-to-CA mappings for the Local ACME server.
 """
-import re
 import logging
 from flask import Blueprint, request, g
 from auth.unified import require_auth
@@ -199,5 +198,4 @@ def _is_valid_domain(domain: str) -> bool:
     Accepted: local, *.local, example.com, *.example.com, foo.example.com
     Rejected: *, ..com, com., single-char or numeric-only TLDs
     """
-    pattern = r'^(\*\.)?(([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+)?[a-zA-Z]{2,}\Z'
-    return bool(re.match(pattern, domain))
+    return domain_match.is_valid_entry(domain, allow_single_label=True)
