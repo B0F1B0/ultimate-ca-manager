@@ -32,7 +32,7 @@ export default function DiscoveryPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
   const { showSuccess, showError } = useNotification()
-  const { isAdmin, canWrite } = usePermission()
+  const { canWrite, canDelete } = usePermission()
   const { subscribe } = useWebSocket({ showToasts: false })
   const [searchParams, setSearchParams] = useSearchParams()
 
@@ -414,7 +414,9 @@ export default function DiscoveryPage() {
               <ArrowCounterClockwise size={14} />
             </button>
           )}
-          {canWrite('certificates') && (
+          {/* DELETE /api/v2/discovery/<id> asks for delete:certificates, the
+              same scope the certificates list uses for its own Delete. */}
+          {canDelete('certificates') && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ type: 'discovered', id: row.id }) }}

@@ -319,13 +319,17 @@ export default function TemplatesPage() {
   }, [])
 
   const rowActions = useCallback((row) => [
-    { label: t('common.edit'), icon: PencilSimple, onClick: () => { setEditingTemplate(row); setShowTemplateModal(true) } },
-    { label: t('templates.duplicateTemplate'), icon: Copy, onClick: () => handleDuplicateTemplate(row) },
+    // Edit and Duplicate both end at write:templates, which is what the detail
+    // panel already asks for; only this menu offered them to every reader.
+    ...(canWrite('templates') ? [
+      { label: t('common.edit'), icon: PencilSimple, onClick: () => { setEditingTemplate(row); setShowTemplateModal(true) } },
+      { label: t('templates.duplicateTemplate'), icon: Copy, onClick: () => handleDuplicateTemplate(row) },
+    ] : []),
     { label: t('common.export'), icon: Download, onClick: () => handleExportTemplate(row) },
     ...(canDelete('templates') ? [
       { label: t('common.delete'), icon: Trash, variant: 'danger', onClick: () => handleDeleteTemplate(row) }
     ] : [])
-  ], [canDelete, t])
+  ], [canWrite, canDelete, t])
 
   // ============= HELP CONTENT =============
   

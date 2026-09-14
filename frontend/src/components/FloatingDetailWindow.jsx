@@ -66,11 +66,23 @@ const ENTITY_CONFIG = {
   },
 }
 
+// The RBAC resource each window type is judged by, matching the scope its route
+// enforces. A type missing here would be guarded as a certificate, which is how
+// trust store entries came to be gated on delete:certificates while
+// DELETE /api/v2/truststore/<id> asks for delete:truststore.
+const ENTITY_RESOURCE = {
+  certificate: 'certificates',
+  ca: 'cas',
+  truststore: 'truststore',
+  user_certificate: 'user_certificates',
+}
+
 export function FloatingDetailWindow({ windowInfo }) {
   const { t } = useTranslation()
   const { closeWindow, focusWindow, sameWindow } = useWindowManager()
   const { showSuccess, showError, showConfirm, showPrompt, showWarning } = useNotification()
   const { canWrite, canDelete, hasPermission } = usePermission()
+  const resource = ENTITY_RESOURCE[windowInfo.type] || 'certificates'
   const [data, setData] = useState(windowInfo.data?.fullData || null)
   const [loading, setLoading] = useState(!windowInfo.data?.fullData)
   const [minimized, setMinimized] = useState(false)
@@ -134,6 +146,11 @@ export function FloatingDetailWindow({ windowInfo }) {
         const codes = revoked?.warning_codes || []
         if (codes.length) codes.forEach(code => showWarning(t(`cas.revokeWarnings.${code}`)))
         else for (const w of revoked?.warnings || []) showWarning(w)
+      } else if (windowInfo.type === 'user_certificate') {
+        // entityId is the enrolment id, which only this route resolves; the
+        // certificates route would look it up in a different table.
+        await userCertificatesService.revoke(windowInfo.entityId, reason)
+        showSuccess(t('certificates.revoked', 'Certificate revoked'))
       } else {
         await certificatesService.revoke(windowInfo.entityId, reason)
         showSuccess(t('certificates.revoked', 'Certificate revoked'))
@@ -177,6 +194,9 @@ export function FloatingDetailWindow({ windowInfo }) {
   }
 
   const handleDelete = async () => {
+    // The guard sits here as well as on the button: a surface that offers the
+    // action anyway still cannot reach a route that would refuse it.
+    if (!canDelete(resource)) return
     const confirmed = await showConfirm(
       t('common.confirmDeleteMessage', 'Are you sure you want to delete this item? This action cannot be undone.'),
       {
@@ -257,7 +277,6 @@ export function FloatingDetailWindow({ windowInfo }) {
   const isUserCert = windowInfo.type === 'user_certificate'
   const isCA = windowInfo.type === 'ca'
   const hasPrivateKey = !!data?.has_private_key
-  const resource = isCA ? 'cas' : isUserCert ? 'user_certificates' : 'certificates'
   const actionBarProps = data ? {
     onExport: handleExport,
     hasPrivateKey,
