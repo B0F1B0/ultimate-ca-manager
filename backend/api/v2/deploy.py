@@ -56,15 +56,24 @@ def create_target():
         db.session.rollback()
         return error_response(str(e), 400)
 
-    AuditService.log_action(
-        action='deploy_target_create', resource_type='deploy_target',
-        resource_id='', resource_name=target.name,
-        details=f"Created deploy target {target.name} ({target.username}@{target.host}:{target.port})",
-        success=True)
     ok, err = safe_commit(logger, 'Failed to create deploy target')
     if not ok:
         return err
-    return created_response(data=target.to_dict(), message='Deploy target created')
+
+    # Audit AFTER the business commit, for the reason written at
+    # `create_binding` below (R-03): `log_action` commits the session it is
+    # given and rolls all of it back when its own entry cannot be written, so
+    # called first it decided whether the target survived. An audit failure
+    # undid the target, the commit that followed committed an empty session
+    # and reported success, and the route answered 201 with an identifier the
+    # flush had handed out for a row that is not there.
+    result = target.to_dict()
+    AuditService.log_action(
+        action='deploy_target_create', resource_type='deploy_target',
+        resource_id=str(target.id), resource_name=target.name,
+        details=f"Created deploy target {target.name} ({target.username}@{target.host}:{target.port})",
+        success=True)
+    return created_response(data=result, message='Deploy target created')
 
 
 @bp.route('/api/v2/deploy/targets/<int:target_id>', methods=['GET'])
@@ -91,13 +100,16 @@ def update_target(target_id):
         db.session.rollback()
         return error_response(str(e), 400)
 
+    ok, err = safe_commit(logger, 'Failed to update deploy target')
+    if not ok:
+        return err
+
+    # Audit after the commit, as above: called first, its rollback undid the
+    # change and the route answered 200 for an update that did not happen.
     AuditService.log_action(
         action='deploy_target_update', resource_type='deploy_target',
         resource_id=str(target.id), resource_name=target.name,
         details=f"Updated deploy target {target.name}", success=True)
-    ok, err = safe_commit(logger, 'Failed to update deploy target')
-    if not ok:
-        return err
     return success_response(data=target.to_dict(), message='Deploy target updated')
 
 
