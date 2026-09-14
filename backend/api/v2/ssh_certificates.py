@@ -16,6 +16,9 @@ from services.audit_service import AuditService
 from sqlalchemy import or_, and_
 from models.ssh import SSHCertificate, SSHCertificateAuthority
 from utils.datetime_utils import utc_now
+from utils.cert_status import (SSH_CERTIFICATE_STATUS_FILTERS,
+                               normalize_status_filters,
+                               unknown_status_message)
 from models import db
 
 logger = logging.getLogger(__name__)
@@ -133,7 +136,12 @@ def list_ssh_certificates():
     """List SSH certificates with filtering and pagination."""
     page, per_page = parse_request_pagination(default_per_page=20)
     search = request.args.get('search', '').strip()
-    statuses = request.args.getlist('status')
+    statuses, unknown_status = normalize_status_filters(
+        request.args.getlist('status'), SSH_CERTIFICATE_STATUS_FILTERS)
+    if unknown_status:
+        return error_response(
+            unknown_status_message(
+                unknown_status, SSH_CERTIFICATE_STATUS_FILTERS), 400)
     cert_types = request.args.getlist('type')
     ca_ids = request.args.getlist('ca_id', type=int)
 

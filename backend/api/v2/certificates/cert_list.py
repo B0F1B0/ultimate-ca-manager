@@ -9,9 +9,11 @@ from utils.response import success_response
 from utils.pagination import parse_request_pagination
 from models import Certificate, CA, db
 from utils.cert_status import (
-    expired_condition, expiring_condition, issued_certificates,
-    orphan_condition, revoked_condition, valid_condition,
+    CERTIFICATE_STATUS_FILTERS, expired_condition, expiring_condition,
+    issued_certificates, normalize_status_filters, orphan_condition,
+    revoked_condition, unknown_status_message, valid_condition,
 )
+from utils.response import error_response
 from services.compliance_service import calculate_compliance_score
 from utils.datetime_utils import utc_now
 from . import bp
@@ -25,7 +27,13 @@ def list_certificates():
     """List certificates"""
 
     page, per_page = parse_request_pagination(default_per_page=20)
-    status_list = request.args.getlist('status')  # supports multi-select: ?status=valid&status=expired
+    # supports multi-select: ?status=valid&status=expired
+    status_list, unknown_status = normalize_status_filters(
+        request.args.getlist('status'), CERTIFICATE_STATUS_FILTERS)
+    if unknown_status:
+        return error_response(
+            unknown_status_message(unknown_status, CERTIFICATE_STATUS_FILTERS),
+            400)
     ca_id_list = request.args.getlist('ca_id', type=int)  # supports multi-select: ?ca_id=1&ca_id=2
     source_list = request.args.getlist('source')  # supports multi-select: ?source=msca&source=acme
     search = request.args.get('search', '').strip()

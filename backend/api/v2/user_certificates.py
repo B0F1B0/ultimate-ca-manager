@@ -21,6 +21,9 @@ from services.audit_service import AuditService
 from services.cert_service import CertificateService
 from utils.pagination import parse_request_pagination
 from utils.days_remaining import days_remaining as compute_days_remaining
+from utils.cert_status import (USER_CERTIFICATE_STATUS_FILTERS,
+                               normalize_status_filters,
+                               unknown_status_message)
 from utils.response import error_response, no_content_response, success_response
 from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
@@ -122,7 +125,12 @@ def list_user_certificates():
     page, per_page = parse_request_pagination(default_per_page=25)
 
     # Filters
-    status_filters = request.args.getlist('status')
+    status_filters, unknown_status = normalize_status_filters(
+        request.args.getlist('status'), USER_CERTIFICATE_STATUS_FILTERS)
+    if unknown_status:
+        return error_response(
+            unknown_status_message(
+                unknown_status, USER_CERTIFICATE_STATUS_FILTERS), 400)
     user_filter = request.args.get('user_id', type=int)
     search = request.args.get('search', '').strip()
     sort_by = request.args.get('sort_by', 'created_at')

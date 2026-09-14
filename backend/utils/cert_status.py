@@ -26,6 +26,67 @@ from utils.datetime_utils import utc_now
 EXPIRY_WINDOW_DAYS = 30
 
 
+# --------------------------------------------------------------- vocabulary
+#
+# Two spellings of the same idea coexist, and neither is going away:
+#
+# * ``models/certificate.py`` publishes ``valid`` / ``expiring`` /
+#   ``expired`` / ``revoked`` -- lowercase, and every certificate screen
+#   keys its badge maps on them;
+# * ``models/ca.py`` publishes ``Active`` / ``Pending`` / ``Revoked`` /
+#   ``Expired`` -- capitalised, and every CA screen compares against those.
+#
+# They are namespace-partitioned and internally consistent, so the casing is
+# a wart rather than a bug *as long as nothing crosses*. What crossed was the
+# query parameter: the listings compared ``request.args`` against the
+# lowercase literals with ``==`` and said nothing when a value matched none
+# of them. ``?status=Expired`` -- the CA spelling, and the obvious guess for
+# anyone reading the CA half of the API -- left ``/api/v2/certificates`` with
+# an empty condition list, the ``if conditions:`` guard then skipped the
+# filter, and the caller received every certificate instead of the expired
+# ones. The same value returned nothing at all from
+# ``/api/v2/user-certificates``.
+#
+# So the filters take either spelling and refuse a word that is neither,
+# which is the part that could not stay silent: a filter that turns itself
+# off hands back more than was asked for.
+
+CERTIFICATE_STATUS_FILTERS = (
+    'valid', 'expiring', 'expired', 'revoked', 'orphan', 'archived')
+
+# No orphan or archived here: a user certificate's row is its authentication
+# certificate, and neither state is computed for it.
+USER_CERTIFICATE_STATUS_FILTERS = ('valid', 'expiring', 'expired', 'revoked')
+
+SSH_CERTIFICATE_STATUS_FILTERS = ('valid', 'expiring', 'expired', 'revoked')
+
+
+def normalize_status_filters(values, vocabulary):
+    """``(canonical_names, unrecognised)`` for the requested statuses.
+
+    Case and surrounding space are not the question being asked, so they are
+    settled here. Anything left over is handed back rather than dropped, so
+    the route can refuse instead of quietly answering something else.
+    """
+    known = {name.lower(): name for name in vocabulary}
+    names = []
+    unknown = []
+    for value in values or []:
+        key = str(value).strip().lower()
+        if key in known:
+            if known[key] not in names:
+                names.append(known[key])
+        else:
+            unknown.append(value)
+    return names, unknown
+
+
+def unknown_status_message(unknown, vocabulary):
+    return (
+        'Unknown status filter: ' + ', '.join(repr(v) for v in unknown)
+        + '; accepted values: ' + ', '.join(vocabulary))
+
+
 def holds_certificate(model=None):
     """Condition for "this row holds a certificate".
 
