@@ -7,6 +7,7 @@ import time
 from models import SystemConfig
 from utils.acme_debug import acme_log
 from utils.dns_txt_lookup import log_public_resolver_status, txt_record_present
+from utils.san_parse import strip_wildcard
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +44,7 @@ def acme_allow_loopback_upstream() -> bool:
 
 def challenge_txt_name(domain: str, challenge: dict) -> str:
     """TXT owner name for a dns-01 challenge dict (renewal rows may omit dns_txt_name)."""
-    # Strip a leading '*.' prefix only — lstrip('*.') would eat any run of
-    # '*' and '.' characters (same class of bug as the CAA wildcard strip).
-    base = domain[2:] if domain.startswith('*.') else domain
-    return challenge.get('dns_txt_name') or f"_acme-challenge.{base}"
+    return challenge.get('dns_txt_name') or f"_acme-challenge.{strip_wildcard(domain)}"
 
 
 def wait_for_challenges(challenges: dict, timeout: int) -> dict:

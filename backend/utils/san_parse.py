@@ -101,6 +101,62 @@ def validate_upn_san(value: str) -> str | None:
     return f'Invalid UPN format: {value} (expected user@domain)'
 
 
+def strip_wildcard(domain: str) -> str:
+    """Drop a leading ``*.`` label, and only that.
+
+    ``lstrip('*.')`` strips *characters*: it eats any run of ``*`` and ``.``
+    at the front, so ``*.*.example.com`` comes back as ``example.com`` instead
+    of ``*.example.com``. Eight call sites spelled it that way and two spelled
+    it correctly, which meant the DNS-01 challenge name a provider published
+    and the one the self-check polled could be different names.
+    """
+    value = domain or ''
+    return value[2:] if value.startswith('*.') else value
+
+
+def san_buckets_from_general_names(general_names) -> SanBuckets:
+    """The five SAN buckets UCM persists, read from x509 GeneralName entries.
+
+    Thirteen readers spelled out the same four-branch DNS/IP/email/URI
+    cascade, and every one of them dropped the otherName UPN: the column
+    exists, but only the signing path ever filled it, so the same certificate
+    came back carrying a UPN when UCM issued it and carrying none when UCM
+    imported it.
+    """
+    from cryptography import x509
+
+    buckets = _empty_buckets()
+    entries = list(general_names or [])
+    for name in entries:
+        if isinstance(name, x509.DNSName):
+            buckets['san_dns'].append(name.value)
+        elif isinstance(name, x509.IPAddress):
+            buckets['san_ip'].append(str(name.value))
+        elif isinstance(name, x509.RFC822Name):
+            buckets['san_email'].append(name.value)
+        elif isinstance(name, x509.UniformResourceIdentifier):
+            buckets['san_uri'].append(name.value)
+    from utils.upn_san import extract_upns_from_san_list
+    buckets['san_upn'] = extract_upns_from_san_list(entries)
+    return buckets
+
+
+def san_buckets_from_certificate(cert) -> SanBuckets:
+    """:func:`san_buckets_from_general_names` for a parsed certificate.
+
+    A certificate with no SAN extension yields empty buckets, which is what
+    every inline reader did with ``ExtensionNotFound``.
+    """
+    from cryptography import x509
+
+    try:
+        ext = cert.extensions.get_extension_for_oid(
+            x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+    except x509.ExtensionNotFound:
+        return _empty_buckets()
+    return san_buckets_from_general_names(ext.value)
+
+
 def cn_looks_like_email(cn: str) -> bool:
     return is_valid_san_email((cn or '').strip())
 

@@ -36,6 +36,7 @@ from utils.acme_ip import (
     TlsAlpn01Listener,
 )
 from utils import ssrf_protection
+from utils.san_parse import strip_wildcard
 
 if TYPE_CHECKING:
     from models.acme_client_account import AcmeClientAccount
@@ -1134,7 +1135,7 @@ class AcmeClientService:
                                 'token': token,
                                 'key_authorization': key_auth,
                                 'identifier_type': authz_identifier.get('type', 'dns'),
-                                'dns_txt_name': f"_acme-challenge.{domain.lstrip('*.')}",
+                                'dns_txt_name': f"_acme-challenge.{strip_wildcard(domain)}",
                                 'dns_txt_value': dns_value if challenge_type == 'dns-01' else None,
                                 'status': challenge['status'],
                                 'authz_status': authz.get('status'),
@@ -1194,7 +1195,7 @@ class AcmeClientService:
             record_value = challenge['dns_txt_value']
             
             success, message = provider.create_txt_record(
-                domain=domain.lstrip('*.'),
+                domain=strip_wildcard(domain),
                 record_name=record_name,
                 record_value=record_value,
                 ttl=300
@@ -1683,7 +1684,7 @@ class AcmeClientService:
             challenges = order.challenges_dict
             for domain, challenge in challenges.items():
                 provider.delete_txt_record(
-                    domain=domain.lstrip('*.'),
+                    domain=strip_wildcard(domain),
                     record_name=challenge['dns_txt_name']
                 )
             

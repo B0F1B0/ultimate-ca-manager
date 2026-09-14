@@ -16,6 +16,8 @@ from typing import Dict, Any, Optional, Tuple, Union
 from flask import current_app
 from sqlalchemy import and_, or_
 
+from utils.san_parse import strip_wildcard
+
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding, utils as asym_utils
 from cryptography.hazmat.backends import default_backend
@@ -264,12 +266,8 @@ class AcmeProxyService:
 
     @staticmethod
     def _strip_wildcard(domain: str) -> str:
-        """Drop a leading '*.' label.
-
-        Prefix strip, not ``lstrip('*.')`` — the latter strips *characters* and
-        is only accidentally correct for hostnames.
-        """
-        return domain[2:] if domain.startswith('*.') else domain
+        """Drop a leading '*.' label (see utils.san_parse.strip_wildcard)."""
+        return strip_wildcard(domain)
 
     @staticmethod
     def _get_verify_ssl() -> bool:

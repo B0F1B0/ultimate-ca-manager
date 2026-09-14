@@ -15,6 +15,7 @@ from services.acme.dns_selfcheck import dns_propagation_timeout, wait_for_challe
 from services.cert_service import CertificateService
 from utils.acme_debug import acme_log
 from utils.datetime_utils import utc_now
+from utils.san_parse import strip_wildcard
 from utils.db_transaction import commit_or_rollback
 
 logger = logging.getLogger(__name__)
@@ -253,11 +254,11 @@ def renew_certificate(order) -> tuple:
     def _cleanup_dns_txt_records():
         for domain, challenge_info in challenges.items():
             record_name = challenge_info.get(
-                'dns_txt_name', f"_acme-challenge.{domain.lstrip('*.')}"
+                'dns_txt_name', f"_acme-challenge.{strip_wildcard(domain)}"
             )
             try:
                 dns_provider.delete_txt_record(
-                    domain=domain.lstrip('*.'),
+                    domain=strip_wildcard(domain),
                     record_name=record_name,
                 )
             except Exception as exc:
@@ -271,14 +272,14 @@ def renew_certificate(order) -> tuple:
         for domain, challenge_info in challenges.items():
             dns_value = challenge_info.get('dns_txt_value')
             record_name = challenge_info.get(
-                'dns_txt_name', f"_acme-challenge.{domain.lstrip('*.')}"
+                'dns_txt_name', f"_acme-challenge.{strip_wildcard(domain)}"
             )
 
             if not dns_value:
                 raise Exception(f"No DNS challenge value for {domain}")
 
             success_dns, msg = dns_provider.create_txt_record(
-                domain=domain.lstrip('*.'),
+                domain=strip_wildcard(domain),
                 record_name=record_name,
                 record_value=dns_value,
                 ttl=300,

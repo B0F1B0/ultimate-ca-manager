@@ -64,25 +64,17 @@ class ImportExportMixin:
         # Extract signature algorithm
         sig_algo = cert.signature_algorithm_oid._name if hasattr(cert.signature_algorithm_oid, '_name') else str(cert.signature_algorithm_oid.dotted_string)
 
-        # Extract SANs from certificate
-        san_dns_list = []
-        san_ip_list = []
-        san_email_list = []
-        san_uri_list = []
-
-        try:
-            ext = cert.extensions.get_extension_for_oid(x509.oid.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
-            for name in ext.value:
-                if isinstance(name, x509.DNSName):
-                    san_dns_list.append(name.value)
-                elif isinstance(name, x509.IPAddress):
-                    san_ip_list.append(str(name.value))
-                elif isinstance(name, x509.RFC822Name):
-                    san_email_list.append(name.value)
-                elif isinstance(name, x509.UniformResourceIdentifier):
-                    san_uri_list.append(name.value)
-        except x509.ExtensionNotFound:
-            pass  # No SAN extension
+        # Extract SANs from certificate. The shared reader also decodes the
+        # otherName UPN: the four-branch cascade this used to inline dropped
+        # it, so a certificate UCM issued carried a UPN and the same
+        # certificate imported back into UCM did not.
+        from utils.san_parse import san_buckets_from_certificate
+        san_buckets = san_buckets_from_certificate(cert)
+        san_dns_list = san_buckets['san_dns']
+        san_ip_list = san_buckets['san_ip']
+        san_email_list = san_buckets['san_email']
+        san_uri_list = san_buckets['san_uri']
+        san_upn_list = san_buckets['san_upn']
 
         # Extract CN for subject_cn
         cn_attrs = cert.subject.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)
@@ -133,6 +125,7 @@ class ImportExportMixin:
             san_ip=json.dumps(san_ip_list) if san_ip_list else None,
             san_email=json.dumps(san_email_list) if san_email_list else None,
             san_uri=json.dumps(san_uri_list) if san_uri_list else None,
+            san_upn=json.dumps(san_upn_list) if san_upn_list else None,
             imported_from='manual' if not source else source,
             source=source,
             created_by=username

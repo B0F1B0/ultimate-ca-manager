@@ -11,6 +11,7 @@ from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from models import db, AcmeDomain, DnsProvider, CA
 from services.acme import domain_match
+from utils.san_parse import strip_wildcard
 from services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -276,7 +277,7 @@ def test_domain_access():
         creds_raw = provider.credentials or '{}'
         credentials = _json.loads(creds_raw) if isinstance(creds_raw, str) else creds_raw
         dns_client = create_provider(provider.provider_type, credentials)
-        base_domain = domain.lstrip('*.')
+        base_domain = strip_wildcard(domain)
         test_record = f"_acme-test"
         test_value = "ucm-dns-test-record"
         
