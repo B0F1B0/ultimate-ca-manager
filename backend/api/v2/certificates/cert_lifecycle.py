@@ -8,6 +8,7 @@ from utils.response import success_response, error_response, no_content_response
 from models import Certificate, CA, db
 from utils.revocation_reasons import normalize_revocation_reason, invalid_reason_message
 from services.cert_service import CertificateService
+from services.deletion_blockers import certificate_deletion_blockers, first_blocker
 from services.ocsp_service import OCSPService
 from services.audit_service import AuditService
 from services.notification_service import NotificationService
@@ -28,15 +29,9 @@ def delete_certificate(cert_id):
 
     cert_name = cert.descr or f'Certificate #{cert_id}'
 
-    # Prevent deletion of valid (non-revoked, non-expired) certificates.
-    # The operator must revoke first so the CRL/OCSP reflects the change.
-    if cert.crt and not cert.revoked:
-        if not cert.valid_to or cert.valid_to >= utc_now():
-            return error_response(
-                'Cannot delete a valid certificate — revoke it first so the '
-                'CRL and OCSP responder reflect the change.',
-                409,
-            )
+    blocker = first_blocker(certificate_deletion_blockers(cert))
+    if blocker:
+        return error_response(blocker.message, blocker.status)
 
     try:
         username = g.current_user.username if hasattr(g, 'current_user') else 'system'

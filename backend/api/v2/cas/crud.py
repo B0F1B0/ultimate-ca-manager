@@ -20,6 +20,7 @@ from utils.decorators import require_json_body
 from utils.db_transaction import safe_commit
 from services.ca_service import CAService
 from services.audit_service import AuditService
+from services.deletion_blockers import ca_deletion_blockers, first_blocker
 from services.notification_service import NotificationService
 from utils.ca_profile import (
     resolve_digest,
@@ -817,39 +818,16 @@ def delete_ca(ca_id):
 
     ca_name = ca.descr or f'CA #{ca_id}'
 
-    # Check for child CAs (intermediates signed by this CA)
-    child_cas = CA.query.filter_by(caref=ca.refid).count()
-    if child_cas > 0:
-        return error_response(
-            f'Cannot delete CA: {child_cas} intermediate CA(s) depend on it. Delete them first.',
-            409
-        )
-
-    # Check for issued certificates
-    issued_certs = Certificate.query.filter_by(caref=ca.refid).count()
-    if issued_certs > 0:
-        return error_response(
-            f'Cannot delete CA: {issued_certs} certificate(s) were issued by it. Revoke and delete them first.',
-            409
-        )
+    blocker = first_blocker(ca_deletion_blockers(ca))
+    if blocker:
+        return error_response(blocker.message, blocker.status)
 
     try:
-        # Delete dependent records before deleting CA
-        from models.crl import CRLMetadata
-        from models.ocsp import OCSPResponse
-        from models.revoked_serial import RevokedSerial
-
-        crl_count = CRLMetadata.query.filter_by(ca_id=ca_id).delete()
-        ocsp_count = OCSPResponse.query.filter_by(ca_id=ca_id).delete()
-        rs_count = RevokedSerial.query.filter_by(caref=ca.refid).delete()
-
-        if crl_count or ocsp_count or rs_count:
-            logger.info(f"Deleted {crl_count} CRL(s), {ocsp_count} OCSP response(s), and {rs_count} revoked serial(s) for CA {ca_name}")
-
         username = g.current_user.username if hasattr(g, 'current_user') else 'system'
         # Delegate to the service so the CA cert/key files on disk are
-        # unlinked along with the DB row instead of leaving them orphaned
-        # (audit log and webhook are emitted by the service itself).
+        # unlinked and its dependent rows purged along with the DB row
+        # instead of leaving them orphaned (audit log and webhook are
+        # emitted by the service itself).
         CAService.delete_ca(ca_id=ca_id, username=username)
 
         return no_content_response()

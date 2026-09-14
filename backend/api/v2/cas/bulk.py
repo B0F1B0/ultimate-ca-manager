@@ -3,7 +3,7 @@ CAs Bulk Operations
 """
 
 from . import bp
-from flask import request, Response
+from flask import request, g, Response
 import base64
 import subprocess
 import tempfile
@@ -11,16 +11,19 @@ import os
 import logging
 
 from auth.unified import require_auth
-from utils.db_transaction import safe_commit
 from utils.response import success_response, error_response
 from services.audit_service import AuditService
-from models import CA, Certificate, db
+from services.ca_service import CAService
+from services.deletion_blockers import (
+    MAX_BULK_IDS, ca_deletion_blockers, first_blocker, parse_bulk_ids,
+)
+from models import CA, db
 from utils.cert_status import holds_certificate
 
 logger = logging.getLogger(__name__)
 
 # Cap bulk operations to keep latency bounded and prevent DoS via huge id lists.
-_MAX_BULK_IDS = 100
+_MAX_BULK_IDS = MAX_BULK_IDS
 
 
 @bp.route('/api/v2/cas/bulk/delete', methods=['POST'])
@@ -28,15 +31,10 @@ _MAX_BULK_IDS = 100
 def bulk_delete_cas():
     """Bulk delete CAs"""
 
-    data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
-
-    ids = data['ids']
-    if not isinstance(ids, list):
-        return error_response('ids must be an array', 400)
-    if len(ids) > _MAX_BULK_IDS:
-        return error_response(f'Too many ids (max {_MAX_BULK_IDS} per request)', 400)
+    ids, err = parse_bulk_ids(request.get_json())
+    if err:
+        return err
+    username = g.current_user.username if hasattr(g, 'current_user') else 'system'
     results = {'success': [], 'failed': []}
 
     for ca_id in ids:
@@ -46,31 +44,15 @@ def bulk_delete_cas():
                 results['failed'].append({'id': ca_id, 'error': 'Not found'})
                 continue
 
-            ca_name = ca.descr or f'CA #{ca_id}'
-
-            # Check for child CAs
-            child_cas = CA.query.filter_by(caref=ca.refid).count()
-            if child_cas > 0:
-                results['failed'].append({'id': ca_id, 'error': f'{child_cas} intermediate CA(s) depend on it'})
+            blocker = first_blocker(ca_deletion_blockers(ca))
+            if blocker:
+                results['failed'].append({'id': ca_id, 'error': blocker.brief})
                 continue
 
-            # Check for issued certificates
-            issued_certs = Certificate.query.filter_by(caref=ca.refid).count()
-            if issued_certs > 0:
-                results['failed'].append({'id': ca_id, 'error': f'{issued_certs} certificate(s) issued by it'})
-                continue
-
-            # Clean up dependent records
-            from models.crl import CRLMetadata
-            from models.ocsp import OCSPResponse
-            CRLMetadata.query.filter_by(ca_id=ca_id).delete()
-            OCSPResponse.query.filter_by(ca_id=ca_id).delete()
-
-            db.session.delete(ca)
-            ok, err = safe_commit(logger, f"Failed to delete CA {ca_id}")
-            if not ok:
-                results['failed'].append({'id': ca_id, 'error': 'Deletion failed'})
-                continue
+            # Through the service, like the unit route: the files on disk and
+            # the dependent rows go with the authority instead of being
+            # orphaned, and the deletion is audited per CA.
+            CAService.delete_ca(ca_id=ca_id, username=username)
             results['success'].append(ca_id)
         except Exception as e:
             db.session.rollback()

@@ -14,6 +14,9 @@ from models import db, Certificate, CA
 from models.certificate_template import CertificateTemplate
 from models.policy import CertificatePolicy
 from services.audit_service import AuditService
+from services.deletion_blockers import (
+    first_blocker, parse_bulk_ids, template_deletion_blockers,
+)
 from services.template_service import TemplateService
 from utils.dn_validation import validate_dn_field
 from datetime import datetime
@@ -442,39 +445,9 @@ def delete_template(template_id):
     if not template:
         return error_response('Template not found', 404)
     
-    # Prevent deleting system templates
-    if template.is_system:
-        return error_response('Cannot delete system templates', 403)
-
-    # Block deletion if template is referenced by certificates or policies (no FK cascade)
-    cert_count = Certificate.query.filter_by(template_id=template_id).count()
-    if cert_count > 0:
-        return error_response(
-            f'Cannot delete: template is used by {cert_count} certificate(s)', 409
-        )
-    policy_count = CertificatePolicy.query.filter_by(template_id=template_id).count()
-    if policy_count > 0:
-        return error_response(
-            f'Cannot delete: template is used by {policy_count} policy/policies', 409
-        )
-    # SCEP profiles keep only the numeric id too: a binding left behind
-    # would apply the next template created under that id
-    from models.scep import ScepProfile
-    scep_count = ScepProfile.query.filter_by(template_id=template_id).count()
-    if scep_count > 0:
-        return error_response(
-            f'Cannot delete: template is bound to {scep_count} SCEP profile(s); unbind it first', 409
-        )
-    # ACME profiles keep only the numeric id; SQLite reuses it for the next
-    # template, so a binding left behind would silently apply a foreign
-    # template's KU/EKU. Unbind first (ACME settings), then delete.
-    from services.acme import profiles as acme_profiles
-    bound_profiles = acme_profiles.profiles_bound_to_template(template_id)
-    if bound_profiles:
-        return error_response(
-            'Cannot delete: template is bound to ACME profile(s) '
-            + ', '.join(bound_profiles), 409
-        )
+    blocker = first_blocker(template_deletion_blockers(template))
+    if blocker:
+        return error_response(blocker.message, blocker.status)
 
     template_name = template.name
     
@@ -505,14 +478,12 @@ def delete_template(template_id):
 @bp.route('/api/v2/templates/bulk/delete', methods=['POST'])
 @require_auth(['delete:templates'])
 def bulk_delete_templates():
-    from services.acme import profiles as acme_profiles
     """Bulk delete templates"""
 
-    data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
+    ids, err = parse_bulk_ids(request.get_json())
+    if err:
+        return err
 
-    ids = data['ids']
     results = {'success': [], 'failed': []}
 
     for template_id in ids:
@@ -520,29 +491,19 @@ def bulk_delete_templates():
         if not template:
             results['failed'].append({'id': template_id, 'error': 'Not found'})
             continue
-        if template.is_system:
-            results['failed'].append({'id': template_id, 'error': 'Cannot delete system template'})
+        blocker = first_blocker(template_deletion_blockers(template))
+        if blocker:
+            results['failed'].append({'id': template_id, 'error': blocker.brief})
             continue
-        cert_count = Certificate.query.filter_by(template_id=template_id).count()
-        if cert_count > 0:
-            results['failed'].append({'id': template_id, 'error': f'In use by {cert_count} certificate(s)'})
-            continue
-        policy_count = CertificatePolicy.query.filter_by(template_id=template_id).count()
-        if policy_count > 0:
-            results['failed'].append({'id': template_id, 'error': f'In use by {policy_count} policy/policies'})
-            continue
-        bound_profiles = acme_profiles.profiles_bound_to_template(template_id)
-        if bound_profiles:
-            results['failed'].append({
-                'id': template_id,
-                'error': 'Bound to ACME profile(s) ' + ', '.join(bound_profiles),
-            })
-            continue
-        template_name = template.name
         db.session.delete(template)
-        ok, err = safe_commit(logger, f"Delete template {template_id}")
+        ok, _err = safe_commit(logger, f"Delete template {template_id}")
         if not ok:
-            return err
+            # One template that will not go is not a reason to abandon the
+            # rest: returning here left the caller with no results body at
+            # all, the ids already committed silently deleted, and the ids
+            # after this one never even attempted.
+            results['failed'].append({'id': template_id, 'error': 'Deletion failed'})
+            continue
         results['success'].append(template_id)
 
     AuditService.log_action(

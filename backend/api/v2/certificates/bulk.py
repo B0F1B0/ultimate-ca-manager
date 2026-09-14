@@ -18,6 +18,9 @@ from services.cert_service import CertificateService
 from services.cert.renewal import RenewalError, check_renewable, renew_certificate_in_place
 from services.msca.propagation import propagate_revocation, PROPAGATED
 from services.audit_service import AuditService
+from services.deletion_blockers import (
+    certificate_deletion_blockers, first_blocker, parse_bulk_ids,
+)
 from utils.response import success_response, error_response
 from utils.datetime_utils import utc_now
 from utils.revocation_reasons import normalize_revocation_reason, invalid_reason_message
@@ -175,11 +178,9 @@ def bulk_renew_certificates():
 def bulk_delete_certificates():
     """Bulk delete certificates"""
 
-    data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
-
-    ids = data['ids']
+    ids, err = parse_bulk_ids(request.get_json())
+    if err:
+        return err
     username = g.current_user.username if hasattr(g, 'current_user') else 'system'
     results = {'success': [], 'failed': []}
 
@@ -190,14 +191,10 @@ def bulk_delete_certificates():
                 results['failed'].append({'id': cert_id, 'error': 'Not found'})
                 continue
 
-            # Prevent deletion of valid (non-revoked, non-expired) certificates.
-            if cert.crt and not cert.revoked:
-                if not cert.valid_to or cert.valid_to >= utc_now():
-                    results['failed'].append({
-                        'id': cert_id,
-                        'error': 'Cannot delete a valid certificate — revoke it first',
-                    })
-                    continue
+            blocker = first_blocker(certificate_deletion_blockers(cert))
+            if blocker:
+                results['failed'].append({'id': cert_id, 'error': blocker.brief})
+                continue
 
             # Delegate to the service so cert/key/csr files on disk are
             # unlinked along with the DB row instead of leaving them orphaned.

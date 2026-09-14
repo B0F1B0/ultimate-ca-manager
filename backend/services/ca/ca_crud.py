@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from models import CA, Certificate, db
 from services.audit_service import AuditService
+from services.deletion_blockers import purge_ca_dependents
 from .helpers import delete_ca_files
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,13 @@ class CAcrudMixin:
         _ca_id = ca.id
         _ca_descr = ca.descr
         _ca_name = _ca_descr or getattr(ca, 'subject', None) or f'CA #{_ca_id}'
+
+        # Rows that must not outlive the authority. This used to sit in the
+        # unit route, which is why the bulk route -- the other caller of this
+        # service -- orphaned every one of them.
+        purged = purge_ca_dependents(ca)
+        if purged:
+            logger.info(f"{purged} for CA {_ca_name}")
 
         # Delete files
         delete_ca_files(ca)
