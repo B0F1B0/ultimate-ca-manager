@@ -338,16 +338,9 @@ def _get_or_create_sso_user(provider, username, email, fullname, external_data):
         )
 
     if user and not user.active:
-        # An account an administrator has disabled is a login that is going
-        # to be refused: all three callers check this a few lines after they
-        # call us. Synchronising it first wrote the directory's idea of the
-        # account into a record nobody can use, on every attempt: its email,
-        # its full name, its role, a `last_login` for a login that did not
-        # happen, and an audit line saying the role changed. Worst of the
-        # list is `sso_external_id`, which is bound once and for good and
-        # decides whose account this is: an account disabled today and
-        # re-enabled later would belong to whoever held that identifier at
-        # the directory while it was off.
+        # A disabled account is a refused login: every caller checks it a
+        # few lines on. Synchronising first bound `sso_external_id`, which
+        # decides whose account this is, for good.
         logger.warning(
             f"SSO sync skipped for '{username}': the local account is disabled")
         return user, None

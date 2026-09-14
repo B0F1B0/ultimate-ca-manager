@@ -620,16 +620,9 @@ class LifecycleMixin:
             return False
 
         if not _suppress_events:
-            # Audit after the delete has committed. Written before it, this
-            # call decided the outcome: it commits the session it is given and
-            # rolls all of it back when its own entry cannot be written, so a
-            # failure put back the foreign keys that had just been detached --
-            # after the files on disk were already gone. The delete that
-            # followed then hit those references, and on a database that
-            # enforces them the row survived with no certificate, no request
-            # and no key beside it.
-            # From the snapshot taken before the delete: the object itself
-            # is gone by now, which is the point.
+            # After the commit: this call commits the session and rolls it
+            # back on failure, which used to re-attach the foreign keys after
+            # the files were gone. Read from the snapshot, not the object.
             name = (_cert_snapshot.get('descr')
                     or _cert_snapshot.get('subject')
                     or f"Cert #{_cert_snapshot.get('id')}")

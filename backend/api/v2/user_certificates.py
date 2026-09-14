@@ -316,19 +316,9 @@ def export_user_certificate(cert_id):
                 400,
             )
 
-    # Taking somebody else's key is the same act here as on the certificate
-    # route, which gates it behind `read:private_keys` and says why: without
-    # that gate the approval-gated Key Recovery flow is pointless, since
-    # anyone who could request a recovery could export the key instead and
-    # skip the approval (#232). This route asked nothing at all, and
-    # `include_key` defaults to true, so the built-in Operator role -- which
-    # holds `read:user_certificates` and not `read:private_keys`, and whose
-    # access check reaches every user's enrolment -- had every user's private
-    # key for the asking.
-    #
-    # Taking your own is not that act, and stays: a person downloading their
-    # own enrolment from their own account page has always had their key with
-    # it, and that is the point of the page.
+    # Somebody else's key needs `read:private_keys`, as on the certificate
+    # route, or the approval-gated Key Recovery flow is bypassable (#232).
+    # Your own key stays: that is what the account page is for.
     wants_key = include_key or export_format in ('pkcs12', 'p12', 'pfx', 'jks')
     if wants_key and auth_cert.user_id != user.id:
         if not has_permission('read:private_keys', g.permissions):

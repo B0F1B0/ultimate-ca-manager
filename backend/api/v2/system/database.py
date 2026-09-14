@@ -182,19 +182,11 @@ def export_db():
 def reset_db():
     """Reset database to initial state - DANGEROUS"""
     try:
-        # `auth.unified.get_current_user` does not exist and never has. The
-        # import raised, the bare `except` below turned it into "Database
-        # reset failed", and the route answered 500 without resetting
-        # anything, on every call. The rest of the codebase reads the actor
-        # off `g`, which `require_auth` has already put there.
-        # Read as plain strings, now, and passed to the entry by value. The
-        # entry is written after `drop_all`, and `log_action` falls back on
-        # `g.current_user.username` when it is given no name: that instance
-        # is expired by then and its row is gone, so reading it raises, and
-        # `log_action` swallows the failure and writes nothing. The reset
-        # answered "successfully" and left no trace of itself. It only looked
-        # right because the administrator running it was usually the one the
-        # reset recreates, who comes back with the same identifier.
+        # `get_current_user` never existed; the import raised and the bare
+        # `except` below answered 500 on every call.
+        # Read now and passed by value: the entry is written after
+        # `drop_all`, when looking the actor up on `g.current_user` would
+        # query a table that no longer holds them.
         actor = getattr(g, 'current_user', None)
         actor_name = getattr(actor, 'username', None) or 'unknown'
 

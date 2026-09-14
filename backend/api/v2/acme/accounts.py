@@ -254,21 +254,9 @@ def delete_acme_account(account_id):
 
     account_name = acc.account_id
     try:
-        # Everything that names this account, found by the account it names
-        # rather than by walking its orders.
-        #
-        # Walking the orders missed two things. An authorization may belong to
-        # no order at all: RFC 8555 lets a client ask for one before it has an
-        # order, and the column is nullable for exactly that, so those were
-        # left behind. And a client order, which lives at an external
-        # authority, names the local account that started it without being
-        # part of it.
-        #
-        # The matching is on the identifiers the protocol puts in URLs, which
-        # are text, not on the tables' own numeric keys: asking whether a
-        # token equals a number deleted nothing on SQLite and had no operator
-        # at all on PostgreSQL, so the same click left orphans on one backend
-        # and refused outright on the other.
+        # Found by the account each row names, not by walking the orders:
+        # RFC 8555 allows an authorization before any order exists. Matched on
+        # the protocol's text identifiers, never on the numeric keys.
         order_ids = [row.order_id for row in acc.orders]
         # Either way round, because `AcmeAuthorization.account_id` is
         # nullable and the protocol code reads it as such:

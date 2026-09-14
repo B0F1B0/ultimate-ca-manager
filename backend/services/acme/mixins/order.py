@@ -205,11 +205,8 @@ class OrderMixin:
                 # transaction still held, an authorization reused a few lines
                 # above included: it commits the session it is given and rolls
                 # all of it back when its own entry cannot be written.
-                # Still guarded, for the reason the order now makes sharper:
-                # the authorization is committed by the time this runs, so
-                # anything raising here would turn work the client already
-                # owns into a 500 it will retry. `log_action` catches its own
-                # failures; the import above is what is being covered.
+                # Guarded: the authorization is already committed, so a
+                # raise here would turn work the client owns into a retry.
                 try:
                     from services.audit_service import AuditService
                     AuditService.log_action(

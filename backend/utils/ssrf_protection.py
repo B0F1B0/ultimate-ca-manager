@@ -115,20 +115,10 @@ _CLOUD_METADATA_IP_OBJS = {ipaddress.ip_address(a) for a in _CLOUD_METADATA_IPS}
 
 # The well-known NAT64 prefix (RFC 6052 §2.1): on an IPv6-only network, a
 # gateway translates 64:ff9b::<a.b.c.d> back to that IPv4 address. So
-# 64:ff9b::a9fe:a9fe reaches 169.254.169.254, while being neither loopback nor
-# private, and `ipv4_mapped` only understands the ::ffff: form. The embedded
-# address is read out and judged like any other rather than the prefix being
-# refused wholesale, which would cut off legitimate traffic on such a network.
-#
-# Two NAT64 prefixes are known without being told. The well-known one is a
-# /96 and says so, so what it carries is certain. The local-use one is a
-# container: RFC 8215 section 4.1 picked a /48 precisely because it is
-# "shorter than the prefix length used by any individual translation
-# mechanism", so an operator cuts their real prefixes out of it. Reading the
-# whole /48 with the /48 layout, as this first did, is wrong twice over:
-# `64:ff9b:1:1::a9fe:a9fe` came back as 0.1.0.0 and went through while it
-# reaches the metadata service, and `64:ff9b:1::5db8:d822`, an ordinary
-# public address behind a /96 instance, came back as 0.0.0.0 and was refused.
+# The embedded address is read out and judged like any other rather than the
+# prefix being refused wholesale. The well-known prefix is a /96 and says so;
+# the local-use one is a container (RFC 8215 section 4.1) out of which an
+# operator cuts their real prefix, so several layouts fit and all are read.
 _NAT64_WELL_KNOWN = ipaddress.ip_network('64:ff9b::/96')
 _NAT64_LOCAL_USE = ipaddress.ip_network('64:ff9b:1::/48')
 
@@ -285,21 +275,10 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
 
     speculative = _speculative_ipv4_forms(ip)
     if speculative:
-        # One of these layouts is the operator's and the rest are noise, and
-        # there is no way to tell which from the address alone. Refusing on a
-        # metadata endpoint is worth the guess: nothing legitimate is written
-        # that way. Refusing on loopback or on 0.0.0.0 is not, because a
-        # wrong layout lands on them readily: behind the instance an operator
-        # is likeliest to pick, `64:ff9b:1::/96`, every address reads as
-        # 0.0.0.0 under the container's own /48 layout. That is a tendency
-        # rather than a rule, and the specification's own examples
-        # (`64:ff9b:1:fffe::/96` and the others in RFC 8215 section 5) read
-        # as ordinary addresses instead.
-        #
-        # What this leaves open is a loopback reached through a translator:
-        # `64:ff9b:1:1::7f00:1` on a network carrying `64:ff9b:1:1::/96`
-        # goes to 127.0.0.1 as seen by the translator, not by this server,
-        # and only matters where the two sit on the same host.
+        # Only one layout is the operator's and the address does not say which.
+        # Metadata endpoints are worth the guess; loopback and 0.0.0.0 are
+        # not, since a wrong layout lands on them readily. This leaves a
+        # loopback behind a translator open, which is the translator's own.
         for carried in speculative:
             if carried in _CLOUD_METADATA_IP_OBJS:
                 return "cloud metadata IP"
