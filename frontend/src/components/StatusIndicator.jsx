@@ -14,7 +14,7 @@ export function StatusIndicator({ status, pulse = false, size = 'md', children }
     expired: 'status-danger-bg-solid',
     danger: 'status-danger-bg-solid',
     error: 'status-danger-bg-solid',
-    revoked: 'bg-text-tertiary',
+    revoked: 'status-danger-bg-solid',
     pending: 'status-warning-bg-solid',
     active: 'status-success-bg-solid',
     inactive: 'bg-text-tertiary',

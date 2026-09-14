@@ -747,7 +747,7 @@ export default function DashboardPage() {
                             <span className="text-xs font-medium text-text-primary truncate group-hover:text-accent-primary transition-colors">
                               {cert.common_name || cert.descr || cert.subject || t('common.certificate')}
                             </span>
-                            <Badge variant={cert.revoked ? 'danger' : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? 'warning' : 'success'} size="sm" dot>
+                            <Badge variant={cert.revoked ? 'danger' : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? 'danger' : 'success'} size="sm" dot>
                               {cert.revoked ? t('common.revoked') : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? t('common.expired') : t('common.valid')}
                             </Badge>
                           </div>
@@ -1128,7 +1128,7 @@ export default function DashboardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-medium text-text-primary truncate">{cert.common_name || cert.descr || cert.subject || t('common.certificate')}</span>
-                          <Badge variant={cert.revoked ? 'danger' : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? 'warning' : 'success'} size="sm" dot>
+                          <Badge variant={cert.revoked ? 'danger' : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? 'danger' : 'success'} size="sm" dot>
                             {cert.revoked ? t('common.revoked') : (cert.valid_to && new Date(cert.valid_to) < new Date()) ? t('common.expired') : t('common.valid')}
                           </Badge>
                         </div>

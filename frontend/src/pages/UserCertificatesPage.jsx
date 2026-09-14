@@ -135,8 +135,11 @@ export default function UserCertificatesPage() {
       expiring: { variant: 'warning', icon: Warning, label: t('common.expiring'), pulse: true },
       expired: { variant: 'danger', icon: Clock, label: t('common.expired') },
       revoked: { variant: 'danger', icon: XCircle, label: t('common.revoked') },
+      // Same neutral fallback as the certificates table (useCertificateColumns):
+      // a status we do not know must not be announced as valid
+      unknown: { variant: 'secondary', icon: Info, label: t('common.status') },
     }
-    const c = config[row.status] || config.valid
+    const c = config[row.status] || config.unknown
     return <Badge variant={c.variant} size="sm" icon={c.icon} dot pulse={c.pulse}>{c.label}</Badge>
   }, [t])
 
