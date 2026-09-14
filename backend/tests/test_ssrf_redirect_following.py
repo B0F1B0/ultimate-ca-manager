@@ -89,8 +89,9 @@ class TestTheSemanticsFollowRequests:
         assert second[1]['method'] == 'get'
         assert 'json' not in second[1]
 
-    def test_a_307_keeps_the_method_and_the_body(self, wire):
-        wire['answers'][FIRST] = _Answer(307, location=SECOND)
+    def test_a_307_keeps_the_method_and_the_body_within_one_origin(self, wire):
+        same_origin = 'https://93.184.216.34/moved'
+        wire['answers'][FIRST] = _Answer(307, location=same_origin)
         ssrf_protection.safe_request_post(FIRST, json={'keep': 'this'})
         _first, second = wire['hops']
         assert second[1]['method'] == 'post'
@@ -120,11 +121,38 @@ class TestCredentialsDoNotFollowTheHop:
         wire['answers'][FIRST] = _Answer(302, location=SECOND)
         ssrf_protection.safe_request_get(
             FIRST, headers={'Authorization': 'Bearer operator-token',
-                            'X-UCM-Signature': 'sha256=abc'})
+                            'Accept': 'application/json'})
         _first, second = wire['hops']
         assert 'Authorization' not in second[1]['headers']
-        # Only the credentials go: the rest of the request is unchanged.
-        assert second[1]['headers']['X-UCM-Signature'] == 'sha256=abc'
+        # What is not a credential still travels.
+        assert second[1]['headers']['Accept'] == 'application/json'
+
+    @pytest.mark.parametrize('header', [
+        'X-API-Key', 'x-api-key', 'Api-Key', 'X-Auth-Token', 'X-UCM-Signature',
+        'X-Client-Secret', 'Private-Token', 'X-Amz-Security-Token',
+    ])
+    def test_a_credential_under_any_name_is_dropped(self, wire, header):
+        """`requests` only knows Authorization; an API key is named freely."""
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(FIRST, headers={header: 'secret'})
+        _first, second = wire['hops']
+        assert header not in second[1]['headers'], header
+
+    def test_a_307_does_not_replay_the_body_to_another_origin(self, wire):
+        """The body carries the client secret of a token exchange."""
+        wire['answers'][FIRST] = _Answer(307, location=SECOND)
+        ssrf_protection.safe_request_post(
+            FIRST, data={'client_secret': 's3cret', 'refresh_token': 'r3fresh'})
+        _first, second = wire['hops']
+        assert 'data' not in second[1]
+        assert second[1]['method'] == 'get'
+
+    def test_the_query_does_not_follow_either(self, wire):
+        """Some providers put the key and the token in the query string."""
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(FIRST, params={'api_key': 'secret'})
+        _first, second = wire['hops']
+        assert 'params' not in second[1]
 
     def test_a_cookie_and_an_auth_tuple_go_with_it(self, wire):
         wire['answers'][FIRST] = _Answer(302, location=SECOND)
@@ -144,22 +172,48 @@ class TestCredentialsDoNotFollowTheHop:
         _first, second = wire['hops']
         assert second[1]['headers']['Authorization'] == 'Bearer operator-token'
 
-    def test_a_301_on_a_put_keeps_its_method(self, wire):
+    def test_a_301_on_a_put_keeps_its_method_within_one_origin(self, wire):
         """requests only rewrites POST on a 301; a PUT stays a PUT."""
-        wire['answers'][FIRST] = _Answer(301, location=SECOND)
+        same_origin = 'https://93.184.216.34/moved'
+        wire['answers'][FIRST] = _Answer(301, location=same_origin)
         ssrf_protection.safe_request('PUT', FIRST, json={'keep': 'this'})
         _first, second = wire['hops']
         assert second[1]['method'] == 'put'
         assert second[1]['json'] == {'keep': 'this'}
 
     def test_the_dropped_body_takes_its_content_type_with_it(self, wire):
-        wire['answers'][FIRST] = _Answer(303, location=SECOND)
+        """Within one origin, only the body headers go with the body."""
+        same_origin = 'https://93.184.216.34/next'
+        wire['answers'][FIRST] = _Answer(303, location=same_origin)
         ssrf_protection.safe_request_post(
             FIRST, json={'a': 1}, headers={'Content-Type': 'application/json',
                                            'X-Keep': 'yes'})
         _first, second = wire['hops']
         assert 'Content-Type' not in second[1]['headers']
         assert second[1]['headers']['X-Keep'] == 'yes'
+
+    @pytest.mark.parametrize('header', [
+        'X-Access-Key', 'X-API-Key', 'Private-Token', 'X-Shopify-Access-Token',
+        'Fastly-Key', 'X-Figma-Token', 'Circle-Token', 'X-Whatever-Custom',
+        'Ocp-Apim-Subscription-Key', 'X-Goog-Api-Key',
+    ])
+    def test_no_custom_header_crosses_an_origin(self, wire, header):
+        """An allowlist, because a credential is named however its provider
+        chose and a list of suspicious names is a game that cannot be won."""
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(FIRST, headers={header: 'SECRET'})
+        _first, second = wire['hops']
+        assert header not in second[1]['headers'], header
+        assert 'SECRET' not in str(second[1]), header
+
+    def test_the_harmless_headers_still_cross(self, wire):
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(FIRST, headers={
+            'Accept': 'application/json', 'User-Agent': 'ucm/1.0',
+            'X-Access-Key': 'SECRET'})
+        _first, second = wire['hops']
+        assert second[1]['headers'] == {'Accept': 'application/json',
+                                        'User-Agent': 'ucm/1.0'}
 
     def test_the_intermediate_response_is_closed(self, wire):
         hop = _Answer(302, location=SECOND)

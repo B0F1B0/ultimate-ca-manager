@@ -530,28 +530,41 @@ def _same_origin(first: str, second: str) -> bool:
     return (one.scheme, one.hostname, one.port) == (two.scheme, two.hostname, two.port)
 
 
-def _strip_credentials(kwargs: dict) -> None:
-    """What requests.Session.rebuild_auth drops when the host changes.
+# Headers that may cross to another origin. An allowlist, not a denylist: a
+# credential travels under whatever name its provider chose (`X-API-Key`,
+# `X-Access-Key`, `Private-Token`, anything), so listing the suspicious names
+# is a game that cannot be won. These carry no identity and no payload.
+_PORTABLE_HEADERS = frozenset({
+    'accept', 'accept-encoding', 'accept-language', 'user-agent',
+    'cache-control', 'pragma',
+})
 
-    A webhook carries the operator's bearer token; following a redirect with
-    it hands that token to whoever answered the 302.
+
+def _strip_credentials(kwargs: dict) -> None:
+    """Everything the other origin has no business receiving.
+
+    A cross-origin hop is not the request the caller authorised: a webhook
+    carries the operator's bearer token, a token exchange carries a client
+    secret in its body, and an integration carries its key under a name of
+    its own. `requests` drops only `Authorization`; here the request is
+    reduced to a bare GET carrying nothing but the headers above.
     """
-    kwargs.pop('auth', None)
-    kwargs.pop('cookies', None)
+    for key in ('auth', 'cookies', 'params', *_BODY_KEYS):
+        kwargs.pop(key, None)
     headers = kwargs.get('headers')
     if headers:
         kwargs['headers'] = {name: value for name, value in headers.items()
-                             if name.lower() not in ('authorization', 'cookie',
-                                                     'proxy-authorization')}
+                             if name.lower() in _PORTABLE_HEADERS}
 
 
 def safe_request(method: str, url: str, *, allow_loopback: bool = False,
                  max_redirects: int = MAX_REDIRECTS, **kwargs):
     """`requests` with every hop resolved, vetted and pinned, not just the first.
 
-    Follows what requests does: credentials are dropped when the hop changes
-    origin, a 303 (and a 301/302 on POST) becomes a GET without its body, and
-    `allow_redirects=False` returns the 3xx itself.
+    Stricter than requests at an origin change: the hop becomes a bare GET,
+    without credentials, body or query, whatever its status. Within one
+    origin it follows requests, where a 303 (and a 301/302 on POST) becomes a
+    GET without its body. `allow_redirects=False` returns the 3xx itself.
     """
     import requests
 
@@ -581,11 +594,13 @@ def safe_request(method: str, url: str, *, allow_loopback: bool = False,
         response.close()
 
         next_url = urljoin(current_url, location)
-        if not _same_origin(current_url, next_url):
+        crossed_origin = not _same_origin(current_url, next_url)
+        if crossed_origin:
             _strip_credentials(kwargs)
         current_url = next_url
 
-        drops_body = (response.status_code == 303
+        drops_body = (crossed_origin
+                      or response.status_code == 303
                       or (response.status_code in (301, 302)
                           and current_method == 'POST'))
         if drops_body:
