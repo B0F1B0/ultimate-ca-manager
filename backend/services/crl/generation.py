@@ -14,7 +14,7 @@ from utils.datetime_utils import utc_now
 from services.cert.serial_resolution import resolve_record_serial
 from utils.x509_aki import authority_key_identifier_from_issuer
 from ._constants import REASON_MAP
-from .query import CRLQueryMixin
+from .query import CRLQueryMixin, _not_expired
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +108,15 @@ def _add_freshest_crl(builder: x509.CertificateRevocationListBuilder, ca: CA):
 
 
 def _parse_revoked_serial(cert: Certificate, *, context: str) -> Optional[int]:
-    if not cert.serial_number:
-        return None
     # From the stored certificate, not from the column: three writers fill
     # that column (decimal, lower hex, upper hex) and an all-digit value is
     # ambiguous between them, so reading it as decimal published one
     # certificate's serial in place of another's.
+    #
+    # The column being empty is not a reason to stop either. A sub-CA
+    # imported before 2.226 has none, and revoking it dropped it from the
+    # CRL without a word while the responder, which resolves such a record
+    # against its certificate, went on answering revoked for it.
     serial_int = resolve_record_serial(cert)
     if serial_int is None or serial_int <= 0:
         logger.warning(
@@ -313,14 +316,14 @@ class CRLGenerationMixin:
             Certificate.caref == ca.refid,
             Certificate.revoked == True,
             Certificate.revoked_at > base_crl.this_update,
-            Certificate.valid_to > now
+            _not_expired(Certificate.valid_to, now)
         ).all()
         # A revoked child CA, from its row, as the full CRL lists it
         revoked_certs = revoked_certs + CA.query.filter(
             CA.caref == ca.refid,
             CA.revoked == True,
             CA.revoked_at > base_crl.this_update,
-            CA.valid_to > now,
+            _not_expired(CA.valid_to, now),
         ).all()
 
         # Also include orphaned RevokedSerial entries revoked after the base CRL.

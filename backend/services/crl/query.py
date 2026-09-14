@@ -1,11 +1,26 @@
 import logging
 from typing import List, Optional
+from sqlalchemy import or_
 from models import db, CA, Certificate, RevokedSerial
 from models.crl import CRLMetadata
 from services.cert.serial_resolution import resolve_record_serial, same_serial
 from utils.datetime_utils import utc_now
 
 logger = logging.getLogger(__name__)
+
+
+def _not_expired(column, now):
+    """Rows whose validity has not passed, including those that never said.
+
+    RFC 5280 §5: an expired certificate needs no CRL entry, a client rejects
+    it on its own dates. A row with no ``valid_to`` says nothing about its
+    dates, and ``column > now`` answers NULL for it — neither true nor false
+    — on SQLite and on PostgreSQL alike, so both silently dropped the
+    revocation while the OCSP responder, which filters on nothing of the
+    sort, went on answering revoked. Unknown expiry is not expiry: the entry
+    stays until something says otherwise.
+    """
+    return or_(column.is_(None), column > now)
 
 
 class CRLQueryMixin:
@@ -19,11 +34,15 @@ class CRLQueryMixin:
         2. RevokedSerial rows whose certificate_id is no longer present
            (deleted certs whose revocation must persist until expiry)
 
-        Deduplicates by serial_number — a live Certificate row always wins
-        over a RevokedSerial fallback so there's a single source of truth.
+        Deduplicates by serial — a live Certificate row always wins over a
+        RevokedSerial fallback so there's a single source of truth. Two rows
+        naming one certificate in different spellings of its serial count as
+        one (see ``_filter_orphan_serials``).
 
         Per RFC 5280, expired certificates are excluded — clients reject
-        them on validity alone, so they don't need CRL entries.
+        them on validity alone, so they don't need CRL entries. A row that
+        never recorded a ``valid_to`` is not expired, only silent about it,
+        and stays (see ``_not_expired``).
         """
         ca = db.session.get(CA, ca_id)
         if not ca:
@@ -35,7 +54,7 @@ class CRLQueryMixin:
         live_certs = Certificate.query.filter(
             Certificate.caref == ca.refid,
             Certificate.revoked == True,
-            Certificate.valid_to > now
+            _not_expired(Certificate.valid_to, now)
         ).all()
 
         # A revoked child CA is listed from its own row too: its record under
@@ -44,7 +63,7 @@ class CRLQueryMixin:
         live_cas = CA.query.filter(
             CA.caref == ca.refid,
             CA.revoked == True,
-            CA.valid_to > now
+            _not_expired(CA.valid_to, now)
         ).all()
         live_certs = live_certs + live_cas
 

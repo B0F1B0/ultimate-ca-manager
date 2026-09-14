@@ -9,6 +9,8 @@ only (RFC 5280 §5.3.1, delta CRLs), never by a revocation request.
 """
 from typing import Optional
 
+from cryptography import x509
+
 REVOCATION_REASONS = (
     'unspecified',
     'keyCompromise',
@@ -33,6 +35,38 @@ _CANONICAL.update({
     'privilege_withdrawn': 'privilegeWithdrawn',
     'aa_compromise': 'aACompromise',
 })
+
+
+# The CRL builder and the OCSP responder both turn a stored `revoke_reason`
+# into an `x509.ReasonFlags`, and each carried its own table. They drifted on
+# the one spelling that matters: `normalize_revocation_reason` stores
+# `cACompromise`, the CRL table knew it and the responder's did not, so one
+# certificate was a CA compromise on the CRL and `unspecified` over OCSP.
+# One table, next to the vocabulary it spells, so they cannot drift again.
+# It covers every alias the two tables held between them; the callers keep
+# whatever rule of their own applies (a responder has no delta CRL, so it
+# drops `removeFromCRL` — RFC 5280 §5.3.1).
+REASON_FLAGS = {
+    'unspecified': x509.ReasonFlags.unspecified,
+    'keyCompromise': x509.ReasonFlags.key_compromise,
+    'key_compromise': x509.ReasonFlags.key_compromise,
+    'cACompromise': x509.ReasonFlags.ca_compromise,
+    'caCompromise': x509.ReasonFlags.ca_compromise,
+    'CACompromise': x509.ReasonFlags.ca_compromise,
+    'ca_compromise': x509.ReasonFlags.ca_compromise,
+    'affiliationChanged': x509.ReasonFlags.affiliation_changed,
+    'affiliation_changed': x509.ReasonFlags.affiliation_changed,
+    'superseded': x509.ReasonFlags.superseded,
+    'cessationOfOperation': x509.ReasonFlags.cessation_of_operation,
+    'cessation_of_operation': x509.ReasonFlags.cessation_of_operation,
+    'certificateHold': x509.ReasonFlags.certificate_hold,
+    'certificate_hold': x509.ReasonFlags.certificate_hold,
+    'removeFromCRL': x509.ReasonFlags.remove_from_crl,
+    'privilegeWithdrawn': x509.ReasonFlags.privilege_withdrawn,
+    'privilege_withdrawn': x509.ReasonFlags.privilege_withdrawn,
+    'aACompromise': x509.ReasonFlags.aa_compromise,
+    'aa_compromise': x509.ReasonFlags.aa_compromise,
+}
 
 
 def normalize_revocation_reason(value) -> Optional[str]:

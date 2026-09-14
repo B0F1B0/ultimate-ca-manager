@@ -24,6 +24,7 @@ from sqlalchemy import or_
 
 from models import db, CA, Certificate, OCSPResponse, SystemConfig, RevokedSerial
 from utils.datetime_utils import utc_now
+from utils.revocation_reasons import REASON_FLAGS
 from utils.serial_format import serial_to_hex, serial_variants
 
 logger = logging.getLogger(__name__)
@@ -164,23 +165,16 @@ def _build_unknown_certificate(serial: int, issuer: x509.Certificate) -> x509.Ce
     )
 
 
+# The shared reason table, minus the one entry a responder cannot mean:
+# ``removeFromCRL`` is a delta-CRL instruction (RFC 5280 §5.3.1) and an
+# unhold stages it on the row for the moment it takes to publish that delta.
+# Answering ``unspecified`` for it is this responder's own rule and stays.
+#
+# The copy this replaces had drifted from the CRL builder's on the spelling
+# the revoke API stores: ``cACompromise`` was absent, so the same
+# certificate was a CA compromise on the CRL and ``unspecified`` over OCSP.
 _REASON_MAP = {
-    'unspecified': x509.ReasonFlags.unspecified,
-    'key_compromise': x509.ReasonFlags.key_compromise,
-    'keyCompromise': x509.ReasonFlags.key_compromise,
-    'ca_compromise': x509.ReasonFlags.ca_compromise,
-    'caCompromise': x509.ReasonFlags.ca_compromise,
-    'affiliation_changed': x509.ReasonFlags.affiliation_changed,
-    'affiliationChanged': x509.ReasonFlags.affiliation_changed,
-    'superseded': x509.ReasonFlags.superseded,
-    'cessation_of_operation': x509.ReasonFlags.cessation_of_operation,
-    'cessationOfOperation': x509.ReasonFlags.cessation_of_operation,
-    'certificate_hold': x509.ReasonFlags.certificate_hold,
-    'certificateHold': x509.ReasonFlags.certificate_hold,
-    'privilege_withdrawn': x509.ReasonFlags.privilege_withdrawn,
-    'privilegeWithdrawn': x509.ReasonFlags.privilege_withdrawn,
-    'aa_compromise': x509.ReasonFlags.aa_compromise,
-    'aACompromise': x509.ReasonFlags.aa_compromise,
+    name: flag for name, flag in REASON_FLAGS.items() if name != 'removeFromCRL'
 }
 
 
