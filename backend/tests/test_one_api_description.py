@@ -30,7 +30,10 @@ _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 _DECLARES_A_SPEC = re.compile(
     r'^\s*(?:openapi|swagger)\s*:\s*["\']?\d', re.MULTILINE)
 
-_SKIP_DIRS = {'.git', 'node_modules', '__pycache__', 'dist', 'build',
+# `.claude` holds the throwaway worktrees agents run in: they carry a copy of
+# the tree at whatever commit that agent started from, so scanning them reports
+# files this branch has already removed.
+_SKIP_DIRS = {'.git', '.claude', 'node_modules', '__pycache__', 'dist', 'build',
               '.pytest_cache', 'venv', '.venv', 'htmlcov', 'coverage_html'}
 
 

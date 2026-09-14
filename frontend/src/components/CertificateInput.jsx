@@ -63,10 +63,10 @@ export function CertificateInput({
     setLoadingCerts(true)
     try {
       // `limit` is not a parameter this listing reads: it pages on `per_page`,
-      // capped at 100, so asking for 500 returned the default 20. Pages
-      // through instead, with the key filter pushed to the server.
+      // capped at 100, so asking for 500 returned the default 20. `has_key` is
+      // not read either, so the key filter stays here rather than being sent
+      // and silently ignored.
       const query = { per_page: MANAGED_PER_PAGE }
-      if (requireKey) query.has_key = true
       const first = await certificatesService.getAll({ ...query, page: 1 })
       let certs = first.data || []
       const total = Math.min(first.meta?.total ?? certs.length, MANAGED_MAX_CERTS)
@@ -78,7 +78,7 @@ export function CertificateInput({
         )
         certs = rest.reduce((acc, r) => acc.concat(r.data || []), certs)
       }
-      setManagedCerts(certs)
+      setManagedCerts(requireKey ? certs.filter(c => c.has_private_key) : certs)
     } catch {
       setManagedCerts([])
     } finally {
