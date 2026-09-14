@@ -49,30 +49,15 @@ def _human_size(size_bytes: int) -> str:
     return f"{size_bytes} B"
 
 
-def _request_restart_after_restore():
-    """Ask the service to restart, the one way this project restarts.
-
-    A restore replaces the certificate authorities, their keys and the
-    identities; the running workers hold the previous ones in memory.
-    """
-    try:
-        from utils.service_manager import restart_service
-        ok = restart_service()
-        return bool(ok), "restart requested"
-    except Exception as exc:
-        logger.warning("Restore: could not request a restart: %s", exc)
-        return False, "restart the service manually"
-
-
-def _safe_audit_log(**kwargs) -> None:
-    """
-    Record audit events without converting an already-completed operation into
-    an API failure when the audit subsystem is temporarily unavailable.
-    """
-    try:
-        AuditService.log_action(**kwargs)
-    except Exception:
-        logger.exception("Operation completed but audit logging failed")
+# Both steps moved to `services/backup/restore_completion.py`, which the
+# Settings route calls too: each of them was written on one route and not the
+# other, and the difference showed up as a restore that behaved differently
+# depending on which page had asked for it.
+from services.backup.restore_completion import (
+    record_restore as _safe_audit_log,
+    request_restart as _request_restart_after_restore,
+    restore_message,
+)
 
 
 @bp.route("/api/v2/system/backup", methods=["POST"])
@@ -436,9 +421,13 @@ def restore_backup():
         if not password:
             return error_response("Password required for decryption", 400)
 
-        if len(password) < 12:
-            return error_response("Password must be at least 12 characters", 400)
-
+        # No length rule here. This password has to match the one that
+        # encrypted the archive, and refusing to try meant an archive made
+        # before the rule existed, or by another installation, could not be
+        # restored at all. Creating an archive still enforces it, which is
+        # where a rule about password strength belongs. The Settings route
+        # never had this check, so the same file restored from one page and
+        # was refused from the other.
         try:
             backup_bytes, _ = validate_upload(
                 uploaded_file,
@@ -486,7 +475,7 @@ def restore_backup():
         # could say which file had been restored. And it says which of the
         # two things happened, rather than announcing a restore beside a
         # response saying nothing was restored.
-        _carried = bool(results.get("sections_carried"))
+        _carried = bool((results or {}).get("sections_carried"))
         _safe_audit_log(
             action="system_restore",
             resource_type="system",
@@ -525,14 +514,10 @@ def restore_backup():
 
         restart_ok, restart_message = _request_restart_after_restore()
         results['restart_requested'] = restart_ok
-
-        message = with_restore_warnings(
-            "Backup restored successfully. Sign in again" if restart_ok else
-            f"Backup restored successfully. Restart UCM to finish: {restart_message}",
-            results)
+        results['restart_detail'] = restart_message
 
         return success_response(
-            message=message,
+            message=restore_message(results),
             data=results,
         )
 

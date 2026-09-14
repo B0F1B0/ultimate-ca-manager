@@ -12,7 +12,8 @@ from services.backup import storage
 from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
-from services.backup.restore_report import with_restore_warnings
+from services.backup.restore_completion import (
+    record_restore, request_restart, restore_message)
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -200,7 +201,7 @@ def restore_backup():
         # backup" beside a response reading "nothing was restored" is a trail
         # that has to be argued with.
         _carried = bool((results or {}).get('sections_carried'))
-        AuditService.log_action(
+        record_restore(
             action='system_restore',
             resource_type='system',
             resource_name=file.filename,
@@ -231,12 +232,22 @@ def restore_backup():
                 'Backup restored, but the sessions opened before it could not '
                 'be revoked. Restart the application before using it.', 500)
 
+        # The restart is part of the restore, not homework for the operator:
+        # the workers hold the authorities, the keys and the identities the
+        # restore has just replaced. The System route had always asked for it
+        # while this one told the operator to do it themselves, so the same
+        # archive left the service running or not depending on the page.
+        restart_ok, restart_detail = request_restart()
+        results['restart_requested'] = restart_ok
+        results['restart_detail'] = restart_detail
+
+        # And the whole of `results`, not a two-key summary: what the archive
+        # said about itself, the sections this version does not restore
+        # included, reached a client from one page and not the other.
+        results['filename'] = file.filename
         return success_response(
-            data={'filename': file.filename, 'restored': True},
-            message=with_restore_warnings(
-                'Backup restored successfully. Every session opened before '
-                'the restore was revoked; restart the application and sign '
-                'in again.', results)
+            data=results,
+            message=restore_message(results),
         )
     except BackupDecryptionError:
         logger.warning("Settings restore refused: the backup could not be decrypted")

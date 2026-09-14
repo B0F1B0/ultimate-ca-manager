@@ -112,18 +112,56 @@ def test_the_layout_matches_the_specification(encoded, prefix_length):
                          prefix_length) == ipaddress.ip_address('192.0.2.33')
 
 
-def test_a_reserved_byte_that_is_not_zero_is_not_an_embedding():
-    """Bits 64 to 71 are reserved and must be zero. Reading them as part of
-    the address is what let the metadata service through."""
+def test_a_reserved_byte_that_is_not_zero_is_still_an_embedding():
+    """Bits 64 to 71 are the reserved `u` octet, and refusing to read an
+    address whose `u` is not zero was a way of not looking.
+
+    Section 2.2 tells a sender to zero them. Section 2.3 tells a receiver to
+    remove the octet and read on, with no validation, so a conforming
+    translator forwards the packet either way. Declining to decode meant the
+    address fell back on its bare IPv6 judgement, which cannot see through a
+    translation prefix at all, and one byte an attacker controls turned the
+    whole check off.
+    """
     import ipaddress
 
     from utils.ssrf_protection import _rfc6052_ipv4
 
+    # Same address twice, `u` zero then `u` set. Bits 72 to 103 are
+    # a9 fe a9 fe either way.
+    for spelling in ('64:ff9b:1:1:a9:fea9:fe00:0',
+                     '64:ff9b:1:1:ffa9:fea9:fe00:0',
+                     '64:ff9b:1:1:80a9:fea9:fe00:0'):
+        assert _rfc6052_ipv4(
+            int(ipaddress.ip_address(spelling)), 64
+        ) == ipaddress.ip_address('169.254.169.254'), spelling
+
+
+@pytest.mark.parametrize("url", [
+    # The byte is the attacker's to set, and setting it used to turn every
+    # reading off and let the address through.
+    "https://[64:ff9b:1:1:ffa9:fea9:fe00:0]/",
+    "https://[64:ff9b:1:1:80a9:fea9:fe00:0]/",
+    "https://[64:ff9b:1:a9fe:ffa9:fe00:1:1]/",
+])
+def test_the_reserved_byte_does_not_switch_the_guard_off(url):
+    with pytest.raises(ValueError):
+        validate_url_not_cloud_metadata(url)
+
+
+def test_a_ninety_six_reading_ignores_those_bits_as_it_always_did():
+    """For a /96 the bits belong to the operator's prefix, not to the `u`
+    field, so a reading there has never had anything to check."""
+    import ipaddress
+
+    from utils.ssrf_protection import _rfc6052_ipv4
+
+    # One of RFC 8215 section 5's own example prefixes, carrying Alibaba's
+    # metadata endpoint. Extending the reserved-byte rule to /96 would have
+    # let this through.
     assert _rfc6052_ipv4(
-        int(ipaddress.ip_address('64:ff9b:1:a9fe:a9:fe00::')), 48
-    ) == ipaddress.ip_address('169.254.169.254')
-    assert _rfc6052_ipv4(
-        int(ipaddress.ip_address('64:ff9b:1:a9fe:a900:fe00::')), 48) is None
+        int(ipaddress.ip_address('64:ff9b:1:fffe:ff00:0:6464:64c8')), 96
+    ) == ipaddress.ip_address('100.100.100.200')
 
 
 @pytest.mark.parametrize("url", [
@@ -169,6 +207,10 @@ def test_no_layout_of_the_local_use_prefix_hides_the_metadata_service(url):
     "https://[64:ff9b:1::a00:5]/",              # 10.0.0.5, on the LAN
     "https://[64:ff9b:1::101:101]/",            # 1.1.1.1
     "https://[64:ff9b:1:7f00::1]/",             # a 7f00: subnet, not loopback
+    # Instances from RFC 8215 section 5, which do not read as 0.0.0.0 under
+    # the container's layout the way the empty instance does.
+    "https://[64:ff9b:1:fffe::5db8:d822]/",
+    "https://[64:ff9b:1:abcd:0:5431:5db8:d822]/"
 ])
 def test_an_ordinary_host_behind_a_translation_prefix_is_reachable(url):
     validate_url_not_cloud_metadata(url)

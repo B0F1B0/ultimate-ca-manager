@@ -72,3 +72,78 @@ class TestTheCountIsSaidCorrectly:
         assert '8 records carry' in answer, answer
         assert 'and 3 more' in answer, (
             f'five are listed and three are dropped in silence: {answer}')
+
+
+class TestTheTwoRoutesFinishTheSameWay:
+    """Everything after the archive is read, not just the warnings.
+
+    The joining of the warnings was shared first; the steps around it were
+    not. One route recorded the restore in a way that could turn a success
+    into a 500, one asked the service to restart and the other told the
+    operator to do it by hand, and only one handed back what the archive had
+    said about itself. The page an operator happened to use decided all three.
+    """
+
+    def test_both_routes_call_the_same_completion(self):
+        """Read from the source: neither route may keep its own copy."""
+        import ast
+        import os
+
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for route in ('api/v2/system/backup.py', 'api/v2/settings/backup.py'):
+            tree = ast.parse(open(os.path.join(here, route)).read())
+            imported = {
+                alias.name
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom)
+                and node.module == 'services.backup.restore_completion'
+                for alias in node.names
+            }
+            assert {'record_restore', 'request_restart', 'restore_message'} \
+                <= imported, (
+                f'{route} does not go through the shared completion: '
+                f'{imported}')
+
+    def test_the_restart_is_reported_as_it_happened(self, monkeypatch):
+        """`restart_service` returns a pair. Read as one truth value, it was
+        always true, so the answer said "sign in again" for a restart nobody
+        had asked for."""
+        from services.backup import restore_completion
+
+        monkeypatch.setattr(
+            'utils.service_manager.restart_service',
+            lambda: (False, 'no service manager here'))
+        requested, detail = restore_completion.request_restart()
+        assert requested is False, (
+            'a refused restart is reported as requested')
+        assert detail == 'no service manager here'
+
+        monkeypatch.setattr(
+            'utils.service_manager.restart_service',
+            lambda: (True, 'restart requested'))
+        assert restore_completion.request_restart() == (
+            True, 'restart requested')
+
+    def test_the_message_says_which_of_the_two_happened(self):
+        from services.backup.restore_completion import restore_message
+
+        asked = restore_message({'restart_requested': True})
+        assert 'Sign in again' in asked, asked
+
+        refused = restore_message(
+            {'restart_requested': False,
+             'restart_detail': 'restart the service manually'})
+        assert 'Restart the service to finish' in refused, refused
+        assert 'restart the service manually' in refused, refused
+
+    def test_a_failing_audit_does_not_fail_the_restore(self, monkeypatch):
+        """The entry records the restore; it does not decide it."""
+        from services.backup import restore_completion
+
+        def _refuse(**_fields):
+            raise RuntimeError('audit table is being rewritten')
+
+        monkeypatch.setattr(
+            restore_completion.AuditService, 'log_action', _refuse)
+        # Must not raise: the restore has already happened.
+        restore_completion.record_restore(action='system_restore')

@@ -167,12 +167,19 @@ def _rfc6052_ipv4(value: int, prefix_length: int):
     four that were missing was fail-open: the address fell back on its bare
     IPv6 judgement, which is exactly the judgement that cannot see through a
     translation prefix.
+
+    Bits 64 to 71 are the reserved `u` octet and never belong to the address:
+    the layouts above step around them. They are not checked either, and that
+    is deliberate. Section 2.2 requires a sender to set them to zero, but the
+    extraction in section 2.3 says to remove the octet and read on, with no
+    validation, so a conforming translator forwards an address whose `u` is
+    not zero. Refusing to decode one was a way of not looking:
+    `64:ff9b:1:1:ffa9:fea9:fe00:0` carries 169.254.169.254 in bits 72 to 103,
+    read it or not, and not reading it let it through.
     """
     layout = _RFC6052_LAYOUT.get(prefix_length)
     if layout is None:
         return None
-    if prefix_length != 96 and _bits(value, 64, 71):
-        return None                     # `u` is reserved and must be zero
     high, low = layout
     carried = _bits(value, *high)
     if low is not None:
@@ -199,12 +206,6 @@ def _nat64_readings(ip):
             if r is not None)
         return (), readings
     return (), ()
-
-
-def _nat64_embedded_ipv4(ip):
-    """The single address a known-layout NAT64 form carries, or None."""
-    certain, _speculative = _nat64_readings(ip)
-    return certain[0] if certain else None
 
 
 # The deprecated IPv4-compatible form, ::a.b.c.d (RFC 4291 section 2.5.5.1).
@@ -267,7 +268,10 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
     loopback, or unspecified (0.0.0.0 / ::, which route to loopback on most OSes) — or
     None. Every IPv4 address an IPv6 encoding carries is judged as well as the
     address itself, so no spelling of a denied address gets through by being
-    written another way.
+    written another way. One exception is deliberate: under a translation
+    prefix whose layout is unknown, the readings are judged against the
+    metadata endpoints only, not against loopback, because a reading taken
+    with the wrong layout lands there readily.
 
     allow_loopback=True permits loopback/unspecified (for a colocated ACME upstream
     such as Pebble/step-ca on 127.0.0.1); cloud metadata stays blocked regardless."""
@@ -285,8 +289,17 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
         # there is no way to tell which from the address alone. Refusing on a
         # metadata endpoint is worth the guess: nothing legitimate is written
         # that way. Refusing on loopback or on 0.0.0.0 is not, because a
-        # wrong layout lands on them constantly -- every address behind a /96
-        # instance reads as 0.0.0.0 under the container's own /48 layout.
+        # wrong layout lands on them readily: behind the instance an operator
+        # is likeliest to pick, `64:ff9b:1::/96`, every address reads as
+        # 0.0.0.0 under the container's own /48 layout. That is a tendency
+        # rather than a rule, and the specification's own examples
+        # (`64:ff9b:1:fffe::/96` and the others in RFC 8215 section 5) read
+        # as ordinary addresses instead.
+        #
+        # What this leaves open is a loopback reached through a translator:
+        # `64:ff9b:1:1::7f00:1` on a network carrying `64:ff9b:1:1::/96`
+        # goes to 127.0.0.1 as seen by the translator, not by this server,
+        # and only matters where the two sit on the same host.
         for carried in speculative:
             if carried in _CLOUD_METADATA_IP_OBJS:
                 return "cloud metadata IP"
