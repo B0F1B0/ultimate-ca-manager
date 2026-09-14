@@ -11,7 +11,8 @@ import logging
 import requests as http_requests
 from utils.datetime_utils import utc_isoformat
 from utils.dn_parse import get_dn_attribute, get_parent_dn
-from utils.ssrf_protection import validate_url_not_cloud_metadata
+from utils.ssrf_protection import (
+    safe_request_head, validate_url_not_cloud_metadata)
 
 logger = logging.getLogger(__name__)
 
@@ -315,7 +316,15 @@ def _test_oauth2_connection(provider):
         _cleanup_ssl_verify(verify)
         return error_response("Authorization URL cannot target cloud metadata or loopback", 400)
     try:
-        response = http_requests.head(provider.oauth2_auth_url, timeout=5, allow_redirects=True, verify=verify)
+        # Through the pinning helper, and without following redirects.
+        # `requests.head` does not follow them by default: this call asked
+        # for it, and a redirect goes to a host the check above never saw,
+        # since `pin_host` pins the host that was validated and only that
+        # one. A 3xx already proves the endpoint answers, which is all a
+        # reachability test needs. The helper also connects to the addresses
+        # that were validated, closing the second lookup a bare `head` did.
+        response = safe_request_head(provider.oauth2_auth_url, timeout=5,
+                                     verify=verify)
 
         return success_response(data={
             'status': 'success',
