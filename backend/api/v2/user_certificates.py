@@ -19,6 +19,7 @@ from models import CA, AuthCertificate, Certificate, User, db
 from utils.key_codec import load_pem_bytes
 from services.audit_service import AuditService
 from services.cert_service import CertificateService
+from utils.pagination import parse_request_pagination
 from utils.response import error_response, no_content_response, success_response
 from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
@@ -116,9 +117,7 @@ def list_user_certificates():
     user = g.current_user
 
     # Pagination
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 25, type=int)
-    per_page = min(per_page, 100)
+    page, per_page = parse_request_pagination(default_per_page=25)
 
     # Filters
     status_filters = request.args.getlist('status')

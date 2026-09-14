@@ -6,6 +6,7 @@ from models import db, AcmeAccount, AcmeOrder, AcmeAuthorization, AcmeChallenge,
 from models.acme_models import AcmeClientOrder, DnsProvider
 from models.acme_client_account import AcmeClientAccount
 from auth.unified import require_auth
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response
 from utils.datetime_utils import utc_isoformat
 
@@ -258,8 +259,10 @@ def get_acme_history():
         per_page: Items per page (default: 50, max: 100)
         source: Filter by source ('acme', 'acme_client', 'letsencrypt', or 'all')
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 50, type=int), 100)
+    # Bounded from both ends: `min(..., 100)` let a negative page size
+    # through, and a negative LIMIT means no limit on SQLite and an error on
+    # PostgreSQL.
+    page, per_page = parse_request_pagination(default_per_page=50)
     source_filter = request.args.get('source', 'all')
 
     # ``letsencrypt`` is retained for legacy rows. New certificates from any

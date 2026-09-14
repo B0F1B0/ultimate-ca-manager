@@ -587,11 +587,18 @@ class CSRMixin:
         with open(cert_cert_path(certificate), 'wb') as f:
             f.write(cert_pem)
 
-        from services.audit_service import AuditService
-        AuditService.log_certificate(
-            'certificate_imported', certificate,
-            f'Certificate issued externally attached to its pending CSR '
-            f'(private key {"kept" if certificate.prv else "absent"})',
-            username=username,
-        )
+        if commit:
+            # Only when this function owns the transaction. `log_certificate`
+            # commits the session it is given, so called on the `commit=False`
+            # path it committed the caller's whole bundle -- which is exactly
+            # what that path exists not to do -- and rolled all of it back
+            # when its own entry could not be written. The bundle importer
+            # stages its audit rows instead, so they ride its own commit.
+            from services.audit_service import AuditService
+            AuditService.log_certificate(
+                'certificate_imported', certificate,
+                f'Certificate issued externally attached to its pending CSR '
+                f'(private key {"kept" if certificate.prv else "absent"})',
+                username=username,
+            )
         return certificate

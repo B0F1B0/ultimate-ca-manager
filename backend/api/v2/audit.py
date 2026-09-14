@@ -5,6 +5,7 @@ View and manage audit logs
 from flask import Blueprint, request, jsonify, g, Response
 from auth.unified import require_auth
 from services.audit_service import AuditService
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response
 from datetime import datetime
 import logging
@@ -34,8 +35,12 @@ def get_logs():
     """
     try:
         # Parse query params (support multi-select: ?action=create&action=delete)
-        page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 50, type=int), 100)
+        # `min(..., 100)` bounded this from above only. A negative page size
+        # reached the query untouched, and `LIMIT -1` means no limit at all on
+        # SQLite, so one request returned the whole audit table; PostgreSQL
+        # refuses a negative LIMIT outright, so the same request answered 500
+        # there. This is the listing the audit page itself uses.
+        page, per_page = parse_request_pagination(default_per_page=50)
         username = request.args.get('username')
         action_list = request.args.getlist('action')
         category = request.args.get('category')

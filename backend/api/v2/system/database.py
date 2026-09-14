@@ -3,7 +3,7 @@ System Database Operations
 """
 
 from . import bp
-from flask import Blueprint, request, current_app, Response
+from flask import Blueprint, request, current_app, Response, g
 from auth.unified import require_auth
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
@@ -182,18 +182,14 @@ def export_db():
 def reset_db():
     """Reset database to initial state - DANGEROUS"""
     try:
-        from auth.unified import get_current_user
-
-        current_user = get_current_user()
-
-        # Log this critical action before reset
-        AuditService.log_action(
-            action='database_reset',
-            resource_type='system',
-            resource_id='database',
-            details=f"Initiated by {current_user.get('username', 'unknown')}",
-            user_id=current_user.get('id')
-        )
+        # `auth.unified.get_current_user` does not exist and never has. The
+        # import raised, the bare `except` below turned it into "Database
+        # reset failed", and the route answered 500 without resetting
+        # anything, on every call. The rest of the codebase reads the actor
+        # off `g`, which `require_auth` has already put there.
+        actor = getattr(g, 'current_user', None)
+        actor_name = getattr(actor, 'username', None) or 'unknown'
+        actor_id = getattr(actor, 'id', None)
 
         # Drop all tables and recreate
         db.drop_all()
@@ -228,7 +224,30 @@ def reset_db():
         db.session.add(admin)
         ok, err = safe_commit(logger, "Database reset failed")
         if not ok:
+            # The tables are already dropped and recreated by now and there
+            # is no admin: say so, in a table that exists again.
+            AuditService.log_action(
+                action='database_reset',
+                resource_type='system',
+                resource_id='database',
+                details=(f"Initiated by {actor_name}; the database was reset "
+                         "but the administrator account could not be created"),
+                user_id=actor_id,
+                success=False,
+            )
             return err
+
+        # Recorded after the reset, not before it. Written first, the entry
+        # went into the table `drop_all` was about to destroy, so a reset left
+        # no trace of itself at all. Written here it lands in the fresh table,
+        # as its first row.
+        AuditService.log_action(
+            action='database_reset',
+            resource_type='system',
+            resource_id='database',
+            details=f"Initiated by {actor_name}",
+            user_id=actor_id,
+        )
 
         return success_response(message="Database reset successfully. Default admin user created.")
     except Exception as e:

@@ -400,6 +400,10 @@ class SmartImporter:
                     result.keys_matched += 1
                 result.certificates_imported += 1
                 result.imported_ids["certificates"].append(pending_csr.id)
+                # Staged, not committed: it rides the bundle's own commit,
+                # like every other entry this importer writes.
+                self._log_audit("certificate_imported", pending_csr.id,
+                                pending_csr.descr, username)
                 result.warnings.append(
                     f"Certificate {self._get_cn(cert_obj.subject)} attached to its pending CSR"
                 )

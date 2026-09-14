@@ -108,8 +108,15 @@ class DeployService:
 
     @staticmethod
     def execute_delivery(delivery: DeployDelivery) -> bool:
-        """Perform one push+reload. Updates the delivery/target rows in place
-        (caller commits). Returns True on success."""
+        """Perform one push+reload. Returns True on success.
+
+        The delivery and target rows are updated in place and committed here,
+        before the audit entry that describes the push is written: that entry
+        commits this session itself, so leaving the rows to the caller meant
+        the audit decided whether a push that had already reached the remote
+        host was recorded as having happened. The caller still commits, which
+        is now a no-op for these rows.
+        """
         now = utc_now()
         binding = db.session.get(DeployBinding, delivery.binding_id)
         if not binding or not binding.enabled:
@@ -177,6 +184,13 @@ class DeployService:
         target.last_success_at = now
         target.failure_count = 0
 
+        # The file is already on the remote host and the reload has already
+        # run. Record that before the audit, because the audit commits this
+        # session and rolls all of it back when its own entry cannot be
+        # written: the delivery would read as still pending for something
+        # that was delivered, and the next pass would push it again.
+        _safe_commit('execute_delivery')
+
         from services.audit_service import AuditService
         AuditService.log_action(
             action='deploy_push',
@@ -205,6 +219,12 @@ class DeployService:
         else:
             delivery.next_attempt_at = now + timedelta(
                 seconds=DeployService._backoff_seconds(delivery.attempts))
+
+        # Same reason as the success path: the audit commits this session, so
+        # the failure count and the retry schedule ride on whether its entry
+        # can be written. Rolled back, the attempt is forgotten and the same
+        # target is retried without backoff.
+        _safe_commit('record_failure')
 
         from services.audit_service import AuditService
         AuditService.log_action(

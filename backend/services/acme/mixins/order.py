@@ -205,19 +205,29 @@ class OrderMixin:
                 # transaction still held, an authorization reused a few lines
                 # above included: it commits the session it is given and rolls
                 # all of it back when its own entry cannot be written.
-                from services.audit_service import AuditService
-                AuditService.log_action(
-                    username='acme',
-                    action='acme_auto_approve',
-                    resource_type='acme_authorization',
-                    resource_id=domain_value,
-                    details={
-                        'domain': domain_value,
-                        'account_id': account_id,
-                        'order_id': order_id,
-                    },
-                    success=True
-                )
+                # Still guarded, for the reason the order now makes sharper:
+                # the authorization is committed by the time this runs, so
+                # anything raising here would turn work the client already
+                # owns into a 500 it will retry. `log_action` catches its own
+                # failures; the import above is what is being covered.
+                try:
+                    from services.audit_service import AuditService
+                    AuditService.log_action(
+                        username='acme',
+                        action='acme_auto_approve',
+                        resource_type='acme_authorization',
+                        resource_id=domain_value,
+                        details={
+                            'domain': domain_value,
+                            'account_id': account_id,
+                            'order_id': order_id,
+                        },
+                        success=True
+                    )
+                except Exception as audit_err:
+                    logger.warning(
+                        f"Failed to record auto-approval for {domain_value}: "
+                        f"{audit_err}")
                 return auth
 
         # No reuse - create new pending authorization

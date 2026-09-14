@@ -122,8 +122,7 @@ def get_notification_logs():
     """Get notification logs"""
     from models.email_notification import NotificationLog
 
-    page = request.args.get('page', 1, type=int)
-    per_page = min(request.args.get('per_page', 50, type=int), 100)
+    page, per_page = parse_request_pagination(default_per_page=50)
     notification_type = request.args.get('type')
 
     query = NotificationLog.query.order_by(NotificationLog.sent_at.desc())

@@ -480,11 +480,21 @@ def restore_backup():
                 f"{busy} A backend migration or another restore is still "
                 "running.", 409)
 
+        # Same entry as the settings page, down to the archive's name: that
+        # name appeared in the ledger from one page and not the other, so
+        # which page an operator happened to use decided whether the trail
+        # could say which file had been restored. And it says which of the
+        # two things happened, rather than announcing a restore beside a
+        # response saying nothing was restored.
+        _carried = bool(results.get("sections_carried"))
         _safe_audit_log(
             action="system_restore",
             resource_type="system",
-            resource_name="Backup Restore",
-            details="Restored from backup file",
+            resource_name=uploaded_file.filename,
+            details=(f"Restored from backup: {uploaded_file.filename}"
+                     if _carried else
+                     f"Backup carried no data section, nothing was restored: "
+                     f"{uploaded_file.filename}"),
             success=True,
         )
 

@@ -398,6 +398,14 @@ def update_connection(msca_id):
 
     except Exception as e:
         logger.error(f"Failed to update MS CA connection: {e}")
+        # Before the audit, not after. The fields above are applied to the
+        # row one by one with no commit between them, so a value of the wrong
+        # type part way down leaves the earlier ones staged. `log_action`
+        # commits the session it is given, so auditing the refusal was what
+        # saved them: a request carrying a new name and a new password and
+        # one unusable field was answered 500 and kept the name and the
+        # password.
+        db.session.rollback()
         _audit('msca.update', msca, f"error={e}", success=False)
         return error_response("Failed to update connection", 500)
 

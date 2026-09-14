@@ -61,8 +61,15 @@ class CAcrudMixin:
         # Snapshot for the webhook payload before the row is gone
         _ca_snapshot = ca.to_dict()
         # And for the audit entry, which is written once the row actually is
-        # gone: by then the instance raises on every attribute read.
-        _ca_id, _ca_descr = ca.id, ca.descr
+        # gone. The instance is only detached by then, so attributes already
+        # loaded still read back, but nothing guarantees that: a lazy column
+        # or a session configured to expire on commit would raise, and the
+        # entry would be lost on a deletion that succeeded. The fallback
+        # chain is the one `log_ca` applied, kept here because a record whose
+        # name is empty otherwise reaches the ledger with no name at all.
+        _ca_id = ca.id
+        _ca_descr = ca.descr
+        _ca_name = _ca_descr or getattr(ca, 'subject', None) or f'CA #{_ca_id}'
 
         # Delete files
         delete_ca_files(ca)
@@ -73,7 +80,21 @@ class CAcrudMixin:
             db.session.commit()
         except Exception as _commit_err:
             db.session.rollback()
-            logger.error(f"Commit failed in services/ca/ca_crud.py:69: {_commit_err}", exc_info=True)
+            logger.error(f"Commit failed deleting CA {_ca_id}: {_commit_err}", exc_info=True)
+            # The row survives and its key, certificate and CRL do not: the
+            # unlinks above are done and the rollback cannot undo them.
+            # Recording the failure is the only thing left that says so, and
+            # it is safe here because the rollback has emptied the session,
+            # so this commit carries nothing but the entry.
+            AuditService.log_action(
+                action='ca_deleted',
+                resource_type='ca',
+                resource_id=_ca_id,
+                resource_name=_ca_name,
+                details=('Failed to delete CA; its files on disk were '
+                         'already removed'),
+                success=False,
+            )
             raise
 
         # Audit after the delete has committed, not before it. `log_action`
@@ -88,7 +109,7 @@ class CAcrudMixin:
             action='ca_deleted',
             resource_type='ca',
             resource_id=_ca_id,
-            resource_name=_ca_descr,
+            resource_name=_ca_name,
             details=f'Deleted CA: {_ca_descr}',
         )
 

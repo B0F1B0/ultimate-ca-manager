@@ -195,12 +195,18 @@ def restore_backup():
         # Recorded before the archive is judged empty or not, as the system
         # route does: a file that restored nothing was still uploaded and
         # still deserves a line, and returning first meant it left no trace
-        # on one page and a trace on the other.
+        # on one page and a trace on the other. What the line says depends on
+        # which of the two happened, because an entry reading "Restored from
+        # backup" beside a response reading "nothing was restored" is a trail
+        # that has to be argued with.
+        _carried = bool((results or {}).get('sections_carried'))
         AuditService.log_action(
             action='system_restore',
             resource_type='system',
             resource_name=file.filename,
-            details=f'Restored from backup: {file.filename}',
+            details=(f'Restored from backup: {file.filename}' if _carried else
+                     f'Backup carried no data section, nothing was restored: '
+                     f'{file.filename}'),
             success=True
         )
 
@@ -208,7 +214,7 @@ def restore_backup():
         # nothing to invalidate and no reason to sign everyone out and ask for
         # a restart. Announced as a restore, it revoked every session that was
         # open, the caller's included, for a file that touched not one row.
-        if not (results or {}).get('sections_carried'):
+        if not _carried:
             logger.warning('Restore: the archive carried no data section')
             return success_response(
                 data=results,
