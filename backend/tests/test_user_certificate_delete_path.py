@@ -5,8 +5,10 @@ files stayed on disk, the approval requests, deploy bindings and ACME orders
 kept pointing at a row that was gone, and the revocation records kept a
 dangling foreign key that PostgreSQL refuses outright.
 
-There is deliberately no revoke-first gate, unlike the certificate routes:
-removing the enrolment is what withdraws the access.
+Removing the enrolment withdraws access to UCM and nothing more: the
+certificate stayed valid for every other service trusting the same authority.
+It is revoked on the way out, so the withdrawal reaches the CRL and the
+responder, and the operator still has a single gesture.
 """
 import json
 
@@ -91,3 +93,62 @@ class TestTheCertificateGoesWithIt:
         an_operator.delete(f'/api/v2/user-certificates/{an_enrolment}')
         assert written, 'the fixture wrote no file, nothing to prove'
         assert [path for path in written if path.exists()] == []
+
+
+class TestTheCertificateIsRevokedOnTheWayOut:
+    def test_the_serial_reaches_the_revocation_records(self, app, an_operator,
+                                                       an_enrolment):
+        """Deleting used to leave it valid for anything else trusting the CA."""
+        from models import Certificate, db
+        from models.revoked_serial import RevokedSerial
+
+        certificate_id = _certificate_id_of(app, an_enrolment)
+        with app.app_context():
+            certificate = db.session.get(Certificate, certificate_id)
+            serial = certificate.serial_number
+            assert certificate.revoked is not True
+
+        answer = an_operator.delete(f'/api/v2/user-certificates/{an_enrolment}')
+        assert answer.status_code in (200, 204), answer.data[:300]
+
+        with app.app_context():
+            record = RevokedSerial.query.filter_by(serial_number=serial).first()
+            assert record is not None, 'the CRL has nothing to publish'
+            assert record.revoke_reason == 'cessationOfOperation'
+
+    def test_an_already_revoked_certificate_is_not_revoked_twice(
+            self, app, an_operator, an_enrolment):
+        from models import Certificate, db
+        from services.cert_service import CertificateService
+
+        certificate_id = _certificate_id_of(app, an_enrolment)
+        with app.app_context():
+            CertificateService.revoke_certificate(
+                cert_id=certificate_id, reason='keyCompromise', username='probe')
+            db.session.commit()
+
+        answer = an_operator.delete(f'/api/v2/user-certificates/{an_enrolment}')
+        assert answer.status_code in (200, 204), answer.data[:300]
+
+        with app.app_context():
+            from models.revoked_serial import RevokedSerial
+            # The first reason is the true one and must not be overwritten.
+            reasons = [r.revoke_reason for r in RevokedSerial.query.all()]
+            assert 'keyCompromise' in reasons
+
+    def test_a_certificate_that_cannot_be_revoked_is_not_deleted(
+            self, app, an_operator, an_enrolment, monkeypatch):
+        """An authority that cannot sign must not make it vanish in silence."""
+        from models.auth_certificate import AuthCertificate
+        from services.cert_service import CertificateService
+
+        def _refuse(**_kwargs):
+            raise ValueError('CA is offline and cannot sign')
+
+        monkeypatch.setattr(CertificateService, 'revoke_certificate', _refuse)
+
+        answer = an_operator.delete(f'/api/v2/user-certificates/{an_enrolment}')
+        assert answer.status_code == 409, answer.data[:300]
+        assert b'not deleted' in answer.data
+        with app.app_context():
+            assert db.session.get(AuthCertificate, an_enrolment) is not None

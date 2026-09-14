@@ -47,12 +47,6 @@ def app():
 
 
 @pytest.fixture(scope='module')
-def client(app):
-    """Flask test client"""
-    return app.test_client()
-
-
-@pytest.fixture(scope='module')
 def auth_client(app):
     """Authenticated Flask test client with persistent session"""
     client = app.test_client()
@@ -99,14 +93,17 @@ class TestAuthEndpoints:
             content_type='application/json')
         assert r.status_code == 401, r.data
 
-    def test_verify_unauthenticated_returns_401(self, client):
-        """GET /auth/verify without session → 401 (fresh client)"""
-        # Use a fresh client without session
-        from flask import Flask
-        fresh_client = client.application.test_client()
-        r = fresh_client.get('/api/v2/auth/verify')
-        # Session-based auth may return 200 with anonymous data or 401
-        assert r.status_code in (200, 401)
+    def test_verify_unauthenticated_says_so(self, client):
+        """GET /auth/verify without session → 200 saying not authenticated.
+
+        The route answers the question rather than refusing it. The old
+        `in (200, 401)` hid which one, on a client another test had signed
+        into; it gets its own now, so the answer is pinned.
+        """
+        r = client.get('/api/v2/auth/verify')
+        assert r.status_code == 200, r.data
+        body = json.loads(r.data)
+        assert body.get('data', body).get('authenticated') is False
 
     def test_forgot_password_accepts_email(self, client):
         """POST /auth/forgot-password always returns success (no enumeration)"""

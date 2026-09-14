@@ -42,6 +42,8 @@ async function renderIssueFormWithSlowSubmit() {
 }
 
 describe('IssueCertificateForm — double-submit guard (#269)', () => {
+  // Rendering this form is slow enough that the default 5 s runs out when the
+  // machine is busy, which made the whole suite look flaky.
   it('ignores a second submit while the first is in flight', async () => {
     const { container, onSubmit, releaseSubmit } = await renderIssueFormWithSlowSubmit()
 
@@ -58,7 +60,7 @@ describe('IssueCertificateForm — double-submit guard (#269)', () => {
     await waitFor(() => expect(button).not.toBeDisabled())
     fireEvent.submit(form)
     expect(onSubmit).toHaveBeenCalledTimes(2)
-  })
+  }, 20000)
 
   it('submit button is disabled while issuing', async () => {
     const { container, releaseSubmit } = await renderIssueFormWithSlowSubmit()

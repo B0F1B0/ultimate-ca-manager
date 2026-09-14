@@ -53,12 +53,6 @@ def app():
 
 
 @pytest.fixture(scope='module')
-def client(app):
-    """Unauthenticated test client."""
-    return app.test_client()
-
-
-@pytest.fixture(scope='module')
 def auth_client(app):
     """Authenticated test client (admin)."""
     c = app.test_client()

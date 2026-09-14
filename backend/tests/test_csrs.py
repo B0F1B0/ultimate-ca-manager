@@ -78,11 +78,6 @@ def app():
 
 
 @pytest.fixture(scope='module')
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture(scope='module')
 def auth_client(app):
     c = app.test_client()
     r = c.post('/api/v2/auth/login',

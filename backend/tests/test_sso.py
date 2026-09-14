@@ -42,11 +42,6 @@ def app():
 
 
 @pytest.fixture(scope='module')
-def client(app):
-    return app.test_client()
-
-
-@pytest.fixture(scope='module')
 def auth_client(app):
     """Authenticated admin client"""
     client = app.test_client()
@@ -105,8 +100,7 @@ class TestSSOProviderCRUD:
 
     def test_list_providers_requires_auth(self, client):
         """GET /sso/providers → 401 without auth"""
-        fresh = client.application.test_client()
-        r = fresh.get('/api/v2/sso/providers')
+        r = client.get('/api/v2/sso/providers')
         assert r.status_code == 401, r.data
 
     def test_list_providers(self, auth_client):
