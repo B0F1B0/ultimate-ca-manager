@@ -30,6 +30,53 @@ def audit_always_fails(monkeypatch):
     monkeypatch.setattr(AuditLog, 'compute_hash', failing_hash, raising=False)
 
 
+# (route, comment se lit la présence de la ligne après coup)
+ROUTES_THAT_WRITE_THEN_RECORD = (
+    'create_target', 'update_target', 'delete_target', 'test_target',
+    'create_binding', 'delete_binding',
+)
+
+
+class TestEveryRouteOfThePageRecordsAfterItWrites:
+    def test_no_route_audits_before_its_commit(self):
+        """Read from the parsed source: on this page the audit entry commits
+        the caller's session, so writing it before the business commit makes
+        it the call that decides whether the row survives. Five routes had it
+        the right way round and three did not; nothing but this test says so
+        for the next one."""
+        import ast
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'api', 'v2', 'deploy.py')
+        tree = ast.parse(open(path).read())
+
+        wrong = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            if node.name not in ROUTES_THAT_WRITE_THEN_RECORD:
+                continue
+            audit_at = commit_at = None
+            for child in ast.walk(node):
+                if not isinstance(child, ast.Call):
+                    continue
+                func = child.func
+                if (isinstance(func, ast.Attribute)
+                        and func.attr == 'log_action' and audit_at is None):
+                    audit_at = child.lineno
+                if (isinstance(func, ast.Name)
+                        and func.id == 'safe_commit' and commit_at is None):
+                    commit_at = child.lineno
+            if audit_at and commit_at and audit_at < commit_at:
+                wrong.append(f'{node.name} (audit line {audit_at}, '
+                             f'commit line {commit_at})')
+        assert wrong == [], (
+            'these routes record the change before writing it, so an audit '
+            f'entry that cannot be written undoes the change: {wrong}')
+
+
 class TestARouteDoesNotAnnounceARowTheAuditUndid:
     def test_the_answer_and_the_database_agree_when_the_audit_fails(
             self, app, auth_client, audit_always_fails):

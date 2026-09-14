@@ -128,14 +128,17 @@ def delete_target(target_id):
             DeployBinding.query.filter(
                 DeployBinding.id.in_(binding_ids)).delete(synchronize_session=False)
         db.session.delete(target)
+        ok, err = safe_commit(logger, 'Failed to delete deploy target')
+        if not ok:
+            return err
+        # Audit after the commit, as everywhere else on this page: written
+        # first, its own rollback put the target back and the route still
+        # answered that it had been deleted.
         AuditService.log_action(
             action='deploy_target_delete', resource_type='deploy_target',
             resource_id=str(target_id), resource_name=name,
             details=f"Deleted deploy target {name} and {len(binding_ids)} binding(s)",
             success=True)
-        ok, err = safe_commit(logger, 'Failed to delete deploy target')
-        if not ok:
-            return err
         return success_response(message='Deploy target deleted')
     except Exception as e:
         db.session.rollback()
@@ -162,13 +165,16 @@ def test_target(target_id):
         logger.error(f'Deploy target test failed unexpectedly: {e}', exc_info=True)
         return error_response('Connection test failed', 500)
 
+    ok, err = safe_commit(logger, 'Failed to persist host key pin')
+    if not ok:
+        return err
+    # Audit after the commit: the host key pin this test records is the point
+    # of the call, and an audit failure used to undo it while the answer said
+    # the connection was fine.
     AuditService.log_action(
         action='deploy_target_test', resource_type='deploy_target',
         resource_id=str(target.id), resource_name=target.name,
         details=f"Connection test succeeded for {target.name}", success=True)
-    ok, err = safe_commit(logger, 'Failed to persist host key pin')
-    if not ok:
-        return err
     return success_response(data=result, message='Connection and SFTP OK')
 
 
@@ -315,15 +321,17 @@ def delete_binding(binding_id):
     target_name = binding.target.name if binding.target else '?'
     try:
         DeployDelivery.query.filter_by(binding_id=binding.id).delete(synchronize_session=False)
+        target_id = binding.target_id
         db.session.delete(binding)
-        AuditService.log_action(
-            action='deploy_binding_delete', resource_type='deploy_target',
-            resource_id=str(binding.target_id), resource_name=target_name,
-            details=f"Removed deploy binding {binding_id} from {target_name}",
-            success=True)
         ok, err = safe_commit(logger, 'Failed to delete deploy binding')
         if not ok:
             return err
+        # Audit after the commit, as its sibling above already did.
+        AuditService.log_action(
+            action='deploy_binding_delete', resource_type='deploy_target',
+            resource_id=str(target_id), resource_name=target_name,
+            details=f"Removed deploy binding {binding_id} from {target_name}",
+            success=True)
         return success_response(message='Deploy binding deleted')
     except Exception as e:
         db.session.rollback()
