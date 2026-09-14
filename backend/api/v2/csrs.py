@@ -25,7 +25,8 @@ from cryptography.hazmat.primitives import serialization
 from security.encryption import encrypt_private_key
 from utils.datetime_utils import utc_now
 from utils.db_transaction import safe_commit
-from utils.cert_status import pending_requests, signed_requests
+from utils.cert_status import (
+    awaits_certificate, pending_requests, signed_requests)
 from utils.key_codec import private_key_to_pem
 
 bp = Blueprint('csrs_v2', __name__)
@@ -609,15 +610,27 @@ def _is_a_request(csr_id):
     """Whether this id names a signing request rather than a certificate.
 
     A request and a certificate are the same table and the same counter: a
-    request is a row whose `crt` is empty. The routes below delete by id, so
-    without this they reached an issued certificate as readily as a request,
-    and they carry `delete:csrs`, which the `operator` role holds while it
-    does not hold `delete:certificates`. The refusal the certificate route
-    gives that role was handed to it here instead, and a valid certificate
-    left the instance without the revocation list ever hearing about it.
+    request is a row that holds no certificate yet. The routes below delete
+    by id, so without this they reached an issued certificate as readily as a
+    request, and they carry `delete:csrs`, which the `operator` role holds
+    while it does not hold `delete:certificates`. The refusal the certificate
+    route gives that role was handed to it here instead, and a valid
+    certificate left the instance without the revocation list ever hearing
+    about it.
+
+    "Holds no certificate" is `awaits_certificate`, the condition this module
+    already publishes and this file already imports: absent and empty both
+    mean none, and writing that test again here is how the two readings drift
+    apart.
+
+    Deliberately stricter than the certificate route, which allows deleting a
+    certificate once it is revoked or expired: a row holding a certificate is
+    not this route's business at all, whatever its state.
     """
-    row = db.session.get(Certificate, csr_id)
-    return row is not None and not row.crt
+    return db.session.query(
+        Certificate.query.filter(
+            Certificate.id == csr_id, awaits_certificate()).exists()
+    ).scalar()
 
 @bp.route('/api/v2/csrs/<int:csr_id>', methods=['DELETE'])
 @require_auth(['delete:csrs'])
