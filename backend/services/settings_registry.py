@@ -34,6 +34,32 @@ logger = logging.getLogger(__name__)
 _TRUE_WORDS = frozenset({'true', '1', 'yes', 'on'})
 _FALSE_WORDS = frozenset({'false', '0', 'no', 'off'})
 
+# The date styles the SPA can actually render (`stores/dateFormatStore.js`
+# VALID_FORMATS). It drops anything else on the floor and keeps the previous
+# style, while the settings dropdown -- which has exactly these options --
+# shows no selection at all. So the row may only hold one of them.
+DATE_FORMATS = ('short', 'iso', 'eu', 'us', 'long')
+
+
+def as_boolean_word(value) -> Optional[str]:
+    """`'true'` / `'false'` for anything that reads as a boolean, else None.
+
+    The settings API converted `True`/`False` and nothing else, so a client
+    sending `0` -- `isinstance(0, bool)` is False in Python -- stored the
+    string `"0"`, which one reader called on and the other called off.
+    """
+    if isinstance(value, bool):
+        return 'true' if value else 'false'
+    if isinstance(value, int):
+        return 'true' if value else 'false'
+    if isinstance(value, str):
+        word = value.strip().lower()
+        if word in _TRUE_WORDS:
+            return 'true'
+        if word in _FALSE_WORDS:
+            return 'false'
+    return None
+
 
 # ----------------------------------------------------------------- coercions
 
@@ -119,7 +145,13 @@ SETTINGS = {
         'api/v2/acme.py read only the exact word and disagreed on "yes"'),
     'show_time': Setting(
         True, bool_permissive,
-        'api/v2/auth serves the preference to the UI and reads != "false"'),
+        'auth/session_payload serves the preference to the UI and reads it '
+        'through this entry, so the screen and the session cannot disagree'),
+    'date_format': Setting(
+        'short', lambda raw, default: (
+            raw if raw in DATE_FORMATS else default),
+        'stores/dateFormatStore.js honours these five names and ignores '
+        'anything else, so a word outside the list is the default here too'),
 
     # --- absent means "off" ------------------------------------------------
     'mtls_enabled': Setting(

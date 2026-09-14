@@ -4,7 +4,7 @@ Settings - General settings + Certificate Transparency routes
 
 from flask import request, g
 from auth.unified import require_auth, has_permission
-from services.settings_registry import effective
+from services.settings_registry import DATE_FORMATS, as_boolean_word, effective
 from utils.response import success_response, error_response
 from models import db, Certificate
 from services.audit_service import AuditService
@@ -101,7 +101,7 @@ def get_general_settings():
         'acme_public_vhost': get_config('acme_public_vhost', ''),
         'acme_public_port': effective('acme_public_port'),
         'acme_public_tls_cert_id': int(get_config('acme_public_tls_cert_id', '0') or 0) or None,
-        'date_format': get_config('date_format', 'short'),
+        'date_format': effective('date_format'),
         'show_time': effective('show_time'),
         # Password policy
         'min_password_length': int(get_config('min_password_length', '8')),
@@ -326,6 +326,21 @@ def update_general_settings():
             return error_response('hsts_max_age must be an integer', 400)
         if int(data['hsts_max_age']) < 0:
             return error_response('hsts_max_age must be >= 0', 400)
+
+    # The screen offers a tick box and a five-option dropdown; the row took
+    # any string at all, and the readers were then left to guess. `show_time`
+    # is settled before it is stored, `date_format` is refused when it is not
+    # one the SPA can render.
+    if 'show_time' in data:
+        word = as_boolean_word(data['show_time'])
+        if word is None:
+            return error_response(
+                'show_time must be a boolean', 400)
+        data['show_time'] = word
+    if 'date_format' in data:
+        if data['date_format'] not in DATE_FORMATS:
+            return error_response(
+                'date_format must be one of: ' + ', '.join(DATE_FORMATS), 400)
 
     for key in allowed_keys:
         if key in data:

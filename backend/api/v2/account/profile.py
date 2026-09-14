@@ -28,9 +28,14 @@ _PREF_VALIDATORS = {
     'density': lambda v: v in ('compact', 'comfortable', 'spacious'),
     'sidebar_collapsed': lambda v: isinstance(v, bool),
     'force_desktop': lambda v: isinstance(v, bool),
-    'date_format': lambda v: isinstance(v, str) and 1 <= len(v) <= 30,
-    'show_time': lambda v: isinstance(v, bool),
-    'timezone': lambda v: isinstance(v, str) and 1 <= len(v) <= 64,
+    # `date_format`, `show_time` and `timezone` are deliberately absent. They
+    # are instance-wide SystemConfig rows, served at the top level of the
+    # same `/auth/verify` body that carries this blob, and that top-level
+    # copy is the one the SPA applies. Accepting them here stored a second
+    # value under the same name, echoed it back from
+    # `GET /account/preferences`, and never acted on it: a user who turned
+    # the clock off for themselves was told it had been saved and saw no
+    # change anywhere.
     # Last version acknowledged in the post-update popup (#308)
     'update_popup_seen_version': lambda v: isinstance(v, str) and 1 <= len(v) <= 32,
 }

@@ -151,11 +151,21 @@ class TestTheScreenAgreesWithTheRuntime:
             assert api is expected, stored
 
     def test_the_clock_display_preference(self, app, auth_client, cfg):
-        for stored, expected in (('yes', True), ('false', False), (None, True)):
+        """Ask the reader that decides, not a copy of it.
+
+        This used to restate `row.value != 'false'` inline and parametrise
+        the three words where that copy and the registry happen to agree.
+        `0`, `no` and `off` are the ones where they did not, and the copy is
+        why the test could not see it: it was checking itself.
+        """
+        from auth.session_payload import display_settings
+
+        for stored, expected in (('yes', True), ('true', True),
+                                 ('false', False), ('0', False),
+                                 ('no', False), ('off', False), (None, True)):
             cfg(show_time=stored)
             with app.app_context():
-                row = SystemConfig.query.filter_by(key='show_time').first()
-                auth_reader = row.value != 'false' if row else True
+                auth_reader = display_settings()['show_time']
             assert (auth_reader, _general(auth_client)['show_time']) == \
                 (expected, expected), stored
 

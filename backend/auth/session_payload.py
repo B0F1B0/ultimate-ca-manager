@@ -15,17 +15,23 @@ away from being skipped.
 from __future__ import annotations
 
 from models import SystemConfig
+from services.settings_registry import effective
 
 
 def display_settings() -> dict:
-    """Timezone, date format and time visibility, as the SPA expects them."""
+    """Timezone, date format and time visibility, as the SPA expects them.
+
+    These are instance-wide rows, and the settings screen shows the same
+    three. It resolves them through the registry while this read tested
+    `show_time` against the one literal word `'false'`, so a row holding
+    `0`, `no` or `off` -- all of which the screen reports as off -- came out
+    of here as on and every timestamp in the product kept its clock.
+    """
     tz_row = SystemConfig.query.filter_by(key='timezone').first()
-    df_row = SystemConfig.query.filter_by(key='date_format').first()
-    st_row = SystemConfig.query.filter_by(key='show_time').first()
     return {
         'timezone': tz_row.value if tz_row else 'UTC',
-        'date_format': df_row.value if df_row else 'short',
-        'show_time': st_row.value != 'false' if st_row else True,
+        'date_format': effective('date_format'),
+        'show_time': effective('show_time'),
     }
 
 
