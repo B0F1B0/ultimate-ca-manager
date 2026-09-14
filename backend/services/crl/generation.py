@@ -22,6 +22,18 @@ logger = logging.getLogger(__name__)
 from utils.signing_hash import signing_hash_for
 
 
+def _refuse_offline_ca(ca) -> None:
+    """An offline CA signs nothing here, CRL included.
+
+    Its CRL is signed next to the key and uploaded (#302). Every other
+    signing path refuses already; these two served the CDP without asking.
+    """
+    if ca.offline:
+        raise ValueError(
+            f"CA {ca.descr} is offline - its CRL is signed externally and uploaded"
+        )
+
+
 def _authority_key_identifier_for_crl(ca_cert: x509.Certificate) -> x509.AuthorityKeyIdentifier:
     """RFC 5280 §5.2.1 — CRL AKI must identify the signing CA key (its SKI)."""
     return authority_key_identifier_from_issuer(ca_cert)
@@ -166,6 +178,8 @@ class CRLGenerationMixin:
         if not ca.has_private_key:
             raise ValueError(f"CA {ca.descr} does not have a private key - cannot sign CRL")
 
+        _refuse_offline_ca(ca)
+
         if not ca.crt:
             raise ValueError(f"CA {ca.descr} is awaiting its certificate - cannot generate CRL")
 
@@ -286,6 +300,8 @@ class CRLGenerationMixin:
             raise ValueError(f"CA with id {ca_id} not found")
         if not ca.has_private_key:
             raise ValueError(f"CA {ca.descr} does not have a private key")
+
+        _refuse_offline_ca(ca)
         if not ca.cdp_enabled:
             raise ValueError("CDP is not enabled for this CA")
         if not ca.delta_crl_enabled:
