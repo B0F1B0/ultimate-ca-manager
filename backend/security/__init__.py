@@ -17,7 +17,7 @@ from .encryption import (
     has_encrypted_keys_in_db,
     MASTER_KEY_PATH
 )
-from .csrf import CSRFProtection, csrf_protect, init_csrf_middleware
+from .csrf import CSRFProtection, init_csrf_middleware
 from .password_policy import PasswordPolicy, validate_password, get_password_strength, get_policy_requirements
 from .rate_limiter import (
     RateLimitConfig,
@@ -37,7 +37,6 @@ __all__ = [
     'has_encrypted_keys_in_db',
     'MASTER_KEY_PATH',
     'CSRFProtection',
-    'csrf_protect',
     'init_csrf_middleware',
     'PasswordPolicy',
     'validate_password',

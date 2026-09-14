@@ -6,6 +6,13 @@ Token flow:
 1. On login/verify, server returns CSRF token in response
 2. Client includes token in X-CSRF-Token header for POST/PUT/DELETE
 3. Server validates token before processing request
+
+Enforcement happens in one place: the ``before_request`` hook installed by
+:func:`init_csrf_middleware`. A ``csrf_protect`` decorator used to sit beside
+it with the same body minus the ``X-API-Key`` skip, so a route carrying it
+would have answered 403 to an integration request the middleware lets through.
+No route ever carried it. Anything that needs a narrower rule belongs in
+``CSRF_EXEMPT_PATHS`` or in the middleware, where both doors see it.
 """
 
 import os
@@ -158,60 +165,6 @@ class CSRFProtection:
             if path.startswith(exempt):
                 return True
         return False
-
-
-def csrf_protect(f):
-    """
-    Decorator to enforce CSRF protection on a route.
-    
-    Usage:
-        @bp.route('/api/v2/users', methods=['POST'])
-        @csrf_protect
-        def create_user():
-            ...
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not CSRFProtection.is_enabled():
-            return f(*args, **kwargs)
-        
-        # Only protect state-changing methods
-        if request.method not in CSRF_PROTECTED_METHODS:
-            return f(*args, **kwargs)
-        
-        # Check exempt paths
-        if CSRFProtection.is_exempt(request.path):
-            return f(*args, **kwargs)
-        
-        # Get user_id from session or JWT
-        user_id = getattr(g, 'user_id', None) or session.get('user_id')
-        if not user_id:
-            # No user context, skip CSRF (auth will fail anyway)
-            return f(*args, **kwargs)
-        
-        # Get token from header
-        token = request.headers.get('X-CSRF-Token')
-        
-        if not token:
-            # Also check for token in JSON body (fallback)
-            try:
-                if request.is_json and request.content_length and request.content_length > 0:
-                    body = request.get_json(silent=True)
-                    if body:
-                        token = body.get('_csrf_token')
-            except Exception as e:
-                logger.warning(f"Failed to extract CSRF token from request body for {request.path}: {e}")
-        
-        is_valid, error = CSRFProtection.validate_token(token, user_id)
-        
-        if not is_valid:
-            logger.warning(f"CSRF validation failed for {request.path}: {error}")
-            from utils.response import error_response
-            return error_response(f"CSRF validation failed: {error}", 403)
-        
-        return f(*args, **kwargs)
-    
-    return decorated_function
 
 
 def init_csrf_middleware(app):
