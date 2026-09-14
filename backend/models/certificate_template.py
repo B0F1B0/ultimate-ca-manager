@@ -5,6 +5,7 @@ Pre-configured certificate profiles for common use cases
 from datetime import datetime
 from models import db
 from utils.datetime_utils import utc_now, utc_isoformat
+from utils.validity import DEFAULT_TEMPLATE_VALIDITY_DAYS
 
 
 class CertificateTemplate(db.Model):
@@ -18,7 +19,8 @@ class CertificateTemplate(db.Model):
     
     # Key configuration
     key_type = db.Column(db.String(20), default='RSA-2048')  # RSA-2048, RSA-4096, EC-P256, EC-P384
-    validity_days = db.Column(db.Integer, default=397)
+    validity_days = db.Column(db.Integer,
+                              default=DEFAULT_TEMPLATE_VALIDITY_DAYS)
     digest = db.Column(db.String(20), default='sha256')
     
     # DN Template (JSON) - Can use variables like {username}, {email}, {hostname}

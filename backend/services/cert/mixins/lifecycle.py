@@ -11,6 +11,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 from models import db, CA, Certificate, CertificateTemplate, SystemConfig, RevokedSerial
+from utils.validity import DEFAULT_CERTIFICATE_VALIDITY_DAYS
+from utils.key_type import issue_key_type_from_template
 from services.file_regen_service import mirror_private_key
 from services.ocsp_service import OCSPService
 from services.trust_store import TrustStoreService
@@ -31,9 +33,9 @@ class LifecycleMixin:
         caref: str,
         dn: Dict[str, str],
         cert_type: str = 'server_cert',
-        key_type: str = '2048',
-        validity_days: int = 397,
-        digest: str = 'sha256',
+        key_type: Optional[str] = None,
+        validity_days: Optional[int] = None,
+        digest: Optional[str] = None,
         san_dns: Optional[List[str]] = None,
         san_ip: Optional[List[str]] = None,
         san_uri: Optional[List[str]] = None,
@@ -68,15 +70,33 @@ class LifecycleMixin:
         Returns:
             Certificate model instance
         """
-        # Apply template if provided
+        # Apply template if provided.
+        #
+        # These three used to default to a real value and then treat that
+        # value as "the caller said nothing" -- `validity_days != 397`,
+        # `key_type != '2048'`, `digest != 'sha256'`. So asking for exactly
+        # the published TLS maximum, or for RSA-2048, or for SHA-256, was
+        # indistinguishable from asking for nothing and was silently
+        # replaced by the template's value. `None` is the only thing that
+        # can mean "nothing said" without also being an answer.
         template = None
         if template_id:
             template = db.session.get(CertificateTemplate, template_id)
             if template:
-                # Use template defaults if values not explicitly provided
-                key_type = key_type if key_type != '2048' else template.key_type or key_type
-                validity_days = validity_days if validity_days != 397 else template.validity_days or validity_days
-                digest = digest if digest != 'sha256' else template.digest or digest
+                if key_type is None:
+                    key_type = (issue_key_type_from_template(template.key_type)
+                                or key_type)
+                if validity_days is None:
+                    validity_days = template.validity_days or validity_days
+                if digest is None:
+                    digest = template.digest or digest
+
+        if key_type is None:
+            key_type = '2048'
+        if validity_days is None:
+            validity_days = DEFAULT_CERTIFICATE_VALIDITY_DAYS
+        if digest is None:
+            digest = 'sha256'
 
         # Record divergences from the template on the final effective values
         # (#258) — inherited-as-default values compare equal and are not

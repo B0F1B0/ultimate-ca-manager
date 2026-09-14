@@ -14,8 +14,16 @@
  */
 
 // Certificate & Key Validity
+// Mirrors backend/utils/validity.py. TEMPLATE_DEFAULT_DAYS and DEFAULT_DAYS
+// answer different questions and are allowed to differ: a template defaults
+// to the CA/Browser Forum ceiling for public TLS, a one-off certificate to a
+// year. What is not allowed is a third copy of either number, which is how
+// the template screen came to display 365 for a column the server defaults
+// to 397.
 export const VALIDITY = {
   // Read by CSRsPage as the initial validity of a CSR signature request.
   // Matches the 365 hardcoded in IssueCertificateForm and OperationsPage.
   DEFAULT_DAYS: 365,
+  MAX_DAYS: 3650,
+  TEMPLATE_DEFAULT_DAYS: 397,
 }

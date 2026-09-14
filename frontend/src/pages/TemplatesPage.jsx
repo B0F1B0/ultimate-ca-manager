@@ -20,6 +20,7 @@ import { templatesService } from '../services'
 import { useNotification, useMobile } from '../contexts'
 import { usePermission, usePersistedState, useCRUDPage } from '../hooks'
 import { formatDate , downloadBlob} from '../lib/utils'
+import { VALIDITY } from '../constants/config'
 export default function TemplatesPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
@@ -436,8 +437,8 @@ export default function TemplatesPage() {
 
       <CompactSection title={t('common.validityPeriod')} icon={Clock}>
         <CompactGrid columns={2}>
-          <CompactField autoIcon="default" label={t('common.default')} value={t('templates.validityDays', { count: selectedTemplate.validity_days || 365 })} />
-          <CompactField autoIcon="maximum" label={t('templates.maximum')} value={t('templates.validityDays', { count: selectedTemplate.max_validity_days || 3650 })} />
+          <CompactField autoIcon="default" label={t('common.default')} value={t('templates.validityDays', { count: selectedTemplate.validity_days || VALIDITY.TEMPLATE_DEFAULT_DAYS })} />
+          <CompactField autoIcon="maximum" label={t('templates.maximum')} value={t('templates.validityDays', { count: selectedTemplate.max_validity_days || VALIDITY.MAX_DAYS })} />
         </CompactGrid>
       </CompactSection>
 
@@ -702,7 +703,7 @@ function buildInitialState(template) {
     return {
       name: '', description: '', template_type: 'web_server',
       key_type: 'RSA-2048', digest: 'sha256',
-      validity_days: 397, max_validity_days: 3650,
+      validity_days: VALIDITY.TEMPLATE_DEFAULT_DAYS, max_validity_days: VALIDITY.MAX_DAYS,
       subject: { C: '', ST: '', L: '', O: '', OU: '', CN: '' },
       key_usage: ['digitalSignature', 'keyEncipherment'],
       extended_key_usage: ['serverAuth'],
@@ -722,8 +723,8 @@ function buildInitialState(template) {
     template_type: template.template_type || 'web_server',
     key_type: template.key_type || 'RSA-2048',
     digest: template.digest || 'sha256',
-    validity_days: template.validity_days || 397,
-    max_validity_days: template.max_validity_days || 3650,
+    validity_days: template.validity_days || VALIDITY.TEMPLATE_DEFAULT_DAYS,
+    max_validity_days: template.max_validity_days || VALIDITY.MAX_DAYS,
     subject: {
       C: dn.C || '', ST: dn.ST || '', L: dn.L || '',
       O: dn.O || '', OU: dn.OU || '', CN: dn.CN || ''
@@ -852,7 +853,7 @@ function TemplateForm({ template, onSubmit, onCancel }) {
           label={t('templates.defaultValidity')}
           type="number"
           value={formData.validity_days}
-          onChange={(e) => set('validity_days', parseInt(e.target.value) || 397)}
+          onChange={(e) => set('validity_days', parseInt(e.target.value) || VALIDITY.TEMPLATE_DEFAULT_DAYS)}
         />
         <Input
           label={t('templates.maxValidity')}

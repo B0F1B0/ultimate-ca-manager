@@ -6,6 +6,7 @@ import { X, Certificate, Eye, ShieldCheck, Key, Clock, Globe, ListBullets } from
 import { Modal } from './Modal'
 import { Badge } from './Badge'
 import { cn } from '../lib/utils'
+import { VALIDITY } from '../constants/config'
 
 // Preview field component
 function PreviewField({ label, value, icon: Icon, mono = false, badge = false }) {
@@ -58,7 +59,7 @@ export function TemplatePreviewModal({ open, onClose, template }) {
   // Calculate sample validity dates
   const now = new Date()
   const validFrom = now.toISOString().split('T')[0]
-  const validityDays = template.validity_days || 365
+  const validityDays = template.validity_days || VALIDITY.TEMPLATE_DEFAULT_DAYS
   const validTo = new Date(now.getTime() + validityDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   
   // Determine key info

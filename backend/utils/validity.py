@@ -70,3 +70,10 @@ __all__ = [
     'coerce_validity_days',
     'validity_days_in_range',
 ]
+
+# Two defaults, named apart because they answer different questions: a
+# template carries the published CA/B maximum, a certificate created without
+# one gets a year. Exporting a template without `validity_days` and importing
+# it back used to change it from one to the other.
+DEFAULT_TEMPLATE_VALIDITY_DAYS = 397
+DEFAULT_CERTIFICATE_VALIDITY_DAYS = 365

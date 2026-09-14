@@ -118,6 +118,23 @@ def fill_key_params_from_template(key_type, key_size, template_key_type):
     return key_type, key_size
 
 
+def issue_key_type_from_template(template_key_type) -> str | None:
+    """A template's ``"RSA-2048"`` / ``"EC-P384"`` as a KEY_TYPES id.
+
+    Templates are stored in their own vocabulary -- `api/v2/templates`
+    validates against `RSA-2048` / `EC-P256` -- while key generation speaks
+    the TrustStore one, `2048` / `prime256v1`. The HTTP issuance path
+    translates with `fill_key_params_from_template` before calling the
+    service; the service's own template handling assigned `template.key_type`
+    straight through, so issuing against a template from any caller that did
+    not pre-translate died on `Unsupported key type: RSA-2048`.
+    """
+    if not template_key_type:
+        return None
+    algo, size = fill_key_params_from_template(None, None, template_key_type)
+    return parse_issue_key_type(algo, size)
+
+
 def parse_csr_key_type(key_algo_full: str) -> str:
     """Parse frontend key_type (e.g. ``RSA 2048``, ``EC P-256``) for CSR generation."""
     raw = (key_algo_full or 'RSA 2048').strip()

@@ -7,6 +7,7 @@ from flask import Blueprint, request, g, Response
 import logging
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils.validity import DEFAULT_TEMPLATE_VALIDITY_DAYS
 from utils.db_transaction import safe_commit
 from utils.file_validation import validate_upload, JSON_EXTENSIONS
 from utils.sanitize import sanitize_filename
@@ -283,7 +284,8 @@ def create_template():
         description=data.get('description', ''),
         template_type=data['template_type'],
         key_type=data.get('key_type', 'RSA-2048'),
-        validity_days=data.get('validity_days', 397),
+        validity_days=data.get('validity_days',
+                                DEFAULT_TEMPLATE_VALIDITY_DAYS),
         digest=data.get('digest', 'sha256'),
         dn_template=json.dumps(data.get('dn_template', {})),
         extensions_template=json.dumps(extensions),
@@ -725,7 +727,8 @@ def import_template():
                     description=tpl_data.get('description', ''),
                     template_type=tpl_data.get('template_type', 'custom'),
                     key_type=tpl_data.get('key_type', 'RSA-2048'),
-                    validity_days=tpl_data.get('validity_days', 365),
+                    validity_days=tpl_data.get(
+                        'validity_days', DEFAULT_TEMPLATE_VALIDITY_DAYS),
                     digest=tpl_data.get('digest', 'sha256'),
                     dn_template=tpl_data.get('dn_template') or '{}',
                     extensions_template=tpl_data.get('extensions_template') or '{}',
