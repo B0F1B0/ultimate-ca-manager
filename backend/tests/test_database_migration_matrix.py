@@ -91,18 +91,23 @@ def sqlite_target(tmp_path):
 
 @pytest.fixture
 def pg_target():
-    """An empty PostgreSQL target, dropped and recreated around the test."""
-    engine = create_engine(_PG_URL, pool_pre_ping=True)
-    with engine.begin() as conn:
-        conn.execute(text('DROP SCHEMA public CASCADE'))
-        conn.execute(text('CREATE SCHEMA public'))
-    engine.dispose()
-    yield _PG_URL
-    engine = create_engine(_PG_URL, pool_pre_ping=True)
-    with engine.begin() as conn:
-        conn.execute(text('DROP SCHEMA public CASCADE'))
-        conn.execute(text('CREATE SCHEMA public'))
-    engine.dispose()
+    """An empty PostgreSQL target, dropped and recreated around the test.
+
+    Held exclusively: the bench is one database and three files reset it.
+    """
+    from tests.conftest import pg_bench_exclusive
+
+    def _reset():
+        engine = create_engine(_PG_URL, pool_pre_ping=True)
+        with engine.begin() as conn:
+            conn.execute(text('DROP SCHEMA public CASCADE'))
+            conn.execute(text('CREATE SCHEMA public'))
+        engine.dispose()
+
+    with pg_bench_exclusive():
+        _reset()
+        yield _PG_URL
+        _reset()
 
 
 @pytest.fixture

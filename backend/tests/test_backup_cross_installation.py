@@ -811,12 +811,15 @@ def restored_on_postgresql(app, source):
     if not _PG_URL:
         pytest.skip('UCM_TEST_PG_URL not set; skipping the PostgreSQL target')
 
-    _empty_the_postgresql_bench()
-    try:
-        yield _restore_onto(app, source, _PG_URL, RESTORABLE_ON_POSTGRESQL,
-                            is_postgresql=True)
-    finally:
+    # The bench is one database; another file resets the same schema.
+    from tests.conftest import pg_bench_exclusive
+    with pg_bench_exclusive():
         _empty_the_postgresql_bench()
+        try:
+            yield _restore_onto(app, source, _PG_URL, RESTORABLE_ON_POSTGRESQL,
+                                is_postgresql=True)
+        finally:
+            _empty_the_postgresql_bench()
 
 
 def _empty_the_postgresql_bench():

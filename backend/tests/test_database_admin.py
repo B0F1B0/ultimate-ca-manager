@@ -366,9 +366,12 @@ def pg_target():
             c.execute(text('DROP SCHEMA public CASCADE'))
             c.execute(text('CREATE SCHEMA public'))
 
-    _reset()
-    yield _PG_URL
-    _reset()
+    # The bench is one database; another file resets the same schema.
+    from tests.conftest import pg_bench_exclusive
+    with pg_bench_exclusive():
+        _reset()
+        yield _PG_URL
+        _reset()
     eng.dispose()
 
 

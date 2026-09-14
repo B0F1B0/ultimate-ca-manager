@@ -11,6 +11,8 @@ Shared fixtures used by all test_*.py files:
   - create_user: factory to create a user
 """
 import atexit
+import contextlib
+import fcntl
 import pytest
 import os
 import shutil
@@ -613,3 +615,20 @@ def clean_unreadable_secrets(app):
         else:
             _db.session.rollback()
     return removed
+
+
+@contextlib.contextmanager
+def pg_bench_exclusive():
+    """Exclusive use of the shared PostgreSQL bench (public schema).
+
+    Two files reset that schema with ``DROP SCHEMA public CASCADE``. On
+    different xdist workers they empty each other's target mid-test, so the
+    opt-in PostgreSQL run only passed sequentially.
+    """
+    lock_path = Path(tempfile.gettempdir()) / 'ucm-pg-bench.lock'
+    with open(lock_path, 'w') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
