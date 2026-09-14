@@ -43,6 +43,7 @@ export function AuthProvider({ children }) {
         setPermissions([])
         setRole(null)
         setMustEnroll2fa(false)
+        setForcePasswordChange(false)
         setPrefsAuthenticated(false)
         return false
       }
@@ -52,6 +53,11 @@ export function AuthProvider({ children }) {
       setPermissions(userData.permissions || [])
       setRole(userData.role || null)
       setMustEnroll2fa(userData.must_enroll_2fa || false)
+      // A session restore must reach the same conclusion the login response
+      // did. Without this a reload — and every SSO login, which reaches the
+      // SPA through /verify after the sso-complete redirect — cleared the
+      // forced password change and skipped the modal that enforces it.
+      setForcePasswordChange(userData.force_password_change || false)
       if (userData.timezone) setAppTimezone(userData.timezone)
       if (userData.date_format) setDateFormat(userData.date_format)
       if (userData.show_time !== undefined) setShowTime(userData.show_time !== false)

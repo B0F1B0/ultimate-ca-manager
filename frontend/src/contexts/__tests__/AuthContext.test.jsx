@@ -237,4 +237,76 @@ describe('AuthContext', () => {
       expect(screen.getByTestId('authenticated').textContent).toBe('false')
     })
   })
+
+  describe('forced password change', () => {
+    it('picks it up from a session restore, not only from login', async () => {
+      // /verify is what the SPA calls on mount, and what the SSO flows land
+      // on after the sso-complete redirect. It used to omit the flag, so a
+      // reload dropped the modal that enforces the change.
+      authService.getCurrentUser.mockResolvedValue({
+        data: {
+          authenticated: true,
+          user: { username: 'admin' },
+          permissions: ['read'],
+          role: 'admin',
+          force_password_change: true,
+        }
+      })
+
+      let authContext
+      render(
+        <AuthProvider>
+          <TestComponent onRender={(auth) => { authContext = auth }} />
+        </AuthProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('authenticated').textContent).toBe('true')
+      })
+
+      expect(authContext.forcePasswordChange).toBe(true)
+    })
+
+    it('stays false when the session restore does not ask for one', async () => {
+      authService.getCurrentUser.mockResolvedValue({
+        data: {
+          authenticated: true,
+          user: { username: 'admin' },
+          permissions: ['read'],
+          role: 'admin',
+          force_password_change: false,
+        }
+      })
+
+      let authContext
+      render(
+        <AuthProvider>
+          <TestComponent onRender={(auth) => { authContext = auth }} />
+        </AuthProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('authenticated').textContent).toBe('true')
+      })
+
+      expect(authContext.forcePasswordChange).toBe(false)
+    })
+
+    it('clears it when the session is gone', async () => {
+      authService.getCurrentUser.mockResolvedValue({ data: { authenticated: false } })
+
+      let authContext
+      render(
+        <AuthProvider>
+          <TestComponent onRender={(auth) => { authContext = auth }} />
+        </AuthProvider>
+      )
+
+      await waitFor(() => {
+        expect(screen.getByTestId('loading').textContent).toBe('false')
+      })
+
+      expect(authContext.forcePasswordChange).toBe(false)
+    })
+  })
 })

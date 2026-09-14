@@ -13,6 +13,7 @@ Architecture:
 
 from flask import Blueprint, request, jsonify, session, current_app, g
 from auth.unified import AuthManager
+from auth.session_payload import auth_session_payload
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from utils import trusted_proxy
@@ -41,17 +42,6 @@ except ImportError:
     HAS_CSRF = False
 
 
-def _get_display_settings():
-    """Get timezone, date_format, show_time from system_config for login responses."""
-    from models import SystemConfig
-    tz_row = SystemConfig.query.filter_by(key='timezone').first()
-    df_row = SystemConfig.query.filter_by(key='date_format').first()
-    st_row = SystemConfig.query.filter_by(key='show_time').first()
-    return {
-        'timezone': tz_row.value if tz_row else 'UTC',
-        'date_format': df_row.value if df_row else 'short',
-        'show_time': st_row.value != 'false' if st_row else True,
-    }
 
 
 bp = Blueprint('auth_methods', __name__)
@@ -362,22 +352,10 @@ def login_password():
         csrf_token = CSRFProtection.generate_token(user.id)
 
     return success_response(
-        data={
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'full_name': user.full_name,
-                'role': user.role,
-                'active': user.active
-            },
-            'role': user.role,
-            'permissions': permissions,
-            'auth_method': 'password',
-            'csrf_token': csrf_token,
-            'force_password_change': user.force_password_change or False,
-            **_get_display_settings()
-        },
+        data=auth_session_payload(
+            user, permissions=permissions, auth_method='password',
+            csrf_token=csrf_token,
+        ),
         message='Login successful'
     )
 
@@ -489,22 +467,10 @@ def login_2fa():
         csrf_token = CSRFProtection.generate_token(user.id)
 
     return success_response(
-        data={
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'full_name': user.full_name,
-                'role': user.role,
-                'active': user.active
-            },
-            'role': user.role,
-            'permissions': permissions,
-            'auth_method': auth_method,
-            'csrf_token': csrf_token,
-            'force_password_change': user.force_password_change or False,
-            **_get_display_settings()
-        },
+        data=auth_session_payload(
+            user, permissions=permissions, auth_method=auth_method,
+            csrf_token=csrf_token,
+        ),
         message='Login successful'
     )
 
@@ -604,26 +570,14 @@ def login_mtls():
         csrf_token = CSRFProtection.generate_token(user.id)
 
     return success_response(
-        data={
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'full_name': user.full_name,
-                'role': user.role,
-                'active': user.active
-            },
-            'role': user.role,
-            'permissions': permissions,
-            'auth_method': 'mtls',
-            'csrf_token': csrf_token,
-            'force_password_change': user.force_password_change or False,
-            'certificate': {
+        data=auth_session_payload(
+            user, permissions=permissions, auth_method='mtls',
+            csrf_token=csrf_token,
+            certificate={
                 'serial': auth_cert.cert_serial,
                 'name': auth_cert.name
             },
-            **_get_display_settings()
-        },
+        ),
         message='Login successful via mTLS'
     )
 
@@ -789,22 +743,10 @@ def webauthn_verify():
             csrf_token = CSRFProtection.generate_token(user.id)
 
         return success_response(
-            data={
-                'user': {
-                    'id': user.id,
-                    'username': user.username,
-                    'email': user.email,
-                    'full_name': user.full_name,
-                    'role': user.role,
-                    'active': user.active
-                },
-                'role': user.role,
-                'permissions': permissions,
-                'auth_method': 'webauthn',
-                'csrf_token': csrf_token,
-                'force_password_change': user.force_password_change or False,
-                **_get_display_settings()
-            },
+            data=auth_session_payload(
+                user, permissions=permissions, auth_method='webauthn',
+                csrf_token=csrf_token,
+            ),
             message='Login successful via WebAuthn'
         )
     except Exception as e:

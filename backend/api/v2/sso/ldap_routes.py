@@ -194,32 +194,14 @@ def ldap_login():
     from auth.permissions import get_effective_permissions
     permissions = get_effective_permissions(user)
 
-    # Get display settings for frontend
-    from models import SystemConfig
-    tz_row = SystemConfig.query.filter_by(key='timezone').first()
-    df_row = SystemConfig.query.filter_by(key='date_format').first()
-    st_row = SystemConfig.query.filter_by(key='show_time').first()
+    from auth.session_payload import auth_session_payload
 
     return success_response(
-        data={
-            'user': {
-                'id': user.id,
-                'username': user.username,
-                'email': user.email,
-                'full_name': user.full_name,
-                'role': user.role,
-                'active': user.active
-            },
-            'role': user.role,
-            'permissions': permissions,
-            'auth_method': 'ldap',
-            'csrf_token': csrf_token,
-            'requires_2fa_enrollment': _must_enroll,
-            'force_password_change': user.force_password_change or False,
-            'timezone': tz_row.value if tz_row else 'UTC',
-            'date_format': df_row.value if df_row else 'short',
-            'show_time': st_row.value != 'false' if st_row else True,
-        },
+        data=auth_session_payload(
+            user, permissions=permissions, auth_method='ldap',
+            csrf_token=csrf_token,
+            requires_2fa_enrollment=_must_enroll,
+        ),
         message='LDAP authentication successful'
     )
 

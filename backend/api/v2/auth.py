@@ -195,15 +195,6 @@ def verify():
     if HAS_CSRF:
         csrf_token = CSRFProtection.generate_token(g.user_id)
     
-    # Include app timezone setting
-    from models import SystemConfig
-    tz_row = SystemConfig.query.filter_by(key='timezone').first()
-    app_timezone = tz_row.value if tz_row else 'UTC'
-    df_row = SystemConfig.query.filter_by(key='date_format').first()
-    app_date_format = df_row.value if df_row else 'short'
-    st_row = SystemConfig.query.filter_by(key='show_time').first()
-    app_show_time = st_row.value != 'false' if st_row else True
-    
     # Get session timeout for frontend warning timer
     from auth.unified import AuthManager
     session_timeout = AuthManager._get_session_timeout()
@@ -214,27 +205,29 @@ def verify():
     from auth.twofa_enforcement import ENROLL_SESSION_KEY
     must_enroll_2fa = bool(session.get(ENROLL_SESSION_KEY))
 
-    # If authenticated
+    # If authenticated. Built from the shared session payload so the forced
+    # password change (and anything added to it later) reaches the SPA on a
+    # session restore too, not only on the login response. The narrower user
+    # block is the one /verify has always returned.
+    from auth.session_payload import auth_session_payload
+
     return success_response(
-        data={
-            'authenticated': True,
-            'user_id': g.user_id,
-            'auth_method': g.auth_method,
-            'permissions': g.permissions,
-            'role': g.current_user.role,
-            'user': {
+        data=auth_session_payload(
+            g.current_user,
+            permissions=g.permissions,
+            auth_method=g.auth_method,
+            csrf_token=csrf_token,
+            user_block={
                 'id': g.current_user.id,
                 'username': g.current_user.username,
                 'role': g.current_user.role
             },
-            'must_enroll_2fa': must_enroll_2fa,
-            'csrf_token': csrf_token,
-            'timezone': app_timezone,
-            'date_format': app_date_format,
-            'show_time': app_show_time,
-            'session_timeout': session_timeout,
-            'preferences': g.current_user.get_preferences()
-        }
+            authenticated=True,
+            user_id=g.user_id,
+            must_enroll_2fa=must_enroll_2fa,
+            session_timeout=session_timeout,
+            preferences=g.current_user.get_preferences(),
+        )
     )
 
 
