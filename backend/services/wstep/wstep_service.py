@@ -20,6 +20,7 @@ from cryptography.x509.oid import NameOID
 from models import Certificate
 from services.ca_service import CAService
 from utils.datetime_utils import utc_now
+from utils.csr_diagnostics import WEAK_CSR_HASH_ALGORITHMS, weak_csr_hash_algorithm
 from utils.key_type import validate_enrollment_public_key
 from utils.san_parse import is_valid_san_email
 from utils.serial_format import serial_variants
@@ -86,29 +87,10 @@ def _x509_name_from_dn_components(dn_components, email=None):
         attrs.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
     return x509.Name(attrs)
 
-# ``cryptography``'s CertificateSigningRequest.is_signature_valid reports
-# False for a SHA-1-signed CSR even when the signature is mathematically
-# valid (confirmed by verifying the same signature manually with
-# public_key.verify(..., hashes.SHA1())) -- it isn't reporting tampering,
-# it's refusing to vouch for a weak hash algorithm. Windows' certreq.exe
-# defaults to SHA-1 unless an INF explicitly sets HashAlgorithm=sha256, so
-# this is a real, common case worth a specific message rather than the
-# generic "signature invalid" one, which reads as if the request were
-# corrupted.
-_WEAK_CSR_HASH_ALGORITHMS = {'md5', 'sha1'}
-
-
-def _weak_csr_hash_algorithm(csr):
-    """The CSR's signature hash algorithm name, if it's one of the weak
-    ones ``is_signature_valid`` refuses to validate. None otherwise
-    (including when the algorithm can't be determined at all, e.g. Ed25519)."""
-    try:
-        algo = csr.signature_hash_algorithm
-    except Exception:
-        return None
-    if algo is not None and algo.name in _WEAK_CSR_HASH_ALGORITHMS:
-        return algo.name
-    return None
+# Why a SHA-1 CSR fails is_signature_valid, and what to tell the client about
+# it, is written once in utils/csr_diagnostics — EST had the same copy.
+_WEAK_CSR_HASH_ALGORITHMS = WEAK_CSR_HASH_ALGORITHMS
+_weak_csr_hash_algorithm = weak_csr_hash_algorithm
 
 
 def _is_naked_csr(csr):

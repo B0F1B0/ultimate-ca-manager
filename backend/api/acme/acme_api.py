@@ -1262,19 +1262,14 @@ def finalize_order(order_id: str):
             return acme_error('unauthorized', 'Order does not belong to this account', 403)
         
         # Extract CSR
-        csr_b64 = payload.get('csr', '')
-        if not csr_b64:
-            return acme_error('malformed', 'CSR required')
-        
-        # Decode CSR (DER format in ACME)
-        csr_der = base64.urlsafe_b64decode(csr_b64 + '==')
-        
-        # Convert DER to PEM
-        from cryptography import x509
-        from cryptography.hazmat.backends import default_backend
+        # Decode CSR (DER format in ACME), size-capped by the shared helper
         from cryptography.hazmat.primitives import serialization
-        
-        csr = x509.load_der_x509_csr(csr_der, default_backend())
+        from utils.acme_csr import decode_csr_b64
+
+        try:
+            csr = decode_csr_b64(payload.get('csr', ''))
+        except ValueError as exc:
+            return acme_error('malformed', str(exc))
         csr_pem = csr.public_bytes(serialization.Encoding.PEM).decode()
         
         if existing_order.status != 'ready':

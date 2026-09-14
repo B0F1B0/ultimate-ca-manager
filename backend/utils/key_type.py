@@ -149,6 +149,11 @@ def parse_csr_key_type(key_algo_full: str) -> str:
 # 2048 and NIST P-256/384/521 for EC. Legacy/edge curves and short RSA keys are
 # refused so a weak (e.g. 512-bit) or exotic key never gets a CA signature.
 MIN_RSA_BITS = 2048
+# And a ceiling, which there was none of. Key size is attacker-chosen on every
+# enrollment path: signing and later verifying a 65536-bit RSA key costs orders
+# of magnitude more than a 4096-bit one, on the CA and on every relying party
+# afterwards. 8192 is above anything a real deployment asks for.
+MAX_RSA_BITS = 8192
 _ALLOWED_EC_CURVES = frozenset({'secp256r1', 'prime256v1', 'secp384r1', 'secp521r1'})
 
 
@@ -165,6 +170,8 @@ def validate_enrollment_public_key(public_key) -> str | None:
         bits = public_key.key_size
         if bits < MIN_RSA_BITS:
             return f'RSA key too small ({bits} bits); minimum is {MIN_RSA_BITS}'
+        if bits > MAX_RSA_BITS:
+            return f'RSA key too large ({bits} bits); maximum is {MAX_RSA_BITS}'
         return None
 
     if isinstance(public_key, ec.EllipticCurvePublicKey):

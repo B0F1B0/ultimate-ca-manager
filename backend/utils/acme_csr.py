@@ -9,14 +9,53 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
 
+# What certreq.exe and the Windows MMC write instead of the standard label.
+# The armor differs; the DER between the lines does not, so the request is
+# rewritten to the label `cryptography` accepts rather than refused for its
+# spelling.
+_MS_BEGIN = '-----BEGIN NEW CERTIFICATE REQUEST-----'
+_MS_END = '-----END NEW CERTIFICATE REQUEST-----'
+_BEGIN = '-----BEGIN CERTIFICATE REQUEST-----'
+_END = '-----END CERTIFICATE REQUEST-----'
+
+
 def normalize_pem_csr(csr_pem: str) -> str:
-    """Strip whitespace and ensure trailing newline."""
+    """Strip whitespace, accept the Microsoft armor, ensure trailing newline."""
     text = (csr_pem or '').strip()
     if not text:
         raise ValueError('CSR is empty')
-    if '-----BEGIN CERTIFICATE REQUEST-----' not in text:
+    if _MS_BEGIN in text:
+        text = text.replace(_MS_BEGIN, _BEGIN).replace(_MS_END, _END)
+    if _BEGIN not in text:
         raise ValueError('Invalid CSR: missing PEM header')
     return text + '\n'
+
+
+# The finalize payload's `csr` member is base64url DER, straight off the wire
+# and unbounded: both finalize routes decoded and parsed it with no size check
+# at all, while every other CSR entry point (admin API, EST, the decode tools)
+# caps its input. A PKCS#10 request with a 4096-bit key and a long SAN list
+# stays well under 4 KB.
+MAX_CSR_B64_CHARS = 64 * 1024
+
+
+def decode_csr_b64(csr_b64: str) -> x509.CertificateSigningRequest:
+    """Parse the base64url DER CSR of an ACME finalize payload.
+
+    Raises ValueError when it is missing, over the size cap, not valid
+    base64url, or not a CSR.
+    """
+    if not isinstance(csr_b64, str) or not csr_b64:
+        raise ValueError('CSR required')
+    if len(csr_b64) > MAX_CSR_B64_CHARS:
+        raise ValueError('CSR too large')
+    try:
+        der = base64.urlsafe_b64decode(csr_b64 + '=' * (-len(csr_b64) % 4))
+        return x509.load_der_x509_csr(der, default_backend())
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError(f'Invalid CSR: {exc}') from exc
 
 
 def load_pem_csr(csr_pem: str) -> x509.CertificateSigningRequest:

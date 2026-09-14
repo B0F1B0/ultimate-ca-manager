@@ -9,6 +9,7 @@ from services.audit_service import AuditService
 from utils.trusted_proxy import client_ip
 from utils.db_transaction import safe_commit
 from utils.est_cms import build_server_generated_key_cms
+from utils.csr_diagnostics import WEAK_CSR_HASH_ALGORITHMS, weak_csr_hash_algorithm
 import base64
 import hmac
 import json
@@ -523,27 +524,10 @@ def _authenticate_est_client():
     return False, None
 
 
-# cryptography's CertificateSigningRequest.is_signature_valid reports False
-# for a SHA-1-signed CSR even when the signature is mathematically valid
-# (confirmed by verifying the same signature manually with
-# public_key.verify(..., hashes.SHA1())) -- it isn't reporting tampering,
-# it's refusing to vouch for a weak hash algorithm. Worth a specific
-# message rather than the generic "signature invalid" one, which reads as
-# if the request were corrupted.
-_WEAK_CSR_HASH_ALGORITHMS = {'md5', 'sha1'}
-
-
-def _weak_csr_hash_algorithm(csr):
-    """The CSR's signature hash algorithm name, if it's one of the weak
-    ones ``is_signature_valid`` refuses to validate. None otherwise
-    (including when the algorithm can't be determined at all, e.g. Ed25519)."""
-    try:
-        algo = csr.signature_hash_algorithm
-    except Exception:
-        return None
-    if algo is not None and algo.name in _WEAK_CSR_HASH_ALGORITHMS:
-        return algo.name
-    return None
+# Why a SHA-1 CSR fails is_signature_valid, and what to tell the client about
+# it, is written once in utils/csr_diagnostics — WSTEP had the same copy.
+_WEAK_CSR_HASH_ALGORITHMS = WEAK_CSR_HASH_ALGORITHMS
+_weak_csr_hash_algorithm = weak_csr_hash_algorithm
 
 
 def _validate_est_csr(csr):

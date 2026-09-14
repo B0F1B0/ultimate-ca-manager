@@ -32,6 +32,7 @@ from services.acme.acme_proxy_account import (
 from services.acme import AcmeService, ari
 from services.acme.identifiers import validate_acme_identifier
 from services.acme.jwk_thumbprint import jwk_thumbprint_or_none
+from utils.acme_csr import decode_csr_b64
 from utils.acme_public_url import get_acme_public_origin, get_acme_proxy_public_base
 
 logger = logging.getLogger(__name__)
@@ -677,9 +678,10 @@ def finalize(order_id, slug=None):
         if not csr_b64:
             return proxy_error("malformed", "Missing 'csr' in payload")
 
-        csr_b64 += '=' * (4 - len(csr_b64) % 4)
-        csr_der = base64.urlsafe_b64decode(csr_b64)
-        csr_obj = x509.load_der_x509_csr(csr_der)
+        try:
+            csr_obj = decode_csr_b64(csr_b64)
+        except ValueError as exc:
+            return proxy_error("malformed", str(exc))
         csr_pem = csr_obj.public_bytes(serialization.Encoding.PEM).decode()
 
         svc = get_proxy_service(slug)
