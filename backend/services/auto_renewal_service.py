@@ -208,13 +208,14 @@ class AutoRenewalService:
         warning, so this is best-effort but never allowed to raise.
         """
         try:
-            db.session.add(AuditLog(
+            from services.audit.staging import stage_audit_entry
+            stage_audit_entry(
                 action='certificate.auto_renewal_failed',
                 resource_type='certificate',
                 resource_id=cert_id,
                 resource_name=common_name,
                 details=f'Auto-renewal failed: {reason}',
-            ))
+            )
             db.session.commit()
         except Exception:
             db.session.rollback()

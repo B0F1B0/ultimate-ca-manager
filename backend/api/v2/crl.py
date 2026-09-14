@@ -178,7 +178,8 @@ def toggle_auto_regen(ca_id):
         
         # Audit log
         username = getattr(g, 'user', {}).get('username', 'admin') if hasattr(g, 'user') else 'admin'
-        audit = AuditLog(
+        from services.audit.staging import stage_audit_entry
+        stage_audit_entry(
             action='crl_auto_regen_toggle',
             resource_type='ca',
             resource_id=str(ca.id),
@@ -186,9 +187,8 @@ def toggle_auto_regen(ca_id):
             username=username,
             details=f"{'Enabled' if enabled else 'Disabled'} automatic CRL regeneration",
             ip_address=client_ip(),
-            success=True
+            success=True,
         )
-        db.session.add(audit)
         ok, err = safe_commit(logger, 'Failed to update CRL settings')
         if not ok:
             return err

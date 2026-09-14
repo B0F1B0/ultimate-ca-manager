@@ -701,15 +701,14 @@ def simple_enroll(label=None):
         )
         
         # Create audit log
-        from models import AuditLog
-        log = AuditLog(
+        from services.audit.staging import stage_audit_entry
+        stage_audit_entry(
             action='certificate.issued',
             resource_type='certificate',
             resource_name=csr.subject.rfc4514_string(),
             username=username,
-            details=f'EST enrollment from {client_ip()}'
+            details=f'EST enrollment from {client_ip()}',
         )
-        db.session.add(log)
         ok, _err = safe_commit(logger, "EST enrollment commit failed")
         if not ok:
             return Response("EST enrollment commit failed", status=500)
@@ -817,15 +816,14 @@ def simple_reenroll(label=None):
             supersedes=renewed_row,
         )
 
-        from models import AuditLog
-        log = AuditLog(
+        from services.audit.staging import stage_audit_entry
+        stage_audit_entry(
             action='certificate_renewed',
             resource_type='certificate',
             resource_name=csr.subject.rfc4514_string(),
             username='mtls-client',
-            details=f'EST re-enrollment via mTLS from {client_ip()}'
+            details=f'EST re-enrollment via mTLS from {client_ip()}',
         )
-        db.session.add(log)
         ok, _err = safe_commit(logger, "EST re-enrollment commit failed")
         if not ok:
             return Response("EST re-enrollment commit failed", status=500)

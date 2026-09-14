@@ -181,14 +181,14 @@ def _cmc_response_der_for(ca, cert, parsed):
 
 
 def _audit_issuance(action, subject, username):
-    log = AuditLog(
+    from services.audit.staging import stage_audit_entry
+    stage_audit_entry(
         action=action,
         resource_type='certificate',
         resource_name=subject,
         username=username,
         details=f'WSTEP enrollment from {client_ip()}',
     )
-    db.session.add(log)
     safe_commit(logger, "WSTEP enrollment audit commit failed")
 
 

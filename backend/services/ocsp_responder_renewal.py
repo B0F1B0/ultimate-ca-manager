@@ -200,7 +200,8 @@ def run_ocsp_responder_renewal():
             new_row = _renew_responder_cert(ca, cert)
             binding.value = str(new_row.id)
             cert.archived = True
-            db.session.add(AuditLog(
+            from services.audit.staging import stage_audit_entry
+            stage_audit_entry(
                 action='ocsp_responder.auto_renewed',
                 resource_type='ca',
                 resource_id=ca_id,
@@ -209,7 +210,7 @@ def run_ocsp_responder_renewal():
                     f'Delegated OCSP responder cert {cert.id} renewed as '
                     f'{new_row.id} (valid to {new_row.valid_to})'
                 ),
-            ))
+            )
             db.session.commit()
             # The CA's cached answers embed the old responder certificate
             try:
@@ -230,12 +231,13 @@ def run_ocsp_responder_renewal():
                 ca_id, cert_id, e, exc_info=True,
             )
             try:
-                db.session.add(AuditLog(
+                from services.audit.staging import stage_audit_entry
+                stage_audit_entry(
                     action='ocsp_responder.auto_renewal_failed',
                     resource_type='ca',
                     resource_id=ca_id,
                     details=f'Delegated OCSP responder renewal failed: {e}',
-                ))
+                )
                 db.session.commit()
             except Exception:
                 db.session.rollback()

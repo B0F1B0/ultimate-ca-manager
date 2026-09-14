@@ -105,6 +105,13 @@ class AuditCoreLoggingMixin:
             return {'valid': True, 'checked': 0, 'errors': []}
 
         errors = []
+        # Rows carrying no hash at all. Eight places used to build an entry by
+        # hand and add it to the session without sealing it, and the loop
+        # below skipped each one and restarted its chain there: the ledger
+        # verified clean straight across the gap, and a row inserted between
+        # two unsealed ones could not be told from a genuine record. They are
+        # reported now instead of being stepped over.
+        unsealed = []
         # The first log in the verified range may NOT chain back to the
         # genesis (prev_hash = '0' * 64) when audit cleanup has purged
         # earlier records. Treat its stored prev_hash as the chain anchor
@@ -114,6 +121,7 @@ class AuditCoreLoggingMixin:
 
         for log in logs:
             if not log.entry_hash:
+                unsealed.append(log.id)
                 prev_hash = '0' * 64
                 continue
 
@@ -137,7 +145,13 @@ class AuditCoreLoggingMixin:
             prev_hash = log.entry_hash
 
         return {
+            # `valid` still means "every sealed entry verifies", so an
+            # installation carrying rows from before they were sealed does
+            # not suddenly read as tampered with. `unsealed` is what the
+            # chain cannot attest, and `attested` is what it can.
             'valid': len(errors) == 0,
             'checked': len(logs),
+            'attested': len(logs) - len(unsealed),
+            'unsealed': unsealed,
             'errors': errors
         }

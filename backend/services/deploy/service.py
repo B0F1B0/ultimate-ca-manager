@@ -28,12 +28,22 @@ MODE_PUBLIC = 0o644
 MODE_PRIVATE = 0o600
 
 
-def _safe_commit(context: str):
+def _safe_commit(context: str) -> bool:
+    """Commit, or roll back and say so.
+
+    It used to swallow the failure and return nothing, so a caller that
+    committed the delivery and then recorded it announced a success for a
+    record that had just been rolled back: the delivery read as still pending
+    for a certificate already on the remote host, and the next pass pushed it
+    again.
+    """
     try:
         db.session.commit()
+        return True
     except Exception as e:
         db.session.rollback()
         logger.error(f"Deploy commit failed ({context}): {e}")
+        return False
 
 
 class DeployService:
@@ -108,14 +118,19 @@ class DeployService:
 
     @staticmethod
     def execute_delivery(delivery: DeployDelivery) -> bool:
-        """Perform one push+reload. Returns True on success.
+        """Perform one push+reload. Returns True when the push happened and
+        was recorded.
 
         The delivery and target rows are updated in place and committed here,
         before the audit entry that describes the push is written: that entry
         commits this session itself, so leaving the rows to the caller meant
         the audit decided whether a push that had already reached the remote
-        host was recorded as having happened. The caller still commits, which
-        is now a no-op for these rows.
+        host was recorded as having happened.
+
+        Only the paths that reach the remote host commit. The three early
+        returns above mark the delivery failed and hand it back to the caller
+        to commit, as they always did: nothing has left this process yet, so
+        there is no record that has to outlive the request.
         """
         now = utc_now()
         binding = db.session.get(DeployBinding, delivery.binding_id)
@@ -189,7 +204,7 @@ class DeployService:
         # session and rolls all of it back when its own entry cannot be
         # written: the delivery would read as still pending for something
         # that was delivered, and the next pass would push it again.
-        _safe_commit('execute_delivery')
+        recorded = _safe_commit('execute_delivery')
 
         from services.audit_service import AuditService
         AuditService.log_action(
@@ -201,11 +216,14 @@ class DeployService:
                 f"Deployed certificate {certificate.descr or certificate.refid} "
                 f"to {target.name} ({', '.join(detail.get('pushed', []))})"
                 + (f", reload exit {detail.get('reload_exit')}" if 'reload_exit' in detail else '')
+                + ('' if recorded else
+                   '; the delivery record could not be saved, so this push '
+                   'will be attempted again')
             ),
             username=delivery.triggered_by or 'system',
-            success=True,
+            success=recorded,
         )
-        return True
+        return recorded
 
     @staticmethod
     def _record_failure(delivery, target, error, now, permanent=False, detail=None):
@@ -224,7 +242,7 @@ class DeployService:
         # the failure count and the retry schedule ride on whether its entry
         # can be written. Rolled back, the attempt is forgotten and the same
         # target is retried without backoff.
-        _safe_commit('record_failure')
+        recorded = _safe_commit('record_failure')
 
         from services.audit_service import AuditService
         AuditService.log_action(
@@ -232,7 +250,10 @@ class DeployService:
             resource_type='deploy_target',
             resource_id=str(target.id),
             resource_name=target.name,
-            details=f"Deploy attempt {delivery.attempts} failed: {error}",
+            details=(f"Deploy attempt {delivery.attempts} failed: {error}"
+                     + ('' if recorded else
+                        '; the attempt itself could not be saved, so the '
+                        'backoff will not hold')),
             username=delivery.triggered_by or 'system',
             success=False,
         )

@@ -130,3 +130,33 @@ class TestARouteDoesNotAnnounceARowTheAuditUndid:
                 DeployTarget.query.filter_by(
                     name='audit-order-ok').delete(synchronize_session=False)
                 db.session.commit()
+
+
+class TestARecordThatCouldNotBeSavedIsNotAnnouncedAsOne:
+    """A push that happened and was not written down is not a success.
+
+    The delivery row is committed before the entry that describes it, because
+    that entry commits the session itself. But the commit was made through a
+    helper that swallowed its own failure and returned nothing, so a caller
+    whose commit had just been rolled back went on to record "Deployed
+    certificate X to Y" with `success=True` and return True. The delivery
+    stayed pending for a certificate already on the remote host, and the next
+    pass pushed it again.
+    """
+
+    def test_a_failed_commit_is_reported_in_the_entry(self, app, monkeypatch):
+        from services.deploy import service as deploy_service
+
+        with app.app_context():
+            monkeypatch.setattr(
+                deploy_service.db.session, 'commit',
+                lambda: (_ for _ in ()).throw(RuntimeError('no')),
+                raising=False)
+            assert deploy_service._safe_commit('probe') is False, (
+                'the helper swallowed the failure and said nothing')
+
+    def test_a_successful_commit_is_reported_too(self, app):
+        from services.deploy import service as deploy_service
+
+        with app.app_context():
+            assert deploy_service._safe_commit('probe') is True

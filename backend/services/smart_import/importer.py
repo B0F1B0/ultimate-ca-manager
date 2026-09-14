@@ -19,6 +19,8 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 
+from flask import has_request_context, request
+from utils.trusted_proxy import client_ip
 from models import db, Certificate, CA, AuditLog
 from .parser import ParsedObject, ObjectType, SmartParser
 from .chain_builder import ChainBuilder, ChainInfo
@@ -531,18 +533,26 @@ class SmartImporter:
                 return part.strip()[3:]
         return "Unknown"
     
-    def _log_audit(self, action: str, resource_id: int, resource_name: str, username: str):
-        """Create audit log entry"""
-        try:
-            log = AuditLog(
-                timestamp=utc_now(),
-                username=username,
-                action=action,
-                resource_type="certificate" if "csr" in action or "certificate" in action else "ca",
-                resource_id=str(resource_id),
-                resource_name=resource_name,
-                success=True
-            )
-            db.session.add(log)
-        except Exception:
-            pass  # Don't fail import if audit fails
+    def _log_audit(self, action: str, resource_id: int, resource_name: str,
+                   username: str, details: str = None):
+        """Stage an audit entry, sealed, to ride the bundle's own commit.
+
+        Staged rather than written through `AuditService.log_action` because
+        that one commits the session it is given, and this import is one
+        transaction on purpose: an entry per object would commit the bundle
+        piece by piece, and a failure half way would leave part of it
+        standing.
+        """
+        from services.audit.staging import stage_audit_entry
+
+        stage_audit_entry(
+            action=action,
+            resource_type=("certificate"
+                           if "csr" in action or "certificate" in action
+                           else "ca"),
+            resource_id=str(resource_id),
+            resource_name=resource_name,
+            details=details,
+            username=username,
+            success=True,
+        )
