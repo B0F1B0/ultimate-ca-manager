@@ -49,20 +49,9 @@ export default function TrustStorePage() {
   const [adding, setAdding] = useState(false)
   const [loadingCAs, setLoadingCAs] = useState(false)
 
-  useEffect(() => {
-    loadCertificates()
-  }, [])
-
-  // Reload when floating window actions change data
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail?.type === 'truststore') loadCertificates()
-    }
-    window.addEventListener('ucm:data-changed', handler)
-    return () => window.removeEventListener('ucm:data-changed', handler)
-  }, [])
-
-  const loadCertificates = async () => {
+  // Memoised so the 'ucm:data-changed' listener below can depend on it without
+  // re-subscribing on every render.
+  const loadCertificates = useCallback(async () => {
     setLoading(true)
     try {
       const [certsRes, statsRes] = await Promise.all([
@@ -87,7 +76,22 @@ export default function TrustStorePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [showError, t])
+
+  useEffect(() => {
+    loadCertificates()
+  }, [])
+
+  // Reload when floating window actions change data. loadCertificates must be
+  // in the dependencies: a listener registered once keeps the loader captured
+  // at mount and reloads with the state of that moment (#345).
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.type === 'truststore') loadCertificates()
+    }
+    window.addEventListener('ucm:data-changed', handler)
+    return () => window.removeEventListener('ucm:data-changed', handler)
+  }, [loadCertificates])
 
   const filteredCertificates = useMemo(() => {
     let result = certificates

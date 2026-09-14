@@ -150,16 +150,10 @@ export default function SSHCertificatesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadData])
 
-  // Reload on external data changes. loadData must be in the dependencies,
-  // otherwise the listener keeps the loader captured at mount and reloads
-  // without the filters set since (#345).
-  useEffect(() => {
-    const handler = (e) => {
-      if (e.detail?.type === 'ssh-certificate') loadData()
-    }
-    window.addEventListener('ucm:data-changed', handler)
-    return () => window.removeEventListener('ucm:data-changed', handler)
-  }, [loadData])
+  // No 'ucm:data-changed' listener here: nothing dispatches an SSH type, SSH
+  // certificates are never opened in a floating detail window, and the page's
+  // own actions call loadData() directly. Listening for 'certificate' instead
+  // would reload this list on unrelated X.509 events.
 
   // Deep-link URL handling
   useEffect(() => {

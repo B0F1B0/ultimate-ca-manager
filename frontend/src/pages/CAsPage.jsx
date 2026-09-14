@@ -71,6 +71,30 @@ export default function CAsPage() {
     try { localStorage.setItem('ucm-ca-view-mode', viewMode) } catch {}
   }, [viewMode])
 
+  // Memoised so the 'ucm:data-changed' listener below can depend on it without
+  // re-subscribing on every render. canWrite() is a fresh function each render,
+  // so depend on the boolean it computes, not on the function.
+  const canWriteCAs = canWrite('cas')
+  const loadCAs = useCallback(async () => {
+    setLoading(true)
+    try {
+      const casData = await casService.getAll()
+      const casList = casData.data || []
+      setCAs(casList)
+    } catch (error) {
+      showError(error.message || t('messages.errors.loadFailed.cas'))
+    } finally {
+      setLoading(false)
+    }
+
+    // Load chain repair status (non-blocking, admin/operator only)
+    if (canWriteCAs) {
+      casService.getChainRepairStatus()
+        .then(res => setChainRepair(res.data || null))
+        .catch(() => {})
+    }
+  }, [canWriteCAs, showError, t])
+
   useEffect(() => {
     loadCAs()
     if (searchParams.get('action') === 'create') {
@@ -80,14 +104,16 @@ export default function CAsPage() {
     }
   }, [])
 
-  // Reload when floating window actions change data
+  // Reload when floating window actions change data. loadCAs must be in the
+  // dependencies: a listener registered once keeps the loader captured at
+  // mount and reloads with the state of that moment (#345).
   useEffect(() => {
     const handler = (e) => {
       if (e.detail?.type === 'ca') loadCAs()
     }
     window.addEventListener('ucm:data-changed', handler)
     return () => window.removeEventListener('ucm:data-changed', handler)
-  }, [])
+  }, [loadCAs])
 
   // Handle open pins modal event from floating window
   useEffect(() => {
@@ -140,26 +166,6 @@ export default function CAsPage() {
       setExpandedNodes(new Set([...rootIds, ...parentIds]))
     }
   }, [cas])
-
-  const loadCAs = async () => {
-    setLoading(true)
-    try {
-      const casData = await casService.getAll()
-      const casList = casData.data || []
-      setCAs(casList)
-    } catch (error) {
-      showError(error.message || t('messages.errors.loadFailed.cas'))
-    } finally {
-      setLoading(false)
-    }
-
-    // Load chain repair status (non-blocking, admin/operator only)
-    if (canWrite('cas')) {
-      casService.getChainRepairStatus()
-        .then(res => setChainRepair(res.data || null))
-        .catch(() => {})
-    }
-  }
 
   const getParentName = (ca) => {
     if (ca.is_root) return t('common.rootCA')
