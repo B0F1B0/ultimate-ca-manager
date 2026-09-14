@@ -11,6 +11,11 @@ from services.backup import storage
 from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
+from services.database_admin.lock import (
+    MigrationBusyError,
+    database_migration_lock,
+    pending_switch_refusal,
+)
 from services.backup.settings_contract import (
     BackupSettingError,
     validate_backup_password,
@@ -153,8 +158,26 @@ def restore_backup():
             logger.warning(f"Backup upload validation error: {exc}")
             return error_response('Invalid backup file', 400)
 
+        # Between a backend switch being written and the service restarting
+        # onto it, this instance still runs on the backend being left behind:
+        # a restore landing here is discarded by the restart. The system route
+        # has always refused it; which of the two an operator reached decided
+        # whether their restore survived.
+        pending = pending_switch_refusal()
+        if pending:
+            return error_response(pending, 409)
+
+        # A restore rewrites the whole database, which is the largest
+        # concurrent write a migration could be reading through. Both take the
+        # same lock so one never sees the other half-done.
         service = BackupService()
-        service.restore_backup(backup_bytes, password)
+        try:
+            with database_migration_lock(purpose='the restore'):
+                service.restore_backup(backup_bytes, password)
+        except MigrationBusyError as busy:
+            return error_response(
+                f"{busy} A backend migration or another restore is still "
+                "running.", 409)
 
         AuditService.log_action(
             action='system_restore',
