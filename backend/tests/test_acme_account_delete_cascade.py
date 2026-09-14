@@ -229,3 +229,79 @@ class TestEverythingThatNamesTheAccountIsDealtWith:
             assert order.account_id is None, (
                 'the client order still names an account that is gone, which '
                 'a database enforcing its foreign keys refuses')
+
+
+@pytest.fixture
+def an_account_whose_authorization_names_only_its_order(app):
+    """An authorization that belongs to an order but names no account.
+
+    The column is nullable and the protocol code reads it that way:
+    `auth.account_id or (auth.order.account_id if auth.order else None)`
+    (`api/acme/acme_api.py`). Deleting by the account alone therefore misses
+    it, where walking the orders found it.
+    """
+    from models.acme_models import (
+        AcmeAccount, AcmeAuthorization, AcmeChallenge, AcmeOrder)
+
+    with app.app_context():
+        account_id = f'viaorder-{secrets.token_hex(4)}'
+        db.session.add(AcmeAccount(account_id=account_id, jwk='{}',
+                                   jwk_thumbprint=secrets.token_hex(8),
+                                   status='valid'))
+        db.session.flush()
+        order = AcmeOrder(order_id=secrets.token_urlsafe(16),
+                          account_id=account_id,
+                          identifiers='[{"type":"dns","value":"v.test"}]',
+                          status='pending')
+        db.session.add(order)
+        db.session.flush()
+        authz = AcmeAuthorization(
+            authorization_id=secrets.token_urlsafe(16),
+            order_id=order.order_id, account_id=None,
+            identifier='{"type":"dns","value":"v.test"}', status='pending')
+        db.session.add(authz)
+        db.session.flush()
+        db.session.add(AcmeChallenge(
+            challenge_id=secrets.token_urlsafe(16),
+            authorization_id=authz.authorization_id,
+            type='http-01', status='pending', token=secrets.token_urlsafe(16)))
+        db.session.commit()
+        made = {'account_id': account_id, 'order_id': order.order_id,
+                'authorization_id': authz.authorization_id}
+
+    yield made
+
+    with app.app_context():
+        AcmeChallenge.query.filter_by(
+            authorization_id=made['authorization_id']).delete(
+                synchronize_session=False)
+        AcmeAuthorization.query.filter_by(
+            authorization_id=made['authorization_id']).delete(
+                synchronize_session=False)
+        AcmeOrder.query.filter_by(order_id=made['order_id']).delete(
+            synchronize_session=False)
+        AcmeAccount.query.filter_by(account_id=made['account_id']).delete(
+            synchronize_session=False)
+        db.session.commit()
+
+
+class TestAnAuthorizationFoundEitherWay:
+    def test_one_that_names_only_its_order_goes_too(
+            self, app, auth_client, an_account_whose_authorization_names_only_its_order):
+        made = an_account_whose_authorization_names_only_its_order
+        response = auth_client.delete(
+            f'/api/v2/acme/accounts/{made["account_id"]}')
+
+        assert response.status_code in (200, 204), response.data
+
+        with app.app_context():
+            from models.acme_models import AcmeAuthorization, AcmeChallenge
+            left = {
+                'authorizations': AcmeAuthorization.query.filter_by(
+                    authorization_id=made['authorization_id']).count(),
+                'challenges': AcmeChallenge.query.filter_by(
+                    authorization_id=made['authorization_id']).count(),
+            }
+        assert left == {'authorizations': 0, 'challenges': 0}, (
+            'an authorization reachable only through its order was left '
+            f'behind: {left}')

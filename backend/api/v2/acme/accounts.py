@@ -269,17 +269,27 @@ def delete_acme_account(account_id):
         # token equals a number deleted nothing on SQLite and had no operator
         # at all on PostgreSQL, so the same click left orphans on one backend
         # and refused outright on the other.
-        authorization_ids = [
-            row.authorization_id
-            for row in AcmeAuthorization.query.filter_by(
-                account_id=acc.account_id).all()
-        ]
+        order_ids = [row.order_id for row in acc.orders]
+        # Either way round, because `AcmeAuthorization.account_id` is
+        # nullable and the protocol code reads it as such:
+        # `auth.account_id or (auth.order.account_id if auth.order else None)`
+        # in `api/acme/acme_api.py`. Looking only at the account misses one
+        # that names just its order; looking only at the orders misses one
+        # asked for before any order exists, which RFC 8555 allows.
+        belongs_here = [AcmeAuthorization.account_id == acc.account_id]
+        if order_ids:
+            belongs_here.append(AcmeAuthorization.order_id.in_(order_ids))
+        authorizations = AcmeAuthorization.query.filter(
+            db.or_(*belongs_here))
+
+        authorization_ids = [row.authorization_id for row in authorizations]
         if authorization_ids:
             AcmeChallenge.query.filter(
                 AcmeChallenge.authorization_id.in_(authorization_ids)
             ).delete(synchronize_session=False)
-        AcmeAuthorization.query.filter_by(
-            account_id=acc.account_id).delete(synchronize_session=False)
+            AcmeAuthorization.query.filter(
+                AcmeAuthorization.authorization_id.in_(authorization_ids)
+            ).delete(synchronize_session=False)
         AcmeOrder.query.filter_by(
             account_id=acc.account_id).delete(synchronize_session=False)
 

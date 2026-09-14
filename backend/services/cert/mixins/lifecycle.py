@@ -595,11 +595,6 @@ class LifecycleMixin:
             if path.exists():
                 path.unlink()
 
-        # Audit log
-        if not _suppress_events:
-            from services.audit_service import AuditService
-            AuditService.log_certificate('cert_deleted', certificate, f'Deleted certificate: {certificate.descr}')
-
         # A responder binding must not outlive its certificate: the next
         # certificate to reuse the id would become the responder unseen
         # (self-review of #347)
@@ -618,6 +613,29 @@ class LifecycleMixin:
             return False
 
         if not _suppress_events:
+            # Audit after the delete has committed. Written before it, this
+            # call decided the outcome: it commits the session it is given and
+            # rolls all of it back when its own entry cannot be written, so a
+            # failure put back the foreign keys that had just been detached --
+            # after the files on disk were already gone. The delete that
+            # followed then hit those references, and on a database that
+            # enforces them the row survived with no certificate, no request
+            # and no key beside it.
+            # From the snapshot taken before the delete: the object itself
+            # is gone by now, which is the point.
+            name = (_cert_snapshot.get('descr')
+                    or _cert_snapshot.get('subject')
+                    or f"Cert #{_cert_snapshot.get('id')}")
+            from services.audit_service import AuditService
+            AuditService.log_action(
+                action='cert_deleted',
+                resource_type='certificate',
+                resource_id=_cert_snapshot.get('id'),
+                resource_name=name,
+                details=f'Deleted certificate: {name}',
+                success=True,
+                username=username)
+
             from services.webhook_service import emit_cert_deleted
             emit_cert_deleted(_cert_snapshot, ca_refid=_cert_caref, actor=username)
             from services.approval_gate import notify_rejected
