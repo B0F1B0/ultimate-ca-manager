@@ -28,6 +28,7 @@ import { needsKeyImport } from '../lib/caSelection'
 import { RestoreModal } from './cas/RestoreModal'
 import { UploadCACertModal } from '../pages/cas/UploadCACertModal'
 import { cn, downloadBlob } from '../lib/utils'
+import { canExportPrivateKey } from '../lib/exportPermissions'
 
 const ENTITY_CONFIG = {
   certificate: {
@@ -267,7 +268,11 @@ export function FloatingDetailWindow({ windowInfo }) {
   const actionBarProps = data ? {
     onExport: handleExport,
     hasPrivateKey,
-    canExportKey: canWrite(resource),
+    // Each entity type has its own server-side key gate (lib/exportPermissions);
+    // write access to the resource was never one of them for a certificate.
+    canExportKey: canExportPrivateKey(windowInfo.type, {
+      hasPermission, canWrite, usesHsm: !!data?.uses_hsm,
+    }),
     entityType: isCA ? 'ca' : 'certificate',
     entityName: title,
     onLint: (isCert || isUserCert) ? () => setLintOpen(true) : null,

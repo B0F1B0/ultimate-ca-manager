@@ -127,6 +127,9 @@ export function CertificateDetails({
   onAddToTrustStore,
   canWrite = false,
   canDelete = false,
+  // Private-key export is its own scope (read:private_keys), not write access —
+  // see lib/exportPermissions. Callers pass canExportPrivateKey('certificate').
+  canExportKey = false,
   compact = false,
   showActions = true,
   showPem = true,
@@ -575,7 +578,7 @@ export function CertificateDetails({
       entityType="certificate"
       entityName={cert.common_name || cert.subject}
       hasPrivateKey={!!cert.has_private_key}
-      canExportKey={canWrite}
+      canExportKey={canExportKey}
       onExport={onExport}
     />
 

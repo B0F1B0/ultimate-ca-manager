@@ -20,6 +20,7 @@ import { casService } from '../../services'
 import { formatDate, downloadBlob } from '../../lib/utils'
 import { useNotification } from '../../contexts/NotificationContext'
 import { needsKeyImport } from '../../lib/caSelection'
+import { canExportPrivateKey } from '../../lib/exportPermissions'
 
 // =============================================================================
 // CA DETAILS PANEL
@@ -316,7 +317,7 @@ export function CADetailsPanel({ ca, canWrite, canDelete, onExport, onDelete, on
       entityType="ca"
       entityName={ca.name || ca.common_name || ''}
       hasPrivateKey={!!ca.has_private_key && !ca.uses_hsm}
-      canExportKey={canWrite('cas') && !ca.uses_hsm}
+      canExportKey={canExportPrivateKey('ca', { canWrite, usesHsm: !!ca.uses_hsm })}
       isHsmBacked={!!ca.uses_hsm}
       onExport={onExport}
     />

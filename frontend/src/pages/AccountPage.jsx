@@ -18,6 +18,7 @@ import { accountService, casService, userCertificatesService } from '../services
 import { useAuth, useNotification, useMobile } from '../contexts'
 import { useClipboard, usePermission } from '../hooks'
 import { formatDate , downloadBlob} from '../lib/utils'
+import { canExportPrivateKey } from '../lib/exportPermissions'
 
 export default function AccountPage() {
   const { t } = useTranslation()
@@ -1400,7 +1401,7 @@ export default function AccountPage() {
         entityType="certificate"
         entityName={exportCert?.name || ''}
         hasPrivateKey={exportCert?.hasPrivateKey || false}
-        canExportKey={true}
+        canExportKey={canExportPrivateKey('user_certificate', { hasPermission })}
         defaultFormat="pem"
         onExport={handleExportCert}
       />

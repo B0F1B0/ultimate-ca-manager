@@ -23,6 +23,7 @@ import { certificatesService, casService, truststoreService } from '../services'
 import { useNotification, useMobile, useWindowManager } from '../contexts'
 import { usePermission, useRecentHistory, useFavorites, useWebSocket, usePersistedState } from '../hooks'
 import { extractCN, cn, downloadBlob } from '../lib/utils'
+import { canExportPrivateKey } from '../lib/exportPermissions'
 import { IssueCertificateForm } from './certificates/IssueCertificateForm'
 import { useCertificateColumns } from './certificates/useCertificateColumns'
 import { UploadKeyModal } from './certificates/UploadKeyModal'
@@ -106,6 +107,9 @@ export default function CertificatesPage() {
   
   const { showSuccess, showError, showConfirm, showPrompt, showWarning } = useNotification()
   const { canWrite, canDelete, hasPermission } = usePermission()
+  // One rule for every export surface on this page — the server's own (see
+  // lib/exportPermissions): read:private_keys, not write:certificates.
+  const canExportKey = canExportPrivateKey('certificate', { hasPermission, canWrite })
   const { muteToasts } = useWebSocket()
 
   const requestSeq = useRef(0)
@@ -601,6 +605,7 @@ export default function CertificatesPage() {
       onAddToTrustStore={handleAddToTrustStore}
       canWrite={canWrite('certificates')}
       canDelete={canDelete('certificates')}
+      canExportKey={canExportKey}
     />
   ) : null
 
@@ -795,7 +800,7 @@ export default function CertificatesPage() {
         entityType="certificate"
         entityName={exportRowCert?.common_name || exportRowCert?.subject || ''}
         hasPrivateKey={!!exportRowCert?.has_private_key}
-        canExportKey={hasPermission('read:private_keys')}
+        canExportKey={canExportKey}
         onExport={handleExportRow}
       />
     </>
