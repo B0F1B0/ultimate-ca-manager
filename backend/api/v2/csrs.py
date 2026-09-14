@@ -605,10 +605,29 @@ def export_csr(csr_id):
         logger.error(f"CSR export failed: {e}")
         return error_response('Export failed', 500)
 
+def _is_a_request(csr_id):
+    """Whether this id names a signing request rather than a certificate.
+
+    A request and a certificate are the same table and the same counter: a
+    request is a row whose `crt` is empty. The routes below delete by id, so
+    without this they reached an issued certificate as readily as a request,
+    and they carry `delete:csrs`, which the `operator` role holds while it
+    does not hold `delete:certificates`. The refusal the certificate route
+    gives that role was handed to it here instead, and a valid certificate
+    left the instance without the revocation list ever hearing about it.
+    """
+    row = db.session.get(Certificate, csr_id)
+    return row is not None and not row.crt
+
 @bp.route('/api/v2/csrs/<int:csr_id>', methods=['DELETE'])
 @require_auth(['delete:csrs'])
 def delete_csr(csr_id):
     """Delete a CSR"""
+    if not _is_a_request(csr_id):
+        # Not a request: either nothing holds this id, or it holds a
+        # certificate, which is deleted through its own route and its own
+        # permission, behind the check that it be revoked first.
+        return error_response("CSR not found", 404)
     try:
         if CertificateService.delete_certificate(csr_id, username=getattr(g.current_user, 'username', 'system')):
             AuditService.log_action(
@@ -999,6 +1018,9 @@ def bulk_delete_csrs():
 
     for csr_id in ids:
         try:
+            if not _is_a_request(csr_id):
+                results['failed'].append({'id': csr_id, 'error': 'Not found'})
+                continue
             if CertificateService.delete_certificate(csr_id, username=getattr(g.current_user, 'username', 'system')):
                 results['success'].append(csr_id)
             else:
