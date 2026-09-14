@@ -10,6 +10,7 @@ from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from models import db, AcmeLocalDomain, CA
 from services.acme import domain_match
+from utils.signing_ca import signing_ca_problem
 from services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -55,10 +56,15 @@ def create_local_domain():
     ca = db.session.get(CA, issuing_ca_id)
     if not ca:
         return error_response('Issuing CA not found', 404)
-    if not ca.has_private_key:
-        return error_response('Selected CA has no private key', 400)
-    if not ca.crt:
-        return error_response('Selected CA is awaiting its certificate', 400)
+    # The same six reasons the DNS-mapped table refuses, asked the same way:
+    # two of them were checked here and a zone could be bound to an authority
+    # that is revoked, that sits under a revoked one, or that has been taken
+    # offline. Nothing is signed by such an authority, but issuance refuses
+    # the order without failing it, so the client retries for ever and the
+    # operator is never told what is wrong.
+    problem = signing_ca_problem(ca)
+    if problem:
+        return error_response(f'Selected CA cannot sign: {problem}', 400)
     
     # `custom` and `*.custom` name the same zone, so they cannot be two
     # entries: the second would never be reached and the operator could not
@@ -112,10 +118,16 @@ def update_local_domain(domain_id):
         ca = db.session.get(CA, data['issuing_ca_id'])
         if not ca:
             return error_response('Issuing CA not found', 404)
-        if not ca.has_private_key:
-            return error_response('Selected CA has no private key', 400)
-        if not ca.crt:
-            return error_response('Selected CA is awaiting its certificate', 400)
+        # Judged only when the authority actually changes, exactly as the
+        # DNS-mapped table does it: an authority taken offline after the zone
+        # was bound to it would otherwise freeze the zone, and the operator
+        # could no longer correct it nor turn its approval off. Both sides go
+        # through `str` because the column is an integer and a client may send
+        # the identifier as text, in which case a bare comparison differs and
+        # re-judges an authority that did not change.
+        problem = signing_ca_problem(ca)
+        if problem and str(data['issuing_ca_id']) != str(domain.issuing_ca_id or ''):
+            return error_response(f'Selected CA cannot sign: {problem}', 400)
         domain.issuing_ca_id = data['issuing_ca_id']
     
     if 'auto_approve' in data:
