@@ -530,6 +530,7 @@
     "caAccountDefaultSet": "CA ACME par défaut mise à jour",
     "caAccountRegistered": "Compte CA ACME enregistré",
     "confirmDeactivateCaAccount": "Désactiver ce compte auprès de l'AC (RFC 8555 §7.3.6) ? C'est définitif — l'AC rejettera toute utilisation future de ce compte, et l'enregistrement local est supprimé en cas de succès.",
+    "confirmDeleteCaAccount": "Supprimer ce compte d'AC ACME ? Sa clé de compte est retirée d'UCM et ne peut pas être récupérée : il faudrait s'enregistrer de nouveau auprès de l'AC.",
     "caAccountDeactivated": "Compte désactivé auprès de l'AC et supprimé",
     "importAccountKey": "Importer une clé de compte existante (optionnel)",
     "importAccountKeyHelper": "Collez une clé privée RSA ou ECDSA non chiffrée (PEM) pour enregistrer un compte ACME existant. Les formats PKCS#8 (BEGIN PRIVATE KEY), SEC1/X9.62 (BEGIN EC PRIVATE KEY) et PKCS#1 (BEGIN RSA PRIVATE KEY) sont acceptés. L'algorithme est déduit automatiquement.",
@@ -1554,6 +1555,7 @@
     "selectResponder": "Sélectionner le certificat répondeur",
     "noEligibleResponders": "Aucun certificat éligible trouvé. Un certificat nécessite l'EKU OCSPSigning et une clé privée.",
     "removeResponder": "Supprimer le répondeur",
+    "removeResponderConfirm": "Retirer le répondeur OCSP délégué de « {{name}} » ? Les réponses seront de nouveau signées avec la clé de l'AC, immédiatement.",
     "assignResponder": "Assigner le répondeur",
     "crlScheduleTitle": "Planification CRL complète",
     "crlScheduleUpdated": "Planification CRL mise à jour",
@@ -2318,6 +2320,7 @@
     "noCasAvailableDesc": "Créez d'abord une AC pour configurer SCEP",
     "regenerate": "Régénérer",
     "challengeRegenerated": "Mot de passe de défi régénéré",
+    "confirmRegenerateChallenge": "Régénérer le mot de passe de challenge SCEP de cette AC ? L'actuel cesse de fonctionner immédiatement et tous les appareils configurés avec doivent être mis à jour.",
     "noChallengeSet": "Aucun mot de passe de défi défini",
     "connectionDetails": "Détails de connexion",
     "supportedOperations": "Opérations prises en charge",
@@ -2371,7 +2374,8 @@
     "profileUpdated": "Profil SCEP mis à jour",
     "profileDeleted": "Profil SCEP supprimé",
     "profileDeleteConfirm": "Supprimer le profil SCEP « {{name}} » ? Les équipements qui s'enrôlent via son URL seront refusés.",
-    "profileChallengeRegenerated": "Challenge régénéré et copié dans le presse-papiers"
+    "profileChallengeRegenerated": "Challenge régénéré et copié dans le presse-papiers",
+    "confirmRegenerateProfileChallenge": "Régénérer le challenge du profil « {{name}} » ? L'actuel cesse de fonctionner immédiatement et tous les appareils configurés avec doivent être mis à jour."
   },
   "session": {
     "expiring": "Session en cours d'expiration",
@@ -4571,6 +4575,7 @@
     "approveImported": "Requête approuvée et certificat importé",
     "approveFailed": "Échec de l'approbation de la requête",
     "denySuccess": "Requête refusée sur la CA",
+    "denyConfirm": "Refuser la demande n° {{id}} ? Le refus est appliqué sur l'AC Microsoft et le demandeur devra soumettre une nouvelle demande.",
     "denyFailed": "Échec du refus de la requête",
     "testFailed": "Échec du test de connexion",
     "templatesFetchHint": "Testez la connexion pour charger automatiquement les modèles disponibles",

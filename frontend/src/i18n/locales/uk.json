@@ -1658,6 +1658,7 @@
     "caAccountDefaultSet": "Стандартний ACME CA оновлено",
     "caAccountRegistered": "Обліковий запис ACME CA зареєстровано",
     "confirmDeactivateCaAccount": "Деактивувати цей обліковий запис у ЦС (RFC 8555 §7.3.6)? Це безповоротно — ЦС відхилятиме будь-яке подальше використання облікового запису, а локальний запис буде видалено у разі успіху.",
+    "confirmDeleteCaAccount": "Видалити цей обліковий запис ACME ЦС? Його ключ буде видалено з UCM без можливості відновлення, тож доведеться зареєструватися в ЦС заново.",
     "caAccountDeactivated": "Обліковий запис деактивовано в ЦС і видалено",
     "importAccountKey": "Імпортувати наявний ключ облікового запису (необов'язково)",
     "importAccountKeyHelper": "Вставте незашифрований приватний ключ RSA або ECDSA (PEM), щоб зареєструвати наявний обліковий запис ACME. Приймаються формати PKCS#8 (BEGIN PRIVATE KEY), SEC1/X9.62 (BEGIN EC PRIVATE KEY) та PKCS#1 (BEGIN RSA PRIVATE KEY). Алгоритм ключа визначається автоматично.",
@@ -1743,6 +1744,7 @@
     "noCasAvailableDesc": "Створити a сертифікат authority first to configure scep challenge passwords",
     "regenerate": "Перегенерувати",
     "challengeRegenerated": "Пароль виклику перегенеровано",
+    "confirmRegenerateChallenge": "Перегенерувати SCEP challenge-пароль для цього ЦС? Поточний одразу перестане діяти, і всі налаштовані з ним пристрої потрібно буде оновити.",
     "noChallengeSet": "Немає challenge password set",
     "connectionDetails": "Деталі з'єднання",
     "supportedOperations": "Підтримувані операції",
@@ -1796,7 +1798,8 @@
     "profileUpdated": "Профіль SCEP оновлено",
     "profileDeleted": "Профіль SCEP видалено",
     "profileDeleteConfirm": "Видалити профіль SCEP «{{name}}»? Пристрої, що реєструються через його URL, буде відхилено.",
-    "profileChallengeRegenerated": "Challenge перегенеровано та скопійовано в буфер обміну"
+    "profileChallengeRegenerated": "Challenge перегенеровано та скопійовано в буфер обміну",
+    "confirmRegenerateProfileChallenge": "Перегенерувати challenge для профілю «{{name}}»? Поточний одразу перестане діяти, і всі налаштовані з ним пристрої потрібно буде оновити."
   },
   "crlOcsp": {
     "subtitle": "{{count}} активних CRL",
@@ -1875,6 +1878,7 @@
     "selectResponder": "Обрати сертифікат відповідача",
     "noEligibleResponders": "Придатних сертифікатів не знайдено. Сертифікат потребує EKU OCSPSigning та закритий ключ.",
     "removeResponder": "Видалити відповідач",
+    "removeResponderConfirm": "Видалити делегований OCSP-відповідач для «{{name}}»? Відповіді знову підписуватимуться ключем ЦС, негайно.",
     "assignResponder": "Призначити відповідач",
     "crlScheduleTitle": "Розклад повного CRL",
     "crlScheduleUpdated": "Розклад CRL оновлено",
@@ -4568,6 +4572,7 @@
     "approveImported": "Запит схвалено та сертифікат імпортовано",
     "approveFailed": "Не вдалося схвалити запит",
     "denySuccess": "Запит відхилено на ЦС",
+    "denyConfirm": "Відхилити запит №{{id}}? Відхилення застосовується на Microsoft ЦС, і запитувач муситиме подати новий запит.",
     "denyFailed": "Не вдалося відхилити запит",
     "testFailed": "Тест підключення не вдався",
     "templatesFetchHint": "Протестуйте підключення для автоматичного завантаження доступних шаблонів",

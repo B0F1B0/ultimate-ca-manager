@@ -1658,6 +1658,7 @@
     "caAccountDefaultSet": "已更新默认 ACME CA",
     "caAccountRegistered": "已注册 ACME CA 账户",
     "confirmDeactivateCaAccount": "在 CA 处停用此账户（RFC 8555 §7.3.6）？此操作不可撤销 — CA 将拒绝该账户今后的任何使用，成功后本地记录将被删除。",
+    "confirmDeleteCaAccount": "删除此 ACME CA 账户？其账户密钥将从 UCM 中移除且无法恢复，需要重新向该 CA 注册。",
     "caAccountDeactivated": "账户已在 CA 处停用并已删除",
     "importAccountKey": "导入现有账户密钥（可选）",
     "importAccountKeyHelper": "粘贴未加密的 RSA 或 ECDSA 私钥（PEM）以注册现有 ACME 账户。支持 PKCS#8（BEGIN PRIVATE KEY）、SEC1/X9.62（BEGIN EC PRIVATE KEY）和 PKCS#1（BEGIN RSA PRIVATE KEY）格式。密钥算法将自动推断。",
@@ -1743,6 +1744,7 @@
     "noCasAvailableDesc": "请先创建证书颁发机构以配置 SCEP 挑战密码",
     "regenerate": "重新生成",
     "challengeRegenerated": "挑战密码已重新生成",
+    "confirmRegenerateChallenge": "重新生成此 CA 的 SCEP 质询密码？当前密码将立即失效，所有已配置该密码的设备都必须更新。",
     "noChallengeSet": "未设置挑战密码",
     "connectionDetails": "连接详情",
     "supportedOperations": "支持的操作",
@@ -1796,7 +1798,8 @@
     "profileUpdated": "已更新 SCEP 配置文件",
     "profileDeleted": "已删除 SCEP 配置文件",
     "profileDeleteConfirm": "删除 SCEP 配置文件“{{name}}”？通过其 URL 注册的设备将被拒绝。",
-    "profileChallengeRegenerated": "已重新生成质询并复制到剪贴板"
+    "profileChallengeRegenerated": "已重新生成质询并复制到剪贴板",
+    "confirmRegenerateProfileChallenge": "重新生成配置文件“{{name}}”的质询？当前质询将立即失效，所有已配置它的设备都必须更新。"
   },
   "crlOcsp": {
     "subtitle": "{{count}}个活跃CRL",
@@ -1875,6 +1878,7 @@
     "selectResponder": "选择响应者证书",
     "noEligibleResponders": "未找到符合条件的证书。证书需要OCSPSigning EKU和私钥。",
     "removeResponder": "移除响应者",
+    "removeResponderConfirm": "移除“{{name}}”的委派 OCSP 响应器？响应将立即改回使用 CA 密钥签名。",
     "assignResponder": "分配响应者",
     "crlScheduleTitle": "完整CRL计划",
     "crlScheduleUpdated": "CRL计划已更新",
@@ -4568,6 +4572,7 @@
     "approveImported": "已批准请求并导入证书",
     "approveFailed": "批准请求失败",
     "denySuccess": "已在 CA 上拒绝请求",
+    "denyConfirm": "拒绝请求 #{{id}}？拒绝将在 Microsoft CA 上生效，申请者必须重新提交请求。",
     "denyFailed": "拒绝请求失败",
     "testFailed": "连接测试失败",
     "templatesFetchHint": "测试连接以自动加载可用模板",

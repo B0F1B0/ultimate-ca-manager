@@ -1843,7 +1843,7 @@ export default function SettingsPage() {
         onConfirm={handleSsoDelete}
         title={t('common.confirmDelete')}
         message={t('sso.deleteConfirm', { name: ssoConfirmDelete?.name })}
-        confirmText={t('common.delete')}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
@@ -1868,7 +1868,7 @@ export default function SettingsPage() {
         onConfirm={handleWebhookDelete}
         title={t('common.confirmDelete')}
         message={t('webhooks.deleteConfirm', { name: webhookConfirmDelete?.name })}
-        confirmText={t('common.delete')}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
@@ -1893,7 +1893,7 @@ export default function SettingsPage() {
         onConfirm={handleMscaDelete}
         title={t('common.confirmDelete')}
         message={t('msca.deleteConfirm')}
-        confirmText={t('common.delete')}
+        confirmLabel={t('common.delete')}
         variant="danger"
       />
 
@@ -2014,7 +2014,7 @@ export default function SettingsPage() {
         onConfirm={handleDisableEncryption}
         title={t('settings.disableEncryption')}
         message={t('settings.disableEncryptionConfirm')}
-        confirmText={t('settings.disableEncryption')}
+        confirmLabel={t('settings.disableEncryption')}
         variant="danger"
         loading={encryptionLoading}
       />

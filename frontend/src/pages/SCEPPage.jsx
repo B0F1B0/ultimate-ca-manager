@@ -25,7 +25,7 @@ import { ToggleSwitch } from '../components/ui/ToggleSwitch'
 
 export default function SCEPPage() {
   const { t } = useTranslation()
-  const { showSuccess, showError, showInfo } = useNotification()
+  const { showSuccess, showError, showInfo, showConfirm } = useNotification()
   const { hasPermission, canWrite } = usePermission()
   
   const [loading, setLoading] = useState(true)
@@ -128,6 +128,13 @@ export default function SCEPPage() {
   }
 
   const handleRegenerateChallenge = async (caId) => {
+    // Every device already provisioned with the old challenge stops enrolling.
+    const confirmed = await showConfirm(t('scep.confirmRegenerateChallenge'), {
+      title: t('scep.regenerate'),
+      confirmText: t('scep.regenerate'),
+      variant: 'danger',
+    })
+    if (!confirmed) return
     try {
       await scepService.regenerateChallenge(caId)
       showSuccess(t('scep.challengeRegenerated'))

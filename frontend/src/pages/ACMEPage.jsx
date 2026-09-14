@@ -453,6 +453,13 @@ export default function ACMEPage() {
   }
 
   const handleDeleteCaAccount = async (id) => {
+    // The account key goes with it; the sibling Deactivate already asked.
+    const confirmed = await showConfirm(t('acme.confirmDeleteCaAccount'), {
+      title: t('common.confirmDelete'),
+      confirmText: t('common.delete'),
+      variant: 'danger',
+    })
+    if (!confirmed) return
     try {
       await acmeService.deleteCaAccount(id)
       showSuccess(t('acme.caAccountDeleted'))

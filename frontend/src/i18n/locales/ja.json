@@ -1658,6 +1658,7 @@
     "caAccountDefaultSet": "デフォルトの ACME CA を更新しました",
     "caAccountRegistered": "ACME CA アカウントを登録しました",
     "confirmDeactivateCaAccount": "このアカウントを CA で無効化しますか（RFC 8555 §7.3.6）？これは元に戻せません — CA は今後このアカウントの使用をすべて拒否し、成功時にはローカルレコードが削除されます。",
+    "confirmDeleteCaAccount": "この ACME CA アカウントを削除しますか？アカウント鍵は UCM から削除され復元できないため、CA への再登録が必要になります。",
     "caAccountDeactivated": "アカウントを CA で無効化し、削除しました",
     "importAccountKey": "既存のアカウントキーをインポート（任意）",
     "importAccountKeyHelper": "暗号化されていない RSA または ECDSA の秘密鍵（PEM）を貼り付けて、既存の ACME アカウントを登録します。PKCS#8（BEGIN PRIVATE KEY）、SEC1/X9.62（BEGIN EC PRIVATE KEY）、PKCS#1（BEGIN RSA PRIVATE KEY）の各形式に対応しています。鍵アルゴリズムは自動的に推定されます。",
@@ -1743,6 +1744,7 @@
     "noCasAvailableDesc": "SCEPチャレンジパスワードを設定するには、まず認証局を作成してください",
     "regenerate": "再生成",
     "challengeRegenerated": "チャレンジパスワードが再生成されました",
+    "confirmRegenerateChallenge": "この CA の SCEP チャレンジパスワードを再生成しますか？現在のものは直ちに無効になり、それを設定したすべてのデバイスを更新する必要があります。",
     "noChallengeSet": "チャレンジパスワードが設定されていません",
     "connectionDetails": "接続詳細",
     "supportedOperations": "サポートされている操作",
@@ -1796,7 +1798,8 @@
     "profileUpdated": "SCEPプロファイルを更新しました",
     "profileDeleted": "SCEPプロファイルを削除しました",
     "profileDeleteConfirm": "SCEPプロファイル「{{name}}」を削除しますか？このURL経由で登録するデバイスは拒否されます。",
-    "profileChallengeRegenerated": "チャレンジを再生成しクリップボードにコピーしました"
+    "profileChallengeRegenerated": "チャレンジを再生成しクリップボードにコピーしました",
+    "confirmRegenerateProfileChallenge": "プロファイル「{{name}}」のチャレンジを再生成しますか？現在のものは直ちに無効になり、それを設定したすべてのデバイスを更新する必要があります。"
   },
   "crlOcsp": {
     "subtitle": "{{count}}個のアクティブなCRL",
@@ -1875,6 +1878,7 @@
     "selectResponder": "レスポンダー証明書を選択",
     "noEligibleResponders": "対象の証明書が見つかりません。証明書にはOCSPSigning EKUと秘密鍵が必要です。",
     "removeResponder": "レスポンダーを削除",
+    "removeResponderConfirm": "「{{name}}」の委任 OCSP レスポンダーを削除しますか？応答は直ちに CA 鍵で署名されるようになります。",
     "assignResponder": "レスポンダーを割り当て",
     "crlScheduleTitle": "完全CRLスケジュール",
     "crlScheduleUpdated": "CRLスケジュールを更新しました",
@@ -4568,6 +4572,7 @@
     "approveImported": "要求を承認し、証明書をインポートしました",
     "approveFailed": "要求の承認に失敗しました",
     "denySuccess": "CA で要求を拒否しました",
+    "denyConfirm": "要求 #{{id}} を拒否しますか？拒否は Microsoft CA 上で適用され、要求者は新しい要求を提出する必要があります。",
     "denyFailed": "要求の拒否に失敗しました",
     "testFailed": "接続テスト失敗",
     "templatesFetchHint": "接続をテストして利用可能なテンプレートを自動読み込み",

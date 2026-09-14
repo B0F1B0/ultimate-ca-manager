@@ -1658,6 +1658,7 @@
     "caAccountDefaultSet": "Standard-ACME-CA aktualisiert",
     "caAccountRegistered": "ACME-CA-Konto registriert",
     "confirmDeactivateCaAccount": "Dieses Konto bei der CA deaktivieren (RFC 8555 §7.3.6)? Dies ist endgültig — die CA wird jede weitere Nutzung des Kontos ablehnen und der lokale Eintrag wird bei Erfolg entfernt.",
+    "confirmDeleteCaAccount": "Dieses ACME-CA-Konto löschen? Sein Kontoschlüssel wird aus UCM entfernt und ist nicht wiederherstellbar; eine erneute Registrierung bei der CA wäre nötig.",
     "caAccountDeactivated": "Konto bei der CA deaktiviert und entfernt",
     "importAccountKey": "Vorhandenen Kontoschlüssel importieren (optional)",
     "importAccountKeyHelper": "Fügen Sie einen unverschlüsselten RSA- oder ECDSA-Private-Key (PEM) ein, um ein bestehendes ACME-Konto zu registrieren. Die Formate PKCS#8 (BEGIN PRIVATE KEY), SEC1/X9.62 (BEGIN EC PRIVATE KEY) und PKCS#1 (BEGIN RSA PRIVATE KEY) werden akzeptiert. Der Schlüsselalgorithmus wird automatisch ermittelt.",
@@ -1743,6 +1744,7 @@
     "noCasAvailableDesc": "Zuerst eine CA erstellen",
     "regenerate": "Regenerieren",
     "challengeRegenerated": "Challenge-Passwort regeneriert",
+    "confirmRegenerateChallenge": "Das SCEP-Challenge-Passwort dieser CA neu erzeugen? Das bisherige funktioniert sofort nicht mehr und alle damit konfigurierten Geräte müssen aktualisiert werden.",
     "noChallengeSet": "Kein Challenge-Passwort festgelegt",
     "connectionDetails": "Verbindungsdetails",
     "supportedOperations": "Unterstützte Operationen",
@@ -1796,7 +1798,8 @@
     "profileUpdated": "SCEP-Profil aktualisiert",
     "profileDeleted": "SCEP-Profil gelöscht",
     "profileDeleteConfirm": "SCEP-Profil \"{{name}}\" löschen? Geräte, die sich über dessen URL registrieren, werden abgewiesen.",
-    "profileChallengeRegenerated": "Challenge neu generiert und in die Zwischenablage kopiert"
+    "profileChallengeRegenerated": "Challenge neu generiert und in die Zwischenablage kopiert",
+    "confirmRegenerateProfileChallenge": "Die Challenge des Profils „{{name}}“ neu erzeugen? Die bisherige funktioniert sofort nicht mehr und alle damit konfigurierten Geräte müssen aktualisiert werden."
   },
   "crlOcsp": {
     "subtitle": "{{count}} aktive CRLs",
@@ -1875,6 +1878,7 @@
     "selectResponder": "Responder-Zertifikat auswählen",
     "noEligibleResponders": "Keine berechtigten Zertifikate gefunden. Ein Zertifikat benötigt OCSPSigning-EKU und einen privaten Schlüssel.",
     "removeResponder": "Responder entfernen",
+    "removeResponderConfirm": "Delegierten OCSP-Responder für „{{name}}“ entfernen? Antworten werden ab sofort wieder mit dem CA-Schlüssel signiert.",
     "assignResponder": "Responder zuweisen",
     "crlScheduleTitle": "Vollständiger CRL Zeitplan",
     "crlScheduleUpdated": "CRL Zeitplan aktualisiert",
@@ -4568,6 +4572,7 @@
     "approveImported": "Antrag genehmigt und Zertifikat importiert",
     "approveFailed": "Antrag konnte nicht genehmigt werden",
     "denySuccess": "Antrag auf der CA abgelehnt",
+    "denyConfirm": "Anfrage #{{id}} ablehnen? Die Ablehnung wird auf der Microsoft-CA angewendet und der Antragsteller muss eine neue Anfrage stellen.",
     "denyFailed": "Antrag konnte nicht abgelehnt werden",
     "testFailed": "Verbindungstest fehlgeschlagen",
     "templatesFetchHint": "Testen Sie die Verbindung, um verfügbare Vorlagen automatisch zu laden",

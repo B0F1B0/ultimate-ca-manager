@@ -10,7 +10,7 @@ import { formatDate } from '../lib/utils'
 
 export function MscaCaControlModal({ connection, open, onClose }) {
   const { t } = useTranslation()
-  const { showSuccess, showError } = useNotification()
+  const { showSuccess, showError, showConfirm } = useNotification()
   const [loading, setLoading] = useState(false)
   const [health, setHealth] = useState(null)
   const [pending, setPending] = useState([])
@@ -58,6 +58,13 @@ export function MscaCaControlModal({ connection, open, onClose }) {
   }
 
   const handleDeny = async (rid) => {
+    // Applied on the remote CA, audited there, and not undoable from here.
+    const confirmed = await showConfirm(t('msca.denyConfirm', { id: rid }), {
+      title: t('msca.deny'),
+      confirmText: t('msca.deny'),
+      variant: 'danger',
+    })
+    if (!confirmed) return
     setBusyId(rid)
     try {
       await mscaService.denyRequest(connId, rid)

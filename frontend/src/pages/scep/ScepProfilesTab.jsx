@@ -17,7 +17,7 @@ const EMPTY_FORM = {
 // its own CA, template, challenge and approval policy (issue #228)
 export default function ScepProfilesTab({ profiles, cas, templates, canWrite, onChanged }) {
   const { t } = useTranslation()
-  const { showSuccess, showError } = useNotification()
+  const { showSuccess, showError, showConfirm } = useNotification()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
@@ -103,7 +103,12 @@ export default function ScepProfilesTab({ profiles, cas, templates, canWrite, on
   }
 
   const handleDelete = async (profile) => {
-    if (!window.confirm(t('scep.profileDeleteConfirm', { name: profile.name }))) return
+    const confirmed = await showConfirm(t('scep.profileDeleteConfirm', { name: profile.name }), {
+      title: t('common.confirmDelete'),
+      confirmText: t('common.delete'),
+      variant: 'danger',
+    })
+    if (!confirmed) return
     try {
       await scepService.deleteProfile(profile.id)
       showSuccess(t('scep.profileDeleted'))
@@ -114,6 +119,12 @@ export default function ScepProfilesTab({ profiles, cas, templates, canWrite, on
   }
 
   const handleRegenerate = async (profile) => {
+    // The old challenge dies with the new one; enrolled devices stop enrolling.
+    const confirmed = await showConfirm(
+      t('scep.confirmRegenerateProfileChallenge', { name: profile.name }),
+      { title: t('scep.regenerate'), confirmText: t('scep.regenerate'), variant: 'danger' }
+    )
+    if (!confirmed) return
     try {
       const res = await scepService.regenerateProfileChallenge(profile.id)
       const challenge = res.data?.challenge || res.challenge

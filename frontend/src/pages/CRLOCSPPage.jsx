@@ -118,6 +118,12 @@ export default function CRLOCSPPage() {
   }
 
   const handleRemoveResponder = async () => {
+    // Live OCSP answers change signer the moment this lands.
+    const confirmed = await showConfirm(
+      t('crlOcsp.removeResponderConfirm', { name: selectedCA?.descr || selectedCA?.name || '' }),
+      { title: t('crlOcsp.removeResponder'), confirmText: t('common.remove'), variant: 'danger' }
+    )
+    if (!confirmed) return
     try {
       await crlService.removeOcspResponder(selectedCA.id)
       showSuccess(t('crlOcsp.delegatedResponderRemoved'))
