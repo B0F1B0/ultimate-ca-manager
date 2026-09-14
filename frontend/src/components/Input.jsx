@@ -3,32 +3,21 @@
  * Supports password fields with show/hide toggle and strength indicator
  * Supports credential fields with "already set" indicator
  */
-import { forwardRef, useState, useMemo } from 'react'
+import { forwardRef, useEffect, useMemo, useState } from 'react'
 import { Eye, EyeSlash, CheckCircle } from '@phosphor-icons/react'
 import { cn } from '../lib/utils'
 import { useTranslation } from 'react-i18next'
+import { barsForScore, fetchPasswordStrength, localPasswordStrength } from '../lib/passwordStrength'
 
-// Password strength calculation
-const getPasswordStrength = (password) => {
-  if (!password) return { score: 0, label: '', color: '' }
-  
-  let score = 0
-  if (password.length >= 8) score++
-  if (password.length >= 12) score++
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++
-  if (/\d/.test(password)) score++
-  if (/[^a-zA-Z0-9]/.test(password)) score++
-  
-  const levels = [
-    { labelKey: 'passwordStrength.weak', color: 'bg-accent-danger' },
-    { labelKey: 'passwordStrength.weak', color: 'bg-accent-danger' },
-    { labelKey: 'passwordStrength.fair', color: 'bg-accent-warning' },
-    { labelKey: 'passwordStrength.good', color: 'bg-accent-warning' },
-    { labelKey: 'passwordStrength.strong', color: 'bg-accent-success' },
-    { labelKey: 'passwordStrength.strong', color: 'bg-accent-success' }
-  ]
-  
-  return { score, ...levels[score] }
+// How the meter paints a level. The level itself comes from the server
+// (lib/passwordStrength): the five-property count this used to do read
+// "strong" where the server said "fair", and a meter that overstates is
+// worse than no meter.
+const LEVEL_STYLE = {
+  weak: { labelKey: 'passwordStrength.weak', color: 'bg-accent-danger', text: 'text-accent-danger' },
+  fair: { labelKey: 'passwordStrength.fair', color: 'bg-accent-warning', text: 'text-accent-warning' },
+  good: { labelKey: 'passwordStrength.good', color: 'bg-accent-warning', text: 'text-accent-warning' },
+  strong: { labelKey: 'passwordStrength.strong', color: 'bg-accent-success', text: 'text-accent-success' },
 }
 
 export const Input = forwardRef(function Input({ 
@@ -60,10 +49,37 @@ export const Input = forwardRef(function Input({
     props.onChange?.(e)
   }
   
+  // The server scores the password. The request is debounced and the last
+  // answer wins, so a burst of keystrokes cannot paint an older verdict.
+  const passwordValue = props.value ?? internalValue
+  const wantsStrength = Boolean(isPassword && showStrength)
+  const [strengthResult, setStrengthResult] = useState(null)
+
+  useEffect(() => {
+    if (!wantsStrength || !passwordValue) {
+      setStrengthResult(null)
+      return undefined
+    }
+    let cancelled = false
+    // Show the offline reading straight away so the meter never sits blank,
+    // then replace it with the server's.
+    setStrengthResult((previous) => previous || localPasswordStrength(passwordValue))
+    const timer = setTimeout(() => {
+      fetchPasswordStrength(passwordValue).then((result) => {
+        if (!cancelled) setStrengthResult(result)
+      })
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [wantsStrength, passwordValue])
+
   const strength = useMemo(() => {
-    if (!isPassword || !showStrength) return null
-    return getPasswordStrength(props.value ?? internalValue)
-  }, [isPassword, showStrength, props.value, internalValue])
+    if (!wantsStrength || !strengthResult) return null
+    const style = LEVEL_STYLE[strengthResult.level] || LEVEL_STYLE.weak
+    return { ...style, bars: barsForScore(strengthResult.score) }
+  }, [wantsStrength, strengthResult])
 
   // Determine placeholder for existing secret values
   const effectivePlaceholder = hasExistingValue && isPassword
@@ -142,7 +158,7 @@ export const Input = forwardRef(function Input({
       </div>
       
       {/* Password strength indicator */}
-      {strength && (props.value ?? internalValue) && (
+      {strength && passwordValue && (
         <div className="space-y-1">
           <div className="flex gap-1">
             {[...Array(5)].map((_, i) => (
@@ -150,12 +166,12 @@ export const Input = forwardRef(function Input({
                 key={i}
                 className={cn(
                   "h-1 flex-1 rounded-full transition-colors",
-                  i < strength.score ? strength.color : "bg-border"
+                  i < strength.bars ? strength.color : "bg-border"
                 )}
               />
             ))}
           </div>
-          <p className={cn("text-xs", strength.score >= 4 ? "text-accent-success" : strength.score >= 2 ? "text-accent-warning" : "text-accent-danger")}>
+          <p className={cn("text-xs", strength.text)}>
             {t(strength.labelKey)}
           </p>
         </div>
