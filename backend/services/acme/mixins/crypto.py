@@ -1,9 +1,8 @@
 """Cryptographic utility mixin for ACME service"""
-import json
-import hashlib
-import base64
 import logging
 from typing import Dict, Any
+
+from services.acme.jwk_thumbprint import jwk_thumbprint
 
 logger = logging.getLogger(__name__)
 
@@ -11,39 +10,21 @@ logger = logging.getLogger(__name__)
 class CryptoMixin:
     def _compute_jwk_thumbprint(self, jwk: Dict[str, Any]) -> str:
         """Compute JWK thumbprint per RFC 7638
-        
+
         Args:
             jwk: JSON Web Key
-            
+
         Returns:
             Base64url-encoded SHA-256 thumbprint
+
+        Raises:
+            ValueError: unsupported key type, or a required member missing.
+            Callers that catch it report a malformed key; the proxy wants a
+            None instead and calls jwk_thumbprint_or_none for that.
         """
-        # Extract required fields in lexicographic order
-        if jwk.get("kty") == "RSA":
-            thumbprint_input = {
-                "e": jwk["e"],
-                "kty": jwk["kty"],
-                "n": jwk["n"]
-            }
-        elif jwk.get("kty") == "EC":
-            thumbprint_input = {
-                "crv": jwk["crv"],
-                "kty": jwk["kty"],
-                "x": jwk["x"],
-                "y": jwk["y"]
-            }
-        else:
-            raise ValueError(f"Unsupported key type: {jwk.get('kty')}")
-        
-        # Serialize to JSON (no whitespace)
-        json_str = json.dumps(thumbprint_input, sort_keys=True, separators=(',', ':'))
-        
-        # Compute SHA-256
-        digest = hashlib.sha256(json_str.encode()).digest()
-        
-        # Base64url encode
-        return base64.urlsafe_b64encode(digest).decode().rstrip('=')
-    
+        return jwk_thumbprint(jwk)
+
+
     def _compute_key_authorization(self, token: str, jwk_thumbprint: str) -> str:
         """Compute key authorization for challenges
         

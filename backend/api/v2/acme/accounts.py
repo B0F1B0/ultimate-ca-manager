@@ -1,7 +1,6 @@
 """ACME account management routes"""
 import json
 import base64
-import hashlib
 
 from flask import request
 from models import db, AcmeAccount, AcmeOrder, AcmeAuthorization, AcmeChallenge, SystemConfig
@@ -15,6 +14,7 @@ from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from utils.datetime_utils import utc_isoformat
 from services.acme.acme_client_service import CERT_KEY_TYPES
+from services.acme.jwk_thumbprint import jwk_thumbprint
 
 from . import bp, logger, resolve_acme_account
 
@@ -92,10 +92,6 @@ def create_acme_account():
                 'x': _b64url(numbers.x.to_bytes(byte_len, byteorder='big')),
                 'y': _b64url(numbers.y.to_bytes(byte_len, byteorder='big')),
             }
-            thumbprint_keys = json.dumps(
-                {'crv': jwk_dict['crv'], 'kty': 'EC', 'x': jwk_dict['x'], 'y': jwk_dict['y']},
-                separators=(',', ':'), sort_keys=True
-            )
         else:
             key_size = int(key_type.replace('RSA-', '')) if 'RSA-' in key_type else 2048
             private_key = rsa.generate_private_key(
@@ -109,12 +105,10 @@ def create_acme_account():
                 'e': _b64url(numbers.e.to_bytes(3, byteorder='big')),
                 'n': _b64url(numbers.n.to_bytes(byte_len, byteorder='big')),
             }
-            thumbprint_keys = json.dumps(
-                {'e': jwk_dict['e'], 'kty': 'RSA', 'n': jwk_dict['n']},
-                separators=(',', ':'), sort_keys=True
-            )
 
-        jwk_thumbprint = _b64url(hashlib.sha256(thumbprint_keys.encode()).digest())
+        # The same RFC 7638 canonicalization the ACME service and the proxy
+        # use, so the thumbprint stored here is the one they compare against.
+        thumbprint = jwk_thumbprint(jwk_dict)
 
         # Store the private key in system_config for later use.
         # Encrypted at rest with the master key (no-op if encryption disabled).
@@ -134,7 +128,7 @@ def create_acme_account():
         account = AcmeAccount(
             account_id=account_id,
             jwk=json.dumps(jwk_dict),
-            jwk_thumbprint=jwk_thumbprint,
+            jwk_thumbprint=thumbprint,
             status='valid',
             contact=json.dumps([f'mailto:{email}']),
             terms_of_service_agreed=agree_tos,

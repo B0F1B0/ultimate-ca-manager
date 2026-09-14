@@ -26,6 +26,7 @@ from cryptography.hazmat.primitives.serialization import Encoding
 from models import db, SystemConfig, Certificate, DnsProvider, AcmeClientOrder
 from services.acme.dns_providers import create_provider, get_provider_class
 from services.acme.dns_selfcheck import acme_allow_loopback_upstream
+from services.acme.jwk_thumbprint import jwk_thumbprint
 from utils.safe_requests import create_session
 from utils.acme_csr import extract_domains_from_csr
 from utils.acme_ip import (
@@ -529,37 +530,16 @@ class AcmeClientService:
     # =========================================================================
     
     def _jwk_thumbprint(self, key) -> str:
-        """Calculate JWK thumbprint (RFC 7638) for RSA or EC key"""
-        public = key.public_key()
-        
-        def b64url(data: bytes) -> str:
-            return base64.urlsafe_b64encode(data).rstrip(b'=').decode()
-        
-        if isinstance(key, rsa.RSAPrivateKey):
-            numbers = public.public_numbers()
-            e = b64url(numbers.e.to_bytes(3, byteorder='big'))
-            n_bytes = (numbers.n.bit_length() + 7) // 8
-            n = b64url(numbers.n.to_bytes(n_bytes, byteorder='big'))
-            jwk_json = json.dumps({"e": e, "kty": "RSA", "n": n}, separators=(',', ':'), sort_keys=True)
-        elif isinstance(key, ec.EllipticCurvePrivateKey):
-            numbers = public.public_numbers()
-            curve = key.curve
-            if isinstance(curve, ec.SECP256R1):
-                crv, coord_len = "P-256", 32
-            elif isinstance(curve, ec.SECP384R1):
-                crv, coord_len = "P-384", 48
-            else:
-                raise ValueError(f"Unsupported EC curve: {curve.name}")
-            x_val = b64url(numbers.x.to_bytes(coord_len, byteorder='big'))
-            y_val = b64url(numbers.y.to_bytes(coord_len, byteorder='big'))
-            # RFC 7638: canonical JSON with sorted keys
-            jwk_json = json.dumps({"crv": crv, "kty": "EC", "x": x_val, "y": y_val}, separators=(',', ':'), sort_keys=True)
-        else:
-            raise ValueError(f"Unsupported key type: {type(key)}")
-        
-        thumbprint = hashlib.sha256(jwk_json.encode()).digest()
-        return base64.urlsafe_b64encode(thumbprint).rstrip(b'=').decode()
-    
+        """Calculate JWK thumbprint (RFC 7638) for RSA or EC key
+
+        Takes a key object rather than a JWK dict, which is why it stays here:
+        it has to derive the JWK first. The canonicalization that follows is
+        the shared one, so this cannot drift from the thumbprint the server
+        stored on the account or the one the proxy compares against.
+        """
+        return jwk_thumbprint(self._build_jwk(key))
+
+
     def _build_jwk(self, key) -> dict:
         """Build JWK dict for a key (RFC 7517)"""
         def b64url(data: bytes) -> str:

@@ -8,7 +8,6 @@ Supports:
 """
 from flask import Blueprint, request, jsonify, make_response
 import base64
-import hashlib
 import json
 import logging
 from datetime import datetime
@@ -32,6 +31,7 @@ from services.acme.acme_proxy_account import (
 )
 from services.acme import AcmeService, ari
 from services.acme.identifiers import validate_acme_identifier
+from services.acme.jwk_thumbprint import jwk_thumbprint_or_none
 from utils.acme_public_url import get_acme_public_origin, get_acme_proxy_public_base
 
 logger = logging.getLogger(__name__)
@@ -164,46 +164,15 @@ def _kid_account_thumbprint(protected):
         return None
 
 
-# RFC 7638 §3.2: only the required members, lexicographic order, no whitespace.
-_JWK_THUMBPRINT_MEMBERS = {
-    'RSA': ('e', 'kty', 'n'),
-    'EC': ('crv', 'kty', 'x', 'y'),
-    'OKP': ('crv', 'kty', 'x'),
-}
-
-
-def _rfc7638_thumbprint(jwk):
-    """RFC 7638 JWK thumbprint, computed from the required members only."""
-    members = _JWK_THUMBPRINT_MEMBERS.get(jwk.get('kty'))
-    if not members:
-        return None
-    canonical = json.dumps(
-        {member: jwk[member] for member in members},
-        separators=(',', ':'),
-        sort_keys=True,
-    )
-    return base64.urlsafe_b64encode(
-        hashlib.sha256(canonical.encode()).digest()
-    ).rstrip(b'=').decode()
-
-
 def _jwk_thumbprint(jwk):
     """RFC 7638 thumbprint of a request JWK, or None when not computable.
 
-    Single implementation on purpose: _rfc7638_thumbprint is byte-identical to
-    the AcmeService helper that fills AcmeAccount.jwk_thumbprint for RSA and EC
-    keys, so a value derived from a request header stays comparable with the
-    stored account thumbprint without a second implementation to drift from
-    (and it also covers OKP). Hashing the raw JWK dict (the previous behaviour)
-    diverged as soon as a client sent optional members such as 'alg', 'kid' or
-    'use', which turned a legitimate owner into a thumbprint mismatch.
+    The one implementation lives in services/acme/jwk_thumbprint, so a value
+    derived from a request header stays comparable with the thumbprint the
+    service stored on the account, with nothing to drift from. None rather
+    than an exception because the ownership checks fail closed on it.
     """
-    if not isinstance(jwk, dict):
-        return None
-    try:
-        return _rfc7638_thumbprint(jwk)
-    except (KeyError, TypeError, ValueError):
-        return None
+    return jwk_thumbprint_or_none(jwk)
 
 
 def _requester_identity(jwk=None):
