@@ -52,13 +52,29 @@ export function isCnEmail(cn) {
   return isValidEmail((cn || '').trim())
 }
 
-/** FQDN / wildcard — excludes email and literal IP. */
+// A hostname label, as the backend defines one (utils/san_parse.py):
+// letters, digits, hyphen never at an edge, plus underscore.
+const HOSTNAME_LABEL = /^(?!-)[A-Za-z0-9_-]{1,63}(?<!-)$/
+
+/** Hostname shape — ASCII only, since x509.DNSName refuses a U-label. */
+export function looksLikeHostname(value) {
+  let v = (value || '').trim()
+  if (!v || v.length > 253) return false
+  if (v.startsWith('*.')) v = v.slice(2)
+  if (v.endsWith('.')) v = v.slice(0, -1)
+  if (!v.includes('.')) return false
+  return v.split('.').every((label) => HOSTNAME_LABEL.test(label))
+}
+
+/** FQDN / wildcard — excludes email and literal IP.
+ *  Mirrors backend cn_looks_like_hostname: this used to be `v.includes('.')`,
+ *  which previewed a DNS SAN for `Example, Inc.` that the backend then wrote
+ *  into the certificate verbatim. */
 export function isCnHostname(cn) {
   const v = (cn || '').trim()
   if (!v || isCnEmail(v)) return false
-  if (v.startsWith('*.')) return true
   if (looksLikeIp(v)) return false
-  return v.includes('.')
+  return looksLikeHostname(v)
 }
 
 /** Literal IP suitable for IP SAN when used as CN. */

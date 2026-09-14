@@ -161,16 +161,55 @@ def cn_looks_like_email(cn: str) -> bool:
     return is_valid_san_email((cn or '').strip())
 
 
+# A hostname label as UCM defines one everywhere else it judges a DNS name
+# (see services/acme/identifiers._DNS_LABEL_RE): letters, digits, hyphen never
+# at an edge, plus underscore for the deployments that use it.
+_HOSTNAME_LABEL_RE = re.compile(r'^(?!-)[A-Za-z0-9_-]{1,63}(?<!-)$')
+
+
+def looks_like_hostname(value: str) -> bool:
+    """Whether *value* has the shape of a dNSName UCM can actually emit.
+
+    ASCII only: ``x509.DNSName`` refuses a U-label outright ("DNSName values
+    should be passed as an A-label string"), and UCM converts nothing, so a
+    name like ``café.example.com`` is not a hostname this code can produce.
+    """
+    v = (value or '').strip()
+    if not v or len(v) > 253:
+        return False
+    if v.startswith('*.'):
+        v = v[2:]
+    if v.endswith('.'):
+        v = v[:-1]
+    if '.' not in v:
+        # One label is a short name, not an FQDN; the CN-derived SAN has
+        # always required a dot and this keeps that.
+        return False
+    return all(_HOSTNAME_LABEL_RE.match(label) for label in v.split('.'))
+
+
 def cn_looks_like_hostname(cn: str) -> bool:
-    """FQDN / wildcard hostname — not email, not bare IP."""
+    """FQDN / wildcard hostname — not email, not bare IP.
+
+    This used to be ``'.' in value``, which made the docstring wrong and made
+    ``CN=Example, Inc.`` a hostname: the CN was copied into a DNS SAN and the
+    certificate went out carrying ``DNS:Example, Inc.``, an identity no
+    relying party can match. ``CN=café.example.com`` did not even get that far
+    — ``x509.DNSName`` raised and the request answered 500.
+
+    The rule that wins is the syntactic one, because this decision *grants* an
+    identity. The neighbouring rule in
+    ``services/trust_store/constraints_mixin._DNS_LIKE_CN`` deliberately does
+    not delegate here: it decides whether a CN carries a DNS identity to
+    *check* against a name constraint, and a check must stay inclusive — it
+    treats an IP-shaped CN as a DNSName on purpose, which this must not.
+    """
     value = (cn or '').strip()
     if not value or cn_looks_like_email(value):
         return False
-    if value.startswith('*.'):
-        return True
     if _looks_like_ip(value):
         return False
-    return '.' in value
+    return looks_like_hostname(value)
 
 
 def cn_looks_like_ip(cn: str) -> bool:
