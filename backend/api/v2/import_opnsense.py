@@ -5,6 +5,7 @@ Handles testing connection and importing CAs/Certs from OPNsense
 import base64
 import json
 import logging
+from contextlib import contextmanager
 import requests
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -16,7 +17,8 @@ from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from utils.key_codec import store_pem_bytes
 from utils.safe_requests import create_session
-from utils.ssrf_protection import validate_url_not_cloud_metadata
+from utils.ssrf_protection import (
+    pin_host, validate_url_not_cloud_metadata, validated_addresses)
 from services.audit_service import AuditService
 
 # Setup logging
@@ -204,7 +206,10 @@ def _appliance_base_url(host, port):
     written the way the client will resolve it, and the deny-list is asked
     about the URL that will be requested rather than about a prefix of it.
 
-    Returns (base_url, None) or (None, error response).
+    Returns ((base_url, pin), None) or (None, error response), where `pin`
+    is the host and the addresses it was vetted on: the name is resolved once
+    here, and the connection is made to what was vetted rather than to
+    whatever a second lookup answers.
     """
     from urllib.parse import urlparse
 
@@ -239,17 +244,28 @@ def _appliance_base_url(host, port):
         return None, malformed
 
     try:
-        validate_url_not_cloud_metadata(base_url)
+        pin = validated_addresses(base_url)
     except ValueError as exc:
         logger.warning(f"OPNsense SSRF blocked: {exc}")
         return None, error_response(
             'OPNsense host must not target cloud metadata services or '
             'loopback', 400)
 
-    return base_url, None
+    return (base_url, pin), None
 
 
-def _fetch_rows(session, base_url, api_key, api_secret, resource):
+@contextmanager
+def _pinned(pin):
+    """Hold connections to the addresses the host was vetted on, if any."""
+    if pin is None:
+        yield
+        return
+    host, addresses = pin
+    with pin_host(host, addresses):
+        yield
+
+
+def _fetch_rows(session, base_url, api_key, api_secret, resource, pin=None):
     # Redirects are not followed: the appliance answers JSON on its API, so a
     # 3xx there is not a normal condition, and walking it would read the
     # answer of a host the deny-list never saw as if it were the appliance's
@@ -257,12 +273,16 @@ def _fetch_rows(session, base_url, api_key, api_secret, resource):
     # being sent, because an operator behind a reverse proxy needs to know
     # that is what happened.
     url = f"{base_url}/api/trust/{resource}/search"
-    response = session.get(
-        url,
-        auth=(api_key, api_secret),
-        timeout=10,
-        allow_redirects=False,
-    )
+    # Connected to the addresses the deny-list was shown, not to whatever a
+    # second lookup answers: the name is resolved once, when it is vetted,
+    # and the connection is held to that answer for the length of the call.
+    with _pinned(pin):
+        response = session.get(
+            url,
+            auth=(api_key, api_secret),
+            timeout=10,
+            allow_redirects=False,
+        )
     if response.status_code in (301, 302, 303, 307, 308):
         location = response.headers.get('Location', '(no Location header)')
         raise requests.HTTPError(
@@ -331,16 +351,17 @@ def test_connection():
     
     # Narrow SSRF guard — OPNsense is by design a LAN firewall (RFC1918).
     # Block only cloud metadata + loopback, on the URL actually requested.
-    base_url, refusal = _appliance_base_url(host, port)
+    checked, refusal = _appliance_base_url(host, port)
     if refusal is not None:
         return refusal
+    base_url, pin = checked
     
     try:
         session = create_session(verify_ssl=verify_ssl)
 
         items = []
 
-        ca_rows = _fetch_rows(session, base_url, api_key, api_secret, 'ca')
+        ca_rows = _fetch_rows(session, base_url, api_key, api_secret, 'ca', pin)
         for row in ca_rows:
             item_id = _item_id(row)
             if not item_id:
@@ -357,7 +378,7 @@ def test_connection():
                 "selected": True
             })
 
-        cert_rows = _fetch_rows(session, base_url, api_key, api_secret, 'cert')
+        cert_rows = _fetch_rows(session, base_url, api_key, api_secret, 'cert', pin)
         for row in cert_rows:
             item_id = _item_id(row)
             if not item_id:
@@ -458,9 +479,10 @@ def import_items():
     
     # Narrow SSRF guard — OPNsense is LAN firewall, RFC1918 expected. Asked
     # about the URL that will be requested, port included.
-    base_url, refusal = _appliance_base_url(host, port)
+    checked, refusal = _appliance_base_url(host, port)
     if refusal is not None:
         return refusal
+    base_url, pin = checked
     
     if items is None:
         logger.warning("OpnSense import failed: no items specified")
@@ -478,8 +500,8 @@ def import_items():
     }
     
     try:
-        ca_rows = _fetch_rows(session, base_url, api_key, api_secret, 'ca')
-        cert_rows = _fetch_rows(session, base_url, api_key, api_secret, 'cert')
+        ca_rows = _fetch_rows(session, base_url, api_key, api_secret, 'ca', pin)
+        cert_rows = _fetch_rows(session, base_url, api_key, api_secret, 'cert', pin)
 
         selected_ids = set(items)
         if not selected_ids:

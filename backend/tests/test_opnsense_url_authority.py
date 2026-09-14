@@ -280,7 +280,8 @@ class TestTheDenyListIsAskedAboutTheRequestedUrl:
     Every other test here watches where the request goes, and the request is
     built from the canonical host either way: putting the check back on a
     prefix of the URL leaves them all green while reopening the defect. What
-    has to be pinned is the argument the deny-list receives.
+    has to be pinned is the argument the deny-list receives, which is also
+    what the addresses are resolved from.
     """
 
     @pytest.mark.parametrize('route', ROUTES)
@@ -292,8 +293,9 @@ class TestTheDenyListIsAskedAboutTheRequestedUrl:
 
         def record(url, *args, **kwargs):
             asked.append(url)
+            return ('opnsense.example.test', ['192.0.2.10'])
 
-        monkeypatch.setattr(opnsense, 'validate_url_not_cloud_metadata', record)
+        monkeypatch.setattr(opnsense, 'validated_addresses', record)
 
         auth_client.post(route, json=_payload(host='opnsense.example.test',
                                               port=8443))
@@ -311,8 +313,12 @@ class TestTheDenyListIsAskedAboutTheRequestedUrl:
         import api.v2.import_opnsense as opnsense
 
         asked = []
-        monkeypatch.setattr(opnsense, 'validate_url_not_cloud_metadata',
-                            lambda url, *a, **k: asked.append(url))
+
+        def record(url, *args, **kwargs):
+            asked.append(url)
+            return ('opnsense.example.test', ['192.0.2.10'])
+
+        monkeypatch.setattr(opnsense, 'validated_addresses', record)
 
         unicode_host = 'fa\N{LATIN SMALL LETTER SHARP S}.example.test'
         auth_client.post(route, json=_payload(host=unicode_host, port=8443))
@@ -369,3 +375,48 @@ class TestTheHostIsWrittenWithHostCharacters:
             f'{route} answered {response.status_code} for a host that is not '
             'a string')
         assert attempted == []
+
+
+class TestTheConnectionGoesWhereTheCheckLooked:
+    """The name is resolved once, when it is vetted.
+
+    Validating and then letting the client resolve again leaves a name that
+    answers different addresses in turn free to be checked as one host and
+    reached as another. No race has to be won: the two lookups are separate
+    questions and the second one may simply be answered differently.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_the_addresses_that_were_vetted_are_the_ones_held(
+            self, auth_client, monkeypatch, route):
+        import api.v2.import_opnsense as opnsense
+
+        pinned = {}
+
+        monkeypatch.setattr(
+            opnsense, 'validated_addresses',
+            lambda url, *a, **k: ('opnsense.example.test', ['192.0.2.10']))
+
+        import contextlib
+
+        @contextlib.contextmanager
+        def watch(host, addresses):
+            pinned['host'] = host
+            pinned['addresses'] = addresses
+            yield
+
+        monkeypatch.setattr(opnsense, 'pin_host', watch)
+
+        class Recorder:
+            verify = False
+
+            def get(self, url, **kwargs):
+                raise RuntimeError('no network in tests')
+
+        monkeypatch.setattr(opnsense, 'create_session', lambda **kw: Recorder())
+
+        auth_client.post(route, json=_payload(port=8443))
+
+        assert pinned.get('addresses') == ['192.0.2.10'], (
+            'the request was made without holding the connection to the '
+            f'addresses the check looked at: {pinned}')

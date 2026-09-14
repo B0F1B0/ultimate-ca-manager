@@ -328,6 +328,23 @@ def _resolve_and_validate(url: str, allow_loopback: bool = False) -> tuple:
     return host, chosen
 
 
+def validated_addresses(url: str, allow_loopback: bool = False) -> tuple:
+    """The host and the addresses `url` resolves to, once vetted.
+
+    The three helpers below resolve, vet and pin around a single request, and
+    that is what most callers want. A caller holding its own
+    `requests.Session` cannot use them, and validating on its own leaves the
+    name to be resolved a second time when the connection is made: between
+    the two, a name answering different addresses in turn reaches whatever it
+    likes, with no race to win. This hands back what `pin_host` needs so such
+    a caller can vet once and connect to what was vetted.
+
+    The pin must be entered before the session's first connection: a socket
+    already in its pool was created outside it.
+    """
+    return _resolve_and_validate(url, allow_loopback)
+
+
 def safe_request_post(url, allow_loopback: bool = False, **kwargs):
     """requests.post() with DNS-rebinding protection.
 
