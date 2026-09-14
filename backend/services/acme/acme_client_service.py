@@ -27,6 +27,7 @@ from models import db, SystemConfig, Certificate, DnsProvider, AcmeClientOrder
 from services.acme.dns_providers import create_provider, get_provider_class
 from services.acme.dns_selfcheck import acme_allow_loopback_upstream
 from services.acme.jwk_thumbprint import jwk_thumbprint
+from services.acme import outbound
 from utils.safe_requests import create_session
 from utils.acme_csr import extract_domains_from_csr
 from utils.acme_ip import (
@@ -395,11 +396,9 @@ class AcmeClientService:
     @staticmethod
     def _validate_outbound_acme_url(url: str) -> None:
         """Block loopback/cloud-metadata targets for ACME sub-URLs from directory JSON."""
-        try:
-            ssrf_protection.validate_url_not_cloud_metadata(url, allow_loopback=acme_allow_loopback_upstream())
-        except ValueError as exc:
-            raise ValueError(f'ACME outbound URL blocked: {exc}') from exc
-    
+        outbound.validate_outbound_acme_url(url)
+
+
     def _fetch_directory(self) -> Dict[str, Any]:
         """Fetch ACME directory from server"""
         if self.directory:
@@ -418,35 +417,26 @@ class AcmeClientService:
         return self.directory
     
     def _get_nonce(self) -> str:
-        """Get a fresh nonce from the ACME server.
+        """Get a nonce for the ACME server, reusing a pooled one first.
 
-        The newNonce HEAD is retried with backoff: some ACME CAs (e.g. ZeroSSL)
-        respond slowly/intermittently, and a single transient timeout here would
-        otherwise fail challenge submission, status polling and finalization.
+        Every upstream response carries a fresh Replay-Nonce (RFC 8555 §6.5),
+        so harvesting them removes a HEAD /new-nonce round-trip; a stale pooled
+        value is still covered by the badNonce retry in _post. The HEAD falls
+        back to the shared backoff, on the operator's configured HTTP timeout
+        rather than a hard-coded 30 that ignored it.
         """
+        pooled = outbound.nonce_pool_pop(self.directory_url)
+        if pooled:
+            return pooled
         directory = self._fetch_directory()
-        nonce_url = directory['newNonce']
-        self._validate_outbound_acme_url(nonce_url)
-        last_exc: Optional[Exception] = None
-        for attempt in range(3):
-            try:
-                resp = ssrf_protection.safe_request_head(
-                    nonce_url,
-                    allow_loopback=acme_allow_loopback_upstream(),
-                    timeout=30,
-                    verify=self.verify_ssl,
-                    headers=dict(self.session.headers),
-                )
-                resp.raise_for_status()
-                return resp.headers['Replay-Nonce']
-            except Exception as exc:  # noqa: BLE001
-                last_exc = exc
-                logger.warning(
-                    f"newNonce fetch failed (attempt {attempt + 1}/3): {exc}"
-                )
-                time.sleep(2 * (attempt + 1))
-        raise last_exc  # type: ignore[misc]
-    
+        return outbound.fetch_nonce(
+            directory['newNonce'],
+            timeout=self._http_timeout(),
+            verify=self.verify_ssl,
+            headers=dict(self.session.headers),
+        )
+
+
     # =========================================================================
     # Account Key Management
     # =========================================================================
@@ -592,18 +582,21 @@ class AcmeClientService:
             return r.to_bytes(coord_len, byteorder='big') + s.to_bytes(coord_len, byteorder='big')
         raise ValueError(f"Unsupported key type: {type(key)}")
     
-    def _sign_jws(self, url: str, payload: Any, use_jwk: bool = False) -> Dict[str, str]:
+    def _sign_jws(self, url: str, payload: Any, use_jwk: bool = False,
+                  nonce: Optional[str] = None) -> Dict[str, str]:
         """
         Sign payload as JWS (JSON Web Signature) per RFC 7515.
         Supports RS256, ES256, ES384 based on account key type.
-        
+
         Args:
             url: Target URL (included in protected header)
             payload: Payload to sign (dict or "" for POST-as-GET)
             use_jwk: Include JWK in header (for new account registration)
+            nonce: Nonce to sign with; a fresh one is taken when omitted. The
+                badNonce retry passes the one the server just handed back.
         """
         key = self._get_account_key()
-        nonce = self._get_nonce()
+        nonce = nonce or self._get_nonce()
         alg = self._detect_key_algorithm(key)
         
         # Build protected header
@@ -646,9 +639,31 @@ class AcmeClientService:
         }
     
     def _post(self, url: str, payload: Any, use_jwk: bool = False) -> requests.Response:
-        """POST signed JWS to ACME endpoint"""
+        """POST signed JWS to ACME endpoint, retrying once on badNonce.
+
+        RFC 8555 §6.5: on badNonce the server returns a fresh nonce and the
+        client retries with it. Without the retry a badNonce was terminal here,
+        while the proxy side recovered from the same answer.
+        """
         self._validate_outbound_acme_url(url)
-        jws = self._sign_jws(url, payload, use_jwk=use_jwk)
+        resp = self._sign_and_post(url, payload, use_jwk=use_jwk)
+
+        fresh_nonce = outbound.bad_nonce_retry_value(resp)
+        if fresh_nonce:
+            logger.warning(f"Upstream rejected nonce on {url}, retrying with fresh nonce")
+            resp = self._sign_and_post(url, payload, use_jwk=use_jwk,
+                                       nonce=fresh_nonce)
+        return resp
+
+    def _sign_and_post(self, url: str, payload: Any, use_jwk: bool = False,
+                       nonce: Optional[str] = None) -> requests.Response:
+        """Build a JWS with the given nonce (or a fresh one) and POST it once.
+
+        ``nonce`` is passed only when the retry has one to spend, so the normal
+        path calls _sign_jws exactly as it always did.
+        """
+        jws = self._sign_jws(url, payload, use_jwk=use_jwk,
+                             **({'nonce': nonce} if nonce else {}))
         resp = ssrf_protection.safe_request_post(
             url,
             allow_loopback=acme_allow_loopback_upstream(),
@@ -660,8 +675,16 @@ class AcmeClientService:
             timeout=self._http_timeout(),
             verify=self.verify_ssl,
         )
+        # Harvest the fresh nonce for the next request. HTTP 400 is skipped: a
+        # badNonce error's Replay-Nonce is consumed by the retry above, and
+        # pooling it too would hand the same nonce to two requests.
+        if resp.status_code != 400:
+            outbound.nonce_pool_push(
+                self.directory_url,
+                (getattr(resp, 'headers', None) or {}).get('Replay-Nonce'))
         return resp
-    
+
+
     @staticmethod
     def validate_revocation_reason(reason: int) -> int:
         """Validate an RFC 5280 CRLReason code accepted by ACME."""

@@ -52,6 +52,10 @@ class TestAcmeProxyUpstreamSsrf:
         class _Resp:
             headers = {'Replay-Nonce': 'nonce-xyz'}
 
+            def raise_for_status(self):
+                """The shared newNonce fetch judges the status before the header."""
+                return None
+
         def fake_head(url, **kwargs):
             called['url'] = url
             called['kwargs'] = kwargs

@@ -24,6 +24,7 @@ from models import db, SystemConfig, DnsProvider
 from security.encryption import encrypt_text, decrypt_text
 from utils.datetime_utils import utc_isoformat
 from services.acme.acme_client_service import AcmeClientService
+from services.acme import outbound
 from services.acme.acme_proxy_account import (
     resolve_proxy_account,
     legacy_upstream_directory_url,
@@ -67,8 +68,6 @@ class ProxyChallengeIdentifierError(RuntimeError):
 _DIRECTORY_CACHE_TTL_SEC = 300
 _FINALIZE_CACHE_TTL_SEC = 3600
 _CHALLENGE_ORDER_CACHE_TTL_SEC = 3600
-_NONCE_POOL_MAX = 8
-_NONCE_POOL_TTL_SEC = 60
 _CERT_SCAN_LIMIT = 25
 
 # RFC 8288 link-value: '<uri>' followed by its own ';'-separated parameters.
@@ -90,7 +89,6 @@ def _dns01_txt_value(key_authorization: str) -> str:
 _directory_cache = {}        # upstream directory URL -> (stored_at, directory)
 _finalize_url_cache = {}     # upstream order URL     -> (stored_at, finalize URL)
 _challenge_order_cache = {}  # per-requester challenge key -> (stored_at, (order id, domain))
-_nonce_pool = {}             # upstream directory URL -> [(stored_at, nonce), ...]
 
 
 def _cache_get(store: dict, key: str, ttl: int):
@@ -119,33 +117,10 @@ def _cache_put(store: dict, key: str, value, max_entries: int = 512) -> None:
         store[key] = (time.monotonic(), value)
 
 
-def _nonce_pool_pop(directory_url: str) -> Optional[str]:
-    """Take a single-use pooled nonce (popped under lock: never handed out twice).
-
-    Newest first, and anything older than _NONCE_POOL_TTL_SEC is discarded
-    rather than spent: an expired nonce would cost a badNonce round-trip, which
-    is exactly what the pool exists to avoid.
-    """
-    now = time.monotonic()
-    with _cache_lock:
-        pool = _nonce_pool.get(directory_url)
-        while pool:
-            stored_at, nonce = pool.pop()
-            if now - stored_at <= _NONCE_POOL_TTL_SEC:
-                return nonce
-    return None
-
-
-def _nonce_pool_push(directory_url: str, nonce: Optional[str]) -> None:
-    """Harvest a Replay-Nonce from an upstream response (RFC 8555 §6.5)."""
-    if not nonce or not directory_url:
-        return
-    with _cache_lock:
-        pool = _nonce_pool.setdefault(directory_url, [])
-        if any(entry[1] == nonce for entry in pool):
-            return
-        pool.append((time.monotonic(), nonce))
-        del pool[:-_NONCE_POOL_MAX]
+# The reserve lives in services/acme/outbound, so the client side draws from
+# and feeds the same one; these names stay because callers and tests use them.
+_nonce_pool_pop = outbound.nonce_pool_pop
+_nonce_pool_push = outbound.nonce_pool_push
 
 
 def reset_proxy_caches() -> None:
@@ -161,7 +136,7 @@ def reset_proxy_caches() -> None:
         _directory_cache.clear()
         _finalize_url_cache.clear()
         _challenge_order_cache.clear()
-        _nonce_pool.clear()
+    outbound.reset_nonce_pool()
 
 
 class AcmeProxyService:
@@ -506,15 +481,20 @@ class AcmeProxyService:
 
         Loopback is allowed only when the operator opts in for a colocated
         upstream (see acme_allow_loopback_upstream); metadata stays blocked."""
-        try:
-            ssrf_protection.validate_url_not_cloud_metadata(url, allow_loopback=acme_allow_loopback_upstream())
-        except ValueError as exc:
-            raise ValueError(f'ACME outbound URL blocked: {exc}') from exc
+        outbound.validate_outbound_acme_url(url)
 
     def _http_timeout(self) -> int:
-        if self.account:
-            return self.account.get_http_timeout_sec()
+        """The configured upstream HTTP timeout, without demanding an account.
+
+        ``self.account`` resolves lazily and raises when no CA account is
+        configured, and /directory and /new-nonce answer without one — so this
+        reads the already-resolved account and falls back to the default
+        rather than forcing the resolution and turning those into a 500.
+        """
         from models.acme_client_account import AcmeClientAccount
+        account = self._account
+        if account is not None:
+            return account.get_http_timeout_sec()
         return AcmeClientAccount.DEFAULT_HTTP_TIMEOUT_SEC
 
     def _ensure_directory(self):
@@ -538,7 +518,7 @@ class AcmeProxyService:
             resp = ssrf_protection.safe_request_get(
                 self.upstream_directory_url,
                 allow_loopback=acme_allow_loopback_upstream(),
-                timeout=15,
+                timeout=self._http_timeout(),
                 verify=self.verify_ssl,
             )
             resp.raise_for_status()
@@ -571,15 +551,11 @@ class AcmeProxyService:
         if pooled:
             return pooled
         self._ensure_directory()
-        nonce_url = self.directory['newNonce']
-        self._validate_outbound_acme_url(nonce_url)
-        resp = ssrf_protection.safe_request_head(
-            nonce_url,
-            allow_loopback=acme_allow_loopback_upstream(),
-            timeout=15,
+        return outbound.fetch_nonce(
+            self.directory['newNonce'],
+            timeout=self._http_timeout(),
             verify=self.verify_ssl,
         )
-        return resp.headers['Replay-Nonce']
 
     def _sign_and_post(self, url: str, payload, nonce: str, kid: str = None) -> requests.Response:
         """Build a JWS with the given nonce and POST it once."""
