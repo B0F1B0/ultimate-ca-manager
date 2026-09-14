@@ -51,3 +51,28 @@ describe('runInBatches', () => {
     expect(await runInBatches([1, 2], send)).toBe(original)
   })
 })
+
+describe('runInBatches keeps every list the route answers with', () => {
+  it('merges pending_approval, not just success and failed', async () => {
+    // `POST /csrs/bulk/sign` answers pending_approval when a policy gates the
+    // signature; merging a fixed pair dropped it and the screen said zero.
+    const send = vi.fn(batch => Promise.resolve({
+      data: {
+        success: batch.slice(0, 1),
+        failed: [],
+        pending_approval: batch.slice(1, 3).map(id => ({ id, approval_id: id })),
+      },
+    }))
+    const answer = await runInBatches(ids(250), send)
+    expect(send).toHaveBeenCalledTimes(3)
+    expect(answer.data.pending_approval.length).toBe(6)
+    expect(answer.data.success.length).toBe(3)
+  })
+
+  it('keeps the shape when a batch reports nothing', async () => {
+    const send = vi.fn().mockResolvedValue({ data: {} })
+    const answer = await runInBatches(ids(150), send)
+    expect(answer.data.success).toEqual([])
+    expect(answer.data.failed).toEqual([])
+  })
+})
