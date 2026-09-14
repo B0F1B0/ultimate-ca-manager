@@ -253,11 +253,25 @@ def delete_acme_account(account_id):
 
     account_name = acc.account_id
     try:
-        # Delete related challenges, authorizations, orders first
+        # Delete related challenges, authorizations, orders first.
+        #
+        # By the identifiers the protocol puts in URLs, not by the table's own
+        # keys: `AcmeChallenge.authorization_id` and
+        # `AcmeAuthorization.order_id` hold the RFC 8555 strings, generated
+        # with `secrets.token_urlsafe`, while `authz.id` and `order.id` are
+        # integers. Asking whether a token equals a number deleted nothing on
+        # SQLite, leaving authorizations and challenges pointing at an account
+        # that was gone, and failed outright on PostgreSQL, where there is no
+        # operator comparing text to an integer, so the account was not
+        # deleted at all. The route that removes a single order has always
+        # used the right column (`api/v2/acme/orders.py`).
         for order in acc.orders:
             for authz in order.authorizations:
-                AcmeChallenge.query.filter_by(authorization_id=authz.id).delete()
-            AcmeAuthorization.query.filter_by(order_id=order.id).delete()
+                AcmeChallenge.query.filter_by(
+                    authorization_id=authz.authorization_id).delete(
+                        synchronize_session=False)
+            AcmeAuthorization.query.filter_by(
+                order_id=order.order_id).delete(synchronize_session=False)
         AcmeOrder.query.filter_by(account_id=acc.account_id).delete()
         db.session.delete(acc)
         db.session.commit()
