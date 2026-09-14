@@ -1121,7 +1121,12 @@ export default function SettingsPage() {
       setEmailTestResult({ success: true, message: `${t('settings.testEmailSuccess')} → ${testEmail}` })
       showSuccess(t('messages.success.email.testSent'))
     } catch (error) {
-      const msg = error?.data?.message || error?.data?.error || error.message || t('messages.errors.email.testFailed')
+      // `data.error` is a BOOLEAN in UCM's error bodies (utils/response.py sets
+      // `'error': True`), so it may only be read as text when it really is one —
+      // same guard as apiClient.buildErrorMessage. Without it a body without
+      // `message` yields `true`, which React renders as an empty banner.
+      const backendError = typeof error?.data?.error === 'string' ? error.data.error : null
+      const msg = error?.data?.message || backendError || error.message || t('messages.errors.email.testFailed')
       setEmailTestResult({ success: false, message: msg })
     } finally {
       setEmailTesting(false)
