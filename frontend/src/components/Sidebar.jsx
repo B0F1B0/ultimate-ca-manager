@@ -241,9 +241,13 @@ export function Sidebar({ activePage }) {
   
   // Load expiring count on mount and periodically
   useEffect(() => {
+    // Clearing the interval stops the next poll but not the one already in
+    // flight, whose continuation then writes state on an unmounted sidebar.
+    let cancelled = false
     const loadExpiringCount = async () => {
       try {
         const stats = await certificatesService.getStats()
+        if (cancelled) return
         const expiring = stats?.data?.expiring || 0
         const expired = stats?.data?.expired || 0
         setExpiringCount(expiring + expired)
@@ -251,10 +255,13 @@ export function Sidebar({ activePage }) {
         // Ignore errors
       }
     }
-    
+
     loadExpiringCount()
     const interval = setInterval(loadExpiringCount, 5 * 60 * 1000)
-    return () => clearInterval(interval)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, [])
 
   const handleLogout = async () => {

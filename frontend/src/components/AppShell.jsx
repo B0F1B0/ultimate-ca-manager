@@ -113,16 +113,22 @@ export function AppShell() {
   
   // Check for expiring certificates on mount (once per session)
   useEffect(() => {
+    // Cancelling the timer was not enough: once the 2s delay had elapsed the
+    // request was already in flight, and its continuation raised the expiry
+    // warning after the shell had unmounted — i.e. a toast landing on the
+    // login screen, for a session that had just ended.
+    let cancelled = false
     const checkExpiringCerts = async () => {
       // Check if we already showed the alert this session
       const alreadyShown = sessionStorage.getItem('ucm-expiring-alert-shown')
       if (alreadyShown) return
-      
+
       try {
         const stats = await certificatesService.getStats()
+        if (cancelled) return
         const expiring = stats?.data?.expiring || 0
         const expired = stats?.data?.expired || 0
-        
+
         if (expiring > 0 || expired > 0) {
           sessionStorage.setItem('ucm-expiring-alert-shown', 'true')
           
@@ -141,7 +147,10 @@ export function AppShell() {
     
     // Delay check to let the app settle
     const timer = setTimeout(checkExpiringCerts, 2000)
-    return () => clearTimeout(timer)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
   }, [showWarning, t])
 
   // Close mobile menu on navigation

@@ -54,9 +54,14 @@ export default function EmailTemplateWindow({ onClose }) {
   const previewTimer = useRef(null)
 
   useEffect(() => {
+    // The cleanup used to clear only the debounce timer, so a request still in
+    // flight when the window closed went on to write state and, on failure, to
+    // raise an error toast over whatever the user had moved on to.
+    let cancelled = false
     const load = async () => {
       try {
         const res = await apiClient.get('/settings/email/template')
+        if (cancelled) return
         setHtmlTemplate(res.data.template)
         setTextTemplate(res.data.text_template)
         setDefaultHtml(res.data.default_template)
@@ -68,16 +73,21 @@ export default function EmailTemplateWindow({ onClose }) {
           apiClient.post('/settings/email/template/preview', { template: res.data.template, type: 'html' }),
           apiClient.post('/settings/email/template/preview', { template: res.data.text_template, type: 'text' }),
         ])
+        if (cancelled) return
         setPreviewHtml(htmlPrev.data.html)
         setPreviewText(textPrev.data.text)
       } catch (err) {
+        if (cancelled) return
         showError(err.message)
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     load()
-    return () => { if (previewTimer.current) clearTimeout(previewTimer.current) }
+    return () => {
+      cancelled = true
+      if (previewTimer.current) clearTimeout(previewTimer.current)
+    }
   }, [])
 
   const refreshPreview = useCallback((value, type) => {
