@@ -170,6 +170,15 @@ class ExternalCRLMixin:
         from models import OCSPResponse
         purged = OCSPResponse.query.filter_by(ca_id=ca.id).delete(synchronize_session=False)
 
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        # After the commit: written before it, an audit failure rolled back
+        # the installed CRL and the purge of the cached responses with it,
+        # while the caller was told the CRL was in place.
         from services.audit_service import AuditService
         AuditService.log_ca(
             'install_external_crl', ca,
@@ -178,12 +187,6 @@ class ExternalCRLMixin:
             f"{purged} cached OCSP response(s) invalidated)",
             username=username,
         )
-
-        try:
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-            raise
 
         with _ENTRY_CACHE_GUARD:
             _ENTRY_CACHE.pop(ca.id, None)

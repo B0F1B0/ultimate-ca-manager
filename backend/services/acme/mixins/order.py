@@ -304,21 +304,6 @@ class OrderMixin:
         
         if skip_challenges:
             self._create_challenges(auth, status='valid', validated=utc_now())
-            try:
-                from services.audit_service import AuditService
-                AuditService.log_action(
-                    username='acme',
-                    action='acme_auto_approve',
-                    resource_type='acme_authorization',
-                    resource_id=str(auth.id),
-                    details={
-                        'domain': domain_value,
-                        'account_id': account_id,
-                        'flow': 'pre_authorization',
-                    },
-                )
-            except Exception as audit_exc:
-                logger.warning(f"Audit log for auto_approve failed: {audit_exc}")
         else:
             self._create_challenges(auth, status="pending")
         
@@ -328,6 +313,27 @@ class OrderMixin:
             db.session.rollback()
             logger.error(f"DB commit failed: {e}")
             raise
+
+        if skip_challenges:
+            # Recorded once the authorization is committed. Written before it,
+            # this call decided the outcome: it commits the session it is
+            # given and rolls all of it back when its own entry cannot be
+            # written, so an audit failure undid the authorization and its
+            # challenges, the commit that followed committed nothing, and this
+            # returned an object describing an authorization the client would
+            # then be sent to and never find.
+            from services.audit_service import AuditService
+            AuditService.log_action(
+                username='acme',
+                action='acme_auto_approve',
+                resource_type='acme_authorization',
+                resource_id=str(auth.id),
+                details={
+                    'domain': domain_value,
+                    'account_id': account_id,
+                    'flow': 'pre_authorization',
+                },
+            )
         
         return auth
 

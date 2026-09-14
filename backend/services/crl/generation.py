@@ -242,14 +242,6 @@ class CRLGenerationMixin:
 
         db.session.add(crl_metadata)
 
-        from services.audit_service import AuditService
-        AuditService.log_ca(
-            'generate_crl', ca,
-            f"Generated CRL #{crl_number} for CA {ca.descr} with "
-            f"{entries} revoked certificates",
-            username=username,
-        )
-
         try:
             db.session.commit()
         except Exception as _commit_err:
@@ -259,6 +251,20 @@ class CRLGenerationMixin:
                 exc_info=True,
             )
             raise
+
+        # Recorded once the row is committed. Written before it, this call
+        # decided the outcome: it commits the session it is given and rolls
+        # all of it back when its own entry cannot be written, so an audit
+        # failure undid the CRL's metadata, the commit that followed committed
+        # nothing, and the caller was handed a CRL describing a generation
+        # that left no trace.
+        from services.audit_service import AuditService
+        AuditService.log_ca(
+            'generate_crl', ca,
+            f"Generated CRL #{crl_number} for CA {ca.descr} with "
+            f"{entries} revoked certificates",
+            username=username,
+        )
 
         return crl_metadata
 
@@ -383,19 +389,19 @@ class CRLGenerationMixin:
             )
 
             db.session.add(crl_metadata)
-
-            from services.audit_service import AuditService
-            AuditService.log_ca(
-                'generate_delta_crl', ca,
-                f"Generated delta CRL #{crl_number} (base #{base_crl.crl_number}) "
-                f"with {entries} new revocations",
-                username=username,
-            )
-
             db.session.commit()
         except Exception:
             db.session.rollback()
             raise
+
+        # After the commit, for the reason written in generate_crl above.
+        from services.audit_service import AuditService
+        AuditService.log_ca(
+            'generate_delta_crl', ca,
+            f"Generated delta CRL #{crl_number} (base #{base_crl.crl_number}) "
+            f"with {entries} new revocations",
+            username=username,
+        )
 
         logger.info(
             f"Generated delta CRL #{crl_number} for CA {ca.descr} "
