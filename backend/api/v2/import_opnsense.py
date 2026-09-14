@@ -131,8 +131,15 @@ def _canonical_host(host):
     alone: they are not names, and the converter refuses them.
     """
     import ipaddress
+    import re
 
-    given = (host or '').strip()
+    if not isinstance(host, str):
+        # `_clean` hands back a non-string unchanged, and the caller would
+        # have met an AttributeError and a server error rather than a
+        # refusal naming the field.
+        return None
+
+    given = host.strip()
     if not given:
         return None
 
@@ -160,12 +167,26 @@ def _canonical_host(host):
         return f'[{address}]' if address.version == 6 else str(address)
 
     if bare.isascii():
-        return bare.lower()
-    try:
-        import idna
-        return idna.encode(bare.lower(), strict=True, std3_rules=True).decode()
-    except Exception:
+        canonical = bare.lower()
+    else:
+        try:
+            import idna
+            canonical = idna.encode(bare.lower(), strict=True,
+                                    std3_rules=True).decode()
+        except Exception:
+            return None
+
+    # Letters, digits, hyphens, dots, and the underscore that internal
+    # networks use. Written down rather than left to the resolver: the HTTP
+    # client percent-decodes the authority and `urlparse` does not, so
+    # `a%2eb.example.test` is one name for the check above and another for
+    # the connection. Nothing reachable comes of it today, because the C
+    # library refuses a name outside this set without asking anyone, but the
+    # invariant belongs in the code rather than in whichever resolver the
+    # image happens to ship.
+    if not re.fullmatch(r'[A-Za-z0-9._-]+', canonical):
         return None
+    return canonical
 
 
 def _appliance_base_url(host, port):

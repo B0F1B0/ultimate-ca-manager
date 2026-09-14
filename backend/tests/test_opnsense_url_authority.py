@@ -272,3 +272,100 @@ class TestAnAddressDoesNotCarryAZone:
 
         assert (ipaddress.ip_address('fd00:ec2::254')
                 != ipaddress.ip_address('fd00:ec2::254%251'))
+
+
+class TestTheDenyListIsAskedAboutTheRequestedUrl:
+    """The claim the whole fix rests on, asserted directly.
+
+    Every other test here watches where the request goes, and the request is
+    built from the canonical host either way: putting the check back on a
+    prefix of the URL leaves them all green while reopening the defect. What
+    has to be pinned is the argument the deny-list receives.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_it_receives_the_whole_url_port_included(
+            self, auth_client, monkeypatch, route):
+        import api.v2.import_opnsense as opnsense
+
+        asked = []
+
+        def record(url, *args, **kwargs):
+            asked.append(url)
+
+        monkeypatch.setattr(opnsense, 'validate_url_not_cloud_metadata', record)
+
+        auth_client.post(route, json=_payload(host='opnsense.example.test',
+                                              port=8443))
+
+        assert asked == ['https://opnsense.example.test:8443'], (
+            f'the deny-list was asked about {asked}, not about the address '
+            'that will be requested')
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_it_receives_the_canonical_form_of_the_name(
+            self, auth_client, monkeypatch, route):
+        """And in the form the client resolves, not the one that was typed."""
+        import idna
+
+        import api.v2.import_opnsense as opnsense
+
+        asked = []
+        monkeypatch.setattr(opnsense, 'validate_url_not_cloud_metadata',
+                            lambda url, *a, **k: asked.append(url))
+
+        unicode_host = 'fa\N{LATIN SMALL LETTER SHARP S}.example.test'
+        auth_client.post(route, json=_payload(host=unicode_host, port=8443))
+
+        expected = idna.encode(unicode_host, strict=True,
+                               std3_rules=True).decode()
+        assert asked == [f'https://{expected}:8443'], (
+            f'the deny-list was asked about {asked}; the client will resolve '
+            f'{expected}')
+
+
+class TestTheHostIsWrittenWithHostCharacters:
+    """Held by the code rather than by whichever resolver ships in the image.
+
+    The HTTP client percent-decodes the authority and `urlparse` does not, so
+    `a%2eb.example.test` is one name for the check and another for the
+    connection. The C library refuses such a name locally, which is why
+    nothing reachable came of it, but an invariant that rests on the platform
+    is one nobody can see.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    @pytest.mark.parametrize('host', [
+        'a%2eb.example.test',
+        'a%00b.example.test',
+        'opnsense example.test',
+        'opnsense\texample.test',
+        'opnsense\nexample.test',
+        'opnsense:8443.example.test',
+    ])
+    def test_a_name_outside_the_set_is_refused(self, auth_client, attempted,
+                                               route, host):
+        response = auth_client.post(route, json=_payload(host=host))
+
+        assert response.status_code == 400, (
+            f'{route} accepted host={host!r} and answered '
+            f'{response.status_code}')
+        assert attempted == []
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_an_underscore_is_still_a_host(self, auth_client, attempted,
+                                           route):
+        """Internal networks use them; refusing would break installations."""
+        auth_client.post(route, json=_payload(host='opn_sense.example.test',
+                                              port=8443))
+        assert attempted, f'{route} refused a host with an underscore'
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_a_host_that_is_not_text_is_refused_not_crashed(
+            self, auth_client, attempted, route):
+        response = auth_client.post(route, json=_payload(host={'a': 1}))
+
+        assert response.status_code == 400, (
+            f'{route} answered {response.status_code} for a host that is not '
+            'a string')
+        assert attempted == []
