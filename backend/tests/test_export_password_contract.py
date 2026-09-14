@@ -66,8 +66,27 @@ class TestTheRuleItself:
         assert validate_export_password(12345678) is not None
 
 
+def _jks_available():
+    """`pyjks` ships with the packages, never with requirements.txt.
+
+    It pulls `twofish`, which needs a C toolchain, and UCM exports JKS only
+    (never BKS, the one format that uses it), so the postinst installs it with
+    `--no-deps` instead. A CI runner therefore has no `jks` module, and a test
+    that needs one skips rather than failing, like the rest of the suite does
+    for `certsrv` and `pkilint`.
+    """
+    import importlib.util
+    return importlib.util.find_spec('jks') is not None
+
+
+needs_jks = pytest.mark.skipif(not _jks_available(),
+                               reason='pyjks is installed by the packages, not by requirements.txt')
+
+EXPORT_FORMATS = ['pkcs12', 'pfx', pytest.param('jks', marks=needs_jks)]
+
+
 class TestEveryExportRouteAppliesIt:
-    @pytest.mark.parametrize('fmt', ['pkcs12', 'pfx', 'jks'])
+    @pytest.mark.parametrize('fmt', EXPORT_FORMATS)
     def test_a_certificate_export_refuses_a_short_password(
             self, auth_client, create_cert, fmt):
         cert = create_cert(cn=f'exportpw-{fmt}-short.example.com')
@@ -80,7 +99,7 @@ class TestEveryExportRouteAppliesIt:
             f'{r.status_code}; the dialog has refused under eight for as '
             'long as it has existed, so only a script could get here')
 
-    @pytest.mark.parametrize('fmt', ['pkcs12', 'pfx', 'jks'])
+    @pytest.mark.parametrize('fmt', EXPORT_FORMATS)
     def test_a_certificate_export_accepts_a_good_one(
             self, auth_client, create_cert, fmt):
         cert = create_cert(cn=f'exportpw-{fmt}-good.example.com')
