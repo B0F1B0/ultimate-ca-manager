@@ -831,6 +831,14 @@ def sign_csr(msca_id, csr_id):
                     f"csr_id={csr_id}, ms_request_id={result.get('request_id')}): {imp_err}",
                     exc_info=True,
                 )
+                # Before the audit. `_import_signed_cert` rewrites the CSR row
+                # column by column and commits at the end, so a failure part
+                # way through leaves the row half rewritten in the session,
+                # and `_audit` commits what it is given: recording this
+                # refusal was what saved a record carrying the new
+                # certificate's subject over the old one's, on a call the
+                # operator is told to reconcile by hand.
+                db.session.rollback()
                 _audit('msca.sign', msca,
                        f"template={template} csr_id={csr_id} eobo={bool(enrollee_name or enrollee_upn)} "
                        f"status=issued_import_failed error={imp_err}",

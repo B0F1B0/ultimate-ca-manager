@@ -203,6 +203,12 @@ def update_provider(provider_id):
         return error_response('Invalid provider configuration', 400)
     except Exception as e:
         logger.exception(f"Failed to update HSM provider: {provider_id}")
+        # Before the audit. The service renames the provider before it writes
+        # the configuration, and writing the configuration is what reaches
+        # the key material and can fail; `log_action` commits the session it
+        # is given, so recording this refusal committed the rename on a call
+        # answered 500.
+        db.session.rollback()
         user_id, username = _audit_user()
         AuditService.log_action(
             action='hsm_provider_updated',

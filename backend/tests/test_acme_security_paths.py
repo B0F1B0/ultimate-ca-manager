@@ -7,6 +7,7 @@ import base64 as b64
 import hashlib
 import hmac
 import json
+import uuid
 from datetime import timedelta
 
 from utils.datetime_utils import utc_now
@@ -1359,3 +1360,116 @@ class TestSiblingChallengeDeprovisioning:
         assert payload['status'] == 'valid'
         assert [c['status'] for c in payload['challenges']] == ['valid']
         assert [c['type'] for c in payload['challenges']] == ['dns-01']
+
+
+class TestARefusedRevocationRevokesNothing:
+    """A revocation the server refuses leaves the certificate alone.
+
+    `CertificateService.revoke_certificate` stages the flag, the serial that
+    goes on the CRL and the approval requests the revocation makes moot, and
+    commits them together at the end. On the way it calls
+    `resolve_moot_requests(commit=False)`, which propagates its failures by
+    contract because the caller owns the transaction, so an exception reaches
+    the route with the whole revocation pending.
+
+    The route records the refusal, and `AuditService.log_action` commits the
+    session it is given. That entry was what revoked the certificate and
+    published its serial, while the client was answered "Revocation failed"
+    and went on trusting a certificate the CRL had just listed.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _cleaned_up(self, app):
+        """The row is removed afterwards.
+
+        The suite shares one database per worker and does not roll back
+        between tests, and this row deliberately names an authority that does
+        not exist. Left behind, it reached the migration round-trip in
+        `test_database_admin.py` and failed it there.
+        """
+        yield
+        from models import Certificate, RevokedSerial
+        with app.app_context():
+            RevokedSerial.query.filter_by(
+                caref='revoke-refusal-ca').delete(synchronize_session=False)
+            Certificate.query.filter_by(
+                caref='revoke-refusal-ca').delete(synchronize_session=False)
+            db.session.commit()
+
+    def _a_certificate_and_its_key(self, app):
+        from cryptography import x509
+        from cryptography.x509.oid import NameOID
+        from cryptography.hazmat.primitives import hashes as _hashes
+        from cryptography.hazmat.primitives import serialization as _ser
+        from datetime import datetime, timedelta, timezone
+        from models import Certificate
+
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        name = x509.Name([x509.NameAttribute(
+            NameOID.COMMON_NAME, 'revoke-refusal.example')])
+        now = datetime.now(timezone.utc)
+        cert = (x509.CertificateBuilder()
+                .subject_name(name).issuer_name(name)
+                .public_key(key.public_key())
+                .serial_number(x509.random_serial_number())
+                .not_valid_before(now - timedelta(days=1))
+                .not_valid_after(now + timedelta(days=30))
+                .sign(key, _hashes.SHA256()))
+        der = cert.public_bytes(_ser.Encoding.DER)
+        pem = cert.public_bytes(_ser.Encoding.PEM).decode()
+
+        with app.app_context():
+            row = Certificate(
+                refid=uuid.uuid4().hex[:13],
+                descr='revoke-refusal.example',
+                caref='revoke-refusal-ca',
+                serial_number=format(cert.serial_number, 'x'),
+                crt=b64.b64encode(pem.encode()).decode(),
+                valid_from=now.replace(tzinfo=None) - timedelta(days=1),
+                valid_to=now.replace(tzinfo=None) + timedelta(days=30),
+            )
+            db.session.add(row)
+            db.session.commit()
+            return row.id, key, der
+
+    def test_the_certificate_is_untouched_when_the_route_answers_a_failure(
+            self, app, client, monkeypatch):
+        from models import Certificate
+
+        cert_id, key, der = self._a_certificate_and_its_key(app)
+        _key, jwk = _gen_key_and_jwk()   # shape only; we sign with the cert key
+        pub = key.public_key().public_numbers()
+        jwk = {'kty': 'RSA', 'n': _int_to_b64(pub.n), 'e': _int_to_b64(pub.e)}
+
+        def _propagate(*_args, **_kwargs):
+            raise RuntimeError('approval gate unavailable')
+
+        # Imported inside the function, so the name to replace is the one in
+        # the module it comes from.
+        monkeypatch.setattr(
+            'services.approval_gate.resolve_moot_requests', _propagate)
+
+        path = '/acme/revoke-cert'
+        jws = _build_jws(
+            f'http://localhost{path}',
+            {'certificate': b64.urlsafe_b64encode(der).rstrip(b'=').decode(),
+             'reason': 4},
+            key, jwk=jwk, nonce=_nonce(client))
+        response = _post_jws(client, path, jws)
+
+        assert response.status_code == 500, (
+            f'this revocation was supposed to fail: {response.status_code} '
+            f'{response.data[:200]}')
+
+        with app.app_context():
+            db.session.expire_all()
+            again = db.session.get(Certificate, cert_id)
+            assert not again.revoked, (
+                'the certificate was revoked by the entry recording that the '
+                'revocation had failed, while the client was told it had')
+            from models import RevokedSerial
+            listed = RevokedSerial.query.filter_by(
+                serial_number=again.serial_number).first()
+            assert listed is None, (
+                'the serial reached the revocation list on a revocation the '
+                'server refused')

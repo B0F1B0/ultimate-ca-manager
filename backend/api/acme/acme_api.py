@@ -1849,6 +1849,16 @@ def revoke_cert():
             )
         except Exception as e:
             logger.error(f"ACME revocation failed: {e}")
+            # Before the audit. `revoke_certificate` stages the revocation,
+            # the revoked serial and the approval requests it makes moot, and
+            # commits them in one go at the end; `resolve_moot_requests` is
+            # called with `commit=False` on the way and propagates its
+            # failures by contract, so an exception arrives here with the
+            # whole revocation pending. `_audit_acme` commits the session it
+            # is given, so recording the refusal was what revoked the
+            # certificate and published its serial, while the client was
+            # answered "Revocation failed".
+            db.session.rollback()
             _audit_acme(
                 'acme.cert.revoke',
                 resource_type='certificate',
