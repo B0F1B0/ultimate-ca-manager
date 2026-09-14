@@ -2,38 +2,17 @@
 Request validation decorators.
 """
 
-import functools
 import logging
-from flask import request, g
 
-from utils.response import error_response
+# ``require_json_body`` is defined in utils.decorators, the import path the
+# handlers use. A second copy lived here and gated on ``request.get_json``
+# while that one gated on ``request.json``, which raises on a malformed body:
+# the same request got "Request body must be valid JSON" through one import
+# and the generic "Bad request" through the other. Re-exported so the callers
+# that import it from here keep working.
+from utils.decorators import require_json_body  # noqa: F401
 
 logger = logging.getLogger(__name__)
-
-
-def require_json_body(fn):
-    """
-    Decorator that ensures the request has a valid JSON body.
-
-    Sets g.json_data with the parsed body. Returns HTTP 400 if
-    Content-Type is not application/json or body cannot be parsed.
-
-    Usage:
-        @bp.route('/things', methods=['POST'])
-        @require_auth(['write:things'])
-        @require_json_body
-        def create_thing():
-            data = g.json_data
-            ...
-    """
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        data = request.get_json(silent=True)
-        if data is None:
-            return error_response('Request body must be valid JSON', 400)
-        g.json_data = data
-        return fn(*args, **kwargs)
-    return wrapper
 
 
 def safe_call(fn, *args, **kwargs):

@@ -2,7 +2,7 @@
 Request decorators for UCM API handlers.
 """
 
-from functools import wraps
+import functools
 from flask import request, g
 from utils.response import error_response
 
@@ -13,6 +13,13 @@ def require_json_body(f):
 
     On success, stores the parsed JSON in ``g.json_data`` for the handler to use.
 
+    Parsing goes through ``get_json(silent=True)``: ``request.json`` raises
+    Werkzeug's BadRequest on a malformed body, so the generic 400 handler
+    answered "Bad request" and the message below was never the one a client
+    saw. A body of ``{}`` is valid JSON and reaches the handler -- which is
+    why this cannot replace a route's own ``if not data: ... 400`` guard,
+    since that guard refuses ``{}``.
+
     Usage::
 
         @bp.route('/api/v2/things', methods=['POST'])
@@ -22,10 +29,11 @@ def require_json_body(f):
             data = g.json_data
             ...
     """
-    @wraps(f)
+    @functools.wraps(f)
     def decorated(*args, **kwargs):
-        if not request.is_json or request.json is None:
+        data = request.get_json(silent=True)
+        if data is None:
             return error_response('Request body must be valid JSON', 400)
-        g.json_data = request.json
+        g.json_data = data
         return f(*args, **kwargs)
     return decorated
