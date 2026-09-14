@@ -4,6 +4,7 @@
  */
 
 import { createContext, useContext, useEffect, useRef, useCallback, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -65,35 +66,53 @@ export const ConnectionState = {
 
 const WebSocketContext = createContext(null);
 
-// Event notification handler — maps WS events to notification type + message
-function getEventNotification(payload) {
+/**
+ * Maps a WS event to a notification method + message.
+ *
+ * `t` is the i18next translator, passed in by the provider so this stays a
+ * plain function. Events that already have a `notifications.*` key (present in
+ * all nine locales) go through it; the rest keep their English sentence rather
+ * than inventing keys that would have to be translated nine times.
+ */
+export function getEventNotification(payload, t) {
   const { type, data } = payload;
-  
+
   switch (type) {
     case EventType.CERTIFICATE_ISSUED:
-      return { method: 'showSuccess', msg: `Certificate issued: ${data.cn}` };
+      return { method: 'showSuccess', msg: t('notifications.certificateIssued', { name: data.cn }) };
     case EventType.CERTIFICATE_REVOKED:
-      return { method: 'showWarning', msg: `Certificate revoked: ${data.cn}` };
-    case EventType.CERTIFICATE_EXPIRING:
-      return { method: 'showWarning', msg: `Certificate expiring: ${data.cn} (${data.days_left}d)` };
+      return { method: 'showWarning', msg: t('notifications.certificateRevoked', { name: data.cn }) };
+    case EventType.CERTIFICATE_EXPIRING: {
+      // notifications.certificateExpiring interpolates {{name}} only — it has no
+      // slot for the day count. Rather than drop that (it is the whole point of
+      // the toast) or add a 10th string, append the existing common.daysLeft.
+      const expiring = t('notifications.certificateExpiring', { name: data.cn });
+      return {
+        method: 'showWarning',
+        msg: data.days_left == null
+          ? expiring
+          : `${expiring} (${t('common.daysLeft', { count: data.days_left })})`,
+      };
+    }
     case EventType.CERTIFICATE_RENEWED:
+      // No notifications.* key exists for this event — left in English on purpose.
       return { method: 'showSuccess', msg: `Certificate renewed: ${data.cn}` };
     case EventType.CERTIFICATE_DELETED:
       return { method: 'showInfo', msg: `Certificate deleted: ${data.cn}` };
     case EventType.CA_CREATED:
-      return { method: 'showSuccess', msg: `CA created: ${data.name}` };
+      return { method: 'showSuccess', msg: t('notifications.caCreated', { name: data.name }) };
     case EventType.CA_REVOKED:
-      return { method: 'showError', msg: `CA revoked: ${data.name}` };
+      return { method: 'showError', msg: t('notifications.caRevoked', { name: data.name }) };
     case EventType.CA_UPDATED:
       return { method: 'showInfo', msg: `CA updated: ${data.name}` };
     case EventType.CA_DELETED:
       return { method: 'showInfo', msg: `CA deleted: ${data.name}` };
     case EventType.CRL_REGENERATED:
-      return { method: 'showInfo', msg: `CRL regenerated for ${data.ca_name}` };
+      return { method: 'showInfo', msg: t('notifications.crlRegenerated', { name: data.ca_name }) };
     case EventType.USER_LOGIN:
-      return { method: 'showInfo', msg: `User logged in: ${data.username}` };
+      return { method: 'showInfo', msg: t('notifications.userLoggedIn', { name: data.username }) };
     case EventType.USER_LOGOUT:
-      return { method: 'showInfo', msg: `User logged out: ${data.username}` };
+      return { method: 'showInfo', msg: t('notifications.userLoggedOut', { name: data.username }) };
     case EventType.USER_CREATED:
       return { method: 'showSuccess', msg: `User created: ${data.username}` };
     case EventType.USER_DELETED:
@@ -117,6 +136,7 @@ function getEventNotification(payload) {
  */
 export function WebSocketProvider({ children }) {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const { showSuccess, showError, showWarning, showInfo } = useNotification();
   const socketRef = useRef(null);
   const [connectionState, setConnectionState] = useState(ConnectionState.DISCONNECTED);
@@ -124,6 +144,10 @@ export function WebSocketProvider({ children }) {
   const eventHandlersRef = useRef(new Map());
   const notifyRef = useRef({ showSuccess, showError, showWarning, showInfo });
   notifyRef.current = { showSuccess, showError, showWarning, showInfo };
+  // Same ref trick as notifyRef: `connect` is memoized with an empty dep list,
+  // so the handler must read the *current* translator (language can change).
+  const tRef = useRef(t);
+  tRef.current = t;
   const muteUntilRef = useRef(0);
   
   const connect = useCallback(() => {
@@ -173,7 +197,7 @@ export function WebSocketProvider({ children }) {
       
       // Show themed notification (skip if this tab just triggered the action)
       if (Date.now() < muteUntilRef.current) return;
-      const notif = getEventNotification(payload);
+      const notif = getEventNotification(payload, tRef.current);
       if (notif) {
         notifyRef.current[notif.method]?.(notif.msg);
       }

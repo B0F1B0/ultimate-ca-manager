@@ -41,7 +41,12 @@ export function NotificationProvider({ children }) {
         message,
         title: options.title || 'Confirm',
         confirmText: options.confirmText || 'Confirm',
-        cancelText: options.cancelText || 'Cancel',
+        // Only an OMITTED cancelText gets the default. The render guard below
+        // hides the Cancel button on an explicit `null` (acknowledge-only
+        // dialog), so that null has to survive — which rules out both `||` and
+        // `??`, since each maps null back to 'Cancel'. Every other value is
+        // stored as given, so the existing call sites are untouched.
+        cancelText: options.cancelText === undefined ? 'Cancel' : options.cancelText,
         variant: options.variant || 'primary', // 'primary' | 'danger'
         resolve
       })
