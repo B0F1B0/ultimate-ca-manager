@@ -161,73 +161,14 @@ def _is_caa_failure(error: Any) -> bool:
     return bool(re.search(r'\bcaa\b', text, re.IGNORECASE))
 
 
-# A DNS label: letters, digits, hyphen (never leading/trailing), plus underscore
-# for the deployments that use it. Deliberately excludes ':', '@', '/', '?', '#',
-# '%', '[', ']', '\' and whitespace.
-_DNS_LABEL_RE = re.compile(r'^(?!-)[A-Za-z0-9_-]{1,63}(?<!-)$')
-
-
-def _is_valid_dns_identifier(value: Any) -> bool:
-    """Whether `value` is a syntactically valid RFC 8555 §7.1.4 DNS identifier.
-
-    The 'dns' branch used to validate nothing, so a value carrying a port or
-    userinfo ("169.254.169.254:80", "evil@169.254.169.254") was accepted. Such
-    a value is unresolvable as a hostname — which made the challenge validator's
-    private-address guard pass it — but the HTTP client then re-parses it as a
-    URL authority, strips the port/userinfo and reaches the address behind it.
-    """
-    if not isinstance(value, str) or not value or len(value) > 253:
-        return False
-    if value.startswith('*.'):
-        # Wildcard order: the prefix is stripped later, during authorization
-        # normalization, so it must be tolerated here.
-        value = value[2:]
-    if value.endswith('.'):
-        value = value[:-1]          # tolerate a single trailing root dot
-    if not value:
-        return False
-    return all(_DNS_LABEL_RE.match(label) for label in value.split('.'))
-
-
-def validate_acme_identifier(identifier: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str]]:
-    """Validate a single ACME identifier (RFC 8555 DNS + RFC 8738 IP).
-
-    Normalizes IP identifier values to their canonical form in place.
-
-    Args:
-        identifier: dict with 'type' and 'value' keys
-
-    Returns:
-        Tuple of (is_valid, acme_error_type, detail). When is_valid is True,
-        error_type and detail are None and ``identifier['value']`` may have
-        been rewritten to its canonical form.
-    """
-    if (
-        not isinstance(identifier, dict)
-        or 'type' not in identifier
-        or 'value' not in identifier
-    ):
-        return False, 'malformed', 'Valid identifier required'
-
-    # Support both DNS (RFC 8555) and IP (RFC 8738) identifiers
-    if identifier['type'] not in ('dns', 'ip'):
-        return False, 'unsupportedIdentifier', f'Identifier type {identifier["type"]} not supported'
-
-    # Validate DNS name syntax for DNS identifiers (RFC 8555 §7.1.4)
-    if identifier['type'] == 'dns':
-        if not _is_valid_dns_identifier(identifier['value']):
-            return False, 'malformed', 'Malformed DNS identifier value'
-
-    # Validate IP address format for IP identifiers (RFC 8738)
-    if identifier['type'] == 'ip':
-        from utils.acme_ip import validate_ip_address
-        is_valid, result = validate_ip_address(identifier['value'])
-        if not is_valid:
-            return False, 'malformed', result
-        # Normalize to canonical form
-        identifier['value'] = result
-
-    return True, None, None
+# Identifier syntax is judged in `services/acme/identifiers.py`, which the
+# ACME proxy calls too: it takes the same unauthenticated `identifiers` array
+# and used to forward it unexamined. Re-exported here because this module is
+# where callers and tests have always imported it from.
+from services.acme.identifiers import (  # noqa: E402
+    is_valid_dns_identifier as _is_valid_dns_identifier,
+    validate_acme_identifier,
+)
 
 
 def _identifier_subproblem(

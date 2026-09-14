@@ -1,0 +1,92 @@
+"""What an ACME order may name, judged once for both front doors.
+
+UCM answers ACME on two paths: its own server (`api/acme/acme_api.py`), which
+issues from a local authority, and the proxy (`api/acme/acme_proxy_api.py`),
+which relays to an upstream CA and answers the dns-01 challenge itself. Both
+take an `identifiers` array straight from an unauthenticated client.
+
+The syntax check lived on the server only. On the proxy the value went
+unexamined into `AcmeClientOrder.domains` and into the DNS provider API as a
+record name, and was forwarded verbatim upstream. That is the difference this
+module removes: the rules are here, and both doors call them.
+
+The rules are the server's, unchanged. They are syntax, not policy: a name
+is refused for carrying a port, userinfo, a scheme, a path, whitespace, an
+over-long label or an empty one, never for pointing somewhere private.
+`localhost`, `host-1.internal.lan` and RFC1918 targets stay acceptable at
+order time -- UCM is deployed on LAN and those are the ordinary case. Whether
+a *challenge* may be fetched from a given address is a separate decision, made
+later and with the deliberately permissive helpers in
+`utils/ssrf_protection.py`.
+"""
+
+import re
+from typing import Any, Dict, Optional, Tuple
+
+# A DNS label: letters, digits, hyphen (never leading/trailing), plus underscore
+# for the deployments that use it. Deliberately excludes ':', '@', '/', '?', '#',
+# '%', '[', ']', '\' and whitespace.
+_DNS_LABEL_RE = re.compile(r'^(?!-)[A-Za-z0-9_-]{1,63}(?<!-)$')
+
+
+def is_valid_dns_identifier(value: Any) -> bool:
+    """Whether `value` is a syntactically valid RFC 8555 §7.1.4 DNS identifier.
+
+    The 'dns' branch used to validate nothing, so a value carrying a port or
+    userinfo ("169.254.169.254:80", "evil@169.254.169.254") was accepted. Such
+    a value is unresolvable as a hostname — which made the challenge validator's
+    private-address guard pass it — but the HTTP client then re-parses it as a
+    URL authority, strips the port/userinfo and reaches the address behind it.
+    """
+    if not isinstance(value, str) or not value or len(value) > 253:
+        return False
+    if value.startswith('*.'):
+        # Wildcard order: the prefix is stripped later, during authorization
+        # normalization, so it must be tolerated here.
+        value = value[2:]
+    if value.endswith('.'):
+        value = value[:-1]          # tolerate a single trailing root dot
+    if not value:
+        return False
+    return all(_DNS_LABEL_RE.match(label) for label in value.split('.'))
+
+
+def validate_acme_identifier(identifier: Dict[str, Any]) -> Tuple[bool, Optional[str], Optional[str]]:
+    """Validate a single ACME identifier (RFC 8555 DNS + RFC 8738 IP).
+
+    Normalizes IP identifier values to their canonical form in place.
+
+    Args:
+        identifier: dict with 'type' and 'value' keys
+
+    Returns:
+        Tuple of (is_valid, acme_error_type, detail). When is_valid is True,
+        error_type and detail are None and ``identifier['value']`` may have
+        been rewritten to its canonical form.
+    """
+    if (
+        not isinstance(identifier, dict)
+        or 'type' not in identifier
+        or 'value' not in identifier
+    ):
+        return False, 'malformed', 'Valid identifier required'
+
+    # Support both DNS (RFC 8555) and IP (RFC 8738) identifiers
+    if identifier['type'] not in ('dns', 'ip'):
+        return False, 'unsupportedIdentifier', f'Identifier type {identifier["type"]} not supported'
+
+    # Validate DNS name syntax for DNS identifiers (RFC 8555 §7.1.4)
+    if identifier['type'] == 'dns':
+        if not is_valid_dns_identifier(identifier['value']):
+            return False, 'malformed', 'Malformed DNS identifier value'
+
+    # Validate IP address format for IP identifiers (RFC 8738)
+    if identifier['type'] == 'ip':
+        from utils.acme_ip import validate_ip_address
+        is_valid, result = validate_ip_address(identifier['value'])
+        if not is_valid:
+            return False, 'malformed', result
+        # Normalize to canonical form
+        identifier['value'] = result
+
+    return True, None, None

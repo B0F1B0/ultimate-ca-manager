@@ -31,6 +31,7 @@ from services.acme.acme_proxy_account import (
     resolve_proxy_by_slug,
 )
 from services.acme import AcmeService, ari
+from services.acme.identifiers import validate_acme_identifier
 from utils.acme_public_url import get_acme_public_origin, get_acme_proxy_public_base
 
 logger = logging.getLogger(__name__)
@@ -458,6 +459,17 @@ def new_order(slug=None):
             'IP identifiers are not supported.',
             400,
         )
+
+    # Same syntax rules the ACME server applies to its own new-order. Without
+    # them a value carrying a port, userinfo, a scheme or whitespace went
+    # unexamined into the order, into the DNS provider API as a record name,
+    # and verbatim to the upstream CA. The rules are syntax only, so the names
+    # an on-prem deployment actually uses -- `localhost`, `*.example.com`,
+    # `host-1.internal.lan`, punycode, a trailing root dot -- stay acceptable.
+    for identifier in identifiers:
+        ok, err_type, err_detail = validate_acme_identifier(identifier)
+        if not ok:
+            return proxy_error(err_type, err_detail, 400)
 
     requested_challenge = payload.get('challenge_type') or payload.get('challengeType')
     if requested_challenge and requested_challenge != 'dns-01':
