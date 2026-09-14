@@ -154,7 +154,7 @@ export default function CertificatesPage() {
 
       if (seq !== requestSeq.current) return
       setCertificates(certs)
-      const totalCount = certsRes.meta?.total || certsRes.pagination?.total || certs.length
+      const totalCount = certsRes.meta?.total || certs.length
       setTotal(totalCount)
       // The last row of the last page went away: stay on a page that exists
       const lastPage = Math.max(1, Math.ceil(totalCount / perPage))

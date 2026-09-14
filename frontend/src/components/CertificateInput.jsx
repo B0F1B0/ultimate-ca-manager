@@ -23,6 +23,10 @@ import { apiClient as api, certificatesService } from '../services'
 const ACCEPT_FORMATS = '.pem,.crt,.cer,.key,.csr,.der,.p12,.pfx,.p7b,.p7c'
 const BINARY_EXTS = ['.der', '.p12', '.pfx']
 
+// Server-side cap on /certificates, and the ceiling the dropdown pages up to
+const MANAGED_PER_PAGE = 100
+const MANAGED_MAX_CERTS = 500
+
 const MODES = [
   { key: 'paste', icon: TextAlignLeft, labelKey: 'certInput.modePaste' },
   { key: 'upload', icon: UploadSimple, labelKey: 'certInput.modeUpload' },
@@ -50,14 +54,26 @@ export function CertificateInput({
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef(null)
 
-  // Load managed certificates on demand
+  // Load managed certificates on demand.
+  // /certificates reads page/per_page (100 max) and has no "holds a private
+  // key" filter: `has_key` and `limit` were dropped silently and the list was
+  // the first 20 certificates by subject, so walk the pages and sieve here.
   const loadManagedCerts = useCallback(async () => {
     if (managedCerts) return
     setLoadingCerts(true)
     try {
-      const resp = await certificatesService.getAll({ has_key: requireKey ? true : undefined, limit: 500 })
-      const certs = resp.data || resp || []
-      setManagedCerts(certs)
+      const first = await certificatesService.getAll({ page: 1, per_page: MANAGED_PER_PAGE })
+      let certs = first.data || []
+      const total = Math.min(first.meta?.total ?? certs.length, MANAGED_MAX_CERTS)
+      const pages = Math.ceil(total / MANAGED_PER_PAGE)
+      if (pages > 1) {
+        const rest = await Promise.all(
+          Array.from({ length: pages - 1 }, (_, i) =>
+            certificatesService.getAll({ page: i + 2, per_page: MANAGED_PER_PAGE }))
+        )
+        certs = rest.reduce((acc, r) => acc.concat(r.data || []), certs)
+      }
+      setManagedCerts(requireKey ? certs.filter(c => c.has_private_key) : certs)
     } catch {
       setManagedCerts([])
     } finally {

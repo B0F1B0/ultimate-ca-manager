@@ -132,7 +132,7 @@ export default function SSHCertificatesPage() {
       setCertificates(certsRes.data || [])
       setCas(casRes.data || [])
       setCertStats(statsRes.data?.certificates || { valid: 0, expired: 0, revoked: 0, total: 0 })
-      const totalCount = certsRes.meta?.total || certsRes.pagination?.total || (certsRes.data || []).length
+      const totalCount = certsRes.meta?.total || (certsRes.data || []).length
       setTotal(totalCount)
       // The last row of the last page went away: stay on a page that exists
       const lastPage = Math.max(1, Math.ceil(totalCount / perPage))

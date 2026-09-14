@@ -246,7 +246,7 @@ export default function DashboardPage() {
       const [statsData, casData, certsData, activityData, statusData, trendData] = await Promise.all([
         dashboardService.getStats(),
         dashboardService.getRecentCAs(5),
-        certificatesService.getAll({ limit: 5, sort: 'created_at', order: 'desc' }),
+        certificatesService.getAll({ per_page: 5, sort_by: 'created_at', sort_order: 'desc' }),
         dashboardService.getActivityLog(10),
         dashboardService.getSystemStatus(),
         dashboardService.getCertificateTrend(trendDaysRef.current),
@@ -254,7 +254,9 @@ export default function DashboardPage() {
       
       setStats(statsData.data || {})
       setRecentCAs(casData.data || [])
-      setRecentCerts(certsData.data?.certificates || certsData.data || [])
+      // /certificates answers `data` as a bare array; anything else would
+      // blank the panel on .slice(), so keep the widget renderable
+      setRecentCerts(Array.isArray(certsData.data) ? certsData.data : [])
       setActivityLog(activityData.data?.activity || [])
       setSystemStatus(statusData.data || {})
       setCertificateTrend(trendData.data?.trend || [])
