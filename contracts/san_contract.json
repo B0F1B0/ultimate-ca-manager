@@ -1,0 +1,404 @@
+{
+  "_comment": [
+    "One corpus, two implementations. backend/utils/san_parse.py decides;",
+    "frontend/src/lib/sanValidate.js mirrors it so the browser refuses the",
+    "same values and no others. Every entry below was produced by running",
+    "the backend validators, not written by hand.",
+    "Read by backend/tests/test_san_contract.py and",
+    "frontend/src/lib/__tests__/sanContract.test.js. Add a row here and",
+    "both suites pick it up; if the two sides disagree, both suites fail.",
+    "An empty field is not in the corpus: the page treats it as not filled in yet and says nothing, the server judges it as a value. That is a difference of moment, not of vocabulary."
+  ],
+  "types": {
+    "ip": [
+      {
+        "value": "192.168.1.1",
+        "valid": true
+      },
+      {
+        "value": "10.0.0.1",
+        "valid": true
+      },
+      {
+        "value": "0.0.0.0",
+        "valid": true
+      },
+      {
+        "value": "255.255.255.255",
+        "valid": true
+      },
+      {
+        "value": "8.8.8.8",
+        "valid": true
+      },
+      {
+        "value": "::1",
+        "valid": true
+      },
+      {
+        "value": "2001:db8::1",
+        "valid": true
+      },
+      {
+        "value": "::",
+        "valid": true
+      },
+      {
+        "value": "fe80::1",
+        "valid": true
+      },
+      {
+        "value": "::ffff:192.168.1.1",
+        "valid": true
+      },
+      {
+        "value": "64:ff9b::192.0.2.33",
+        "valid": true
+      },
+      {
+        "value": "FE80::1",
+        "valid": true
+      },
+      {
+        "value": "2001:0db8:0000:0000:0000:0000:0000:0001",
+        "valid": true
+      },
+      {
+        "value": "999.999.999.999",
+        "valid": false
+      },
+      {
+        "value": "256.1.1.1",
+        "valid": false
+      },
+      {
+        "value": "192.168.001.001",
+        "valid": false
+      },
+      {
+        "value": "010.1.1.1",
+        "valid": false
+      },
+      {
+        "value": "1.2.3",
+        "valid": false
+      },
+      {
+        "value": "1.2.3.4.5",
+        "valid": false
+      },
+      {
+        "value": "192.168.1.1/24",
+        "valid": false
+      },
+      {
+        "value": "0x7f.1",
+        "valid": false
+      },
+      {
+        "value": ":::::",
+        "valid": false
+      },
+      {
+        "value": "fffff::1",
+        "valid": false
+      },
+      {
+        "value": "example.com",
+        "valid": false
+      },
+      {
+        "value": "1.2.3.-1",
+        "valid": false
+      },
+      {
+        "value": "12",
+        "valid": false
+      },
+      {
+        "value": "1::2::3",
+        "valid": false
+      },
+      {
+        "value": "2001:db8:::1",
+        "valid": false
+      },
+      {
+        "value": "::ffff:999.1.1.1",
+        "valid": false
+      },
+      {
+        "value": "a.b.c.d",
+        "valid": false
+      },
+      {
+        "value": "fe80::1%eth0",
+        "valid": true
+      },
+      {
+        "value": "::ffff:0:255.255.255.255",
+        "valid": true
+      },
+      {
+        "value": "00::1",
+        "valid": true
+      },
+      {
+        "value": "0:0:0:0:0:ffff:1.2.3.4",
+        "valid": true
+      },
+      {
+        "value": "2001:db8::1:",
+        "valid": false
+      },
+      {
+        "value": ":2001:db8::1",
+        "valid": false
+      }
+    ],
+    "uri": [
+      {
+        "value": "http://example.com",
+        "valid": true
+      },
+      {
+        "value": "https://example.com/path?q=1",
+        "valid": true
+      },
+      {
+        "value": "ftp://x",
+        "valid": true
+      },
+      {
+        "value": "mailto:user@example.com",
+        "valid": true
+      },
+      {
+        "value": "urn:uuid:6e8bc430-1234-5678-9abc-def012345678",
+        "valid": true
+      },
+      {
+        "value": "urn:",
+        "valid": true
+      },
+      {
+        "value": "http:",
+        "valid": true
+      },
+      {
+        "value": "file:///etc/hosts",
+        "valid": true
+      },
+      {
+        "value": "ldap://host/dc=x",
+        "valid": true
+      },
+      {
+        "value": "http://",
+        "valid": true
+      },
+      {
+        "value": "did:example:123",
+        "valid": true
+      },
+      {
+        "value": "javascript:alert(1)",
+        "valid": true
+      },
+      {
+        "value": "https://xn--r8jz45g.jp",
+        "valid": true
+      },
+      {
+        "value": "https://例え.jp",
+        "valid": true
+      },
+      {
+        "value": "not a url",
+        "valid": false
+      },
+      {
+        "value": "/path",
+        "valid": false
+      },
+      {
+        "value": "//example.com",
+        "valid": false
+      },
+      {
+        "value": "example.com",
+        "valid": false
+      },
+      {
+        "value": "1http://x",
+        "valid": false
+      },
+      {
+        "value": "://x",
+        "valid": false
+      },
+      {
+        "value": ":",
+        "valid": false
+      },
+      {
+        "value": "HTTP://EXAMPLE.COM",
+        "valid": true
+      },
+      {
+        "value": "example.com:8080",
+        "valid": true
+      },
+      {
+        "value": "h+t.t-p://x",
+        "valid": true
+      },
+      {
+        "value": "http://a b",
+        "valid": true
+      }
+    ],
+    "email": [
+      {
+        "value": "user@example.com",
+        "valid": true
+      },
+      {
+        "value": "first.last@sub.example.co.uk",
+        "valid": true
+      },
+      {
+        "value": "o'brien!#$%&*+-/=?^_`{|}~@x.io",
+        "valid": true
+      },
+      {
+        "value": "a@b",
+        "valid": true
+      },
+      {
+        "value": "a@b.c",
+        "valid": true
+      },
+      {
+        "value": "no-at-sign",
+        "valid": false
+      },
+      {
+        "value": "@example.com",
+        "valid": false
+      },
+      {
+        "value": "user@",
+        "valid": false
+      },
+      {
+        "value": "user@@example.com",
+        "valid": false
+      },
+      {
+        "value": "user name@example.com",
+        "valid": false
+      },
+      {
+        "value": "user@exa mple.com",
+        "valid": false
+      },
+      {
+        "value": "user@-bad.com",
+        "valid": false
+      },
+      {
+        "value": "user@bad-.com",
+        "valid": false
+      }
+    ],
+    "dns": [
+      {
+        "value": "example.com",
+        "valid": true
+      },
+      {
+        "value": "*.example.com",
+        "valid": true
+      },
+      {
+        "value": "host",
+        "valid": true
+      },
+      {
+        "value": "sub.domain.example.com",
+        "valid": true
+      },
+      {
+        "value": "xn--r8jz45g.jp",
+        "valid": true
+      },
+      {
+        "value": "a.b",
+        "valid": true
+      },
+      {
+        "value": "trailing.dot.",
+        "valid": true
+      },
+      {
+        "value": "UPPER.Example.COM",
+        "valid": true
+      },
+      {
+        "value": "user@example.com",
+        "valid": false
+      },
+      {
+        "value": "https://example.com",
+        "valid": false
+      },
+      {
+        "value": "10.0.0.1",
+        "valid": false
+      },
+      {
+        "value": "::1",
+        "valid": false
+      },
+      {
+        "value": "has space.com",
+        "valid": true
+      },
+      {
+        "value": "double..dot.com",
+        "valid": true
+      }
+    ],
+    "upn": [
+      {
+        "value": "user@example.com",
+        "valid": true
+      },
+      {
+        "value": "user@domain",
+        "valid": true
+      },
+      {
+        "value": "a@b",
+        "valid": true
+      },
+      {
+        "value": "nodomain",
+        "valid": false
+      },
+      {
+        "value": "user@",
+        "valid": false
+      },
+      {
+        "value": "@domain",
+        "valid": false
+      },
+      {
+        "value": "a@b@c",
+        "valid": false
+      }
+    ]
+  }
+}

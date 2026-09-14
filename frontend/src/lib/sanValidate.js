@@ -17,15 +17,61 @@ function normalizeSanType(type) {
   return map[raw.toLowerCase()] || raw.toUpperCase()
 }
 
+// The shape tests these replaced accepted `999.999.999.999` and rejected
+// `::ffff:192.168.1.1`, while the backend parses both properly with
+// `ipaddress.ip_address`. Each mismatch was a dead end rather than a bad
+// message: the IP field took `999.999.999.999` and the server sent it back
+// with "use DNS type", and the DNS field then refused it with "use IP type".
+// The mirror case ran the same loop for a valid IPv4-mapped address that
+// only the server would have accepted. What follows is `ip_address`'s
+// grammar, and contracts/san_contract.json holds the corpus both sides
+// are checked against.
+
 function looksLikeIpv4(v) {
-  return /^(?:\d{1,3}\.){3}\d{1,3}$/.test(v)
+  const parts = v.split('.')
+  if (parts.length !== 4) return false
+  return parts.every((part) => {
+    if (!/^\d{1,3}$/.test(part)) return false
+    // Python has rejected leading zeros since 3.9.5: `010.1.1.1` is not
+    // octal here, it is refused.
+    if (part.length > 1 && part[0] === '0') return false
+    return Number(part) <= 255
+  })
+}
+
+function isHexGroup(group) {
+  return /^[0-9a-fA-F]{1,4}$/.test(group)
 }
 
 function looksLikeIpv6(v) {
-  // IPv6 must contain at least one ':' and no scheme separator.
-  // Exclude URIs (e.g. https://host) which also contain ':'.
-  if (v.includes('://')) return false
-  return /^[0-9a-fA-F:]+$/.test(v) && v.includes(':')
+  if (!v.includes(':')) return false
+
+  // A zone index (`fe80::1%eth0`) is part of the address for `ip_address`.
+  const zoneAt = v.indexOf('%')
+  let s = zoneAt === -1 ? v : v.slice(0, zoneAt)
+  if (zoneAt !== -1 && !s.includes(':')) return false
+  if (zoneAt !== -1 && v.slice(zoneAt + 1) === '') return false
+
+  // A trailing dotted quad stands for the last two groups.
+  const lastColon = s.lastIndexOf(':')
+  const tailPiece = s.slice(lastColon + 1)
+  if (tailPiece.includes('.')) {
+    if (!looksLikeIpv4(tailPiece)) return false
+    s = `${s.slice(0, lastColon + 1)}0:0`
+  } else if (s.includes('.')) {
+    return false
+  }
+
+  const halves = s.split('::')
+  if (halves.length > 2) return false
+  const compressed = halves.length === 2
+  const head = halves[0] === '' ? [] : halves[0].split(':')
+  const tail = !compressed || halves[1] === '' ? [] : halves[1].split(':')
+  if (!head.every(isHexGroup) || !tail.every(isHexGroup)) return false
+
+  const groups = head.length + tail.length
+  // `::` stands for one group at least, so a compressed address is short.
+  return compressed ? groups <= 7 : groups === 8
 }
 
 function looksLikeIp(v) {
@@ -38,8 +84,11 @@ function isValidEmail(v) {
 
 function isValidUri(v) {
   // Backend (utils/san_parse.py) accepts any RFC 3986 scheme via urlparse,
-  // including authority-less URIs (urn:, mailto:, did:) — mirror that here.
-  return /^[a-zA-Z][a-zA-Z0-9+.-]*:.+/.test(v)
+  // including authority-less URIs (urn:, mailto:, did:). It requires a
+  // scheme and nothing after the colon — RFC 3986 allows an empty path —
+  // so `urn:` and `mailto:` are addresses the server takes and the `.+`
+  // this used to carry refused before the request left the browser.
+  return /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(v)
 }
 
 function isValidUpn(v) {

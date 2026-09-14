@@ -88,6 +88,9 @@ uninstall.sh
 upgrade.sh
 scripts/
 
+# Test corpora shared by the two suites (not needed in container)
+contracts/
+
 # CI/CD
 .github/
 .gitlab-ci.yml
