@@ -91,8 +91,9 @@ def set_eab_required():
             value='true' if value else 'false',
             description='Require External Account Binding for new ACME account registration'
         ))
-    if not safe_commit(logger, "Failed to update setting"):
-        return error_response('Failed to update setting', 500)
+    ok, err = safe_commit(logger, "Failed to update setting")
+    if not ok:
+        return err
 
     AuditService.log_action(
         action='acme.eab_required.update',
@@ -171,8 +172,9 @@ def create_eab_credential():
         allowed_domains=json.dumps(allowed_domains),
     )
     db.session.add(cred)
-    if not safe_commit(logger, "Failed to create EAB credential"):
-        return error_response('Failed to create EAB credential', 500)
+    ok, err = safe_commit(logger, "Failed to create EAB credential")
+    if not ok:
+        return err
 
     AuditService.log_action(
         action='acme.eab_credential.create',
@@ -217,8 +219,9 @@ def patch_eab_credential(cred_id):
             allowed_domains if allowed_domains is not None else []
         )
 
-    if not safe_commit(logger, "Failed to update EAB credential"):
-        return error_response('Failed to update EAB credential', 500)
+    ok, err = safe_commit(logger, "Failed to update EAB credential")
+    if not ok:
+        return err
 
     AuditService.log_action(
         action='acme.eab_credential.update',
@@ -248,8 +251,9 @@ def revoke_eab_credential(cred_id):
         # Permanent delete for already-revoked
         kid = cred.kid
         db.session.delete(cred)
-        if not safe_commit(logger, "Failed to delete EAB credential"):
-            return error_response('Failed to delete EAB credential', 500)
+        ok, err = safe_commit(logger, "Failed to delete EAB credential")
+        if not ok:
+            return err
         AuditService.log_action(
             action='acme.eab_credential.deleted',
             resource_type='acme_eab_credential',
@@ -262,8 +266,9 @@ def revoke_eab_credential(cred_id):
         # Permanent delete for used credentials
         kid = cred.kid
         db.session.delete(cred)
-        if not safe_commit(logger, "Failed to delete EAB credential"):
-            return error_response('Failed to delete EAB credential', 500)
+        ok, err = safe_commit(logger, "Failed to delete EAB credential")
+        if not ok:
+            return err
         AuditService.log_action(
             action='acme.eab_credential.deleted',
             resource_type='acme_eab_credential',
@@ -276,8 +281,9 @@ def revoke_eab_credential(cred_id):
     cred.status = 'revoked'
     cred.revoked_at = _utc_now()
     cred.revoked_by_user_id = user_id
-    if not safe_commit(logger, "Failed to revoke EAB credential"):
-        return error_response('Failed to revoke EAB credential', 500)
+    ok, err = safe_commit(logger, "Failed to revoke EAB credential")
+    if not ok:
+        return err
 
     AuditService.log_action(
         action='acme.eab_credential.revoke',

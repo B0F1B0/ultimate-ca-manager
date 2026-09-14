@@ -232,8 +232,9 @@ def create_user():
     user.set_password(data['password'])
 
     db.session.add(user)
-    if not safe_commit(logger, "Failed to create user"):
-        return error_response('Failed to create user', 500)
+    ok, err = safe_commit(logger, "Failed to create user")
+    if not ok:
+        return err
 
     AuditService.log_action(
         action='user_create',
@@ -501,7 +502,8 @@ def bulk_delete_users():
             logger.error(f"Failed to delete user {user_id}: {e}", exc_info=True)
             results['failed'].append({'id': user_id, 'error': 'Deletion failed'})
             continue
-        if not safe_commit(logger, f"Delete user {user_id}"):
+        ok, _err = safe_commit(logger, f"Delete user {user_id}")
+        if not ok:
             results['failed'].append({'id': user_id, 'error': 'Deletion failed'})
             continue
         total_sessions_invalidated += sessions_deleted
