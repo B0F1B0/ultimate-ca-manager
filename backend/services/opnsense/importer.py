@@ -11,6 +11,7 @@ from typing import Dict, List
 
 from models import db, CA, Certificate
 from services.file_regen_service import mirror_private_key
+from utils.key_codec import store_pem_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,11 @@ class ImportMixin:
                     refid=refid,
                     descr=ca_data.get('descr', 'Imported from OPNsense'),
                     crt=ca_data.get('crt', ''),
-                    prv=ca_data.get('prv'),
+                    # store_pem_bytes, like the /api/v2/import/opnsense route:
+                    # this one assigned the row's base64 PEM straight to the
+                    # column, so the same appliance key landed encrypted through
+                    # one importer and in the clear through the other.
+                    prv=store_pem_bytes(ca_data['prv']) if ca_data.get('prv') else None,
                     caref=None,
                     serial=int(ca_data.get('serial', 0)),
                     subject=ca_data.get('subject', ''),
@@ -186,7 +191,7 @@ class ImportMixin:
                     caref=caref,
                     descr=cert_data.get('descr', 'Imported from OPNsense'),
                     crt=cert_data.get('crt', ''),
-                    prv=cert_data.get('prv'),
+                    prv=store_pem_bytes(cert_data['prv']) if cert_data.get('prv') else None,
                     cert_type=cert_data.get('type', 'server_cert'),
                     subject=cert_data.get('subject', ''),
                     issuer=cert_data.get('issuer', ''),
