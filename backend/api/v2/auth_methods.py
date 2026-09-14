@@ -205,7 +205,17 @@ def login_password():
     if not username:
         return error_response('Username and password required', 400)
 
-    # Find user
+    # Find user.
+    #
+    # "not found" and "found but deactivated" deliberately give the same
+    # answer, and give it BEFORE the password is checked: at this point the
+    # caller has proved nothing, so telling the two apart would let anyone
+    # enumerate accounts. The LDAP door says more — "This account has been
+    # disabled", 403 — because it only reaches that check after the directory
+    # accepted the user's own bind, so the caller has already proved the
+    # password. The two messages are not a duplication to reconcile: they
+    # answer at different points and must keep saying different things.
+    # tests/test_auth_failure_messages.py pins both sides.
     user = User.query.filter_by(username=username).first()
 
     if not user or not user.active:

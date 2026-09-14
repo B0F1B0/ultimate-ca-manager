@@ -29,6 +29,20 @@ def ldap_login():
     """
     Direct LDAP authentication.
     Unlike OAuth2/SAML, LDAP authenticates with username/password directly.
+
+    On refusals this door says more than the password door, on purpose. Every
+    message below that names a reason — the account disabled in the directory,
+    the account disabled locally, membership of a required group — is returned
+    only after ``_ldap_authenticate_user`` has bound as the user with the
+    password supplied, so the caller has already proved it. Before that point
+    the answers match the password door's exactly: "Invalid credentials", 401,
+    whether the name exists in the directory or not.
+
+    Do not "align" these on the generic message: the operator is then left
+    guessing why a correct password is refused, which is what the reason codes
+    were added for. Do not move them earlier either: pre-bind, they would
+    become an account oracle. tests/test_auth_failure_messages.py pins the
+    wording of both doors and the order the reasons are decided in.
     """
 
     data = request.get_json()
