@@ -31,7 +31,7 @@ export function Textarea({
       
       <textarea
         className={cn(
-          "w-full px-2.5 py-1.5 bg-tertiary-op80 border rounded-md text-sm text-text-primary placeholder-text-secondary-op60",
+          "w-full px-2.5 py-1.5 bg-tertiary-op80 border rounded-md text-sm text-text-primary placeholder-secondary-op60",
           "focus:outline-none focus:ring-2 focus:ring-accent-primary-op50 focus:border-accent-primary focus:bg-bg-tertiary",
           "disabled:opacity-50 disabled:cursor-not-allowed",
           "transition-all duration-200 resize-y",
