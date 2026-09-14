@@ -7,6 +7,7 @@ from collections import Counter
 from models import Certificate, CA, AuditLog
 from services.compliance_service import calculate_compliance_score
 from utils.datetime_utils import utc_now
+from utils.days_remaining import days_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ def collect_report_data():
             revoked.append(cert)
 
         if cert.valid_to and not cert.revoked:
-            days_left = (cert.valid_to - now).days
+            days_left = days_remaining(cert.valid_to, now)
             if 0 < days_left <= 30:
                 expiring_30.append(cert)
             if 0 < days_left <= 7:

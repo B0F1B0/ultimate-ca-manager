@@ -20,7 +20,7 @@ from models import db, User, Certificate, CA
 from services.audit_service import AuditService
 from utils.key_codec import load_pem_bytes
 from utils.validity import MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS
-from services.mtls_enrollment import parse_validity_days
+from services.mtls_enrollment import parse_validity_days, remove_enrolment
 
 logger = logging.getLogger(__name__)
 
@@ -245,10 +245,10 @@ def delete_user_mtls_certificate(user_id, cert_id):
         return error_response('Certificate not found', 404)
 
     cert_name = auth_cert.name or f'Certificate #{cert_id}'
-    db.session.delete(auth_cert)
-    ok, _err = safe_commit(logger, "Failed to delete mTLS certificate")
-    if not ok:
-        return _err
+    removed, failure = remove_enrolment(
+        auth_cert, username=getattr(g.current_user, 'username', 'system'))
+    if not removed:
+        return failure
 
     AuditService.log_action(
         action='admin_mtls_delete',

@@ -25,6 +25,7 @@ from utils.cert_status import (
 from models.ssh import SSHCertificateAuthority, SSHCertificate
 from sqlalchemy import text
 from utils.datetime_utils import utc_now, utc_isoformat, to_naive_utc
+from utils.days_remaining import days_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -614,7 +615,7 @@ def get_system_status():
                 dt = to_naive_utc(
                     datetime.fromisoformat(signer['not_after'])
                 ) if signer.get('not_after') else None
-                days_left = (dt - utc_now()).days if dt else None
+                days_left = days_remaining(dt)
                 if days_left is not None and days_left <= TSA_SIGNER_WARN_DAYS:
                     status['tsa'] = {
                         'status': 'warning',

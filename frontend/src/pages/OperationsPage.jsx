@@ -655,7 +655,7 @@ export default function OperationsPage() {
         )}
       </div>
     )
-  }, [resourceConfig, selectedIds, bulkResourceType, isAdmin, t])
+  }, [resourceConfig, selectedIds, bulkResourceType, t])
 
   // Confirm modal content
   const getConfirmMessage = () => {

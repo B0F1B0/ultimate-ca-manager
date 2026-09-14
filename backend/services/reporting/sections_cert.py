@@ -2,6 +2,7 @@
 from .report_document import UCMReport
 from .formatters import C
 from utils.datetime_utils import utc_now
+from utils.days_remaining import days_remaining
 
 
 def _add_executive_summary(pdf, data):
@@ -214,7 +215,7 @@ def _add_expiry_section(pdf, data):
     pdf.table_header(widths, headers)
 
     for i, cert in enumerate(sorted(data['expiring_30'], key=lambda c: c.valid_to or now)[:20]):
-        days_left = (cert.valid_to - now).days if cert.valid_to else 0
+        days_left = days_remaining(cert.valid_to, now)
         name = (cert.descr or cert.subject_cn or 'N/A')[:30]
         issuer = (cert.issuer or 'N/A')[:22]
         expires = cert.valid_to.strftime('%Y-%m-%d') if cert.valid_to else 'N/A'

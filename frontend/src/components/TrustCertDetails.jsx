@@ -69,8 +69,9 @@ export function TrustCertDetails({
   const getStatus = () => {
     if (cert.valid_to) {
       const remaining = computeDaysRemaining(cert.valid_to)
-      if (remaining <= 0) return 'expired'
-      if (remaining <= 30) return 'expiring'
+      // null means the date could not be read, not that it has passed.
+      if (remaining !== null && remaining <= 0) return 'expired'
+      if (remaining !== null && remaining <= 30) return 'expiring'
     }
     return 'valid'
   }

@@ -73,7 +73,7 @@ import DiscoveryPage from '../DiscoveryPage'
 
 // Verbatim from backend/auth/permissions.py.
 const OPERATOR_WRITE_CERTIFICATES = [
-  'read:certificates', 'write:certificates', 'delete:certificates',
+  'read:certificates', 'write:certificates',
   'read:cas', 'write:cas', 'read:templates',
 ]
 

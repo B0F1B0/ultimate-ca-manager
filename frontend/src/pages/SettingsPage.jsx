@@ -1156,7 +1156,7 @@ export default function SettingsPage() {
         if (settled) return
         settled = true
         window.removeEventListener('message', handler)
-        try { bc && bc.close() } catch (error) { reportSilentFailure('finish', error) }
+        try { bc && bc.close() } catch { /* the channel is already gone */ }
         if (ok) {
           showSuccess(t('settings.smtpOauthSuccess'))
           setOauthDirty(false)

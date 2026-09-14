@@ -79,7 +79,7 @@ class NotificationSchedulerMixin:
         expiring = []
         for crl in crls:
             if NotificationConfigMixin.should_send(CRL_EXPIRING, 'crl', str(crl.id)):
-                days_remaining = (crl.next_update - utc_now()).days
+                days_remaining = compute_days_remaining(crl.next_update)
                 expiring.append({
                     'crl': crl,
                     'days_remaining': days_remaining

@@ -12,6 +12,7 @@ from models import db, Certificate, CA, User, AuditLog, SystemConfig
 from services.email_service import EmailService
 import logging
 from utils.datetime_utils import utc_now, utc_isoformat
+from utils.days_remaining import days_remaining as compute_days_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -153,14 +154,14 @@ class ReportService:
         
         items = []
         for cert in certs:
-            days_remaining = (cert.valid_to - now).days if cert.valid_to else None
+            days_left = compute_days_remaining(cert.valid_to, now)
             items.append({
                 'id': cert.id,
                 'common_name': cert.common_name,
                 'serial_number': cert.serial_number,
                 'issuer': cert.issuer,
                 'valid_to': cert.valid_to,
-                'days_remaining': days_remaining,
+                'days_remaining': days_left,
                 'source': cert.source,
             })
         

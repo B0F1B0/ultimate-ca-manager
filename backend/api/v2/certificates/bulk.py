@@ -34,11 +34,10 @@ logger = logging.getLogger(__name__)
 def bulk_revoke_certificates():
     """Bulk revoke certificates"""
 
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
     data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
-
-    ids = data['ids']
     reason = normalize_revocation_reason(data.get('reason', 'unspecified'))
     if reason is None:
         return error_response(invalid_reason_message(data.get('reason')), 400)
@@ -93,11 +92,10 @@ def bulk_revoke_certificates():
 def bulk_renew_certificates():
     """Bulk renew certificates"""
 
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
     data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
-
-    ids = data['ids']
     results = {'success': [], 'failed': []}
     # CAs whose CRL must be regenerated once the loop finishes — every
     # renewal records the superseded serial in revoked_serials, and that
@@ -224,13 +222,14 @@ def bulk_delete_certificates():
 def bulk_export_certificates():
     """Export selected certificates"""
 
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
     data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
 
     export_format = data.get('format', 'pem').lower()
     certs = issued_certificates(
-        Certificate.query.filter(Certificate.id.in_(data['ids']))
+        Certificate.query.filter(Certificate.id.in_(ids))
     ).all()
 
     if not certs:

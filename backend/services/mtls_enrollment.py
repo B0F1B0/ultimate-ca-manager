@@ -10,6 +10,7 @@ account routes and the user-certificates routes so the rule cannot drift.
 
 import base64
 import hashlib
+import logging
 from typing import Optional, Tuple
 
 from cryptography import x509
@@ -18,6 +19,8 @@ from cryptography.hazmat.primitives import serialization
 
 from models import CA, Certificate
 from utils.serial_format import serial_variants
+
+logger = logging.getLogger(__name__)
 
 
 def normalized_fingerprint(value) -> Optional[Tuple[str, str]]:
@@ -133,3 +136,36 @@ def certificate_row_for(auth_cert) -> Optional[Certificate]:
                 return row
         return None
     return None
+
+
+def remove_enrolment(auth_cert, username: str = 'system'):
+    """Delete an enrolment and the certificate it names.
+
+    Returns ``(True, None)`` or ``(False, response)``. Four routes deleted
+    the ``AuthCertificate`` row on their own, which left the certificate's
+    files on disk and the foreign keys of other tables pointing at a row
+    that was gone: PostgreSQL refuses that outright.
+    """
+    from models import db
+    from services.cert_service import CertificateService
+    from utils.db_transaction import safe_commit
+    from utils.response import error_response
+
+    certificate = certificate_row_for(auth_cert)
+    certificate_id = certificate.id if certificate else None
+
+    # The enrolment goes first: it is what mTLS authenticates against.
+    db.session.delete(auth_cert)
+    committed, failure = safe_commit(
+        logger, 'Failed to delete the certificate enrolment')
+    if not committed:
+        return False, failure
+
+    if certificate_id and not CertificateService.delete_certificate(
+            certificate_id, username=username):
+        # The access is withdrawn either way; saying it all worked would put
+        # a success in the ledger for a certificate that is still there.
+        return False, error_response(
+            'The enrolment was removed but its certificate could not be '
+            'deleted; it is still listed under Certificates', 500)
+    return True, None

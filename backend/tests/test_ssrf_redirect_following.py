@@ -16,6 +16,10 @@ class _Answer:
         self.status_code = status_code
         self.headers = {'Location': location} if location else {}
         self.url = url
+        self.closed = False
+
+    def close(self):
+        self.closed = True
 
 
 @pytest.fixture()
@@ -30,7 +34,7 @@ def wire(monkeypatch):
         hops.append((url, kwargs))
         return answers.get(url, _Answer())
 
-    for method in ('get', 'post', 'head'):
+    for method in ('get', 'post', 'head', 'put'):
         monkeypatch.setattr(requests, method,
                             lambda url, _m=method, **kw: _send(url, method=_m, **kw))
 
@@ -67,8 +71,11 @@ class TestEveryHopIsChecked:
         assert wire['vetted'][-1] == 'https://93.184.216.34/elsewhere'
 
     def test_a_redirect_loop_is_cut(self, wire):
+        import requests
         wire['answers'][FIRST] = _Answer(302, location=FIRST)
-        with pytest.raises(ValueError, match='Too many redirects'):
+        # The same exception requests raises, so the callers that already
+        # catch RequestException keep reporting it as a network failure.
+        with pytest.raises(requests.TooManyRedirects):
             ssrf_protection.safe_request_get(FIRST)
         assert len(wire['hops']) == ssrf_protection.MAX_REDIRECTS + 1
 
@@ -104,3 +111,58 @@ class TestTheSemanticsFollowRequests:
         ssrf_protection.safe_request_get(FIRST)
         for _url, kwargs in wire['hops']:
             assert kwargs['allow_redirects'] is False
+
+
+class TestCredentialsDoNotFollowTheHop:
+    """`requests.Session.rebuild_auth` drops them; this must too."""
+
+    def test_authorization_is_dropped_when_the_origin_changes(self, wire):
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(
+            FIRST, headers={'Authorization': 'Bearer operator-token',
+                            'X-UCM-Signature': 'sha256=abc'})
+        _first, second = wire['hops']
+        assert 'Authorization' not in second[1]['headers']
+        # Only the credentials go: the rest of the request is unchanged.
+        assert second[1]['headers']['X-UCM-Signature'] == 'sha256=abc'
+
+    def test_a_cookie_and_an_auth_tuple_go_with_it(self, wire):
+        wire['answers'][FIRST] = _Answer(302, location=SECOND)
+        ssrf_protection.safe_request_get(
+            FIRST, auth=('user', 'secret'), cookies={'session': 'abc'},
+            headers={'Cookie': 'session=abc'})
+        _first, second = wire['hops']
+        assert 'auth' not in second[1]
+        assert 'cookies' not in second[1]
+        assert 'Cookie' not in second[1]['headers']
+
+    def test_they_survive_a_hop_within_the_same_origin(self, wire):
+        same_origin = 'https://93.184.216.34/other'
+        wire['answers'][FIRST] = _Answer(302, location=same_origin)
+        ssrf_protection.safe_request_get(
+            FIRST, headers={'Authorization': 'Bearer operator-token'})
+        _first, second = wire['hops']
+        assert second[1]['headers']['Authorization'] == 'Bearer operator-token'
+
+    def test_a_301_on_a_put_keeps_its_method(self, wire):
+        """requests only rewrites POST on a 301; a PUT stays a PUT."""
+        wire['answers'][FIRST] = _Answer(301, location=SECOND)
+        ssrf_protection.safe_request('PUT', FIRST, json={'keep': 'this'})
+        _first, second = wire['hops']
+        assert second[1]['method'] == 'put'
+        assert second[1]['json'] == {'keep': 'this'}
+
+    def test_the_dropped_body_takes_its_content_type_with_it(self, wire):
+        wire['answers'][FIRST] = _Answer(303, location=SECOND)
+        ssrf_protection.safe_request_post(
+            FIRST, json={'a': 1}, headers={'Content-Type': 'application/json',
+                                           'X-Keep': 'yes'})
+        _first, second = wire['hops']
+        assert 'Content-Type' not in second[1]['headers']
+        assert second[1]['headers']['X-Keep'] == 'yes'
+
+    def test_the_intermediate_response_is_closed(self, wire):
+        hop = _Answer(302, location=SECOND)
+        wire['answers'][FIRST] = hop
+        ssrf_protection.safe_request_get(FIRST)
+        assert hop.closed, 'the redirect kept its socket out of the pool'

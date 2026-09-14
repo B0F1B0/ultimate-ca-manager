@@ -59,8 +59,44 @@ class TestABarePathIsNotAPrefix:
 
 
 class TestTheLimitsStayProtocolSized:
-    @pytest.mark.parametrize('path', ['/tsa', '/ca/x.crt', '/ssh/setup/x'])
-    def test_a_protocol_is_not_tighter_than_the_admin_api(self, path):
-        """Classifying them must not quietly throttle a machine client."""
-        protocol = RateLimitConfig.get_limit(path)
-        assert protocol['rpm'] >= 500, path
+    NEWLY_CLASSIFIED = ['/tsa', '/ca/x.crt', '/ssh/setup/x',
+                        '/ADPolicyProvider_CEP_UsernamePassword/service.svc',
+                        '/ADCertificateService_CES_UsernamePassword/service.svc']
+
+    @pytest.mark.parametrize('path', NEWLY_CLASSIFIED)
+    def test_classifying_a_path_never_throttles_it(self, path):
+        """These fell in `_default` before: giving them a bucket must not
+        take rate away from a machine client at the same time."""
+        assert RateLimitConfig.get_limit(path)['rpm'] >= \
+            RateLimitConfig.get_default_limits()['_default']['rpm'], path
+
+
+class TestTheLimitAndTheBucketAgree:
+    """Resolving twice let a request be measured against one limit and
+    counted in another."""
+
+    PATHS = ['/tsa', '/tsa-config', '/tsa/reply', '/ocsp', '/ocsp/x',
+             '/api/v2/certificates', '/acme/directory', '/nothing/special']
+
+    @pytest.mark.parametrize('path', PATHS)
+    def test_they_resolve_to_the_same_pattern(self, limiter, path):
+        pattern = RateLimitConfig.pattern_for(path)
+        assert limiter._get_key('10.0.0.1', path) == f'10.0.0.1:{pattern}'
+        expected = (RateLimitConfig.get_default_limits().get(pattern)
+                    or RateLimitConfig.get_default_limits()['_default'])
+        assert RateLimitConfig.get_limit(path) == expected, path
+
+    def test_a_custom_limit_moves_the_bucket_with_it(self, limiter):
+        """An operator-set limit used to change the ceiling and leave the
+        counting in `_default`, so it capped the whole admin API instead."""
+        RateLimitConfig._load_limits()
+        RateLimitConfig._custom_limits = {'/tsa': {'rpm': 5, 'burst': 2}}
+        try:
+            assert RateLimitConfig.get_limit('/tsa') == {'rpm': 5, 'burst': 2}
+            assert limiter._get_key('10.0.0.1', '/tsa') == '10.0.0.1:/tsa'
+            # And the admin page beside it keeps the admin limits.
+            assert limiter._get_key('10.0.0.1', '/tsa-config') == '10.0.0.1:_default'
+            assert RateLimitConfig.get_limit('/tsa-config') == \
+                RateLimitConfig.get_default_limits()['_default']
+        finally:
+            RateLimitConfig._custom_limits = {}

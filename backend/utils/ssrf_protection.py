@@ -522,16 +522,36 @@ def validated_addresses(url: str, allow_loopback: bool = False) -> tuple:
 MAX_REDIRECTS = 5
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 _BODY_KEYS = ('data', 'json', 'files')
+_BODY_HEADERS = ('content-type', 'content-length', 'transfer-encoding')
+
+
+def _same_origin(first: str, second: str) -> bool:
+    one, two = urlparse(first), urlparse(second)
+    return (one.scheme, one.hostname, one.port) == (two.scheme, two.hostname, two.port)
+
+
+def _strip_credentials(kwargs: dict) -> None:
+    """What requests.Session.rebuild_auth drops when the host changes.
+
+    A webhook carries the operator's bearer token; following a redirect with
+    it hands that token to whoever answered the 302.
+    """
+    kwargs.pop('auth', None)
+    kwargs.pop('cookies', None)
+    headers = kwargs.get('headers')
+    if headers:
+        kwargs['headers'] = {name: value for name, value in headers.items()
+                             if name.lower() not in ('authorization', 'cookie',
+                                                     'proxy-authorization')}
 
 
 def safe_request(method: str, url: str, *, allow_loopback: bool = False,
                  max_redirects: int = MAX_REDIRECTS, **kwargs):
     """`requests` with every hop resolved, vetted and pinned, not just the first.
 
-    `allow_redirects=False` is honoured and returns the 3xx itself, which is
-    what the callers that refuse to follow already asked for. A 301, 302 or
-    303 turns a write into a GET, as RFC 9110 §15.4 describes and as requests
-    does, and the body is dropped with it.
+    Follows what requests does: credentials are dropped when the hop changes
+    origin, a 303 (and a 301/302 on POST) becomes a GET without its body, and
+    `allow_redirects=False` returns the 3xx itself.
     """
     import requests
 
@@ -556,14 +576,29 @@ def safe_request(method: str, url: str, *, allow_loopback: bool = False,
         if not location:
             return response
 
-        current_url = urljoin(current_url, location)
-        if response.status_code in (301, 302, 303) and current_method not in ('GET', 'HEAD'):
+        # The hop is not the answer: close it or its socket never returns to
+        # the pool, which matters most under stream=True.
+        response.close()
+
+        next_url = urljoin(current_url, location)
+        if not _same_origin(current_url, next_url):
+            _strip_credentials(kwargs)
+        current_url = next_url
+
+        drops_body = (response.status_code == 303
+                      or (response.status_code in (301, 302)
+                          and current_method == 'POST'))
+        if drops_body:
             current_method = 'GET'
             for key in _BODY_KEYS:
                 kwargs.pop(key, None)
+            headers = kwargs.get('headers')
+            if headers:
+                kwargs['headers'] = {name: value for name, value in headers.items()
+                                     if name.lower() not in _BODY_HEADERS}
 
-    raise ValueError(
-        f"Too many redirects (more than {max_redirects}) starting at {url}")
+    raise requests.TooManyRedirects(
+        f"Exceeded {max_redirects} redirects starting at {url}")
 
 
 def safe_request_post(url, allow_loopback: bool = False, **kwargs):

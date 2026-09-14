@@ -29,6 +29,7 @@ from utils.key_codec import load_pem_bytes
 from utils.validity import MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS
 from services.mtls_enrollment import (
     certificate_row_for, issuing_ca_for, normalized_fingerprint, parse_validity_days,
+    remove_enrolment,
 )
 from utils.response import success_response, error_response, created_response
 from utils.export_password import validate_export_password
@@ -336,16 +337,17 @@ def delete_mtls_certificate(cert_id):
         return error_response('Not authorized', 403)
 
     serial = auth_cert.cert_serial
-    db.session.delete(auth_cert)
-    ok, _err = safe_commit(logger, "Failed to revoke mTLS certificate")
-    if not ok:
-        return _err
+    cert_name = auth_cert.name or serial
+    removed, failure = remove_enrolment(
+        auth_cert, username=getattr(user, 'username', 'system'))
+    if not removed:
+        return failure
 
     AuditService.log_action(
         action='mtls_cert_delete',
         resource_type='certificate',
         resource_id=str(cert_id),
-        resource_name=auth_cert.name or serial,
+        resource_name=cert_name,
         details=f'Deleted mTLS certificate for user: {user.username}',
         success=True,
     )

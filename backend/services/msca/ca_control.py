@@ -11,6 +11,7 @@ import logging
 import re
 
 from models import db
+from utils.days_remaining import days_remaining
 from models.msca import MicrosoftCA
 
 logger = logging.getLogger(__name__)
@@ -152,7 +153,7 @@ class MicrosoftCACAControlMixin:
                     base64.b64decode(ca_pem.replace('\r', '').replace('\n', ''))
                 )
             not_after = ca_cert.not_valid_after_utc.replace(tzinfo=None)
-            days_left = (not_after - utc_now()).days
+            days_left = days_remaining(not_after)
             health['ca_cert'] = {
                 'subject': ca_cert.subject.rfc4514_string(),
                 'not_after': not_after.isoformat(),

@@ -627,7 +627,7 @@ def clean_unreadable_secrets(app):
 def pg_bench_exclusive():
     """Exclusive use of the shared PostgreSQL bench (public schema).
 
-    Two files reset that schema with ``DROP SCHEMA public CASCADE``. On
+    Three files reset that schema with ``DROP SCHEMA public CASCADE``. On
     different xdist workers they empty each other's target mid-test, so the
     opt-in PostgreSQL run only passed sequentially.
     """

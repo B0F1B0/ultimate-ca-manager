@@ -76,15 +76,10 @@ def bulk_delete_cas():
 def bulk_export_cas():
     """Export selected CAs"""
 
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
     data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
-
-    ids = data['ids']
-    if not isinstance(ids, list):
-        return error_response('ids must be an array', 400)
-    if len(ids) > _MAX_BULK_IDS:
-        return error_response(f'Too many ids (max {_MAX_BULK_IDS} per request)', 400)
 
     export_format = data.get('format', 'pem').lower()
     # A CA awaiting its external certificate holds the empty sentinel,

@@ -59,16 +59,23 @@ def test_sqlite_moves_the_entries_and_drops_the_blob():
         "SELECT 1 FROM system_config WHERE key = 'webhooks'").fetchone() is None
 
 
+@pytest.mark.postgres
 @pytest.mark.skipif(not PG_URL, reason='UCM_TEST_PG_URL not set')
 class TestPostgres:
     @pytest.fixture()
     def connection(self):
-        """A private schema: the bench is shared with the other PG tests."""
+        """A schema of its own, named per worker.
+
+        The bench is one database shared with the other PostgreSQL tests, and
+        a fixed schema name has two xdist workers dropping each other's.
+        """
+        worker = os.getenv('PYTEST_XDIST_WORKER', 'main')
+        schema = f'migtest_087_{worker}'
         engine = create_engine(PG_URL)
         conn = engine.connect()
-        conn.execute(text("DROP SCHEMA IF EXISTS migtest_087 CASCADE"))
-        conn.execute(text("CREATE SCHEMA migtest_087"))
-        conn.execute(text("SET search_path TO migtest_087"))
+        conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
+        conn.execute(text(f"CREATE SCHEMA {schema}"))
+        conn.execute(text(f"SET search_path TO {schema}"))
         for statement in PG_SCHEMA:
             conn.execute(text(statement))
         conn.execute(text("INSERT INTO system_config VALUES ('webhooks', :v)"),
@@ -78,7 +85,7 @@ class TestPostgres:
             yield conn
         finally:
             conn.rollback()
-            conn.execute(text("DROP SCHEMA IF EXISTS migtest_087 CASCADE"))
+            conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
             conn.commit()
             conn.close()
             engine.dispose()

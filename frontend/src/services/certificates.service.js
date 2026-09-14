@@ -2,6 +2,7 @@
  * Certificates Service
  */
 import { apiClient, buildQueryString } from './apiClient'
+import { runInBatches } from '../lib/bulkChunks'
 
 export const certificatesService = {
   async getAll(filters = {}) {
@@ -71,15 +72,18 @@ export const certificatesService = {
     })
   },
 
-  // Bulk operations
+  // Bulk operations, split at the server's cap of 100 ids per request
   async bulkRevoke(ids, reason = 'unspecified') {
-    return apiClient.post('/certificates/bulk/revoke', { ids, reason })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/certificates/bulk/revoke', { ids: batch, reason }))
   },
   async bulkRenew(ids) {
-    return apiClient.post('/certificates/bulk/renew', { ids })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/certificates/bulk/renew', { ids: batch }))
   },
   async bulkDelete(ids) {
-    return apiClient.post('/certificates/bulk/delete', { ids })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/certificates/bulk/delete', { ids: batch }))
   },
   async bulkExport(ids, format = 'pem') {
     return apiClient.post('/certificates/bulk/export', { ids, format }, { responseType: 'blob' })

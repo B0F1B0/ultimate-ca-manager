@@ -936,9 +936,10 @@ def sign_csr(csr_id):
 def bulk_sign_csrs():
     """Bulk sign CSRs with a CA"""
 
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
     data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
 
     ca_id = data.get('ca_id')
     validity_days = coerce_validity_days(data.get('validity_days', 365))
@@ -968,7 +969,6 @@ def bulk_sign_csrs():
     except Exception as e:
         logger.warning(f"Could not clamp validity to CA expiration: {e}")
 
-    ids = data['ids']
     results = {'success': [], 'failed': []}
 
     for csr_id in ids:

@@ -146,6 +146,12 @@ class TestEveryBulkListIsBounded:
     # by character and a list of any length became that many transactions.
     BULK_ROUTES = ('cas', 'certificates', 'templates', 'csrs', 'users')
 
+    # And the routes that are not deletions: revoking, renewing, exporting
+    # and signing cost more per id than a delete does, not less.
+    OTHER_BULK = ('certificates/bulk/revoke', 'certificates/bulk/renew',
+                  'certificates/bulk/export', 'cas/bulk/export',
+                  'csrs/bulk/sign')
+
     def test_an_oversized_id_list_is_refused_everywhere(self, auth_client):
         many = list(range(900000, 900000 + 101))
         for resource in self.BULK_ROUTES:
@@ -158,6 +164,15 @@ class TestEveryBulkListIsBounded:
             r = _bulk(auth_client, resource, 'abc')
             assert r.status_code == 400, (resource, r.data)
             assert b'must be an array' in r.data, resource
+
+    def test_every_other_bulk_route_is_bounded_too(self, auth_client):
+        many = list(range(900000, 900000 + 101))
+        for route in self.OTHER_BULK:
+            r = auth_client.post(f'/api/v2/{route}',
+                                 data=json.dumps({'ids': many}),
+                                 content_type='application/json')
+            assert r.status_code == 400, (route, r.data[:200])
+            assert b'max 100 per request' in r.data, route
 
     def test_a_list_at_the_cap_is_still_accepted(self, auth_client):
         r = _bulk(auth_client, 'certificates', list(range(900000, 900100)))

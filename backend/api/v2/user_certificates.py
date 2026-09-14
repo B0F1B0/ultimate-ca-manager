@@ -19,6 +19,7 @@ from models import CA, AuthCertificate, Certificate, User, db
 from utils.key_codec import load_pem_bytes
 from services.audit_service import AuditService
 from services.cert_service import CertificateService
+from services.mtls_enrollment import remove_enrolment
 from utils.pagination import parse_request_pagination
 from utils.days_remaining import days_remaining as compute_days_remaining
 from utils.export_password import validate_export_password
@@ -564,25 +565,12 @@ def delete_user_certificate(cert_id):
 
     cert_name = auth_cert.name or f'User Certificate #{cert_id}'
 
-    cert = _get_certificate_for_auth_cert(auth_cert)
-    certificate_id = cert.id if cert else None
-
     # No revocation gate here, unlike the certificate routes: removing the
     # enrolment is what withdraws the access, and a person removing their own
     # certificate from their account has always been able to.
-    # The enrolment goes first, for the same reason.
-    db.session.delete(auth_cert)
-    ok, _err = safe_commit(logger, "Failed to delete user certificate")
-    if not ok:
-        return _err
-
-    # The certificate row owns files on disk and foreign keys of its own,
-    # which a bare session.delete left behind.
-    if certificate_id and not CertificateService.delete_certificate(
-            certificate_id, username=user.username):
-        logger.error(
-            "User certificate %s: enrolment removed, certificate %s was not",
-            cert_id, certificate_id)
+    removed, failure = remove_enrolment(auth_cert, username=user.username)
+    if not removed:
+        return failure
 
     AuditService.log_action(
         action='user_certificate_deleted',

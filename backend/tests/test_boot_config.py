@@ -58,6 +58,7 @@ def sqlite_install(tmp_path, monkeypatch):
     """A SQLite install: no DATABASE_URL, the file sits under the data dir."""
     import sqlite3
     monkeypatch.delenv('DATABASE_URL', raising=False)
+    monkeypatch.delenv('DATABASE_PATH', raising=False)
     connection = sqlite3.connect(str(tmp_path / 'ucm.db'))
     _seed(lambda sql, params=(): connection.execute(sql, params), '?')
     connection.commit()
@@ -97,8 +98,36 @@ class TestSqliteInstall:
     def test_wstep_is_read(self, sqlite_install):
         assert wstep_enabled(sqlite_install) is True
 
+    def test_database_path_wins_over_the_data_directory(
+            self, sqlite_install, tmp_path, monkeypatch):
+        """The v1 upgrade writes DATABASE_PATH into the service env, and
+        reading only DATA_DIR looked at a file that install does not have."""
+        monkeypatch.setenv('DATABASE_PATH', str(tmp_path / 'ucm.db'))
+        elsewhere = str(tmp_path / 'empty')
+        os.makedirs(elsewhere, exist_ok=True)
+        assert mtls_client_ca(elsewhere)[1] == 'Issuing CA'
+
+    def test_a_truncated_certificate_is_refused(self, tmp_path, monkeypatch):
+        """A row holding a header and no footer is not a PEM."""
+        import sqlite3
+        monkeypatch.delenv('DATABASE_URL', raising=False)
+        monkeypatch.delenv('DATABASE_PATH', raising=False)
+        connection = sqlite3.connect(str(tmp_path / 'ucm.db'))
+        for statement in SCHEMA:
+            connection.execute(statement)
+        for key, value in SETTINGS:
+            connection.execute("INSERT INTO system_config VALUES (?, ?)", (key, value))
+        truncated = base64.b64encode(
+            b'-----BEGIN CERTIFICATE-----\nTRUNCATED\n').decode()
+        connection.execute("INSERT INTO certificate_authorities VALUES (?, ?, ?, ?)",
+                           ('ca-leaf', truncated, 'Issuing CA', None))
+        connection.commit()
+        connection.close()
+        assert mtls_client_ca(str(tmp_path)) is None
+
     def test_no_database_yet_is_not_an_error(self, tmp_path, monkeypatch):
         monkeypatch.delenv('DATABASE_URL', raising=False)
+        monkeypatch.delenv('DATABASE_PATH', raising=False)
         assert mtls_client_ca(str(tmp_path)) is None
         assert wstep_enabled(str(tmp_path)) is False
 
@@ -124,6 +153,7 @@ class TestChainWalk:
     def test_a_cycle_does_not_hang(self, tmp_path, monkeypatch):
         import sqlite3
         monkeypatch.delenv('DATABASE_URL', raising=False)
+        monkeypatch.delenv('DATABASE_PATH', raising=False)
         connection = sqlite3.connect(str(tmp_path / 'ucm.db'))
         execute = lambda sql, params=(): connection.execute(sql, params)
         for statement in SCHEMA:

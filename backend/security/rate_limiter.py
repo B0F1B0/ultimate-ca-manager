@@ -136,8 +136,10 @@ class RateLimitConfig:
             '/tsa/': {'rpm': protocol_rpm, 'burst': protocol_burst},
             '/tsa': {'rpm': protocol_rpm, 'burst': protocol_burst},
             '/ssh/setup/': {'rpm': protocol_rpm, 'burst': protocol_burst},
-            '/ADPolicyProvider_CEP_': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
-            '/ADCertificateService_CES_': {'rpm': protocol_rpm // 2, 'burst': protocol_burst // 2},
+            # Windows enrolment: a GPO refresh fans a fleet out at once, and
+            # these had `_default` before. Separate bucket, same rate.
+            '/ADPolicyProvider_CEP_': {'rpm': standard_rpm, 'burst': standard_burst},
+            '/ADCertificateService_CES_': {'rpm': standard_rpm, 'burst': standard_burst},
 
             # Default for unspecified endpoints
             '_default': {'rpm': standard_rpm, 'burst': standard_burst}
@@ -182,32 +184,32 @@ class RateLimitConfig:
         """Get rate limit for a path"""
         cls._load_limits()
         
-        # Check custom limits first
-        for pattern, limit in cls._custom_limits.items():
-            if path.startswith(pattern):
-                return limit
-
-        exact = cls._exact_pattern(path)
-        if exact:
-            return cls._default_limits[exact]
-
-        # Check default limits
-        for pattern, limit in cls._default_limits.items():
-            if pattern in PROTOCOL_EXACT_PATHS or pattern == '_default':
-                continue
-            if path.startswith(pattern):
-                return limit
-        
-        return cls._default_limits['_default']
+        pattern = cls.pattern_for(path)
+        if pattern in cls._custom_limits:
+            return cls._custom_limits[pattern]
+        return cls._default_limits.get(pattern, cls._default_limits['_default'])
 
     @classmethod
-    def _exact_pattern(cls, path: str):
-        """A protocol route whose path is bare: `/tsa`, never `/tsa-config`."""
+    def pattern_for(cls, path: str) -> str:
+        """The one pattern a path answers to, for its limit and its bucket.
+
+        Both used to resolve the path on their own and could disagree, so a
+        request could be measured against one limit and counted in another.
+        """
         cls._load_limits()
+        # A bare protocol path is matched exactly: `/tsa` is the protocol,
+        # `/tsa-config` the admin page that configures it.
         for pattern in PROTOCOL_EXACT_PATHS:
-            if path == pattern and pattern in cls._default_limits:
+            if path == pattern and (pattern in cls._default_limits
+                                    or pattern in cls._custom_limits):
                 return pattern
-        return None
+        for source in (cls._custom_limits, cls._default_limits):
+            for pattern in source:
+                if pattern in PROTOCOL_EXACT_PATHS or pattern == '_default':
+                    continue
+                if path.startswith(pattern):
+                    return pattern
+        return '_default'
     
     @classmethod
     def set_custom_limit(cls, path: str, rpm: int, burst: int):
@@ -286,16 +288,8 @@ class RateLimiter:
     def _get_key(self, ip: str, path: str) -> str:
         """Generate bucket key from IP and path pattern"""
         # Normalize path to pattern
-        exact = RateLimitConfig._exact_pattern(path)
-        if exact:
-            return f"{ip}:{exact}"
-        default_limits = RateLimitConfig.get_default_limits()
-        for pattern in default_limits.keys():
-            if pattern in PROTOCOL_EXACT_PATHS or pattern == '_default':
-                continue
-            if path.startswith(pattern):
-                return f"{ip}:{pattern}"
-        return f"{ip}:_default"
+        pattern = RateLimitConfig.pattern_for(path)
+        return f"{ip}:{pattern}"
     
     def check_rate_limit(self, ip: str, path: str) -> Tuple[bool, Dict[str, Any]]:
         """

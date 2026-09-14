@@ -69,26 +69,62 @@ const WebSocketContext = createContext(null);
 // A server event means somebody else changed the data. The pages refresh on
 // the in-app `ucm:data-changed` bus, which only the acting tab used to fire,
 // so another operator's revocation showed a toast beside a stale table.
+//
+// `user.login` and `user.logout` are deliberately absent: they carry no table
+// change worth a reload, and they reach every holder of read:audit.
 const DATA_CHANGED_TYPE = {
-  certificate: 'certificate',
-  ca: 'ca',
-  crl: 'ca',
-  user: 'user',
-  group: 'group',
+  'certificate.issued': 'certificate',
+  'certificate.revoked': 'certificate',
+  'certificate.renewed': 'certificate',
+  'certificate.deleted': 'certificate',
+  'certificate.expiring': 'certificate',
+  'ca.created': 'ca',
+  'ca.updated': 'ca',
+  'ca.deleted': 'ca',
+  'ca.revoked': 'ca',
+  'crl.regenerated': 'ca',
+  'crl.published': 'ca',
+  'user.created': 'user',
+  'user.updated': 'user',
+  'user.deleted': 'user',
+  'group.created': 'group',
+  'group.updated': 'group',
+  'group.deleted': 'group',
 };
 
+// A bulk revoke emits one event per certificate. Announcing each one had every
+// open tab reload its whole page that many times over, so the announcements
+// are collected and sent once the burst is over.
+const ANNOUNCE_DELAY_MS = 250;
+let pendingResources = null;
+let pendingTimer = null;
+
+function flushDataChanges() {
+  const resources = pendingResources;
+  pendingResources = null;
+  pendingTimer = null;
+  if (!resources) return;
+  for (const resource of resources) {
+    window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: resource } }));
+  }
+}
+
+function queueDataChange(resource) {
+  if (!pendingResources) pendingResources = new Set();
+  pendingResources.add(resource);
+  if (pendingTimer) clearTimeout(pendingTimer);
+  pendingTimer = setTimeout(flushDataChanges, ANNOUNCE_DELAY_MS);
+}
+
 function announceDataChange(eventType) {
-  const resource = DATA_CHANGED_TYPE[String(eventType).split('.')[0]];
-  if (!resource) return;
-  window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: resource } }));
+  const resource = DATA_CHANGED_TYPE[String(eventType)];
+  if (resource) queueDataChange(resource);
 }
 
 // Events that arrived while the socket was down are gone. After a reconnect
 // the tables are refreshed wholesale rather than left on what they held.
 function announceEverythingChanged() {
-  for (const resource of new Set(Object.values(DATA_CHANGED_TYPE))) {
-    window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: resource } }));
-  }
+  for (const resource of new Set(Object.values(DATA_CHANGED_TYPE))) queueDataChange(resource);
 }
 
 /**
@@ -223,10 +259,11 @@ export function WebSocketProvider({ children }) {
         handlers.forEach((handler) => handler(payload.data, payload));
       }
       
+      // The tab that acted reloads on its own, and `muteUntilRef` is exactly
+      // the window where it knows already.
+      if (Date.now() < muteUntilRef.current) return;
       announceDataChange(payload.type);
 
-      // Show themed notification (skip if this tab just triggered the action)
-      if (Date.now() < muteUntilRef.current) return;
       const notif = getEventNotification(payload, tRef.current);
       if (notif) {
         notifyRef.current[notif.method]?.(notif.msg);
@@ -242,6 +279,7 @@ export function WebSocketProvider({ children }) {
     if (socketRef.current) {
       socketRef.current.disconnect();
       socketRef.current = null;
+      hasConnectedRef.current = false;
       setConnectionState(ConnectionState.DISCONNECTED);
     }
   }, []);

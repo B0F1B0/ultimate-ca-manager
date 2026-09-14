@@ -116,6 +116,45 @@ from boot_config import mtls_client_ca, wstep_enabled
 WSTEP_TLS12_CAP_NEEDED = wstep_enabled(data_path)
 
 
+MTLS_MODE_FILE = 'mtls_mode'
+
+
+def _remember_mtls_mode(required):
+    """What the last successful read decided, for the next start."""
+    try:
+        with open(os.path.join(data_path, MTLS_MODE_FILE), 'w') as handle:
+            handle.write('required' if required else 'optional')
+    except OSError as e:
+        print(f"mTLS: could not record the mode: {e}", file=sys.stderr)
+
+
+def _reuse_last_known_mtls():
+    """Keep the previous start's client-certificate setting.
+
+    The settings live in the database, and a database that is briefly out of
+    reach used to mean a socket that asks for no client certificate at all.
+    Serving the last configuration that worked is closer to the operator's
+    intent than silently turning mTLS off.
+    """
+    global cert_reqs, ca_certs
+
+    ca_file_path = os.path.join(data_path, 'mtls_ca.pem')
+    mode_path = os.path.join(data_path, MTLS_MODE_FILE)
+    if not (os.path.exists(ca_file_path) and os.path.exists(mode_path)):
+        print("mTLS: no previous configuration to fall back on; the socket "
+              "will not ask for a client certificate", file=sys.stderr)
+        return
+    try:
+        with open(mode_path) as handle:
+            required = handle.read().strip() == 'required'
+    except OSError:
+        required = False
+    ca_certs = ca_file_path
+    cert_reqs = 2 if required else 1
+    print(f"mTLS: settings unreadable, keeping the last known configuration "
+          f"({'REQUIRED' if required else 'OPTIONAL'})", file=sys.stderr)
+
+
 def _load_mtls_config():
     """Configure client certificate verification from the stored settings."""
     global cert_reqs, ca_certs
@@ -123,6 +162,7 @@ def _load_mtls_config():
     try:
         found = mtls_client_ca(data_path)
         if not found:
+            _remember_mtls_mode(False)
             return
         full_chain, ca_name, required = found
 
@@ -145,12 +185,14 @@ def _load_mtls_config():
 
         ca_certs = ca_file_path
         cert_reqs = 2 if required else 1
+        _remember_mtls_mode(required)
 
         mode = "REQUIRED" if cert_reqs == 2 else "OPTIONAL"
         print(f"mTLS: {mode} — trusted CA: {ca_name}", file=sys.stderr)
 
     except Exception as e:
         print(f"mTLS: config load failed: {e}", file=sys.stderr)
+        _reuse_last_known_mtls()
 
 
 _load_mtls_config()

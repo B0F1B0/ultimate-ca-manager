@@ -2,6 +2,7 @@
  * Certificate Authorities Service
  */
 import { apiClient, buildQueryString } from './apiClient'
+import { runInBatches } from '../lib/bulkChunks'
 
 export const casService = {
   async getAll() {
@@ -133,7 +134,8 @@ export const casService = {
 
   // Bulk operations
   async bulkDelete(ids) {
-    return apiClient.post('/cas/bulk/delete', { ids })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/cas/bulk/delete', { ids: batch }))
   },
   async bulkExport(ids, format = 'pem') {
     return apiClient.post('/cas/bulk/export', { ids, format }, { responseType: 'blob' })

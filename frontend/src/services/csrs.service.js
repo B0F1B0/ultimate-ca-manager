@@ -2,6 +2,7 @@
  * Certificate Signing Requests Service
  */
 import { apiClient, buildQueryString } from './apiClient'
+import { runInBatches } from '../lib/bulkChunks'
 
 export const csrsService = {
   async getAll(filters = {}) {
@@ -72,9 +73,11 @@ export const csrsService = {
 
   // Bulk operations
   async bulkSign(ids, ca_id, validity_days = 365) {
-    return apiClient.post('/csrs/bulk/sign', { ids, ca_id, validity_days })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/csrs/bulk/sign', { ids: batch, ca_id, validity_days }))
   },
   async bulkDelete(ids) {
-    return apiClient.post('/csrs/bulk/delete', { ids })
+    return runInBatches(ids, (batch) =>
+      apiClient.post('/csrs/bulk/delete', { ids: batch }))
   }
 }

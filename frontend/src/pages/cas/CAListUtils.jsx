@@ -16,6 +16,8 @@ export function formatExpiry(date, t) {
   const d = new Date(date)
   const now = new Date()
   const diffDays = daysRemaining(d)
+  // An unreadable date answers null, and `null < 30` is true.
+  if (diffDays === null) return null
   if (diffDays < 0) return { text: t('common.expired'), variant: 'danger' }
   if (diffDays < 30) return { text: t('cas.daysLeft', { count: diffDays }), variant: 'warning' }
   if (diffDays < 365) return { text: `${Math.floor(diffDays / 30)}mo`, variant: 'default' }

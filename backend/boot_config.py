@@ -11,18 +11,27 @@ import os
 import sys
 
 PEM_HEADER = '-----BEGIN CERTIFICATE-----'
+PEM_FOOTER = '-----END CERTIFICATE-----'
 
 # Same bound as utils/ca_chain.walk_ca_chain, restated here because no
 # application module is importable yet.
 MAX_CHAIN_DEPTH = 64
 
+# The master blocks on this read, so it must not wait on a dead server.
+CONNECT_TIMEOUT_SECONDS = 5
+
 
 def database_url(data_path: str) -> str:
-    """The active database URL, resolved like migration_runner does."""
+    """The active database URL, resolved like migration_runner does.
+
+    `DATABASE_PATH` is what the v1 upgrade writes into the service env, so
+    reading only `DATA_DIR` looked at a file that install does not have.
+    """
     url = os.getenv('DATABASE_URL')
     if url:
         return url
-    return 'sqlite:///' + os.path.join(data_path, 'ucm.db')
+    path = os.getenv('DATABASE_PATH') or os.path.join(data_path, 'ucm.db')
+    return 'sqlite:///' + str(path)
 
 
 def _is_postgres(url: str) -> bool:
@@ -67,10 +76,13 @@ def open_boot_database(data_path: str):
     url = database_url(data_path)
     if _is_postgres(url):
         import psycopg2
-        # psycopg2 rejects SQLAlchemy's ``+driver`` suffix.
+        # psycopg2 rejects SQLAlchemy's ``+driver`` suffix. The timeout is
+        # what keeps a blackholed server from hanging the gunicorn master,
+        # which reads this before any worker forks.
         scheme, _, rest = url.partition('://')
         return BootDatabase(
-            psycopg2.connect(scheme.split('+')[0] + '://' + rest), '%s')
+            psycopg2.connect(scheme.split('+')[0] + '://' + rest,
+                             connect_timeout=CONNECT_TIMEOUT_SECONDS), '%s')
 
     path = url[len('sqlite:///'):] if url.startswith('sqlite:///') else url
     if not os.path.exists(path):
@@ -108,7 +120,7 @@ def _decoded_pem(stored):
         pem = base64.b64decode(stored).decode('utf-8')
     except Exception:
         pem = stored
-    return pem if PEM_HEADER in pem else None
+    return pem if PEM_HEADER in pem and PEM_FOOTER in pem else None
 
 
 def client_ca_chain(database, ca_refid):

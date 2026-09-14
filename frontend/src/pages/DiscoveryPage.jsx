@@ -649,7 +649,7 @@ export default function DiscoveryPage() {
               onChange: setPage,
               onPerPageChange: (v) => { setPerPage(v); setPage(1) }
             }}
-            toolbarActions={(
+            toolbarActions={(canScan || discovered.length > 0) && (
               isMobile ? (canScan && (
                 <Button type="button" size="lg" onClick={() => setShowQuickScan(true)} disabled={scanning} className="w-11 h-11 p-0">
                   <MagnifyingGlass size={22} weight="bold" />
