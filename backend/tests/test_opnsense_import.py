@@ -49,7 +49,7 @@ class _Session:
         self.ca_rows = ca_rows
         self.cert_rows = cert_rows
 
-    def get(self, url, auth=None, timeout=None):
+    def get(self, url, auth=None, timeout=None, allow_redirects=None):
         if "/api/trust/ca/search" in url:
             return _Response(self.ca_rows)
         if "/api/trust/cert/search" in url:
@@ -223,7 +223,7 @@ class _SSLFailingSession:
     surfaces it: SSLError — which is a ConnectionError SUBCLASS, so without
     a dedicated handler it wears the generic host/port message."""
 
-    def get(self, url, auth=None, timeout=None):
+    def get(self, url, auth=None, timeout=None, allow_redirects=None):
         raise requests.exceptions.SSLError(
             "certificate verify failed: self-signed certificate")
 

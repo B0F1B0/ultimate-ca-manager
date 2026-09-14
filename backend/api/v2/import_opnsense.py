@@ -166,11 +166,25 @@ def _appliance_base_url(host, port):
 
 
 def _fetch_rows(session, base_url, api_key, api_secret, resource):
+    # Redirects are not followed: the appliance answers JSON on its API, so a
+    # 3xx there is not a normal condition, and walking it would read the
+    # answer of a host the deny-list never saw as if it were the appliance's
+    # inventory of certificates and keys. The refusal names where it was
+    # being sent, because an operator behind a reverse proxy needs to know
+    # that is what happened.
+    url = f"{base_url}/api/trust/{resource}/search"
     response = session.get(
-        f"{base_url}/api/trust/{resource}/search",
+        url,
         auth=(api_key, api_secret),
-        timeout=10
+        timeout=10,
+        allow_redirects=False,
     )
+    if response.status_code in (301, 302, 303, 307, 308):
+        location = response.headers.get('Location', '(no Location header)')
+        raise requests.HTTPError(
+            f"The appliance redirected {url} to {location}; the import reads "
+            "the API of the host it was given, and does not follow it "
+            "elsewhere")
     if response.status_code != 200:
         raise requests.HTTPError(f"API returned status {response.status_code}")
     return response.json().get('rows') or []

@@ -135,3 +135,38 @@ class TestWhatIsCheckedIsWhatIsAsked:
 
         assert response.status_code == 400, response.data
         assert b'metadata' in response.data.lower()
+
+
+class TestARedirectIsNotFollowed:
+    """The appliance answers JSON on its API; a redirect there is not a normal
+    condition, and following it reads the answer of a host the deny-list never
+    saw as if it were the appliance's inventory of certificates.
+
+    Refused rather than walked: the hop policy the ACME challenge follower
+    carries does not fit here (it allows ports 80 and 443 only and turns TLS
+    verification off), and giving it parameters to fit would build the
+    flag-driven abstraction this audit exists to avoid.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_the_call_asks_for_no_redirects(self, auth_client, monkeypatch,
+                                            route):
+        import api.v2.import_opnsense as opnsense
+
+        seen = {}
+
+        class Recorder:
+            verify = False
+
+            def get(self, url, **kwargs):
+                seen.update(kwargs)
+                raise RuntimeError('no network in tests')
+
+        monkeypatch.setattr(opnsense, 'create_session', lambda **kw: Recorder())
+
+        auth_client.post(route, json=_payload(port=8443))
+
+        assert seen, f'{route} made no request'
+        assert seen.get('allow_redirects') is False, (
+            'the import follows redirects, so a 3xx sends it to a host the '
+            'deny-list never saw and its answer is read as the inventory')
