@@ -4,6 +4,7 @@ Settings - General settings + Certificate Transparency routes
 
 from flask import request, g
 from auth.unified import require_auth, has_permission
+from services.settings_registry import effective
 from utils.response import success_response, error_response
 from models import db, Certificate
 from services.audit_service import AuditService
@@ -92,16 +93,16 @@ def get_general_settings():
         'session_timeout': int(get_config('session_timeout', '28800')),
         'session_max_lifetime': int(get_config('session_max_lifetime', '86400')),
         'max_login_attempts': int(get_config('max_login_attempts', '5')),
-        'lockout_duration': int(get_config('lockout_duration', '300')),
+        'lockout_duration': effective('lockout_duration'),
         'protocol_base_url': get_config('protocol_base_url', ''),
         'http_protocol_port': int(get_config('http_protocol_port', '8080')),
         'base_url': get_config('base_url', ''),
         # ACME public endpoint (local server + proxy directory URLs behind reverse proxy)
         'acme_public_vhost': get_config('acme_public_vhost', ''),
-        'acme_public_port': _int_config('acme_public_port', 443),
+        'acme_public_port': effective('acme_public_port'),
         'acme_public_tls_cert_id': int(get_config('acme_public_tls_cert_id', '0') or 0) or None,
         'date_format': get_config('date_format', 'short'),
-        'show_time': get_config('show_time', 'true') == 'true',
+        'show_time': effective('show_time'),
         # Password policy
         'min_password_length': int(get_config('min_password_length', '8')),
         'max_password_length': int(get_config('max_password_length', '128')),
@@ -114,8 +115,8 @@ def get_general_settings():
         # HSTS (HTTP Strict-Transport-Security) — issue #154.
         # Defaults match the previous hardcoded header (on + includeSubDomains, 1y).
         # `_locked` lists the keys forced by env vars (read-only toggle in UI).
-        'hsts_enabled': get_config('hsts_enabled', 'true') == 'true',
-        'hsts_include_subdomains': get_config('hsts_include_subdomains', 'true') == 'true',
+        'hsts_enabled': effective('hsts_enabled'),
+        'hsts_include_subdomains': effective('hsts_include_subdomains'),
         'hsts_max_age': int(get_config('hsts_max_age', '31536000')),
         'hsts_env_locked': hsts_env_locked(),
         # Key recovery dual control (four-eyes). Reports the *effective* value
@@ -129,12 +130,12 @@ def get_general_settings():
         # generation so the database doesn't grow unbounded. Defaults to off
         # — expired revoked certs are kept as historical records unless an
         # admin explicitly enables this.
-        'crl_auto_delete_expired_revoked': get_config('crl_auto_delete_expired_revoked', 'false') == 'true',
+        'crl_auto_delete_expired_revoked': effective('crl_auto_delete_expired_revoked'),
         # CRL auto-purge: delete stale RevokedSerial entries (valid_to < now)
         # during full CRL generation. Defaults to off — RevokedSerial entries
         # are preserved as audit records (renewal chain history) unless an
         # admin explicitly enables this.
-        'crl_auto_purge_stale_serials': get_config('crl_auto_purge_stale_serials', 'false') == 'true',
+        'crl_auto_purge_stale_serials': effective('crl_auto_purge_stale_serials'),
     })
 
 
@@ -379,7 +380,9 @@ def get_ct_settings():
     """Get Certificate Transparency configuration."""
     return success_response(data={
         'enabled': get_config('ct_enabled', 'false') == 'true',
-        'log_urls': json.loads(get_config('ct_log_urls', '[]')),
+        # None means "use the built-in log list"; an empty list here
+        # used to read as "no logs configured".
+        'log_urls': effective('ct_log_urls'),
         'auto_submit': get_config('ct_auto_submit', 'false') == 'true',
         'embed_sct': get_config('ct_embed_sct', 'false') == 'true',
         'required': get_config('ct_required', 'false') == 'true',

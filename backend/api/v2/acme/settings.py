@@ -94,11 +94,13 @@ def _revoke_superseded_certificates():
 def get_acme_settings():
     """Get ACME configuration"""
     # Get settings from SystemConfig
-    enabled_cfg = SystemConfig.query.filter_by(key='acme.enabled').first()
     ca_id_cfg = SystemConfig.query.filter_by(key='acme.issuing_ca_id').first()
     tos_cfg = SystemConfig.query.filter_by(key='acme.terms_of_service').first()
 
-    enabled = enabled_cfg.value == 'true' if enabled_cfg else True
+    # Read forgivingly, like the dashboard tile: a stored `yes` or `on`
+    # is an enabled server, and only an explicit off turns it off.
+    from services.settings_registry import effective
+    enabled = effective('acme.enabled')
     ca_id = ca_id_cfg.value if ca_id_cfg else None
 
     # Parse ToS config

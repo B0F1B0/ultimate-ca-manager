@@ -285,17 +285,17 @@ class MTLSAuthService:
     def is_mtls_enabled() -> bool:
         """
         Check if mTLS authentication is enabled globally
-        
+
+        Strict, like gunicorn_config and app.py: those configure the TLS
+        socket, and reading `yes` as enabled here made the service believe a
+        client certificate was required while the socket asked for none.
+
         Returns:
             True if mTLS is enabled
         """
-        from models import SystemConfig
-        
-        config = SystemConfig.query.filter_by(key='mtls_enabled').first()
-        if config and config.value:
-            return config.value.lower() in ('true', '1', 'yes')
-        
-        return False
+        from services.settings_registry import effective
+
+        return effective('mtls_enabled')
     
     @staticmethod
     def get_user_certificates(user_id: int) -> list:

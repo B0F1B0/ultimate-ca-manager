@@ -9,6 +9,7 @@ from auth.unified import require_auth
 from utils.response import success_response, error_response
 from models import db, SystemConfig, CA, Certificate, AuditLog
 from services.audit_service import AuditService
+from services.settings_registry import effective
 from services.tsa_service import describe_configured_signer
 import logging
 import re
@@ -155,7 +156,9 @@ def get_tsa_config():
             ca_name = ca.descr
 
     return success_response(data={
-        'enabled': get_config('tsa_enabled', 'false') == 'true',
+        # A missing row is an enabled service (grandfathered pre-2.200),
+        # which is what /tsa itself answers.
+        'enabled': effective('tsa_enabled'),
         'ca_refid': ca_refid,
         'ca_id': ca_id,
         'ca_name': ca_name,

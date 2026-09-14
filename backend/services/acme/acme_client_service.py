@@ -204,10 +204,14 @@ class AcmeClientService:
         if existing:
             return existing
 
-        # Read default email from legacy SystemConfig (1-release back-compat),
-        # else fall back to a placeholder. Email gets overwritten at registration.
-        email_cfg = SystemConfig.query.filter_by(key='acme.client.email').first()
-        email = (email_cfg.value if email_cfg and email_cfg.value else 'admin@localhost')
+        # The placeholder is load-bearing: an installation that never set the
+        # key still has to be able to create the account row, and the address
+        # is overwritten at registration. The settings API reporting None for
+        # the same key is not a contradiction -- it answers "what did the
+        # operator configure", not "what will be registered".
+        from services.settings_registry import effective
+
+        email = effective('acme.client.email')
         alg_cfg = SystemConfig.query.filter_by(key='acme.client.account_key_type').first()
         algorithm = (alg_cfg.value if alg_cfg and alg_cfg.value in ACCOUNT_KEY_TYPES else 'ES256')
 

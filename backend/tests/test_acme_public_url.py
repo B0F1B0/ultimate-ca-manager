@@ -186,7 +186,13 @@ class TestAcmePublicVhostSettingsApi:
             db.session.commit()
         r = auth_client.get('/api/v2/settings/general')
         assert r.status_code == 200
-        assert r.get_json()['data']['acme_public_port'] == 443
+        # The screen now reports the port the ACME directory actually
+        # advertises. `get_acme_public_port` falls back to the HTTPS port for
+        # an unusable row; the flat 443 restated here was the settings
+        # handler's own literal and contradicted the published URL.
+        from utils.public_endpoints import get_acme_public_port
+        with app.app_context():
+            assert r.get_json()['data']['acme_public_port'] == get_acme_public_port()
 
 
 class TestJwsExpectedUrls:
