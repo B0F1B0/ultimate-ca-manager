@@ -1624,25 +1624,19 @@ def download_certificate(order_id: str):
     chain_pems.append(cert_pem.strip())
     
     # Add CA chain
-    current_caref = cert.caref
-    seen_cas = set()  # Prevent loops
-    
-    while current_caref and current_caref not in seen_cas:
-        seen_cas.add(current_caref)
-        ca = CA.query.filter_by(refid=current_caref).first()
-        
-        if not ca or not ca.crt:
+    from utils.ca_chain import walk_ca_chain
+    start_ca = CA.query.filter_by(refid=cert.caref).first() if cert.caref else None
+
+    for ca in walk_ca_chain(start_ca):
+        if not ca.crt:
             break
-        
+
         ca_cert_pem = base64.b64decode(ca.crt).decode('utf-8')
         if not ca_cert_pem.strip().startswith('-----BEGIN CERTIFICATE-----'):
             # CA cert might be raw DER, wrap it
             ca_cert_pem = f"-----BEGIN CERTIFICATE-----\n{ca_cert_pem}\n-----END CERTIFICATE-----"
         chain_pems.append(ca_cert_pem.strip())
-        
-        # Move up the chain
-        current_caref = ca.caref
-    
+
     # Join with single newline (standard PEM chain format)
     pem_chain = '\n'.join(chain_pems) + '\n'
     

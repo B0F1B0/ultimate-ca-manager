@@ -211,11 +211,13 @@ def recover_key(rid):
         cert_obj = x509.load_pem_x509_certificate(base64.b64decode(cert.crt), default_backend())
         key_pem = load_pem_bytes(cert.prv, context=f"certificate {cert.id}")
         private_key = serialization.load_pem_private_key(key_pem, password=None, backend=default_backend())
+        from utils.ca_chain import walk_ca_chain
         chain = []
-        ca = CA.query.filter_by(refid=cert.caref).first() if cert.caref else None
-        while ca and ca.crt:
+        start = CA.query.filter_by(refid=cert.caref).first() if cert.caref else None
+        for ca in walk_ca_chain(start):
+            if not ca.crt:
+                break
             chain.append(x509.load_pem_x509_certificate(base64.b64decode(ca.crt), default_backend()))
-            ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
         p12 = pkcs12.serialize_key_and_certificates(
             name=(cert.subject_cn or cert.refid or 'recovered').encode(),
             key=private_key, cert=cert_obj, cas=chain or None,

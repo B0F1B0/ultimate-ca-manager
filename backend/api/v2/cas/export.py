@@ -24,6 +24,19 @@ from utils.key_codec import load_pem_bytes
 
 logger = logging.getLogger(__name__)
 
+
+def _parent_cas(ca):
+    """The CAs above *ca*, nearest first, skipping any without a certificate.
+
+    Every export format walked the hierarchy itself, and none of the five
+    copies had a loop guard: a ``caref`` pointing back down the chain kept
+    appending forever — filling memory, and for the p7b branch filling the
+    temporary file it never got to unlink.
+    """
+    from utils.ca_chain import walk_ca_chain
+    return [parent for parent in walk_ca_chain(ca, include_start=False) if parent.crt]
+
+
 # Cap password length to keep PKCS12/PFX/JKS encryption bounded — empirically
 # BestAvailableEncryption + pyjks degrade quickly past a few hundred bytes.
 _MIN_EXPORT_PASSWORD = 4
@@ -203,17 +216,11 @@ def export_ca(ca_id):
 
             # Include parent CA chain if requested
             if include_chain and ca.caref:
-                parent = CA.query.filter_by(refid=ca.caref).first()
-                while parent:
-                    if parent.crt:
-                        parent_cert = base64.b64decode(parent.crt)
-                        if not result.endswith(b'\n'):
-                            result += b'\n'
-                        result += parent_cert
-                    if parent.caref:
-                        parent = CA.query.filter_by(refid=parent.caref).first()
-                    else:
-                        break
+                for parent in _parent_cas(ca):
+                    parent_cert = base64.b64decode(parent.crt)
+                    if not result.endswith(b'\n'):
+                        result += b'\n'
+                    result += parent_cert
                 if include_key:
                     filename = f"{sanitize_filename(ca.descr or ca.refid)}_full_chain.pem"
                 else:
@@ -249,17 +256,10 @@ def export_ca(ca_id):
             # Build parent CA chain if available and requested
             ca_certs = []
             if include_chain and ca.caref:
-                parent = CA.query.filter_by(refid=ca.caref).first()
-                while parent:
-                    if parent.crt:
-                        parent_cert = x509.load_pem_x509_certificate(
-                            base64.b64decode(parent.crt), default_backend()
-                        )
-                        ca_certs.append(parent_cert)
-                    if parent.caref:
-                        parent = CA.query.filter_by(refid=parent.caref).first()
-                    else:
-                        break
+                for parent in _parent_cas(ca):
+                    ca_certs.append(x509.load_pem_x509_certificate(
+                        base64.b64decode(parent.crt), default_backend()
+                    ))
 
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=(ca.descr or ca.refid).encode(),
@@ -282,15 +282,9 @@ def export_ca(ca_id):
                 f.write(cert_pem)
                 # Include parent chain
                 if include_chain and ca.caref:
-                    parent = CA.query.filter_by(refid=ca.caref).first()
-                    while parent:
-                        if parent.crt:
-                            f.write(b'\n')
-                            f.write(base64.b64decode(parent.crt))
-                        if parent.caref:
-                            parent = CA.query.filter_by(refid=parent.caref).first()
-                        else:
-                            break
+                    for parent in _parent_cas(ca):
+                        f.write(b'\n')
+                        f.write(base64.b64decode(parent.crt))
                 pem_file = f.name
 
             try:
@@ -322,17 +316,10 @@ def export_ca(ca_id):
             # Build parent CA chain if available and requested
             ca_certs = []
             if include_chain and ca.caref:
-                parent = CA.query.filter_by(refid=ca.caref).first()
-                while parent:
-                    if parent.crt:
-                        parent_cert = x509.load_pem_x509_certificate(
-                            base64.b64decode(parent.crt), default_backend()
-                        )
-                        ca_certs.append(parent_cert)
-                    if parent.caref:
-                        parent = CA.query.filter_by(refid=parent.caref).first()
-                    else:
-                        break
+                for parent in _parent_cas(ca):
+                    ca_certs.append(x509.load_pem_x509_certificate(
+                        base64.b64decode(parent.crt), default_backend()
+                    ))
 
             p12_bytes = pkcs12.serialize_key_and_certificates(
                 name=(ca.descr or ca.refid).encode(),
@@ -371,17 +358,11 @@ def export_ca(ca_id):
             cert_chain = [("X.509", cert_der)]
 
             if include_chain and ca.caref:
-                parent = CA.query.filter_by(refid=ca.caref).first()
-                while parent:
-                    if parent.crt:
-                        parent_cert = x509.load_pem_x509_certificate(
-                            base64.b64decode(parent.crt), default_backend()
-                        )
-                        cert_chain.append(("X.509", parent_cert.public_bytes(serialization.Encoding.DER)))
-                    if parent.caref:
-                        parent = CA.query.filter_by(refid=parent.caref).first()
-                    else:
-                        break
+                for parent in _parent_cas(ca):
+                    parent_cert = x509.load_pem_x509_certificate(
+                        base64.b64decode(parent.crt), default_backend()
+                    )
+                    cert_chain.append(("X.509", parent_cert.public_bytes(serialization.Encoding.DER)))
 
             ts = int(time.time() * 1000)
             pke = pyjks.PrivateKeyEntry(

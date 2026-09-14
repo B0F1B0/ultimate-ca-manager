@@ -193,6 +193,12 @@ def _load_mtls_config():
         full_chain = ca_pem
         cursor2 = sqlite3.connect(db_path).cursor()
         current_refid = ca_refid
+        # caref carries no foreign key, so a repaired hierarchy can point back
+        # at a CA already visited. This walk runs in the gunicorn master before
+        # any worker forks: an unguarded loop here means the service never
+        # starts. Same bound as utils/ca_chain.walk_ca_chain, reimplemented on
+        # raw sqlite3 because no application module is importable yet.
+        seen_refids = {current_refid}
         while True:
             cursor2.execute(
                 "SELECT caref FROM certificate_authorities WHERE refid = ?",
@@ -202,6 +208,14 @@ def _load_mtls_config():
             if not parent_row or not parent_row[0]:
                 break
             parent_refid = parent_row[0]
+            if parent_refid in seen_refids:
+                print(
+                    f"mTLS: CA chain of {ca_refid} loops at {parent_refid}; "
+                    "serving the chain collected so far",
+                    file=sys.stderr,
+                )
+                break
+            seen_refids.add(parent_refid)
             cursor2.execute(
                 "SELECT crt FROM certificate_authorities WHERE refid = ?",
                 (parent_refid,)

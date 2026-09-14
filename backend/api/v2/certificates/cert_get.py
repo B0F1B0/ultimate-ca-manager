@@ -62,24 +62,20 @@ def _validate_cert_chain(cert):
         ca = CA.query.filter_by(refid=cert.caref).first()
         if ca:
             chain.append({'name': ca.common_name or ca.descr, 'type': 'managed_ca'})
-            # Walk up to root
+            # Walk up to root. The depth ceiling keeps the reach this display
+            # has always had (the issuing CA plus ten levels); the shared walk
+            # adds the loop guard it never had — a caref cycle used to list the
+            # same two CAs ten times over.
+            from utils.ca_chain import walk_ca_chain
             current_ca = ca
-            depth = 0
-            while current_ca and depth < 10:
-                if current_ca.is_root:
+            for node in walk_ca_chain(ca, max_depth=11):
+                if node is not ca:
+                    chain.append({'name': node.common_name or node.descr, 'type': 'managed_ca'})
+                current_ca = node
+                if node.is_root:
                     status = 'complete'
                     trust_source = 'managed_ca'
-                    trust_anchor = current_ca.common_name or current_ca.descr
-                    break
-                if current_ca.caref:
-                    parent = CA.query.filter_by(refid=current_ca.caref).first()
-                    if parent:
-                        chain.append({'name': parent.common_name or parent.descr, 'type': 'managed_ca'})
-                        current_ca = parent
-                        depth += 1
-                    else:
-                        break
-                else:
+                    trust_anchor = node.common_name or node.descr
                     break
 
             # If chain is not complete, check Trust Store for the top CA's issuer

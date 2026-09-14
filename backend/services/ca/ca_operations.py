@@ -236,19 +236,13 @@ class CAOperationsMixin:
         Returns:
             List of certificate PEMs (leaf to root)
         """
-        chain = []
-        ca = db.session.get(CA, ca_id)
+        from utils.ca_chain import walk_ca_chain
 
-        while ca:
+        chain = []
+        for ca in walk_ca_chain(db.session.get(CA, ca_id)):
             cert_pem = get_ca_cert_pem(ca)
             if cert_pem:
                 chain.append(cert_pem)
-
-            # Get parent CA
-            if ca.caref:
-                ca = CA.query.filter_by(refid=ca.caref).first()
-            else:
-                break
 
         return chain
 

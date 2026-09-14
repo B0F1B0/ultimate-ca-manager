@@ -184,20 +184,20 @@ class SCEPService:
 
     def get_ca_chain(self) -> list[x509.Certificate]:
         """Return the configured CA followed by its parents up to the root."""
+        from utils.ca_chain import walk_ca_chain
+
         chain = [self.ca_cert]
-        parent_refid = self.ca.caref
-        visited = {self.ca.refid}
-        while parent_refid:
-            if parent_refid in visited:
-                raise ValueError("Cycle detected in SCEP CA chain")
-            parent = CA.query.filter_by(refid=parent_refid).first()
-            if parent is None:
-                raise ValueError("SCEP CA chain is incomplete")
+        for parent in walk_ca_chain(
+            self.ca,
+            include_start=False,
+            on_cycle='raise',
+            on_missing='raise',
+            cycle_message="Cycle detected in SCEP CA chain",
+            missing_message="SCEP CA chain is incomplete",
+        ):
             chain.append(x509.load_pem_x509_certificate(
                 base64.b64decode(parent.crt), default_backend()
             ))
-            visited.add(parent.refid)
-            parent_refid = parent.caref
         return chain
 
     def process_pkcs_req(self, pkcs7_data: bytes, client_ip: str) -> Tuple[bytes, int]:

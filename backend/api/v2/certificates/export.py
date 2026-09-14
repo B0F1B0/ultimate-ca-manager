@@ -121,8 +121,9 @@ def _build_ca_chain(certificate, cert_pem, include_root=True):
 
     # 2. Managed CA walk via caref (only when nothing came inline)
     if not chain and certificate.caref:
-        ca = CA.query.filter_by(refid=certificate.caref).first()
-        while ca:
+        from utils.ca_chain import walk_ca_chain
+        start = CA.query.filter_by(refid=certificate.caref).first()
+        for ca in walk_ca_chain(start):
             if ca.crt:
                 try:
                     chain.append(
@@ -130,7 +131,6 @@ def _build_ca_chain(certificate, cert_pem, include_root=True):
                     )
                 except Exception:
                     pass
-            ca = CA.query.filter_by(refid=ca.caref).first() if ca.caref else None
 
     # 3. Extend/complete the chain using locally known issuers until we reach a
     #    self-signed root (or can no longer resolve the next issuer).
