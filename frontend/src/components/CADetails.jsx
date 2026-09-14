@@ -7,7 +7,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAppTimezone } from '../stores/timezoneStore'
-import { formatDate as formatDateUtil } from '../lib/utils'
+import { formatDate as formatDateUtil, daysRemaining } from '../lib/utils'
 import {
   Certificate,
   Key,
@@ -62,11 +62,18 @@ export function CADetails({
 
   if (!ca) return null
 
+  // The CA serializer has no days_remaining (only Certificate.to_dict does), so
+  // `ca.days_remaining` was undefined: every comparison below was false, the CA
+  // could never read as expiring, and the badge further down interpolated an
+  // undefined count. Derive it from valid_to, which the serializer does send,
+  // flooring the way the server floors its own days_remaining.
+  const caDaysRemaining = daysRemaining(ca.valid_to)
+
   // Determine status
   const getStatus = () => {
     if (ca.revoked || ca.status === 'Revoked') return 'revoked'
     if (ca.status === 'Expired') return 'expired'
-    if (ca.days_remaining !== null && ca.days_remaining <= 30) return 'expiring'
+    if (caDaysRemaining !== null && caDaysRemaining <= 30) return 'expiring'
     return 'valid'
   }
 
@@ -129,19 +136,19 @@ export function CADetails({
       </div>
 
       {/* Days Remaining Indicator */}
-      {ca.days_remaining !== null && (
+      {caDaysRemaining !== null && (
         <div className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
-          ca.days_remaining <= 0 && "bg-status-danger-op10 text-status-danger",
-          ca.days_remaining > 0 && ca.days_remaining <= 30 && "bg-status-warning-op10 text-status-warning",
-          ca.days_remaining > 30 && ca.days_remaining <= 90 && "bg-status-info-op10 text-status-info",
-          ca.days_remaining > 90 && "bg-status-success-op10 text-status-success"
+          caDaysRemaining <= 0 && "bg-status-danger-op10 text-status-danger",
+          caDaysRemaining > 0 && caDaysRemaining <= 30 && "bg-status-warning-op10 text-status-warning",
+          caDaysRemaining > 30 && caDaysRemaining <= 90 && "bg-status-info-op10 text-status-info",
+          caDaysRemaining > 90 && "bg-status-success-op10 text-status-success"
         )}>
           <Clock size={14} />
-          {ca.days_remaining <= 0 ? (
-            <span>{t('details.expiredDaysAgo', { count: Math.abs(ca.days_remaining) })}</span>
+          {caDaysRemaining <= 0 ? (
+            <span>{t('details.expiredDaysAgo', { count: Math.abs(caDaysRemaining) })}</span>
           ) : (
-            <span>{t('details.daysRemaining', { count: ca.days_remaining })}</span>
+            <span>{t('details.daysRemaining', { count: caDaysRemaining })}</span>
           )}
         </div>
       )}
