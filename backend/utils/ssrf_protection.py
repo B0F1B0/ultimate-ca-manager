@@ -120,78 +120,124 @@ _CLOUD_METADATA_IP_OBJS = {ipaddress.ip_address(a) for a in _CLOUD_METADATA_IPS}
 # address is read out and judged like any other rather than the prefix being
 # refused wholesale, which would cut off legitimate traffic on such a network.
 #
-# Only the /96 form is decoded. RFC 6052 allows an operator-chosen prefix of
-# 32 to 96 bits, whose embedding this cannot guess without being told what the
-# prefix is; that is a gap, and naming it here is better than implying it is
-# covered.
+# Two NAT64 prefixes are known without being told. The well-known one is a
+# /96 and says so, so what it carries is certain. The local-use one is a
+# container: RFC 8215 section 4.1 picked a /48 precisely because it is
+# "shorter than the prefix length used by any individual translation
+# mechanism", so an operator cuts their real prefixes out of it. Reading the
+# whole /48 with the /48 layout, as this first did, is wrong twice over:
+# `64:ff9b:1:1::a9fe:a9fe` came back as 0.1.0.0 and went through while it
+# reaches the metadata service, and `64:ff9b:1::5db8:d822`, an ordinary
+# public address behind a /96 instance, came back as 0.0.0.0 and was refused.
 _NAT64_WELL_KNOWN = ipaddress.ip_network('64:ff9b::/96')
-# RFC 8215's local-use prefix, a /48.
 _NAT64_LOCAL_USE = ipaddress.ip_network('64:ff9b:1::/48')
+
+# The prefix lengths an operator may have cut out of the local-use container.
+# RFC 8215 reports /64 as the shortest translation prefix seen deployed; the
+# container itself is listed too, since nothing stops it being used directly.
+_LOCAL_USE_CANDIDATES = (48, 56, 64, 96)
+
+# RFC 6052 section 2.2, one row per allowed prefix length: where the IPv4
+# address sits, as (first bit, last bit) counted from the most significant,
+# high part then low part. Bits 64 to 71 are `u` and sit between them.
+_RFC6052_LAYOUT = {
+    32: ((32, 63), None),
+    40: ((40, 63), (72, 79)),
+    48: ((48, 63), (72, 87)),
+    56: ((56, 63), (72, 95)),
+    64: ((72, 103), None),
+    96: ((96, 127), None),
+}
+
+
+def _bits(value: int, first: int, last: int) -> int:
+    return (value >> (127 - last)) & ((1 << (last - first + 1)) - 1)
 
 
 def _rfc6052_ipv4(value: int, prefix_length: int):
-    """The IPv4 address an RFC 6052 §2.2 layout carries, or None.
+    """The IPv4 address an RFC 6052 section 2.2 layout carries, or None.
 
-    The address is not simply the low 32 bits except for a /96 prefix: for
-    every shorter prefix the octets are laid around bits 64 to 71, which are
-    reserved and must be zero. Reading those eight bits as part of the
-    address is how `64:ff9b:1:a9fe:a9:fe00::`, which is the metadata service,
-    came back as 169.254.0.254 and went through.
+    The address is the low 32 bits only for a /96 prefix. For every shorter
+    one the octets are laid around bits 64 to 71, which are reserved and must
+    be zero. Reading those eight bits as part of the address is how
+    `64:ff9b:1:a9fe:a9:fe00::`, which is the metadata service, came back as
+    169.254.0.254 and went through.
+
+    All six lengths the specification allows are read. Returning None for the
+    four that were missing was fail-open: the address fell back on its bare
+    IPv6 judgement, which is exactly the judgement that cannot see through a
+    translation prefix.
     """
-    if prefix_length == 96:
-        return ipaddress.ip_address(value & 0xFFFFFFFF)
+    layout = _RFC6052_LAYOUT.get(prefix_length)
+    if layout is None:
+        return None
+    if prefix_length != 96 and _bits(value, 64, 71):
+        return None                     # `u` is reserved and must be zero
+    high, low = layout
+    carried = _bits(value, *high)
+    if low is not None:
+        carried = (carried << (low[1] - low[0] + 1)) | _bits(value, *low)
+    return ipaddress.ip_address(carried)
 
-    if (value >> 56) & 0xFF:
-        return None                     # bits 64..71 are `u`, reserved
 
-    if prefix_length == 48:
-        high = (value >> 64) & 0xFFFF   # bits 48..63
-        low = (value >> 40) & 0xFFFF    # bits 72..87
-        return ipaddress.ip_address((high << 16) | low)
+def _nat64_readings(ip):
+    """What a NAT64 form carries, as (certain, speculative).
 
-    return None
+    Certain means the layout is known from the prefix alone. Speculative
+    means several layouts fit and only the operator knows which, so a reading
+    that lands somewhere alarming is as likely to be the wrong layout as a
+    real target. The two are judged differently.
+    """
+    if ip.version != 6:
+        return (), ()
+    if ip in _NAT64_WELL_KNOWN:
+        carried = _rfc6052_ipv4(int(ip), 96)
+        return ((carried,) if carried is not None else ()), ()
+    if ip in _NAT64_LOCAL_USE:
+        readings = tuple(
+            r for r in (_rfc6052_ipv4(int(ip), n) for n in _LOCAL_USE_CANDIDATES)
+            if r is not None)
+        return (), readings
+    return (), ()
 
 
 def _nat64_embedded_ipv4(ip):
-    """The IPv4 address a NAT64 form carries, or None.
-
-    Two prefixes are known without being told: the well-known one, a /96, and
-    the local-use one, a /48. A prefix an operator chose for themselves cannot
-    be decoded without knowing it, and that is a gap rather than something
-    this pretends to cover.
-    """
-    if ip.version != 6:
-        return None
-    if ip in _NAT64_WELL_KNOWN:
-        return _rfc6052_ipv4(int(ip), 96)
-    if ip in _NAT64_LOCAL_USE:
-        return _rfc6052_ipv4(int(ip), 48)
-    return None
+    """The single address a known-layout NAT64 form carries, or None."""
+    certain, _speculative = _nat64_readings(ip)
+    return certain[0] if certain else None
 
 
-# The deprecated IPv4-compatible form, ::a.b.c.d (RFC 4291 §2.5.5.1).
+# The deprecated IPv4-compatible form, ::a.b.c.d (RFC 4291 section 2.5.5.1).
 _IPV4_COMPATIBLE = ipaddress.ip_network('::/96')
+
+# ISATAP (RFC 5214 section 6.1): the interface identifier is 00-00-5E-FE or,
+# when the address is globally unique, 02-00-5E-FE, followed by the IPv4
+# address. `fe80::5efe:169.254.169.254` reaches the metadata service.
+_ISATAP_IDENTIFIERS = (0x00005EFE, 0x02005EFE)
 
 
 def _ipv4_forms(ip):
-    """Every IPv4 address an IPv6 encoding carries. Possibly none.
+    """Every IPv4 address an IPv6 encoding certainly carries. Possibly none.
 
-    Five ways of writing an IPv4 address as IPv6 reach the same host: the
-    mapped form, the deprecated compatible form, 6to4, Teredo and NAT64. A
-    deny-list that understands one of them refuses one spelling of an address
-    and accepts the others, which is how `169.254.169.254` kept coming back.
+    Six ways of writing an IPv4 address as IPv6 reach the same host: the
+    mapped form, the deprecated compatible form, 6to4, Teredo, NAT64 and
+    ISATAP. A deny-list that understands one of them refuses one spelling of
+    an address and accepts the others, which is how `169.254.169.254` kept
+    coming back.
 
-    Teredo yields two: the relay that carries the traffic and the client it
-    carries it to. Both are addresses this server would end up talking to, so
-    both are judged.
+    Teredo yields two: the Teredo server, whose IPv4 address sits in bits 32
+    to 63, and the client behind it, whose address is stored as its ones
+    complement. The client is the host the traffic is for; the server is
+    judged as well because it is named in the same address and costs nothing
+    to read.
     """
     if ip.version != 6:
         return ()
 
-    found = []
+    certain, _speculative = _nat64_readings(ip)
+    found = list(certain)
     for candidate in (getattr(ip, 'ipv4_mapped', None),
-                      getattr(ip, 'sixtofour', None),
-                      _nat64_embedded_ipv4(ip)):
+                      getattr(ip, 'sixtofour', None)):
         if candidate is not None:
             found.append(candidate)
 
@@ -199,16 +245,29 @@ def _ipv4_forms(ip):
     if teredo is not None:
         found.extend(teredo)
 
-    if not found and ip in _IPV4_COMPATIBLE and int(ip) != 0:
+    if _bits(int(ip), 64, 95) in _ISATAP_IDENTIFIERS:
+        found.append(ipaddress.ip_address(int(ip) & 0xFFFFFFFF))
+
+    if ip in _IPV4_COMPATIBLE:
         found.append(ipaddress.ip_address(int(ip) & 0xFFFFFFFF))
 
     return tuple(found)
 
 
+def _speculative_ipv4_forms(ip):
+    """Addresses an ambiguous encoding may carry, one layout among several."""
+    if ip.version != 6:
+        return ()
+    _certain, speculative = _nat64_readings(ip)
+    return speculative
+
+
 def _forbidden_ip_reason(ip, allow_loopback: bool = False):
     """Why `ip` (an ipaddress object) is a forbidden SSRF target — cloud metadata,
     loopback, or unspecified (0.0.0.0 / ::, which route to loopback on most OSes) — or
-    None. IPv4-mapped IPv6 is collapsed to IPv4 first so it can't slip past the checks.
+    None. Every IPv4 address an IPv6 encoding carries is judged as well as the
+    address itself, so no spelling of a denied address gets through by being
+    written another way.
 
     allow_loopback=True permits loopback/unspecified (for a colocated ACME upstream
     such as Pebble/step-ca on 127.0.0.1); cloud metadata stays blocked regardless."""
@@ -218,6 +277,22 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
         if carried in _CLOUD_METADATA_IP_OBJS:
             return "cloud metadata IP"
         if (carried.is_loopback or carried.is_unspecified) and not allow_loopback:
+            return "loopback/unspecified address"
+
+    speculative = _speculative_ipv4_forms(ip)
+    if speculative:
+        # One of these layouts is the operator's and the rest are noise, and
+        # there is no way to tell which from the address alone. Refusing on a
+        # metadata endpoint is worth the guess: nothing legitimate is written
+        # that way. Refusing on loopback or on 0.0.0.0 is not, because a
+        # wrong layout lands on them constantly -- every address behind a /96
+        # instance reads as 0.0.0.0 under the container's own /48 layout.
+        for carried in speculative:
+            if carried in _CLOUD_METADATA_IP_OBJS:
+                return "cloud metadata IP"
+        if all(c.is_unspecified for c in speculative) and not allow_loopback:
+            # Every layout agrees, so this is the prefix's own base address
+            # and it carries nothing.
             return "loopback/unspecified address"
 
     if ip in _CLOUD_METADATA_IP_OBJS:

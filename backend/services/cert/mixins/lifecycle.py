@@ -610,6 +610,23 @@ class LifecycleMixin:
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to delete certificate {cert_id}: {e}")
+            # The row is still there and its files are not: the unlinks above
+            # are already done and the rollback cannot undo them. Recording
+            # the failure is the only thing left that says so. Safe to write
+            # here because the rollback has already emptied the session, so
+            # this commit carries nothing but the entry.
+            if not _suppress_events:
+                from services.audit_service import AuditService
+                AuditService.log_action(
+                    action='cert_deleted',
+                    resource_type='certificate',
+                    resource_id=_cert_snapshot.get('id'),
+                    resource_name=(_cert_snapshot.get('descr')
+                                   or _cert_snapshot.get('subject')
+                                   or f"Cert #{_cert_snapshot.get('id')}"),
+                    details=('Failed to delete certificate; its files on '
+                             'disk were already removed'),
+                    success=False)
             return False
 
         if not _suppress_events:
@@ -626,6 +643,14 @@ class LifecycleMixin:
             name = (_cert_snapshot.get('descr')
                     or _cert_snapshot.get('subject')
                     or f"Cert #{_cert_snapshot.get('id')}")
+            # No `username=` here, and not by omission. `log_certificate`
+            # never passed one either, so the entry was named after
+            # `g.current_user`. Two internal callers hand this function a
+            # fixed name -- `username='system'` from the expired-revoked
+            # purge, `username='acme_proxy'` from the proxy -- and the purge
+            # runs inside an operator's request, from `generate_crl`. Passing
+            # it through would put `system` in the ledger where the person who
+            # pressed the button used to be.
             from services.audit_service import AuditService
             AuditService.log_action(
                 action='cert_deleted',
@@ -633,8 +658,7 @@ class LifecycleMixin:
                 resource_id=_cert_snapshot.get('id'),
                 resource_name=name,
                 details=f'Deleted certificate: {name}',
-                success=True,
-                username=username)
+                success=True)
 
             from services.webhook_service import emit_cert_deleted
             emit_cert_deleted(_cert_snapshot, ca_refid=_cert_caref, actor=username)

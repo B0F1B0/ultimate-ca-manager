@@ -96,8 +96,12 @@ def test_the_other_encodings_are_not_refused_wholesale(url):
     # the document rather than built here: an encoding computed with the same
     # formula as the code under test agrees with it whether or not either is
     # right, which is exactly how a wrong decoding first passed.
+    ("2001:db8:c000:221::", 32),
+    ("2001:db8:1c0:2:21::", 40),
     ("2001:db8:122:c000:2:2100::", 48),
-    ("64:ff9b::192.0.2.33", 96),
+    ("2001:db8:122:3c0:0:221::", 56),
+    ("2001:db8:122:344:c0:2:2100:0", 64),
+    ("2001:db8:122:344::192.0.2.33", 96),
 ])
 def test_the_layout_matches_the_specification(encoded, prefix_length):
     import ipaddress
@@ -113,22 +117,23 @@ def test_a_reserved_byte_that_is_not_zero_is_not_an_embedding():
     the address is what let the metadata service through."""
     import ipaddress
 
-    from utils.ssrf_protection import _nat64_embedded_ipv4
+    from utils.ssrf_protection import _rfc6052_ipv4
 
-    assert _nat64_embedded_ipv4(
-        ipaddress.ip_address('64:ff9b:1:a9fe:a9:fe00::')
+    assert _rfc6052_ipv4(
+        int(ipaddress.ip_address('64:ff9b:1:a9fe:a9:fe00::')), 48
     ) == ipaddress.ip_address('169.254.169.254')
-    assert _nat64_embedded_ipv4(
-        ipaddress.ip_address('64:ff9b:1:a9fe:a900:fe00::')) is None
+    assert _rfc6052_ipv4(
+        int(ipaddress.ip_address('64:ff9b:1:a9fe:a900:fe00::')), 48) is None
 
 
 @pytest.mark.parametrize("url", [
     # The deprecated IPv4-compatible form, ::a.b.c.d (RFC 4291 §2.5.5.1).
     "https://[::169.254.169.254]/",
     "https://[::127.0.0.1]/",
-    # A Teredo address whose relay is the metadata service. The client half
-    # is ordinary; the relay is a host this server would talk to just the
-    # same, so both halves are judged.
+    # A Teredo address whose *server* is the metadata service: bits 32 to 63
+    # hold the server's IPv4 address (RFC 4380 section 4), not a relay's. The
+    # client half here is ordinary. Both are named in the same address and
+    # both are read.
     "https://[2001:0:a9fe:a9fe::a247:27dd]/",
 ])
 def test_both_halves_and_the_older_spellings_are_judged(url):
@@ -136,8 +141,41 @@ def test_both_halves_and_the_older_spellings_are_judged(url):
         validate_url_not_cloud_metadata(url)
 
 
-def test_the_unspecified_address_is_not_read_as_an_embedding():
-    """`::` is in the compatible range and carries nothing; it is already
-    refused as unspecified, and must not be read as 0.0.0.0 by accident."""
+@pytest.mark.parametrize("url", [
+    # RFC 8215 picked a /48 for the local-use prefix because it has to be
+    # shorter than any translation prefix cut out of it, so the operator's
+    # real prefix is one of several and the address alone does not say which.
+    # Read with the container's own /48 layout, as this first did, the
+    # metadata service came back as 0.1.0.0 and went through.
+    "https://[64:ff9b:1:1::a9fe:a9fe]/",        # a /96 instance
+    "https://[64:ff9b:1:1:a9:fea9:fe00:0]/",    # a /64 instance
+    "https://[64:ff9b:1:a9fe:a9:fe00::]/",      # the container used directly
+    # ISATAP (RFC 5214 section 6.1), both interface identifiers.
+    "https://[fe80::5efe:169.254.169.254]/",
+    "https://[2001:db8::200:5efe:169.254.169.254]/",
+])
+def test_no_layout_of_the_local_use_prefix_hides_the_metadata_service(url):
     with pytest.raises(ValueError):
-        validate_url_not_cloud_metadata("https://[::]/")
+        validate_url_not_cloud_metadata(url)
+
+
+@pytest.mark.parametrize("url", [
+    # The mirror image of the test above, and the reason the speculative
+    # readings are judged on metadata alone. Every address behind a /96
+    # instance reads as 0.0.0.0 under the container's /48 layout, so judging
+    # those readings on loopback and unspecified cut off ordinary traffic:
+    # each of these is a perfectly good host.
+    "https://[64:ff9b:1::5db8:d822]/",          # 93.184.216.34, public
+    "https://[64:ff9b:1::a00:5]/",              # 10.0.0.5, on the LAN
+    "https://[64:ff9b:1::101:101]/",            # 1.1.1.1
+    "https://[64:ff9b:1:7f00::1]/",             # a 7f00: subnet, not loopback
+])
+def test_an_ordinary_host_behind_a_translation_prefix_is_reachable(url):
+    validate_url_not_cloud_metadata(url)
+
+
+def test_the_prefixs_own_base_address_carries_nothing():
+    """When every layout agrees on 0.0.0.0 it is not a misreading: the
+    address is the prefix itself and carries no host."""
+    with pytest.raises(ValueError):
+        validate_url_not_cloud_metadata("https://[64:ff9b:1::]/")
