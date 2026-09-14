@@ -113,3 +113,119 @@ class TestNothingIsLeftPointingAtAnAccountThatIsGone:
 
         assert left == {'orders': 0, 'authorizations': 0, 'challenges': 0}, (
             f'rows left pointing at an account that is gone: {left}')
+
+
+@pytest.fixture
+def an_account_with_a_preauthorization(app):
+    """An authorization that belongs to no order.
+
+    RFC 8555 §7.4.1 lets a client ask for one before it has an order, and the
+    column is nullable for exactly that. Walking the account's orders to find
+    its authorizations therefore misses them.
+    """
+    from models.acme_models import AcmeAccount, AcmeAuthorization, AcmeChallenge
+
+    with app.app_context():
+        account_id = f'preauthz-{secrets.token_hex(4)}'
+        db.session.add(AcmeAccount(account_id=account_id, jwk='{}',
+                                   jwk_thumbprint=secrets.token_hex(8),
+                                   status='valid'))
+        db.session.flush()
+
+        authz = AcmeAuthorization(
+            authorization_id=secrets.token_urlsafe(16),
+            order_id=None, account_id=account_id,
+            identifier='{"type":"dns","value":"pre.test"}', status='pending')
+        db.session.add(authz)
+        db.session.flush()
+        db.session.add(AcmeChallenge(
+            challenge_id=secrets.token_urlsafe(16),
+            authorization_id=authz.authorization_id,
+            type='http-01', status='pending', token=secrets.token_urlsafe(16)))
+        db.session.commit()
+        made = {'account_id': account_id,
+                'authorization_id': authz.authorization_id}
+
+    yield made
+
+    with app.app_context():
+        AcmeChallenge.query.filter_by(
+            authorization_id=made['authorization_id']).delete(
+                synchronize_session=False)
+        AcmeAuthorization.query.filter_by(
+            authorization_id=made['authorization_id']).delete(
+                synchronize_session=False)
+        AcmeAccount.query.filter_by(account_id=made['account_id']).delete(
+            synchronize_session=False)
+        db.session.commit()
+
+
+@pytest.fixture
+def an_account_with_a_client_order(app):
+    """A client order naming the local account that started it.
+
+    It is a different thing from the account: the order lives at an external
+    authority. Deleting the account must let go of it, not take it along, and
+    must not leave it pointing at a row that is gone -- which PostgreSQL
+    refuses outright, since the column carries a foreign key.
+    """
+    from models.acme_models import AcmeAccount, AcmeClientOrder
+
+    with app.app_context():
+        account_id = f'clientorder-{secrets.token_hex(4)}'
+        db.session.add(AcmeAccount(account_id=account_id, jwk='{}',
+                                   jwk_thumbprint=secrets.token_hex(8),
+                                   status='valid'))
+        db.session.flush()
+        order = AcmeClientOrder(
+            order_url=f'https://acme.example.test/{secrets.token_hex(4)}',
+            domains='["client.test"]', challenge_type='http-01',
+            environment='production', key_source='generate',
+            status='valid', account_id=account_id)
+        db.session.add(order)
+        db.session.commit()
+        made = {'account_id': account_id, 'order_url': order.order_url}
+
+    yield made
+
+    with app.app_context():
+        AcmeClientOrder.query.filter_by(order_url=made['order_url']).delete(
+            synchronize_session=False)
+        AcmeAccount.query.filter_by(account_id=made['account_id']).delete(
+            synchronize_session=False)
+        db.session.commit()
+
+
+class TestEverythingThatNamesTheAccountIsDealtWith:
+    def test_a_preauthorization_does_not_survive_its_account(
+            self, app, auth_client, an_account_with_a_preauthorization):
+        made = an_account_with_a_preauthorization
+        auth_client.delete(f'/api/v2/acme/accounts/{made["account_id"]}')
+
+        with app.app_context():
+            from models.acme_models import AcmeAuthorization, AcmeChallenge
+            left = {
+                'authorizations': AcmeAuthorization.query.filter_by(
+                    authorization_id=made['authorization_id']).count(),
+                'challenges': AcmeChallenge.query.filter_by(
+                    authorization_id=made['authorization_id']).count(),
+            }
+        assert left == {'authorizations': 0, 'challenges': 0}, (
+            'an authorization asked for before any order was left behind: '
+            f'{left}')
+
+    def test_a_client_order_lets_go_of_the_account(
+            self, app, auth_client, an_account_with_a_client_order):
+        made = an_account_with_a_client_order
+        response = auth_client.delete(
+            f'/api/v2/acme/accounts/{made["account_id"]}')
+
+        assert response.status_code in (200, 204), response.data
+
+        with app.app_context():
+            from models.acme_models import AcmeClientOrder
+            order = AcmeClientOrder.query.filter_by(
+                order_url=made['order_url']).one()
+            assert order.account_id is None, (
+                'the client order still names an account that is gone, which '
+                'a database enforcing its foreign keys refuses')

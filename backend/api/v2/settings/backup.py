@@ -143,6 +143,17 @@ def restore_backup():
     if not password:
         return error_response('Backup password required', 400)
 
+    # This route always replaces, as the docstring says. Accepting a `mode`
+    # and ignoring it meant the same request merged an archive into a live
+    # instance from one page and overwrote the whole database from the other,
+    # with nothing said either way.
+    mode = (request.form.get('mode') or 'replace').strip().lower()
+    if mode != 'replace':
+        return error_response(
+            "This endpoint always replaces the instance with the archive. Use "
+            "POST /api/v2/system/restore with mode=merge to add an archive's "
+            "rows to a live instance.", 400)
+
     try:
         from utils.file_validation import validate_upload, BACKUP_EXTENSIONS
 
@@ -179,13 +190,21 @@ def restore_backup():
                 f"{busy} A backend migration or another restore is still "
                 "running.", 409)
 
-        AuditService.log_action(
-            action='system_restore',
-            resource_type='system',
-            resource_name=file.filename,
-            details=f'Restored from backup: {file.filename}',
-            success=True
-        )
+        # The restore has happened; recording it must not undo that answer.
+        # A replacing restore has just rewritten the audit table itself, so
+        # this is precisely where writing the entry is most likely to fail,
+        # and it used to come back as "Restore failed" on a restore that
+        # succeeded. The system route has always guarded it.
+        try:
+            AuditService.log_action(
+                action='system_restore',
+                resource_type='system',
+                resource_name=file.filename,
+                details=f'Restored from backup: {file.filename}',
+                success=True
+            )
+        except Exception:
+            logger.exception('Restore completed but audit logging failed')
 
         from services.backup.restore.invalidate import invalidate_after_restore
         try:

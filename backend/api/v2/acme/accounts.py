@@ -5,6 +5,7 @@ import hashlib
 
 from flask import request
 from models import db, AcmeAccount, AcmeOrder, AcmeAuthorization, AcmeChallenge, SystemConfig
+from models.acme_models import AcmeClientOrder
 from services.audit_service import AuditService
 from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.backends import default_backend
@@ -253,26 +254,42 @@ def delete_acme_account(account_id):
 
     account_name = acc.account_id
     try:
-        # Delete related challenges, authorizations, orders first.
+        # Everything that names this account, found by the account it names
+        # rather than by walking its orders.
         #
-        # By the identifiers the protocol puts in URLs, not by the table's own
-        # keys: `AcmeChallenge.authorization_id` and
-        # `AcmeAuthorization.order_id` hold the RFC 8555 strings, generated
-        # with `secrets.token_urlsafe`, while `authz.id` and `order.id` are
-        # integers. Asking whether a token equals a number deleted nothing on
-        # SQLite, leaving authorizations and challenges pointing at an account
-        # that was gone, and failed outright on PostgreSQL, where there is no
-        # operator comparing text to an integer, so the account was not
-        # deleted at all. The route that removes a single order has always
-        # used the right column (`api/v2/acme/orders.py`).
-        for order in acc.orders:
-            for authz in order.authorizations:
-                AcmeChallenge.query.filter_by(
-                    authorization_id=authz.authorization_id).delete(
-                        synchronize_session=False)
-            AcmeAuthorization.query.filter_by(
-                order_id=order.order_id).delete(synchronize_session=False)
-        AcmeOrder.query.filter_by(account_id=acc.account_id).delete()
+        # Walking the orders missed two things. An authorization may belong to
+        # no order at all: RFC 8555 lets a client ask for one before it has an
+        # order, and the column is nullable for exactly that, so those were
+        # left behind. And a client order, which lives at an external
+        # authority, names the local account that started it without being
+        # part of it.
+        #
+        # The matching is on the identifiers the protocol puts in URLs, which
+        # are text, not on the tables' own numeric keys: asking whether a
+        # token equals a number deleted nothing on SQLite and had no operator
+        # at all on PostgreSQL, so the same click left orphans on one backend
+        # and refused outright on the other.
+        authorization_ids = [
+            row.authorization_id
+            for row in AcmeAuthorization.query.filter_by(
+                account_id=acc.account_id).all()
+        ]
+        if authorization_ids:
+            AcmeChallenge.query.filter(
+                AcmeChallenge.authorization_id.in_(authorization_ids)
+            ).delete(synchronize_session=False)
+        AcmeAuthorization.query.filter_by(
+            account_id=acc.account_id).delete(synchronize_session=False)
+        AcmeOrder.query.filter_by(
+            account_id=acc.account_id).delete(synchronize_session=False)
+
+        # The client order outlives the account: it is an order placed at an
+        # external authority, and only the link is dropped. Left pointing at a
+        # row that is gone, it is what a database enforcing its foreign keys
+        # refuses.
+        AcmeClientOrder.query.filter_by(account_id=acc.account_id).update(
+            {'account_id': None}, synchronize_session=False)
+
         db.session.delete(acc)
         db.session.commit()
 

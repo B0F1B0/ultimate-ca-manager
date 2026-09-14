@@ -10,8 +10,10 @@ The settings route did neither, so which of the two an operator reached
 decided whether their restore could land in the middle of a migration, or
 onto a backend the next restart throws away.
 
-The difference in `mode` is not a defect: the settings route always replaces,
-and says so in its own docstring.
+The settings route always replaces, as its own docstring says. What it must
+not do is accept a `mode` and ignore it: the same request then merged an
+archive into a live instance from one page and overwrote the whole database
+from the other, with nothing said either way.
 """
 import io
 
@@ -74,3 +76,34 @@ class TestAMigrationHoldsBothRoutes:
         assert response.status_code == 409, (
             f'{route} answered {response.status_code}: the restore ran while '
             'a migration was reading the database it rewrites')
+
+
+class TestAModeThatIsNotHonouredIsRefused:
+    def test_the_settings_route_refuses_merge(self, app, auth_client):
+        response = auth_client.post(
+            '/api/v2/settings/backup/restore',
+            data={'file': (io.BytesIO(b'not a real archive'), 'x.ucmbkp'),
+                  'password': 'a-password-that-is-long-enough',
+                  'mode': 'merge'},
+            content_type='multipart/form-data')
+
+        assert response.status_code == 400, (
+            f'the route answered {response.status_code} for a mode it does '
+            'not honour: the caller believes their archive was merged and it '
+            'replaced the instance')
+        assert b'merge' in response.data.lower(), (
+            'the refusal must point at the route that does honour it')
+
+    def test_the_system_route_still_honours_merge(self, app, auth_client):
+        """The other direction: refusing everywhere would be just as wrong."""
+        response = auth_client.post(
+            '/api/v2/system/restore',
+            data={'file': (io.BytesIO(b'not a real archive'), 'x.ucmbkp'),
+                  'password': 'a-password-that-is-long-enough',
+                  'mode': 'merge'},
+            content_type='multipart/form-data')
+
+        # The archive is nonsense, so the answer is a refusal about the file,
+        # never about the mode.
+        assert response.status_code != 400 or b'always replaces' not in \
+            response.data.lower()
