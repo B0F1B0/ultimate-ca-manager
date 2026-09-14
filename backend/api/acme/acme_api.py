@@ -299,6 +299,123 @@ def _account_id_from_jws(jws_data: Dict[str, Any]) -> Optional[str]:
         return None
 
 
+# RFC 8555 §6.2 explicit allowlist: forbid 'none' (RFC 7518 §3.6 attack) and
+# any MAC-based algorithm. Asymmetric only.
+# PS256/PS384/PS512 (RSA-PSS) intentionally excluded — UCM only validates
+# RSASSA-PKCS1-v1_5 below; add here when PSS is wired.
+ALLOWED_JWS_ALGS = frozenset({
+    'RS256', 'RS384', 'RS512',
+    'ES256', 'ES384', 'ES512',
+})
+
+
+def _decode_jws_protected(protected_b64: str) -> Dict[str, Any]:
+    """Decode a base64url JWS protected header. Raises on anything malformed."""
+    padded = protected_b64 + '=' * (-len(protected_b64) % 4)
+    return json.loads(base64.urlsafe_b64decode(padded).decode('utf-8'))
+
+
+def _jws_url_error(protected: Dict[str, Any], expected_urls: list,
+                   expected_url: str) -> Optional[str]:
+    """RFC 8555 §6.4 — the signed ``url`` must be one UCM answers on."""
+    if protected.get('url') not in expected_urls:
+        return f"URL mismatch: expected {expected_url}, got {protected.get('url')}"
+    return None
+
+
+def _verify_jws_signature(protected: Dict[str, Any], signing_input: bytes,
+                          signature_b64: str, key_to_verify: Optional[Dict],
+                          expected_urls: list) -> Optional[str]:
+    """Verify one JWS layer. Returns an error message, or None when it is good.
+
+    Every JWS UCM accepts goes through here — the outer JWS of any ACME
+    request and the inner JWS of a key-change alike. Keeping one gate is the
+    point: the inner key-change JWS used to be verified by its own inline
+    josepy calls, which skipped the algorithm allowlist and the key-type
+    check, and compared its ``url`` against the canonical origin instead of
+    the set of origins the outer JWS is allowed to use.
+
+    Nonce handling stays with the caller: a nonce is consumed once, by the
+    outer JWS, and an inner JWS carries none (RFC 8555 §7.3.5).
+    """
+    url_error = _jws_url_error(protected, expected_urls,
+                               expected_urls[0] if expected_urls else '')
+    if url_error:
+        return url_error
+
+    alg = protected.get('alg', '')
+    if alg not in ALLOWED_JWS_ALGS:
+        return f"Algorithm '{alg}' is not permitted (RFC 8555 §6.2)"
+
+    if not isinstance(key_to_verify, dict):
+        return f"Key is not a dict, it's a {type(key_to_verify)}"
+
+    try:
+        import josepy as jose
+    except ImportError:
+        logger.error("josepy library not installed — ACME JWS verification unavailable")
+        return "JWS verification unavailable: josepy not installed"
+
+    kty = key_to_verify.get('kty')
+    try:
+        if kty == 'RSA':
+            public_key = jose.JWKRSA.json_loads(json.dumps(key_to_verify))
+        elif kty == 'EC':
+            public_key = jose.JWKEC.json_loads(json.dumps(key_to_verify))
+        else:
+            return f"Unsupported key type: {kty}"
+    except Exception:
+        return 'Invalid JWK: malformed public key parameters'
+
+    try:
+        signature_bytes = base64.urlsafe_b64decode(
+            signature_b64 + '=' * (-len(signature_b64) % 4))
+    except Exception:
+        return "Signature verification failed"
+
+    if alg.startswith('RS'):  # RSA signatures (RS256, RS384, RS512)
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import padding
+
+        hash_alg = {'RS256': hashes.SHA256, 'RS384': hashes.SHA384,
+                    'RS512': hashes.SHA512}[alg]()
+        try:
+            public_key.key.verify(
+                signature_bytes, signing_input, padding.PKCS1v15(), hash_alg)
+        except Exception as e:
+            logger.error(f"RSA signature verification failed: {e}")
+            return "Signature verification failed"
+
+    elif alg.startswith('ES'):  # EC signatures (ES256, ES384, ES512)
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.asymmetric import ec, utils
+
+        hash_alg, key_size = {
+            'ES256': (hashes.SHA256, 32),
+            'ES384': (hashes.SHA384, 48),
+            'ES512': (hashes.SHA512, 66),
+        }[alg]
+        hash_alg = hash_alg()
+        # JWS EC signatures use raw R||S format (RFC 7518 §3.4); the
+        # cryptography library expects a DER-encoded signature.
+        try:
+            if len(signature_bytes) == 2 * key_size:
+                r = int.from_bytes(signature_bytes[:key_size], 'big')
+                s = int.from_bytes(signature_bytes[key_size:], 'big')
+                der_signature = utils.encode_dss_signature(r, s)
+            else:
+                der_signature = signature_bytes
+
+            public_key.key.verify(der_signature, signing_input, ec.ECDSA(hash_alg))
+        except Exception as e:
+            logger.error(f"EC signature verification failed: {e}")
+            return "Signature verification failed"
+    else:
+        return f"Unsupported signature algorithm: {alg}"
+
+    return None
+
+
 def verify_jws(jws_data: Dict[str, Any], expected_url: str, account_key: Optional[Dict] = None) -> Tuple[bool, Optional[Dict], Optional[Dict], Optional[str]]:
     """Verify JWS (JSON Web Signature) for ACME requests
     
@@ -329,9 +446,10 @@ def verify_jws(jws_data: Dict[str, Any], expected_url: str, account_key: Optiona
             expected_urls = get_acme_expected_urls(request, expected_url)
         except RuntimeError:
             expected_urls = [expected_url]  # no request context (unit tests)
-        if protected.get('url') not in expected_urls:
-            return False, None, None, f"URL mismatch: expected {expected_url}, got {protected.get('url')}"
-        
+        url_error = _jws_url_error(protected, expected_urls, expected_url)
+        if url_error:
+            return False, None, None, url_error
+
         # Verify nonce
         nonce = protected.get('nonce')
         if not nonce:
@@ -351,18 +469,13 @@ def verify_jws(jws_data: Dict[str, Any], expected_url: str, account_key: Optiona
         if jwk and kid:
             return False, None, None, "'jwk' and 'kid' are mutually exclusive"
 
-        # RFC 8555 §6.2 explicit allowlist: forbid 'none' (RFC 7518 §3.6 attack)
-        # and any MAC-based algorithm on the outer JWS. Asymmetric only.
+        # Reject a forbidden algorithm before doing any more work. The shared
+        # gate below checks it again; this only keeps the error specific for a
+        # request that is malformed in more than one way.
         alg_early = protected.get('alg', '')
-        ALLOWED_JWS_ALGS = {
-            'RS256', 'RS384', 'RS512',
-            'ES256', 'ES384', 'ES512',
-            # PS256/PS384/PS512 (RSA-PSS) intentionally excluded — UCM only
-            # validates RSASSA-PKCS1-v1_5 below; add here when PSS is wired.
-        }
         if alg_early not in ALLOWED_JWS_ALGS:
             return False, None, None, f"Algorithm '{alg_early}' is not permitted (RFC 8555 §6.2)"
-        
+
         # Decode payload
         if 'payload' not in jws_data:
             return False, None, None, "Missing 'payload' field in JWS"
@@ -375,11 +488,9 @@ def verify_jws(jws_data: Dict[str, Any], expected_url: str, account_key: Optiona
         else:
             payload = {}
         
-        # Verify cryptographic signature with josepy
+        # Resolve the key this layer is signed with, then hand it to the
+        # shared gate (algorithm allowlist, key type, signature).
         try:
-            import josepy as jose
-            
-            # Determine which key to use for verification
             key_to_verify = None
             if jwk:
                 # New account - JWK in protected header
@@ -400,112 +511,21 @@ def verify_jws(jws_data: Dict[str, Any], expected_url: str, account_key: Optiona
                             return False, None, None, "Account not found or deactivated"
                     except (ValueError, TypeError):
                         return False, None, None, "Invalid KID format"
-            
+
             if not key_to_verify:
                 return False, None, None, "No key available for verification"
-            
-            # Convert JWK dict to josepy JWK object
-            import json as json_module
-            if not isinstance(key_to_verify, dict):
-                return False, None, None, f"Key is not a dict, it's a {type(key_to_verify)}"
 
-            kty = key_to_verify.get('kty')
-            try:
-                if kty == 'RSA':
-                    public_key = jose.JWKRSA.json_loads(json_module.dumps(key_to_verify))
-                elif kty == 'EC':
-                    public_key = jose.JWKEC.json_loads(json_module.dumps(key_to_verify))
-                else:
-                    return False, None, None, f"Unsupported key type: {kty}"
-            except Exception:
-                return False, None, None, 'Invalid JWK: malformed public key parameters'
-            
-            # Reconstruct JWS for verification
-            # Format: base64url(protected).base64url(payload)
-            signing_input = jws_data['protected'] + '.' + jws_data['payload']
-            
-            # Decode signature
-            signature_b64 = jws_data.get('signature', '')
-            signature_b64 += '=' * (4 - len(signature_b64) % 4)
-            signature_bytes = base64.urlsafe_b64decode(signature_b64)
-            
-            # Get algorithm from protected header
-            alg = protected.get('alg')
-            if not alg:
-                return False, None, None, "Missing 'alg' in protected header"
-            
-            # Verify signature based on algorithm
-            if alg.startswith('RS'):  # RSA signatures (RS256, RS384, RS512)
-                from cryptography.hazmat.primitives import hashes
-                from cryptography.hazmat.primitives.asymmetric import padding
-                from cryptography.hazmat.backends import default_backend
-                
-                # Get hash algorithm
-                if alg == 'RS256':
-                    hash_alg = hashes.SHA256()
-                elif alg == 'RS384':
-                    hash_alg = hashes.SHA384()
-                elif alg == 'RS512':
-                    hash_alg = hashes.SHA512()
-                else:
-                    return False, None, None, f"Unsupported RSA algorithm: {alg}"
-                
-                # Verify signature
-                try:
-                    public_key.key.verify(
-                        signature_bytes,
-                        signing_input.encode('utf-8'),
-                        padding.PKCS1v15(),
-                        hash_alg
-                    )
-                except Exception as e:
-                    logger.error(f"RSA signature verification failed: {e}")
-                    return False, None, None, "Signature verification failed"
-                    
-            elif alg.startswith('ES'):  # EC signatures (ES256, ES384, ES512)
-                from cryptography.hazmat.primitives import hashes
-                from cryptography.hazmat.primitives.asymmetric import ec, utils
-                
-                # Get hash algorithm and key size
-                if alg == 'ES256':
-                    hash_alg = hashes.SHA256()
-                    key_size = 32
-                elif alg == 'ES384':
-                    hash_alg = hashes.SHA384()
-                    key_size = 48
-                elif alg == 'ES512':
-                    hash_alg = hashes.SHA512()
-                    key_size = 66
-                else:
-                    return False, None, None, f"Unsupported EC algorithm: {alg}"
-                
-                # JWS EC signatures use raw R||S format (RFC 7518 Section 3.4)
-                # cryptography library expects DER-encoded signature
-                try:
-                    if len(signature_bytes) == 2 * key_size:
-                        r = int.from_bytes(signature_bytes[:key_size], 'big')
-                        s = int.from_bytes(signature_bytes[key_size:], 'big')
-                        der_signature = utils.encode_dss_signature(r, s)
-                    else:
-                        der_signature = signature_bytes
-                    
-                    public_key.key.verify(
-                        der_signature,
-                        signing_input.encode('utf-8'),
-                        ec.ECDSA(hash_alg)
-                    )
-                except Exception as e:
-                    logger.error(f"EC signature verification failed: {e}")
-                    return False, None, None, "Signature verification failed"
-            else:
-                return False, None, None, f"Unsupported signature algorithm: {alg}"
-            
+            signing_input = (jws_data['protected'] + '.' + jws_data['payload']).encode('utf-8')
+            error = _verify_jws_signature(
+                protected, signing_input, jws_data.get('signature', ''),
+                key_to_verify, expected_urls,
+            )
+            if error:
+                return False, None, None, error
+
             # Signature valid!
             return True, payload, jwk, None
-            
-        except ImportError:
-            logger.error("josepy library not installed — ACME JWS verification unavailable")
-            return False, None, None, "JWS verification unavailable: josepy not installed"
+
         except Exception as e:
             logger.error(f"Signature verification error: {e}")
             return False, None, None, "Signature verification error"
@@ -1915,40 +1935,49 @@ def key_change():
         if not all(k in outer_payload for k in ('protected', 'payload', 'signature')):
             return acme_error('malformed', 'Inner JWS missing required fields')
         
+        # The outer JWS is verified, so its protected header is well-formed and
+        # its url is one UCM answers on. Decode it once, here: the inner JWS is
+        # tied to it, and the kid check further down needs it too.
+        try:
+            outer_protected = _decode_jws_protected(jws_data['protected'])
+        except Exception as e:
+            return acme_error('malformed', f'Invalid JWS protected header: {e}')
+        outer_url = outer_protected.get('url')
+
         # Decode inner protected header to get the new JWK
         try:
             inner_protected_b64 = outer_payload['protected']
-            inner_protected_b64_padded = inner_protected_b64 + '=' * (4 - len(inner_protected_b64) % 4)
-            inner_protected = json.loads(base64.urlsafe_b64decode(inner_protected_b64_padded))
+            inner_protected = _decode_jws_protected(inner_protected_b64)
         except Exception as e:
             return acme_error('malformed', f'Invalid inner JWS protected header: {e}')
-        
+
         new_jwk = inner_protected.get('jwk')
         if not new_jwk:
             return acme_error('malformed', 'Inner JWS must contain jwk (new key)')
-        
-        # Inner JWS url must match outer (RFC 8555 §7.3.5)
-        if inner_protected.get('url') != expected_url:
+
+        # Inner JWS url must match outer (RFC 8555 §7.3.5). Comparing against
+        # the outer's own url — not against the canonical one — is what ties
+        # the two layers together: a client reaching UCM on the inbound origin
+        # signs that origin in both layers, and the outer JWS already had to
+        # be one of get_acme_expected_urls().
+        if inner_protected.get('url') != outer_url:
             return acme_error('malformed', 'Inner JWS url does not match outer')
-        
-        # Verify the inner JWS signature using the new key
-        # Pass an empty expected_url marker — we already validated; reuse verify_jws would
-        # consume nonce again, so do crypto verification only.
-        try:
-            import josepy as jose
-            inner_payload_b64 = outer_payload['payload']
-            inner_signature = outer_payload['signature']
-            signing_input = f"{inner_protected_b64}.{inner_payload_b64}".encode('ascii')
-            
-            jwk_obj = jose.JWK.from_json(new_jwk)
-            sig_bytes = base64.urlsafe_b64decode(inner_signature + '=' * (4 - len(inner_signature) % 4))
-            alg = jose.JWASignature.from_json(inner_protected.get('alg', 'RS256'))
-            if not alg.verify(jwk_obj.key, signing_input, sig_bytes):
-                return acme_error('malformed', 'Inner JWS signature invalid')
-        except Exception as e:
-            logger.error(f"key-change inner JWS verification failed: {e}")
-            return acme_error('malformed', f'Inner JWS verification failed: {e}')
-        
+
+        # Verify the inner JWS through the same gate as every other JWS:
+        # algorithm allowlist, RSA/EC keys only, real signature check. The
+        # nonce is deliberately not re-validated — the outer JWS consumed it.
+        inner_payload_b64 = outer_payload['payload']
+        inner_error = _verify_jws_signature(
+            inner_protected,
+            f"{inner_protected_b64}.{inner_payload_b64}".encode('ascii'),
+            outer_payload['signature'],
+            new_jwk,
+            [outer_url],
+        )
+        if inner_error:
+            logger.error(f"key-change inner JWS verification failed: {inner_error}")
+            return acme_error('malformed', f'Inner JWS verification failed: {inner_error}')
+
         # Decode inner payload — contains {"account": "...", "oldKey": {...}}
         try:
             inner_payload_b64_padded = inner_payload_b64 + '=' * (4 - len(inner_payload_b64) % 4)
@@ -1964,7 +1993,6 @@ def key_change():
             return acme_error('malformed', 'Inner payload missing account URL')
         
         # Verify the account in inner payload matches the kid in outer JWS
-        outer_protected = json.loads(base64.urlsafe_b64decode(jws_data['protected'] + '=='))
         outer_kid = outer_protected.get('kid', '')
         outer_account_id = outer_kid.rstrip('/').split('/')[-1] if outer_kid else None
         if outer_account_id != account_id:
