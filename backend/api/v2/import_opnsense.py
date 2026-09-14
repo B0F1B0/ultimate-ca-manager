@@ -115,6 +115,56 @@ def _parse_cert(encoded_crt):
     return info
 
 
+def _appliance_base_url(host, port):
+    """The URL the appliance will actually be asked for, or a refusal.
+
+    Both routes checked `https://{host}` against the deny-list and then
+    connected to `https://{host}:{port}`. Those are two different strings, and
+    the port arrives from the request body: an authority accepts far more than
+    a number, so `443@169.254.169.254` turns everything before the `@` into
+    userinfo and the address after it into the host. The deny-list saw the
+    name that was typed and the connection went to the metadata service, in a
+    single request, under a permission the operator role holds.
+
+    So the port is required to be a port, the host to be nothing but a host,
+    and the deny-list is asked about the URL that will be requested rather
+    than about a prefix of it.
+
+    Returns (base_url, None) or (None, error response).
+    """
+    from urllib.parse import urlparse
+
+    try:
+        number = int(str(port).strip())
+    except (TypeError, ValueError):
+        return None, error_response(
+            'Port must be a number between 1 and 65535', 400)
+    if not 1 <= number <= 65535:
+        return None, error_response(
+            'Port must be a number between 1 and 65535', 400)
+
+    base_url = f"https://{host}:{number}"
+    parsed = urlparse(base_url)
+    # `hostname` is lower-cased and stripped of its brackets, so an IPv6
+    # literal is compared without them on both sides.
+    given = (host or '').strip().lower().strip('[]')
+    if (parsed.hostname != given or parsed.port != number
+            or parsed.username or parsed.password or parsed.path):
+        return None, error_response(
+            'Host must be a hostname or an IP address, without a port, a '
+            'path or credentials', 400)
+
+    try:
+        validate_url_not_cloud_metadata(base_url)
+    except ValueError as exc:
+        logger.warning(f"OPNsense SSRF blocked: {exc}")
+        return None, error_response(
+            'OPNsense host must not target cloud metadata services or '
+            'loopback', 400)
+
+    return base_url, None
+
+
 def _fetch_rows(session, base_url, api_key, api_secret, resource):
     response = session.get(
         f"{base_url}/api/trust/{resource}/search",
@@ -182,14 +232,10 @@ def test_connection():
         return error_response("Missing required fields: host, api_key, api_secret", 400)
     
     # Narrow SSRF guard — OPNsense is by design a LAN firewall (RFC1918).
-    # Block only cloud metadata + loopback.
-    try:
-        validate_url_not_cloud_metadata(f"https://{host}")
-    except ValueError as e:
-        logger.warning(f"OPNsense SSRF blocked: {e}")
-        return error_response("OPNsense host must not target cloud metadata services or loopback", 400)
-    
-    base_url = f"https://{host}:{port}"
+    # Block only cloud metadata + loopback, on the URL actually requested.
+    base_url, refusal = _appliance_base_url(host, port)
+    if refusal is not None:
+        return refusal
     
     try:
         session = create_session(verify_ssl=verify_ssl)
@@ -312,12 +358,11 @@ def import_items():
         logger.warning("OpnSense import failed: missing required fields")
         return error_response("Missing required fields", 400)
     
-    # Narrow SSRF guard — OPNsense is LAN firewall, RFC1918 expected.
-    try:
-        validate_url_not_cloud_metadata(f"https://{host}")
-    except ValueError as e:
-        logger.warning(f"OPNsense SSRF blocked: {e}")
-        return error_response("OPNsense host must not target cloud metadata services or loopback", 400)
+    # Narrow SSRF guard — OPNsense is LAN firewall, RFC1918 expected. Asked
+    # about the URL that will be requested, port included.
+    base_url, refusal = _appliance_base_url(host, port)
+    if refusal is not None:
+        return refusal
     
     if items is None:
         logger.warning("OpnSense import failed: no items specified")
@@ -325,7 +370,6 @@ def import_items():
     
     # Fetch data from OPNsense
     session = create_session(verify_ssl=verify_ssl)
-    base_url = f"https://{host}:{port}"
     
     stats = {
         "cas_imported": 0,
