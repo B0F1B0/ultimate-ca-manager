@@ -94,12 +94,9 @@ def _encrypt_ldap_password(password: str) -> str:
     """Encrypt LDAP bind password if encryption is available."""
     if not password:
         return password
-    try:
-        from security.encryption import key_encryption
-        if key_encryption.is_enabled:
-            return key_encryption.encrypt_string(password)
-    except ImportError:
-        pass
+    from security.encryption import key_encryption
+    if key_encryption.is_enabled:
+        return key_encryption.encrypt_string(password)
     return password
 
 
@@ -108,12 +105,9 @@ def _decrypt_ldap_password(provider) -> str:
     password = provider.ldap_bind_password
     if not password:
         return password
-    try:
-        from security.encryption import key_encryption
-        if key_encryption.is_enabled:
-            return key_encryption.decrypt_string(password)
-    except ImportError:
-        pass
+    from security.encryption import key_encryption
+    if key_encryption.is_enabled:
+        return key_encryption.decrypt_string(password)
     return password
 
 

@@ -24,11 +24,7 @@ from utils.trusted_proxy import client_ip
 from models import db, Certificate, CA, AuditLog
 from .parser import ParsedObject, ObjectType, SmartParser
 from .chain_builder import ChainBuilder, ChainInfo
-try:
-    from security.encryption import encrypt_private_key
-except ImportError:  # pragma: no cover
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 
 
 def _encrypt_prv(raw_pem: str) -> str:

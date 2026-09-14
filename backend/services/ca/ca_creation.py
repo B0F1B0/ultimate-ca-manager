@@ -98,13 +98,11 @@ class CACreationMixin:
         """Base64-encode a PEM key and encrypt it at rest when enabled."""
         if key_pem is None:
             return None
+        from security.encryption import key_encryption
+
         prv_encoded = base64.b64encode(key_pem).decode('utf-8')
-        try:
-            from security.encryption import key_encryption
-            if key_encryption.is_enabled:
-                prv_encoded = key_encryption.encrypt(prv_encoded)
-        except ImportError:
-            pass
+        if key_encryption.is_enabled:
+            prv_encoded = key_encryption.encrypt(prv_encoded)
         return prv_encoded
 
     @staticmethod

@@ -49,11 +49,7 @@ from utils.eku_validation import add_ocsp_nocheck_if_responder
 
 logger = logging.getLogger(__name__)
 
-try:
-    from security.encryption import encrypt_private_key
-except ImportError:  # encryption module unavailable — store as-is
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 
 
 # Upper bound on a renewed certificate's lifetime, mirroring issuance.

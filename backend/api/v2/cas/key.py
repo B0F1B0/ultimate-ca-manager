@@ -22,11 +22,7 @@ from utils.cert_issuer import private_key_matches
 from utils.key_codec import private_key_to_pem
 from services.audit_service import AuditService
 from models import CA, db
-try:
-    from security.encryption import encrypt_private_key
-except ImportError:  # pragma: no cover
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 
 logger = logging.getLogger(__name__)
 

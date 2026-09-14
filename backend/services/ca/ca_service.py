@@ -27,16 +27,7 @@ from .ca_signing import CASigningMixin
 
 logger = logging.getLogger(__name__)
 
-# Import key encryption (optional - fallback if not available)
-try:
-    from security.encryption import decrypt_private_key, encrypt_private_key
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-    def decrypt_private_key(data):
-        return data
-    def encrypt_private_key(data):
-        return data
+from security.encryption import decrypt_private_key, encrypt_private_key
 
 
 class CAService(

@@ -20,17 +20,7 @@ from utils.datetime_utils import utc_now
 
 logger = logging.getLogger(__name__)
 
-try:
-    from security.encryption import decrypt_private_key, encrypt_private_key
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-
-    def decrypt_private_key(data):
-        return data
-
-    def encrypt_private_key(data):
-        return data
+from security.encryption import decrypt_private_key, encrypt_private_key
 
 
 class LifecycleMixin:

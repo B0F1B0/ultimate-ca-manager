@@ -21,13 +21,7 @@ from services.import_service import (
     relink_parent_caref, path_length_of,
     serialize_cert_to_pem, serialize_key_to_pem
 )
-try:
-    from security.encryption import encrypt_private_key
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 from services.audit_service import AuditService
 from services.ca_service import CAService
 from services.notification_service import NotificationService

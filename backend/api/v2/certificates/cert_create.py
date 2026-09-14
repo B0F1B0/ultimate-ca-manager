@@ -28,11 +28,7 @@ from services.audit_service import AuditService
 from services.notification_service import NotificationService
 from websocket.emitters import on_certificate_issued
 from utils.datetime_utils import utc_now, utc_isoformat, cert_not_before
-try:
-    from security.encryption import encrypt_private_key
-except ImportError:  # pragma: no cover
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 from utils.db_transaction import safe_commit
 from . import bp
 from utils.key_codec import private_key_to_pem

@@ -229,9 +229,12 @@ class RestoreExtendedMixin:
         rows = backup_data.get('ssh_cas', [])
         if not rows:
             return
+        # Only the SSH model is conditional here. Key encryption is not: a
+        # missing security.encryption must stop the restore, never let it
+        # write the SSH CA key in cleartext.
+        from security.encryption import encrypt_private_key
         try:
             from models.ssh import SSHCertificateAuthority
-            from security.encryption import encrypt_private_key
         except ImportError:
             _missing_support('ssh_cas', rows, 'SSH')
             return

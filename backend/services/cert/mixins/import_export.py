@@ -15,22 +15,8 @@ from utils.file_naming import cert_cert_path, cert_key_path
 
 logger = logging.getLogger(__name__)
 
-try:
-    from security.encryption import decrypt_private_key, encrypt_private_key
-    from utils.key_codec import load_pem_bytes
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-
-    def decrypt_private_key(data):
-        return data
-
-    def encrypt_private_key(data):
-        return data
-
-    def load_pem_bytes(prv, *, context="private key"):
-        return base64.b64decode(prv) if prv else b''
-
+from security.encryption import decrypt_private_key, encrypt_private_key
+from utils.key_codec import load_pem_bytes
 
 class ImportExportMixin:
 

@@ -50,11 +50,7 @@ _EC_CURVES = {
     'secp521r1': ec.SECP521R1,
 }
 
-try:
-    from security.encryption import encrypt_private_key
-except ImportError:  # encryption module unavailable — store as-is
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 
 
 from utils.signing_hash import signing_hash_for

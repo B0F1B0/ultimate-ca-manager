@@ -24,22 +24,9 @@ from models.ssh import SSHCertificateAuthority
 from utils.datetime_utils import utc_now
 from utils.duration import parse_duration_seconds
 
-# Import key encryption (optional — fallback if not available)
-try:
-    from security.encryption import decrypt_private_key, encrypt_private_key
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-    def decrypt_private_key(data):
-        return data
-    def encrypt_private_key(data):
-        return data
+from security.encryption import decrypt_private_key, encrypt_private_key
 
 logger = logging.getLogger(__name__)
-
-if not HAS_ENCRYPTION:
-    logger.warning("SSH CA key encryption unavailable — private keys will be stored unencrypted. "
-                   "Configure a master key for at-rest encryption.")
 
 # Mapping of key type names to generation parameters
 KEY_TYPE_MAP = {

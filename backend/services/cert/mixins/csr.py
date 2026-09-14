@@ -62,22 +62,8 @@ def _csr_pem_bytes(stored: str) -> bytes:
     return base64.b64decode(stored)
 
 
-try:
-    from security.encryption import decrypt_private_key, encrypt_private_key
-    from utils.key_codec import load_pem_bytes
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-
-    def decrypt_private_key(data):
-        return data
-
-    def encrypt_private_key(data):
-        return data
-
-    def load_pem_bytes(prv, *, context="private key"):
-        return base64.b64decode(prv) if prv else b''
-
+from security.encryption import decrypt_private_key, encrypt_private_key
+from utils.key_codec import load_pem_bytes
 
 class CSRMixin:
 
@@ -133,13 +119,11 @@ class CSRMixin:
         # Encrypt private key at rest if encryption is enabled.
         # Without this, generated CSR keys (and any future intermediate CA
         # promoted from this record) sit base64-only in the DB.
+        from security.encryption import key_encryption
+
         prv_encoded = base64.b64encode(key_pem).decode('utf-8')
-        try:
-            from security.encryption import key_encryption
-            if key_encryption.is_enabled:
-                prv_encoded = key_encryption.encrypt(prv_encoded)
-        except ImportError:
-            pass
+        if key_encryption.is_enabled:
+            prv_encoded = key_encryption.encrypt(prv_encoded)
 
         # Create certificate record (CSR only, no cert yet)
         certificate = Certificate(

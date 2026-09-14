@@ -22,13 +22,7 @@ from services.import_service import (
 )
 from services.cert_service import CertificateService
 from services.ca_service import CAService
-try:
-    from security.encryption import encrypt_private_key
-    HAS_ENCRYPTION = True
-except ImportError:
-    HAS_ENCRYPTION = False
-    def encrypt_private_key(data):
-        return data
+from security.encryption import encrypt_private_key
 from . import bp
 
 logger = logging.getLogger(__name__)
