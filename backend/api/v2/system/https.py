@@ -16,6 +16,7 @@ import base64
 from datetime import datetime, timedelta, timezone
 import logging
 from utils.datetime_utils import utc_now, utc_isoformat
+from utils.key_codec import load_pem_bytes
 from config.settings import is_docker
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -269,20 +270,27 @@ def apply_https_cert():
 
         # Decode cert/key - they may be base64 encoded or raw PEM
         cert_data = cert.crt
-        key_data = cert.prv
 
-        # Check if base64 encoded (doesn't start with -----BEGIN)
+        # The private key goes through the codec, not through base64 alone:
+        # with a key-encryption key the column holds base64 of `ENC:` plus a
+        # token, so decoding it yields the ciphertext, and that is what used
+        # to be written into the file gunicorn reads as the key. The renewal
+        # path (`services/https_binding.materialize_https_cert`) has always
+        # done it this way; this is the same work, written once more here.
+        try:
+            key_data = load_pem_bytes(
+                cert.prv, context=f"certificate {cert.id}").decode('utf-8')
+        except Exception as exc:
+            logger.error(f"HTTPS apply: private key unreadable: {exc}")
+            return error_response(
+                "The private key of this certificate could not be read; "
+                "nothing has been changed", 400)
+
         if not cert_data.startswith('-----BEGIN'):
             try:
                 cert_data = base64.b64decode(cert_data).decode('utf-8')
             except Exception:
                 pass  # Already decoded or different format
-
-        if not key_data.startswith('-----BEGIN'):
-            try:
-                key_data = base64.b64decode(key_data).decode('utf-8')
-            except Exception:
-                pass
 
         # Write new certificate with full chain (leaf + intermediates + root)
         full_cert = cert_data
