@@ -32,3 +32,36 @@ def test_guard_blocks_loopback_and_metadata(url):
 ])
 def test_guard_allows_public_and_private_literals(url):
     validate_url_not_cloud_metadata(url)   # must not raise
+
+
+# Two metadata endpoints the deny-list did not know, found while reviewing the
+# OPNsense import. They are in the shared guard, so they were reachable from
+# every caller: ACME, webhooks, SSO, the update check, the import.
+@pytest.mark.parametrize("url", [
+    # Oracle Cloud's instance metadata endpoint. The guard blocks metadata and
+    # loopback only, on purpose, because UCM is pointed at private addresses
+    # all the time -- so being inside a private range does not refuse it.
+    "https://192.0.0.192/",
+    "https://[::ffff:192.0.0.192]/",
+    # The same address as 169.254.169.254, written through the well-known
+    # NAT64 prefix: the last 32 bits of 64:ff9b::a9fe:a9fe are exactly
+    # 169.254.169.254, and a NAT64 gateway translates it back. The existing
+    # collapse only understands the ::ffff: form, and this address is neither
+    # loopback nor private, so it went through.
+    "https://[64:ff9b::a9fe:a9fe]/",
+    "https://[64:ff9b::6464:64c8]/",       # Alibaba, same way
+    "https://[64:ff9b::a9fe:aa02]/",       # AWS ECS task credentials, same way
+])
+def test_guard_blocks_the_endpoints_it_had_not_heard_of(url):
+    with pytest.raises(ValueError):
+        validate_url_not_cloud_metadata(url)
+
+
+@pytest.mark.parametrize("url", [
+    # Inside the NAT64 prefix but carrying an ordinary address: refusing the
+    # whole prefix would refuse legitimate traffic on an IPv6-only network.
+    "https://[64:ff9b::5db8:d822]/",       # 93.184.216.34
+    "https://[64:ff9b::a00:5]/",           # 10.0.0.5, private and allowed
+])
+def test_the_nat64_prefix_is_not_refused_wholesale(url):
+    validate_url_not_cloud_metadata(url)   # must not raise

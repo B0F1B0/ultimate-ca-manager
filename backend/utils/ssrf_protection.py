@@ -88,8 +88,13 @@ _CLOUD_METADATA_IPS = {
     '169.254.169.254',          # AWS, Azure, DigitalOcean, GCP (also link-local)
     '169.254.170.2',            # AWS ECS/EKS task credentials (see note below)
     '100.100.100.200',          # Alibaba Cloud
+    '192.0.0.192',              # Oracle Cloud (see note below)
     'fd00:ec2::254',            # AWS IPv6
 }
+# 192.0.0.192 sits in 192.0.0.0/24, which `ipaddress` calls private, and this
+# guard lets private addresses through on purpose: UCM is pointed at internal
+# infrastructure all the time. So being private refuses nothing, and the
+# address has to be named like the others.
 # 169.254.170.2 is NOT the instance metadata service, which is why it was missed:
 # it is the ECS task-credentials endpoint, reached by appending the container's
 # AWS_CONTAINER_CREDENTIALS_RELATIVE_URI. It hands out live task-role IAM
@@ -106,6 +111,26 @@ _CLOUD_METADATA_HOSTS = {
 # evade a string comparison by re-encoding an IPv4 target as IPv6.
 _CLOUD_METADATA_IP_OBJS = {ipaddress.ip_address(a) for a in _CLOUD_METADATA_IPS}
 
+# The well-known NAT64 prefix (RFC 6052 §2.1): on an IPv6-only network, a
+# gateway translates 64:ff9b::<a.b.c.d> back to that IPv4 address. So
+# 64:ff9b::a9fe:a9fe reaches 169.254.169.254, while being neither loopback nor
+# private, and `ipv4_mapped` only understands the ::ffff: form. The embedded
+# address is read out and judged like any other rather than the prefix being
+# refused wholesale, which would cut off legitimate traffic on such a network.
+#
+# Only the /96 form is decoded. RFC 6052 allows an operator-chosen prefix of
+# 32 to 96 bits, whose embedding this cannot guess without being told what the
+# prefix is; that is a gap, and naming it here is better than implying it is
+# covered.
+_NAT64_WELL_KNOWN = ipaddress.ip_network('64:ff9b::/96')
+
+
+def _nat64_embedded_ipv4(ip):
+    """The IPv4 address a well-known NAT64 form carries, or None."""
+    if ip.version != 6 or ip not in _NAT64_WELL_KNOWN:
+        return None
+    return ipaddress.ip_address(int(ip) & 0xFFFFFFFF)
+
 
 def _forbidden_ip_reason(ip, allow_loopback: bool = False):
     """Why `ip` (an ipaddress object) is a forbidden SSRF target — cloud metadata,
@@ -117,6 +142,10 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
     mapped = getattr(ip, 'ipv4_mapped', None)
     if mapped is not None:
         ip = mapped
+    else:
+        embedded = _nat64_embedded_ipv4(ip)
+        if embedded is not None:
+            ip = embedded
     if ip in _CLOUD_METADATA_IP_OBJS:
         return "cloud metadata IP"
     if (ip.is_loopback or ip.is_unspecified) and not allow_loopback:
