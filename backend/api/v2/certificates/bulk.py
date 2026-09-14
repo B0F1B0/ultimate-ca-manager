@@ -16,6 +16,7 @@ from models import Certificate, CA, db
 from utils.cert_status import issued_certificates
 from services.cert_service import CertificateService
 from services.cert.renewal import RenewalError, check_renewable, renew_certificate_in_place
+from services.msca.propagation import propagate_revocation, PROPAGATED
 from services.audit_service import AuditService
 from utils.response import success_response, error_response
 from utils.datetime_utils import utc_now
@@ -41,6 +42,12 @@ def bulk_revoke_certificates():
     username = g.current_user.username if hasattr(g, 'current_user') else 'system'
 
     results = {'success': [], 'failed': []}
+    # A certificate issued through a Microsoft CA connection has no caref, so
+    # UCM publishes neither a CRL entry nor an OCSP answer for it: the
+    # Windows CA is the only place its revocation can become visible. The
+    # single-certificate route carries it there and this one did not, so a
+    # bulk revoke left such a certificate valid to every relying party.
+    msca_local_only = []
     for cert_id in ids:
         try:
             cert = db.session.get(Certificate, cert_id)
@@ -50,11 +57,21 @@ def bulk_revoke_certificates():
             if cert.revoked:
                 results['failed'].append({'id': cert_id, 'error': 'Already revoked'})
                 continue
-            CertificateService.revoke_certificate(cert_id=cert_id, reason=reason, username=username)
+            cert = CertificateService.revoke_certificate(
+                cert_id=cert_id, reason=reason, username=username)
+            if cert is not None and cert.source == 'msca':
+                outcome, _detail = propagate_revocation(cert, reason)
+                if outcome != PROPAGATED:
+                    msca_local_only.append(cert_id)
             results['success'].append(cert_id)
         except Exception as e:
             logger.error(f"Bulk revoke failed for cert {cert_id}: {e}")
             results['failed'].append({'id': cert_id, 'error': 'Revocation failed'})
+
+    if msca_local_only:
+        # Reported, not counted as a failure: the certificate *is* revoked in
+        # UCM. The operator still has to revoke it on the Windows CA.
+        results['msca_local_only'] = msca_local_only
 
     AuditService.log_action(
         action='certificates_bulk_revoked',

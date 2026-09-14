@@ -119,30 +119,33 @@ def revoke_certificate(cert_id):
         return error_response('Failed to revoke certificate', 500)
 
 
-def _find_msca_for_cert(cert):
-    """The MicrosoftCA connection that issued this cert, or None."""
-    from models.msca import MicrosoftCA, MSCARequest
-    req = (MSCARequest.query
-           .filter((MSCARequest.cert_id == cert.id) | (MSCARequest.csr_id == cert.id))
-           .order_by(MSCARequest.id.desc())
-           .first())
-    if req:
-        msca = db.session.get(MicrosoftCA, req.msca_id)
-        if msca:
-            return msca
-    if cert.imported_from and cert.imported_from.startswith('msca:'):
-        return MicrosoftCA.query.filter_by(name=cert.imported_from[len('msca:'):]).first()
-    return None
-
-
 def _revoke_msca_on_ca(cert, reason):
-    """After a local msca revocation, propagate to the Windows CA if possible."""
-    from services.msca_service import MicrosoftCAService, MSCAAdminChannelError
+    """After a local msca revocation, propagate to the Windows CA if possible.
 
-    msca = _find_msca_for_cert(cert)
+    The propagation itself is shared with the bulk route
+    (``services/msca/propagation.py``); what stays here is turning its
+    outcome into the response clients already read.
+    """
+    from services.msca.propagation import (
+        propagate_revocation, PROPAGATED, CHANNEL_FAILED,
+    )
+
+    # Snapshotted before the propagation audits: that call commits the
+    # session, which expires this instance (the bus/audit rule).
     cert_dict = cert.to_dict()
+    outcome, detail = propagate_revocation(cert, reason)
 
-    if not msca or not MicrosoftCAService.admin_channel_available(msca):
+    if outcome == CHANNEL_FAILED:
+        return success_response(
+            data=cert_dict,
+            message=(
+                'Certificate revoked in UCM, but propagating the revocation to '
+                f'the Windows CA failed: {detail}. Revoke it on the CA manually.'
+            ),
+            meta={'msca_local_only': True, 'msca_ca_error': str(detail)[:300]}
+        )
+
+    if outcome != PROPAGATED:
         return success_response(
             data=cert_dict,
             message=(
@@ -153,28 +156,6 @@ def _revoke_msca_on_ca(cert, reason):
             meta={'msca_local_only': True}
         )
 
-    try:
-        MicrosoftCAService.revoke_on_ca(msca, cert.serial_number, reason=reason)
-    except MSCAAdminChannelError as e:
-        logger.error(f"MS CA admin-channel revoke failed for cert {cert.id}: {e}")
-        return success_response(
-            data=cert_dict,
-            message=(
-                'Certificate revoked in UCM, but propagating the revocation to '
-                f'the Windows CA failed: {e}. Revoke it on the CA manually.'
-            ),
-            meta={'msca_local_only': True, 'msca_ca_error': str(e)[:300]}
-        )
-
-    from services.audit_service import AuditService
-    AuditService.log_action(
-        action='msca.revoke_on_ca',
-        resource_type='certificate',
-        resource_id=str(cert.id),
-        resource_name=cert.subject or cert.refid,
-        details=f"Revocation propagated to Microsoft CA '{msca.name}' (reason={reason})",
-        success=True,
-    )
     return success_response(
         data=cert_dict,
         message='Certificate revoked in UCM and on the Microsoft CA',
@@ -314,7 +295,8 @@ def unhold_certificate(cert_id):
         # with an admin channel (certutil unrevoke only lifts a certificateHold).
         if cert.source == 'msca':
             from services.msca_service import MicrosoftCAService, MSCAAdminChannelError
-            msca = _find_msca_for_cert(cert)
+            from services.msca.propagation import find_msca_for_cert
+            msca = find_msca_for_cert(cert)
             if msca and MicrosoftCAService.admin_channel_available(msca):
                 try:
                     MicrosoftCAService.unrevoke_on_ca(msca, cert.serial_number)
