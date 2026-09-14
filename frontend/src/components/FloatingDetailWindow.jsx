@@ -29,6 +29,7 @@ import { RestoreModal } from './cas/RestoreModal'
 import { UploadCACertModal } from '../pages/cas/UploadCACertModal'
 import { cn, downloadBlob } from '../lib/utils'
 import { canExportPrivateKey } from '../lib/exportPermissions'
+import { downloadExport } from '../lib/exportDownload'
 
 const ENTITY_CONFIG = {
   certificate: {
@@ -113,15 +114,7 @@ export function FloatingDetailWindow({ windowInfo }) {
       const id = windowInfo.entityId
       const name = data?.cn || data?.common_name || data?.name || windowInfo.type
       
-      const res = await service.export(id, format, options)
-      const blob = res instanceof Blob ? res : new Blob([res.data || res], { type: 'application/octet-stream' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      const ext = { pkcs12: 'p12', pkcs7: 'p7b' }[format] || format
-      a.download = `${name}.${ext}`
-      a.click()
-      URL.revokeObjectURL(url)
+      await downloadExport(service.export(id, format, options), { format, name })
       showSuccess(t('common.exported'))
     } catch (err) {
       showError(t('common.exportFailed'))

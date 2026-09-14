@@ -19,6 +19,7 @@ import { useAuth, useNotification, useMobile } from '../contexts'
 import { useClipboard, usePermission } from '../hooks'
 import { formatDate , downloadBlob} from '../lib/utils'
 import { canExportPrivateKey } from '../lib/exportPermissions'
+import { downloadExport } from '../lib/exportDownload'
 
 export default function AccountPage() {
   const { t } = useTranslation()
@@ -521,20 +522,16 @@ export default function AccountPage() {
   const handleExportCert = async (format, options) => {
     if (!exportCert) return
     try {
-      let blob
-      if (format === 'pkcs12' || format === 'p12') {
-        blob = await accountService.downloadMTLSCertificate(exportCert.id, {
-          format: 'pkcs12',
-          password: options.password,
-          includeChain: options.includeChain,
-          includeRoot: options.includeRoot,
-          legacy: options.legacy,
-        })
-      } else {
-        blob = await userCertificatesService.export(exportCert.id, format, options)
-      }
-      const extMap = { pem: 'pem', der: 'der', pkcs7: 'p7b', pkcs12: 'p12', key: 'key', jks: 'jks' }
-      downloadBlob(blob, `${exportCert.name || 'certificate'}.${extMap[format] || 'pem'}`)
+      const request = (format === 'pkcs12' || format === 'p12')
+        ? accountService.downloadMTLSCertificate(exportCert.id, {
+            format: 'pkcs12',
+            password: options.password,
+            includeChain: options.includeChain,
+            includeRoot: options.includeRoot,
+            legacy: options.legacy,
+          })
+        : userCertificatesService.export(exportCert.id, format, options)
+      await downloadExport(request, { format, name: exportCert.name || 'certificate' })
       showSuccess(t('userCertificates.exportSuccess'))
       setExportCert(null)
     } catch (error) {

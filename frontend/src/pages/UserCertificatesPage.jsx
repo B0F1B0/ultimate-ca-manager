@@ -11,21 +11,24 @@ import {
   CheckCircle, Warning, Clock, Certificate, Info
 } from '@phosphor-icons/react'
 import {
-  ResponsiveLayout, ResponsiveDataTable, Badge, Button, Modal, Input
+  ResponsiveLayout, ResponsiveDataTable, Badge, Button
 } from '../components'
 import { userCertificatesService } from '../services'
 import { RevokeCertificateModal } from '../components/RevokeCertificateModal'
+import { ExportModal } from '../components/ExportModal'
 import { useNotification, useMobile } from '../contexts'
 import { useWindowManager } from '../contexts/WindowManagerContext'
 import { usePermission, usePersistedState } from '../hooks'
-import { formatDate, extractCN , downloadBlob} from '../lib/utils'
+import { formatDate, extractCN } from '../lib/utils'
+import { canExportPrivateKey } from '../lib/exportPermissions'
+import { downloadExport } from '../lib/exportDownload'
 
 export default function UserCertificatesPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
   const { showSuccess, showError, showConfirm } = useNotification()
   const { openWindow } = useWindowManager()
-  const { canWrite, canDelete } = usePermission()
+  const { canWrite, canDelete, hasPermission } = usePermission()
 
   // Data
   const [certificates, setCertificates] = useState([])
@@ -44,13 +47,10 @@ export default function UserCertificatesPage() {
   const [filterStatus, setFilterStatus] = usePersistedState('ucm-filter-usercerts-status', [])
   const [searchValue, setSearchValue] = useState('')
 
-  // Export modal
-  const [showExportModal, setShowExportModal] = useState(false)
+  // Export — ExportModal owns the format, password and PKCS#12 profile (#331);
+  // exportFormat only says which tile it opens on.
   const [exportCert, setExportCert] = useState(null)
   const [exportFormat, setExportFormat] = useState('pem')
-  const [exportLegacy, setExportLegacy] = useState(false)  // PKCS#12 3DES/SHA-1 profile (#331)
-  const [exportPassword, setExportPassword] = useState('')
-  const [exporting, setExporting] = useState(false)
 
   // Load data
   const loadData = useCallback(async () => {
@@ -140,32 +140,19 @@ export default function UserCertificatesPage() {
     return <Badge variant={c.variant} size="sm" icon={c.icon} dot pulse={c.pulse}>{c.label}</Badge>
   }, [t])
 
-  // Export handler
-  const handleExport = async () => {
+  // Export handler — options come from ExportModal, so include_key is whatever
+  // the operator ticked rather than the service default (which is true).
+  const handleExport = async (format, options = {}) => {
     if (!exportCert) return
-    if ((exportFormat === 'pkcs12' || exportFormat === 'jks') && exportPassword.length < 8) {
-      showError(t('userCertificates.exportPasswordMin'))
-      return
-    }
-    setExporting(true)
     try {
-      const blob = await userCertificatesService.export(
-        exportCert.id, exportFormat,
-        {
-          password: (exportFormat === 'pkcs12' || exportFormat === 'jks') ? exportPassword : undefined,
-          legacy: exportFormat === 'pkcs12' ? exportLegacy : undefined,
-        }
+      await downloadExport(
+        userCertificatesService.export(exportCert.id, format, options),
+        { format, name: exportCert.name || 'certificate' },
       )
-      const ext = { pkcs12: 'p12', jks: 'jks' }[exportFormat] || 'pem'
-      downloadBlob(blob, `${exportCert.name || 'certificate'}.${ext}`)
       showSuccess(t('userCertificates.exportSuccess'))
-      setShowExportModal(false)
-      setExportPassword('')
-      setExportLegacy(false)
     } catch (error) {
       showError(error.message || t('userCertificates.exportFailed'))
-    } finally {
-      setExporting(false)
+      throw error
     }
   }
 
@@ -289,7 +276,7 @@ export default function UserCertificatesPage() {
     {
       label: t('common.export'),
       icon: Download,
-      onClick: () => { setExportCert(row); setExportFormat('pem'); setExportLegacy(false); setShowExportModal(true) },
+      onClick: () => { setExportFormat('pem'); setExportCert(row) },
     },
     ...(canWrite('user_certificates') && row.status !== 'revoked' ? [{
       label: t('userCertificates.actions.revoke'),
@@ -328,11 +315,11 @@ export default function UserCertificatesPage() {
       </div>
 
       <div className="flex flex-wrap gap-2 pt-3 border-t border-border">
-        <Button type="button" size="sm" onClick={() => { setExportCert(selectedCert); setExportFormat('pem'); setExportLegacy(false); setShowExportModal(true) }}>
+        <Button type="button" size="sm" onClick={() => { setExportFormat('pem'); setExportCert(selectedCert) }}>
           <Download size={14} /> {t('userCertificates.actions.exportPEM')}
         </Button>
         {selectedCert.has_private_key && (
-          <Button type="button" size="sm" variant="secondary" onClick={() => { setExportCert(selectedCert); setExportFormat('pkcs12'); setExportLegacy(false); setShowExportModal(true) }}>
+          <Button type="button" size="sm" variant="secondary" onClick={() => { setExportFormat('pkcs12'); setExportCert(selectedCert) }}>
             <Certificate size={14} /> {t('userCertificates.actions.exportPKCS12')}
           </Button>
         )}
@@ -412,66 +399,17 @@ export default function UserCertificatesPage() {
         emptyDescription={t('userCertificates.empty.description')}
       />
 
-      {/* Export Modal */}
-      <Modal
-        open={showExportModal}
-        onClose={() => { setShowExportModal(false); setExportPassword(''); setExportLegacy(false) }}
-        title={t('userCertificates.exportTitle')}
-        size="sm"
-      >
-        <div className="p-4 space-y-4">
-          <p className="text-sm text-text-secondary">
-            {t('userCertificates.exportDescription', { name: exportCert?.name || '' })}
-          </p>
-          <div className="flex gap-2">
-            <Button type="button" variant={exportFormat === 'pem' ? 'primary' : 'secondary'} size="sm" onClick={() => setExportFormat('pem')}>
-              PEM
-            </Button>
-            {exportCert?.has_private_key && (
-              <Button type="button" variant={exportFormat === 'pkcs12' ? 'primary' : 'secondary'} size="sm" onClick={() => setExportFormat('pkcs12')}>
-                PKCS12 (.p12)
-              </Button>
-            )}
-            {exportCert?.has_private_key && (
-              <Button type="button" variant={exportFormat === 'jks' ? 'primary' : 'secondary'} size="sm" onClick={() => setExportFormat('jks')}>
-                JKS
-              </Button>
-            )}
-          </div>
-          {(exportFormat === 'pkcs12' || exportFormat === 'jks') && (
-            <Input
-              type="password"
-              label={t('userCertificates.exportPasswordLabel')}
-              placeholder={t('userCertificates.exportPasswordPlaceholder')}
-              value={exportPassword}
-              onChange={(e) => setExportPassword(e.target.value)}
-              helperText={t('userCertificates.exportPasswordMin')}
-            />
-          )}
-          {exportFormat === 'pkcs12' && (
-            <label className="flex items-center gap-2.5 px-1 py-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={exportLegacy}
-                onChange={(e) => setExportLegacy(e.target.checked)}
-                className="w-4 h-4 rounded accent-accent-primary"
-              />
-              <div>
-                <div className="text-sm text-text-primary">{t('export.legacyPkcs12')}</div>
-                <div className="text-xs text-text-tertiary">{t('export.legacyPkcs12Desc')}</div>
-              </div>
-            </label>
-          )}
-          <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button type="button" variant="secondary" onClick={() => { setShowExportModal(false); setExportPassword(''); setExportLegacy(false) }}>
-              {t('common.cancel')}
-            </Button>
-            <Button type="button" onClick={handleExport} loading={exporting} disabled={exporting}>
-              <Download size={14} /> {t('common.export')}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      {/* Export — the dialog every other certificate surface uses */}
+      <ExportModal
+        open={!!exportCert}
+        onClose={() => setExportCert(null)}
+        entityType="certificate"
+        entityName={exportCert?.name || exportCert?.cert_subject || ''}
+        hasPrivateKey={!!exportCert?.has_private_key}
+        canExportKey={canExportPrivateKey('user_certificate', { hasPermission, canWrite })}
+        defaultFormat={exportFormat}
+        onExport={handleExport}
+      />
       <RevokeCertificateModal
         open={!!revokingCert}
         onClose={() => setRevokingCert(null)}

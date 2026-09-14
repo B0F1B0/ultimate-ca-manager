@@ -22,8 +22,9 @@ import { SmartImportModal } from '../components/SmartImport'
 import { certificatesService, casService, truststoreService } from '../services'
 import { useNotification, useMobile, useWindowManager } from '../contexts'
 import { usePermission, useRecentHistory, useFavorites, useWebSocket, usePersistedState } from '../hooks'
-import { extractCN, cn, downloadBlob } from '../lib/utils'
+import { extractCN, cn } from '../lib/utils'
 import { canExportPrivateKey } from '../lib/exportPermissions'
+import { downloadExport } from '../lib/exportDownload'
 import { IssueCertificateForm } from './certificates/IssueCertificateForm'
 import { useCertificateColumns } from './certificates/useCertificateColumns'
 import { UploadKeyModal } from './certificates/UploadKeyModal'
@@ -251,11 +252,12 @@ export default function CertificatesPage() {
   // Export certificate
   const handleExport = async (format, options = {}) => {
     if (!selectedCert) return
-    
+
     try {
-      const blob = await certificatesService.export(selectedCert.id, format, options)
-      const ext = { pem: 'pem', der: 'der', pkcs7: 'p7b', pkcs12: 'p12', pfx: 'pfx', jks: 'jks' }[format] || format
-      downloadBlob(blob, `${selectedCert.common_name || 'certificate'}.${ext}`)
+      await downloadExport(
+        certificatesService.export(selectedCert.id, format, options),
+        { format, name: selectedCert.common_name || 'certificate' },
+      )
       showSuccess(t('messages.success.export.certificate'))
     } catch {
       showError(t('messages.errors.exportFailed.certificate'))
@@ -476,9 +478,10 @@ export default function CertificatesPage() {
     if (!exportRowCert) return
     const cert = exportRowCert
     try {
-      const blob = await certificatesService.export(cert.id, format, options)
-      const ext = { pkcs12: 'p12', pkcs7: 'p7b', jks: 'jks' }[format] || format
-      downloadBlob(blob, `${cert.common_name || cert.cn || 'certificate'}.${ext}`)
+      await downloadExport(
+        certificatesService.export(cert.id, format, options),
+        { format, name: cert.common_name || cert.cn || 'certificate' },
+      )
       showSuccess(t('messages.success.export.certificate'))
     } catch {
       showError(t('messages.errors.exportFailed.certificate'))
