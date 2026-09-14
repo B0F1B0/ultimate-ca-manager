@@ -487,14 +487,33 @@ class BackupService(ExportCoreMixin, ExportExtendedMixin, DecryptMixin,
         return nonce + ciphertext
 
     def _encrypt_private_key(self, key_pem: str, master_key: bytes) -> Dict[str, str]:
-        """Encrypt individual private key with unique salt"""
+        """Encrypt individual private key with unique salt.
+
+        The 10 000 iterations here are NOT the archive's password stretch and
+        must not be aligned on it. The input is ``master_key`` — 32 bytes
+        already derived from the password by the container KDF — so there is no
+        low-entropy secret left to stretch; the derivation only separates one
+        key's AES key from another's, per salt.
+
+        More to the point, the count cannot be changed. The blob below records
+        the algorithm, the salt and the nonce, and nothing else: it carries no
+        version and no KDF parameters. Raising the count would not be refused
+        by an older archive, it would surface as "wrong password or corrupted
+        file" on restore, for every private key in every backup ever taken.
+        Moving it needs a new field in this dict and a reader that honours it —
+        the container's master KDF is the example to follow, which is exactly
+        why that one could go from 100 000 to 600 000 while keeping 100 000 as
+        the accepted floor. ``_decrypt_private_key`` holds the other half of
+        this constant; ``tests/test_kdf_parameters_are_frozen.py`` pins both
+        with a vector produced before any such change.
+        """
         # Derive unique key for this specific private key
         salt = secrets.token_bytes(self.SALT_SIZE)
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=self.KEY_SIZE,
             salt=salt,
-            iterations=10000,  # Fewer iterations for per-key encryption
+            iterations=10000,  # see the docstring: frozen by the stored format
             backend=default_backend()
         )
         key = kdf.derive(master_key)

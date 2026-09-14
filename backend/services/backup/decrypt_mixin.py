@@ -104,7 +104,14 @@ class DecryptMixin:
         return master_key, container.json_loads_bounded(plaintext)
 
     def _decrypt_private_key(self, encrypted_data: Dict[str, str], master_key: bytes) -> str:
-        """Decrypt individual private key"""
+        """Decrypt individual private key.
+
+        The 10 000 iterations below are the other half of
+        ``BackupService._encrypt_private_key``'s constant, and are frozen for
+        the same reason: the blob carries no KDF parameters, so this reader has
+        nothing to read them from and every archive ever written assumes this
+        exact number.
+        """
         salt = bytes.fromhex(encrypted_data['salt'])
         nonce = bytes.fromhex(encrypted_data['nonce'])
         ciphertext = bytes.fromhex(encrypted_data['ciphertext'])
@@ -114,7 +121,7 @@ class DecryptMixin:
             algorithm=hashes.SHA256(),
             length=self.KEY_SIZE,
             salt=salt,
-            iterations=10000,
+            iterations=10000,  # see the docstring: frozen by the stored format
             backend=default_backend()
         )
         key = kdf.derive(master_key)

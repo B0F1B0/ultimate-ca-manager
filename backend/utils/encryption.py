@@ -88,7 +88,17 @@ def _get_encryption_key() -> bytes:
         except Exception:
             pass
     
-    # Derive Fernet-compatible key (32 bytes, base64 encoded)
+    # Derive Fernet-compatible key (32 bytes, base64 encoded).
+    #
+    # Every parameter below is frozen: the algorithm, the in-source salt, the
+    # 100 000 iterations and the 32-byte length are all part of how existing
+    # rows were encrypted, and nothing records them alongside the ciphertext.
+    # Changing any one of them does not fail loudly — decrypt_value() returns
+    # None on a wrong key — so every integration secret in the database would
+    # simply start reading back as empty. The count is unrelated to the two in
+    # services/backup/: this one has a machine id as input, those have an
+    # archive password and a derived master key. tests/
+    # test_kdf_parameters_are_frozen.py pins this derivation with a vector.
     derived = hashlib.pbkdf2_hmac(
         'sha256',
         machine_id.encode(),
