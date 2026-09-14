@@ -57,6 +57,17 @@ def _create(client, domain, ca_id):
                        json={'domain': domain, 'issuing_ca_id': ca_id})
 
 
+@pytest.fixture
+def revoked_ca(app, create_ca):
+    from models import CA
+
+    ca = create_ca(cn='Local Domain Revoked CA')
+    with app.app_context():
+        db.session.get(CA, ca['id']).revoked = True
+        db.session.commit()
+    return ca
+
+
 class TestAZoneIsNotBoundToAnAuthorityThatCannotSign:
     def test_an_offline_authority_is_refused(self, auth_client, offline_ca):
         response = _create(auth_client, _zone('offline'), offline_ca['id'])
@@ -64,6 +75,32 @@ class TestAZoneIsNotBoundToAnAuthorityThatCannotSign:
         assert response.status_code == 400, response.data
         assert b'offline' in response.data.lower(), (
             'the refusal must name the reason, as the DNS-mapped table does')
+
+    def test_a_revoked_authority_is_refused(self, auth_client, revoked_ca):
+        response = _create(auth_client, _zone('revoked'), revoked_ca['id'])
+
+        assert response.status_code == 400, response.data
+        assert b'revoked' in response.data.lower()
+
+    def test_every_reason_the_rule_names_is_refused(self, app, auth_client,
+                                                    usable_ca, monkeypatch):
+        """The route must ask the shared rule, not a list of its own.
+
+        Testing each of the six causes end to end would mostly re-test the
+        rule, which has its own coverage. What belongs here is that the route
+        delegates: whatever reason the rule gives, the route refuses and
+        repeats it. A route that kept its own two checks passes the two cases
+        above by accident and fails this one.
+        """
+        import api.v2.acme_local_domains as route
+
+        monkeypatch.setattr(route, 'signing_ca_problem',
+                            lambda ca: 'a reason only the rule knows')
+
+        response = _create(auth_client, _zone('delegates'), usable_ca['id'])
+
+        assert response.status_code == 400, response.data
+        assert b'a reason only the rule knows' in response.data
 
     def test_a_usable_authority_is_accepted(self, auth_client, usable_ca):
         response = _create(auth_client, _zone('usable'), usable_ca['id'])

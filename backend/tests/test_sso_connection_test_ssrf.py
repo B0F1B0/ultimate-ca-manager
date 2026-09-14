@@ -95,3 +95,36 @@ class TestTheReachabilityTestDoesNotWanderOff:
 
         assert response.status_code == 400, response.data
         assert b'metadata' in response.data.lower()
+
+
+class TestTheHelperItselfDoesNotFollowRedirects:
+    """The route's test replaces the helper with a double, so it proves the
+    wiring and not the wire. This one asks the helper what it actually does,
+    so that giving it a redirect-following default one day fails here rather
+    than passing everywhere.
+    """
+
+    def test_it_does_not_ask_for_redirects(self, monkeypatch):
+        import requests
+
+        from utils import ssrf_protection
+
+        seen = {}
+
+        def fake_head(url, **kwargs):
+            seen.update(kwargs)
+
+            class Answer:
+                status_code = 302
+            return Answer()
+
+        monkeypatch.setattr(ssrf_protection, '_resolve_and_validate',
+                            lambda url, allow_loopback: ('example.test',
+                                                         ['192.0.2.1']))
+        monkeypatch.setattr(requests, 'head', fake_head)
+
+        ssrf_protection.safe_request_head('https://example.test/a')
+
+        assert seen.get('allow_redirects') is not True, (
+            'the helper asked requests to follow redirects, which leaves the '
+            'host it pinned')
