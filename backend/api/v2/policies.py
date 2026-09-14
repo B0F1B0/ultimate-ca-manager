@@ -29,8 +29,7 @@ logger = logging.getLogger(__name__)
 bp = Blueprint('policies_pro', __name__)
 
 
-# Hard cap mirrored from utils.cert_validation.MAX_VALIDITY_DAYS
-_MAX_VALIDITY_DAYS = 3650
+from utils.validity import MAX_VALIDITY_DAYS as _MAX_VALIDITY_DAYS
 
 
 from utils.signing_hash import signing_hash_for

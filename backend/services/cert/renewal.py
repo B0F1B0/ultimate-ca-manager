@@ -53,7 +53,7 @@ from security.encryption import encrypt_private_key
 
 
 # Upper bound on a renewed certificate's lifetime, mirroring issuance.
-MAX_RENEWAL_DAYS = 3650
+from utils.validity import MAX_VALIDITY_DAYS as MAX_RENEWAL_DAYS
 DEFAULT_RENEWAL_DAYS = 365
 
 
@@ -430,8 +430,8 @@ def renew_certificate_in_place(
     if key_error:
         raise RenewalError(f'Cannot renew: {key_error}', 400)
 
-    # Same duration as the original, starting now, clamped to 1..3650 days and
-    # to the CA's own expiry.
+    # Same duration as the original, starting now, clamped to the shared
+    # issuance bounds and to the CA's own expiry.
     orig_duration = orig_cert.not_valid_after_utc - orig_cert.not_valid_before_utc
     validity_days = orig_duration.days if orig_duration.days > 0 else DEFAULT_RENEWAL_DAYS
     validity_days = min(validity_days, MAX_RENEWAL_DAYS)

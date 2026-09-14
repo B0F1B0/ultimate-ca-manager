@@ -23,6 +23,8 @@ from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from security.encryption import encrypt_private_key
+from utils.validity import (MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS,
+                            coerce_validity_days, validity_days_in_range)
 from utils.datetime_utils import utc_now
 from utils.db_transaction import safe_commit
 from utils.cert_status import (
@@ -788,12 +790,12 @@ def sign_csr(csr_id):
     
     data = request.get_json(silent=True) or {}
     ca_id = data.get('ca_id')
-    try:
-        validity_days = int(data.get('validity_days', 365))
-    except (TypeError, ValueError):
+    validity_days = coerce_validity_days(data.get('validity_days', 365))
+    if validity_days is None:
         return error_response('validity_days must be an integer', 400)
-    if validity_days < 1 or validity_days > 3650:
-        return error_response('validity_days must be between 1 and 3650', 400)
+    if not validity_days_in_range(validity_days):
+        return error_response(
+            f'validity_days must be between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}', 400)
     cert_type = data.get('cert_type', 'server')
     extra_ekus = data.get('extra_ekus')
 
@@ -939,12 +941,12 @@ def bulk_sign_csrs():
         return error_response('ids array required', 400)
 
     ca_id = data.get('ca_id')
-    try:
-        validity_days = int(data.get('validity_days', 365))
-    except (TypeError, ValueError):
+    validity_days = coerce_validity_days(data.get('validity_days', 365))
+    if validity_days is None:
         return error_response('validity_days must be an integer', 400)
-    if validity_days < 1 or validity_days > 3650:
-        return error_response('validity_days must be between 1 and 3650', 400)
+    if not validity_days_in_range(validity_days):
+        return error_response(
+            f'validity_days must be between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}', 400)
 
     if not ca_id:
         return error_response('ca_id required', 400)

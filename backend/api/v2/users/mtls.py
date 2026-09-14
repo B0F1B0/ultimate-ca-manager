@@ -19,6 +19,7 @@ from utils.db_transaction import safe_commit
 from models import db, User, Certificate, CA
 from services.audit_service import AuditService
 from utils.key_codec import load_pem_bytes
+from utils.validity import MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS
 from services.mtls_enrollment import parse_validity_days
 
 logger = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ def create_user_mtls_certificate(user_id):
 
         validity_days = parse_validity_days(validity_days)
         if validity_days is None:
-            return error_response('validity_days must be an integer between 1 and 3650', 400)
+            return error_response(f'validity_days must be an integer between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}', 400)
 
         # Find CA: a numeric id or a refid, never compared against the
         # wrong column type (PostgreSQL refuses a string against an integer)

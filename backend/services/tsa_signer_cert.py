@@ -41,7 +41,7 @@ DEFAULT_CN = 'UCM Timestamping Authority'
 DEFAULT_VALIDITY_DAYS = 397
 DEFAULT_KEY_TYPE = 'rsa'
 DEFAULT_KEY_SIZE = '3072'
-MAX_VALIDITY_DAYS = 3650
+from utils.validity import MAX_VALIDITY_DAYS  # noqa: F401  (re-exported here)
 
 # KEY_TYPES ids that parse_issue_key_type returns for EC curves.
 _EC_CURVES = {

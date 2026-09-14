@@ -40,9 +40,9 @@ from utils.datetime_utils import utc_now
 bp = Blueprint('templates_v2', __name__)
 
 
-# Hard caps mirrored from cert_create.py
-_MAX_VALIDITY_DAYS = 3650
-_MIN_VALIDITY_DAYS = 1
+from utils.validity import (MAX_VALIDITY_DAYS as _MAX_VALIDITY_DAYS,
+                            MIN_VALIDITY_DAYS as _MIN_VALIDITY_DAYS,
+                            coerce_validity_days)
 _VALID_KEY_TYPES = {
     'RSA-2048', 'RSA-3072', 'RSA-4096',
     'EC-P256', 'EC-P384', 'EC-P521',
@@ -95,9 +95,8 @@ def _validate_template_payload(data, *, partial=False):
             return False, err
         data['pinned_subject_fields'] = cleaned
     if 'validity_days' in data:
-        try:
-            v = int(data['validity_days'])
-        except (TypeError, ValueError):
+        v = coerce_validity_days(data['validity_days'])
+        if v is None:
             return False, 'validity_days must be an integer'
         if v < _MIN_VALIDITY_DAYS or v > _MAX_VALIDITY_DAYS:
             return False, f'validity_days must be between {_MIN_VALIDITY_DAYS} and {_MAX_VALIDITY_DAYS}'

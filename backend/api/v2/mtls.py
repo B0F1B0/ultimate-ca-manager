@@ -26,6 +26,7 @@ from services.cert_service import CertificateService
 from services.certificate_parser import CertificateParser
 from utils import trusted_proxy
 from utils.key_codec import load_pem_bytes
+from utils.validity import MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS
 from services.mtls_enrollment import (
     certificate_row_for, issuing_ca_for, normalized_fingerprint, parse_validity_days,
 )
@@ -234,7 +235,7 @@ def create_mtls_certificate():
 
     validity_days = parse_validity_days(data.get('validity_days'))
     if validity_days is None:
-        return error_response('validity_days must be an integer between 1 and 3650', 400)
+        return error_response(f'validity_days must be an integer between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}', 400)
     cert_name = data.get('name', f'{user.username} mTLS')
 
     # Sanitize organization field

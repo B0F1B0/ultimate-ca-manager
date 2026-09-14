@@ -222,21 +222,24 @@ def create_certificate():
 
         subject = x509.Name(subject_attrs)
 
-        # Validity (cap 1..3650 days; reject 0/negative/non-int)
-        MAX_VALIDITY_DAYS = 3650  # ~10 years; CA/B Forum is 398 for public TLS, 3650 OK for internal PKI
+        # Validity: the shared bound, rejecting 0/negative/non-int
+        from utils.validity import (MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS,
+                                    coerce_validity_days)
         # Template validity is the default when the request doesn't set one
         # (same rationale as key_type above); an explicit value still wins.
         raw_validity = data.get('validity_days')
         if raw_validity in (None, ''):
             raw_validity = (template.validity_days if template and template.validity_days
                             else 365)
-        try:
-            validity_days = int(raw_validity)
-        except (TypeError, ValueError):
-            return error_response("validity_days must be an integer (1..3650)", 400)
-        if validity_days < 1 or validity_days > MAX_VALIDITY_DAYS:
+        validity_days = coerce_validity_days(raw_validity)
+        if validity_days is None:
             return error_response(
-                f"validity_days must be between 1 and {MAX_VALIDITY_DAYS}", 400)
+                f"validity_days must be an integer ({MIN_VALIDITY_DAYS}..{MAX_VALIDITY_DAYS})",
+                400)
+        if validity_days < MIN_VALIDITY_DAYS or validity_days > MAX_VALIDITY_DAYS:
+            return error_response(
+                f"validity_days must be between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}",
+                400)
 
         # Policy Rules (#335): allowed key types, DNS SAN cap and validity cap,
         # for every role. What administrators bypass above is the approval

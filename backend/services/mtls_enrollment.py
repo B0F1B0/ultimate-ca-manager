@@ -51,24 +51,21 @@ def _load(pem) -> Optional[x509.Certificate]:
 
 
 def parse_validity_days(value, default: int = 365) -> Optional[int]:
-    """An integer number of days in 1..3650, or None when the value is not
-    exactly that (booleans, fractions and free text included)."""
+    """An integer number of days within the issuance bounds, or None when the
+    value is not exactly that (booleans, fractions and free text included).
+
+    The shape rule lives in :mod:`utils.validity` now, where the other
+    issuance doors read it from too: this was the only one that refused a
+    JSON boolean, so the same body was a 400 here and a one-day certificate
+    at ``POST /api/v2/certificates``."""
+    from utils.validity import coerce_validity_days, validity_days_in_range
+
     if value is None:
         value = default
-    if isinstance(value, bool):
+    days = coerce_validity_days(value)
+    if days is None or not validity_days_in_range(days):
         return None
-    if isinstance(value, float):
-        if not value.is_integer():
-            return None
-        value = int(value)
-    if isinstance(value, str):
-        value = value.strip()
-        if not value.isdecimal():
-            return None
-        value = int(value)
-    if not isinstance(value, int) or not 1 <= value <= 3650:
-        return None
-    return value
+    return days
 
 
 def issuing_ca_for(cert: x509.Certificate) -> Optional[CA]:

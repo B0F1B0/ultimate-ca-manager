@@ -53,8 +53,8 @@ _MAX_NAME_LEN = 64
 # them at finalize.
 from utils.eku_validation import PROTOCOL_UNBINDABLE_EKU_OIDS as _UNBINDABLE_EKU_OIDS
 _ALLOWED_DIGESTS = ('sha256', 'sha384', 'sha512')
-# Same hard cap as every other issuance path (see the validity-cap rule).
-_MAX_VALIDITY_DAYS = 3650
+# Same hard cap as every other issuance path.
+from utils.validity import MAX_VALIDITY_DAYS as _MAX_VALIDITY_DAYS
 
 
 def get_default_digest():

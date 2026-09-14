@@ -100,12 +100,15 @@ def update_wstep_config():
         set_config('wstep_password', generate_password_hash(data['password']))
     if 'validity_days' in data:
         # Bound to PKI-internal cap (10 years), same as EST.
-        try:
-            vd = int(data['validity_days'])
-        except (TypeError, ValueError):
+        from utils.validity import (MAX_VALIDITY_DAYS, MIN_VALIDITY_DAYS,
+                                    coerce_validity_days, validity_days_in_range)
+        vd = coerce_validity_days(data['validity_days'])
+        if vd is None:
             return error_response('validity_days must be an integer', 400)
-        if vd < 1 or vd > 3650:
-            return error_response('validity_days must be between 1 and 3650', 400)
+        if not validity_days_in_range(vd):
+            return error_response(
+                f'validity_days must be between {MIN_VALIDITY_DAYS} and {MAX_VALIDITY_DAYS}',
+                400)
         set_config('wstep_validity_days', str(vd))
 
     ok, _err = safe_commit(logger, "Failed to update WSTEP configuration")
