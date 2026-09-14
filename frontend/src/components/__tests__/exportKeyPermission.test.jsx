@@ -18,7 +18,22 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key, fallback) => fallback || key }),
+  // i18next takes either a string default or an options object carrying
+  // `defaultValue` plus interpolation values; a mock that only understands
+  // the first returns the options object itself as the translation.
+  useTranslation: () => ({
+    t: (key, fallback) => {
+      if (typeof fallback === 'string') return fallback
+      if (fallback && typeof fallback === 'object') {
+        const template = fallback.defaultValue || key
+        return String(template).replace(
+          /\{\{(\w+)\}\}/g,
+          (_m, name) => (fallback[name] !== undefined ? fallback[name] : `{{${name}}}`),
+        )
+      }
+      return key
+    },
+  }),
   initReactI18next: { type: '3rdParty', init: () => {} },
   Trans: ({ children }) => children,
 }))

@@ -10,6 +10,7 @@ from cryptography.hazmat.backends import default_backend
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response
+from utils.export_password import validate_export_password
 
 from . import tools_bp, logger
 
@@ -169,8 +170,9 @@ def convert_certificate():
                 return error_response('Certificate is required for PKCS12 output', 400)
             if not keys:
                 return error_response('Private key is required for PKCS12 output', 400)
-            if not pkcs12_password:
-                return error_response('Password is required for PKCS12 output', 400)
+            pw_err = validate_export_password(pkcs12_password)
+            if pw_err:
+                return error_response(pw_err, 400)
 
             # Use first cert and key
             cert = certs[0]
@@ -227,8 +229,9 @@ def convert_certificate():
                 return error_response('Certificate is required for JKS output', 400)
             if not keys:
                 return error_response('Private key is required for JKS output', 400)
-            if not pkcs12_password:
-                return error_response('Password is required for JKS output', 400)
+            pw_err = validate_export_password(pkcs12_password)
+            if pw_err:
+                return error_response(pw_err, 400)
 
             import jks as pyjks
             import time as _time

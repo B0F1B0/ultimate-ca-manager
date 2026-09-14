@@ -12,7 +12,22 @@ import { describe, expect, it, vi } from 'vitest'
 import { ExportModal } from '../ExportModal'
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key, fallback) => fallback || key }),
+  // i18next takes either a string default or an options object carrying
+  // `defaultValue` plus interpolation values; a mock that only understands
+  // the first returns the options object itself as the translation.
+  useTranslation: () => ({
+    t: (key, fallback) => {
+      if (typeof fallback === 'string') return fallback
+      if (fallback && typeof fallback === 'object') {
+        const template = fallback.defaultValue || key
+        return String(template).replace(
+          /\{\{(\w+)\}\}/g,
+          (_m, name) => (fallback[name] !== undefined ? fallback[name] : `{{${name}}}`),
+        )
+      }
+      return key
+    },
+  }),
   initReactI18next: { type: '3rdParty', init: () => {} },
   Trans: ({ children }) => children,
 }))
@@ -51,7 +66,7 @@ describe('ExportModal PKCS#12 compatibility mode', () => {
   it('sends legacy: true only when ticked', async () => {
     const onExport = renderModal(vi.fn().mockResolvedValue(undefined))
     fireEvent.click(screen.getByText('P12 / PKCS#12'))
-    fireEvent.change(screen.getByPlaceholderText('Min. 8 characters'), { target: { value: 'compat-password-123' } })
+    fireEvent.change(screen.getByPlaceholderText(/characters|caract/i), { target: { value: 'compat-password-123' } })
     fireEvent.click(screen.getByTestId('export-legacy-pkcs12'))
     fireEvent.submit(screen.getByTestId('export-legacy-pkcs12').closest('form'))
     await waitFor(() => expect(onExport).toHaveBeenCalledTimes(1))
@@ -64,7 +79,7 @@ describe('ExportModal PKCS#12 compatibility mode', () => {
   it('defaults to the modern profile', async () => {
     const onExport = renderModal(vi.fn().mockResolvedValue(undefined))
     fireEvent.click(screen.getByText('P12 / PKCS#12'))
-    fireEvent.change(screen.getByPlaceholderText('Min. 8 characters'), { target: { value: 'compat-password-123' } })
+    fireEvent.change(screen.getByPlaceholderText(/characters|caract/i), { target: { value: 'compat-password-123' } })
     fireEvent.submit(screen.getByTestId('export-legacy-pkcs12').closest('form'))
     await waitFor(() => expect(onExport).toHaveBeenCalledTimes(1))
     expect(onExport.mock.calls[0][1].legacy).toBe(false)

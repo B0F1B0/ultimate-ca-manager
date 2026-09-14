@@ -21,6 +21,7 @@ from services.audit_service import AuditService
 from services.cert_service import CertificateService
 from utils.pagination import parse_request_pagination
 from utils.days_remaining import days_remaining as compute_days_remaining
+from utils.export_password import validate_export_password
 from utils.cert_status import (USER_CERTIFICATE_STATUS_FILTERS,
                                normalize_status_filters,
                                unknown_status_message)
@@ -346,8 +347,9 @@ def export_user_certificate(cert_id):
         filename_base = sanitize_filename(auth_cert.name or cert.descr or cert.refid)
 
         if export_format in ('pkcs12', 'p12', 'pfx'):
-            if not password or len(password) < 8:
-                return error_response('Password required (minimum 8 characters) for PKCS12 export', 400)
+            pw_err = validate_export_password(password)
+            if pw_err:
+                return error_response(pw_err, 400)
             if not cert.prv:
                 return error_response('Certificate has no private key for PKCS12 export', 400)
 
@@ -385,8 +387,9 @@ def export_user_certificate(cert_id):
             )
 
         elif export_format == 'jks':
-            if not password or len(password) < 8:
-                return error_response('Password required (minimum 8 characters) for JKS export', 400)
+            pw_err = validate_export_password(password)
+            if pw_err:
+                return error_response(pw_err, 400)
             if not cert.prv:
                 return error_response('Certificate has no private key for JKS export', 400)
 

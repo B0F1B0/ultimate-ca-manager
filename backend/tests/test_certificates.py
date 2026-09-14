@@ -471,7 +471,10 @@ class TestExportSingle:
         cert_id = cert.get('id')
         r = auth_client.post(
             f'{BASE}/{cert_id}/export',
-            json={'format': 'pkcs12', 'password': 'test123'},
+            # Eight characters is the floor every export route now applies
+            # (utils/export_password); this used to send seven, which the
+            # export dialog would never have let through either.
+            json={'format': 'pkcs12', 'password': 'test1234'},
         )
         assert r.status_code == 200
         assert len(r.data) > 0

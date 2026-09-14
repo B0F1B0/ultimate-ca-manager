@@ -22,6 +22,8 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from utils.pkcs12_export import legacy_flag, pkcs12_encryption
 from utils.key_codec import load_pem_bytes
 
+from utils.export_password import validate_export_password
+
 logger = logging.getLogger(__name__)
 
 
@@ -37,24 +39,13 @@ def _parent_cas(ca):
     return [parent for parent in walk_ca_chain(ca, include_start=False) if parent.crt]
 
 
-# Cap password length to keep PKCS12/PFX/JKS encryption bounded — empirically
-# BestAvailableEncryption + pyjks degrade quickly past a few hundred bytes.
-_MIN_EXPORT_PASSWORD = 4
-_MAX_EXPORT_PASSWORD = 256
-
-
+# The bounds, and the reason for the ceiling, now live in
+# utils/export_password next to the five other routes that hand out an
+# encrypted bundle. This one used to allow four characters where the export
+# dialog required eight, and was the only route with a ceiling at all.
 def _validate_export_password(password):
-    """Return error string or None."""
-    if password is None or password == '':
-        return None
-    if not isinstance(password, str):
-        return 'password must be a string'
-    if not _MIN_EXPORT_PASSWORD <= len(password) <= _MAX_EXPORT_PASSWORD:
-        return (
-            f'password length must be between {_MIN_EXPORT_PASSWORD} '
-            f'and {_MAX_EXPORT_PASSWORD} characters'
-        )
-    return None
+    """Return error string or None. Empty means "do not encrypt"."""
+    return validate_export_password(password, allow_empty=True)
 
 
 @bp.route('/api/v2/cas/export', methods=['GET', 'POST'])

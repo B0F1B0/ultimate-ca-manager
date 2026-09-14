@@ -143,7 +143,7 @@ class TestExternalCertificateCompletesCSR:
         assert r.status_code == 200
         assert b'PRIVATE KEY' in r.data
         r = auth_client.post(f'{CERTS}/{csr["id"]}/export',
-                             data=json.dumps({'format': 'pkcs12', 'password': 'p12pass'}),
+                             data=json.dumps({'format': 'pkcs12', 'password': 'p12passw'}),
                              content_type='application/json')
         assert r.status_code == 200, r.data
 

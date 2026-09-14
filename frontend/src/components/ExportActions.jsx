@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Download, X, Lock } from '@phosphor-icons/react'
+import { isExportPasswordValid } from '../lib/exportPassword'
 import { Button } from './Button'
 import { cn } from '../lib/utils'
 
@@ -51,7 +52,9 @@ export function ExportActions({
   }
 
   const handlePasswordExport = () => {
-    if (password.length < 4) return
+    // Four characters was this component's own idea; every export route
+    // refuses under eight (utils/export_password).
+    if (!isExportPasswordValid(password)) return
     onExport(passwordFormat, { password, includeChain: true })
     setPasswordMode(false)
     setPasswordFormat(null)
@@ -92,7 +95,7 @@ export function ExportActions({
           size="xs" 
           variant="primary" 
           onClick={handlePasswordExport} 
-          disabled={password.length < 4}
+          disabled={!isExportPasswordValid(password)}
           className="!h-6 !px-2 !text-xs"
         >
           <Download size={12} /> {passwordFormat === 'jks' ? 'JKS' : 'P12'}

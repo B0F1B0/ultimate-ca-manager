@@ -31,6 +31,7 @@ from services.mtls_enrollment import (
     certificate_row_for, issuing_ca_for, normalized_fingerprint, parse_validity_days,
 )
 from utils.response import success_response, error_response, created_response
+from utils.export_password import validate_export_password
 from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
 from utils.export_options import json_boolean, query_boolean
@@ -408,8 +409,9 @@ def download_mtls_certificate(cert_id):
     cert_pem = base64.b64decode(cert.crt)
 
     if fmt in ('p12', 'pkcs12'):
-        if not password or len(password) < 8:
-            return error_response('PKCS12 export requires a password of at least 8 characters', 400)
+        pw_err = validate_export_password(password)
+        if pw_err:
+            return error_response(pw_err, 400)
         if not cert.prv:
             return error_response('Private key not available for PKCS12 export', 400)
 

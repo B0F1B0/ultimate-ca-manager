@@ -26,6 +26,7 @@ from auth.unified import require_auth, has_permission
 # This route imported that one and called it the way this one expects,
 # so the administrator half of the rule below answered no to everyone.
 from utils.response import success_response, error_response, created_response
+from utils.export_password import validate_export_password
 from utils.key_codec import load_pem_bytes
 from utils.datetime_utils import utc_now
 from utils.db_transaction import safe_commit
@@ -199,8 +200,9 @@ def recover_key(rid):
 
     data = request.get_json(silent=True) or {}
     password = data.get('password') or ''
-    if len(password) < 8:
-        return error_response('A PKCS#12 password of at least 8 characters is required', 400)
+    pw_err = validate_export_password(password)
+    if pw_err:
+        return error_response(pw_err, 400)
     legacy = legacy_flag(data.get('legacy'))  # 3DES/SHA-1 profile (#331)
 
     cert = db.session.get(Certificate, req.cert_id)

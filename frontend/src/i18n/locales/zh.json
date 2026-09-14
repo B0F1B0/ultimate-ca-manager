@@ -4157,6 +4157,7 @@
     "options": "选项",
     "password": "密码",
     "passwordPlaceholder": "最少8个字符",
+    "passwordLengthHint": "{{min}} 至 {{max}} 个字符",
     "download": "下载",
     "includeChain": "包含CA链",
     "includeChainDesc": "包含签发CA证书",

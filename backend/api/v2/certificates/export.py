@@ -24,6 +24,8 @@ from models import db, Certificate, CA
 from utils.cert_status import issued_certificates
 from models.truststore import TrustedCertificate
 from utils.response import success_response, error_response
+from utils.export_password import (export_password_policy,
+                                   validate_export_password)
 from utils.sanitize import sanitize_filename
 from utils.key_codec import load_pem_bytes
 from utils.cert_issuer import (
@@ -319,6 +321,17 @@ def export_certificate(cert_id):
                 400,
             )
 
+    # One rule for the password that encrypts the bundle (utils/export_password).
+    # This route used to check presence only, so a one-character password
+    # produced a PKCS#12 and a 200 while the export dialog refused anything
+    # under eight -- the server was the permissive one, and only a script
+    # could reach it.
+    if export_format in ('pkcs12', 'pfx', 'jks', 'key') or password:
+        pw_err = validate_export_password(
+            password, allow_empty=(export_format == 'key'))
+        if pw_err:
+            return error_response(pw_err, 400)
+
     # Direct private-key export is gated behind the admin-only read:private_keys
     # scope (not write:certificates, which operators hold): otherwise the
     # approval-gated Key Recovery flow would be pointless, since anyone who could
@@ -541,3 +554,16 @@ def export_certificate(cert_id):
     except Exception as e:
         logger.error(f"Certificate export failed: {e}")
         return error_response('Export failed', 500)
+
+
+@bp.route('/api/v2/export/password-policy', methods=['GET'])
+@require_auth()
+def get_export_password_policy():
+    """The length rule every export route applies to its password.
+
+    Published so the export dialog states the rule instead of restating it.
+    It used to carry its own floor of eight and no ceiling, which made it
+    stricter than one route and more permissive than another at the same
+    time (utils/export_password).
+    """
+    return success_response(data=export_password_policy())

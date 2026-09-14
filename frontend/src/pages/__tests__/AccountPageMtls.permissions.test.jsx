@@ -171,7 +171,7 @@ describe('AccountPage mTLS modal — backend authorization gates', () => {
     fireEvent.click(screen.getByLabelText('common.export'))
     fireEvent.click(screen.getByText('P12 / PKCS#12'))
     fireEvent.click(screen.getByText('export.includeRoot'))
-    fireEvent.change(screen.getByPlaceholderText('export.passwordPlaceholder'), {
+    fireEvent.change(screen.getByPlaceholderText('export.passwordLengthHint'), {
       target: { value: 'account-export-password' },
     })
     fireEvent.click(screen.getByText('export.download'))

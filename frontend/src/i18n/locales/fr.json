@@ -4160,6 +4160,7 @@
     "options": "Options",
     "password": "Mot de passe",
     "passwordPlaceholder": "Min. 8 caractères",
+    "passwordLengthHint": "Entre {{min}} et {{max}} caractères",
     "download": "Télécharger",
     "includeChain": "Inclure la chaîne CA",
     "includeChainDesc": "Inclure les certificats CA émetteurs",

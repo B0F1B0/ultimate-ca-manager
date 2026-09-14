@@ -4157,6 +4157,7 @@
     "options": "Optionen",
     "password": "Passwort",
     "passwordPlaceholder": "Min. 8 Zeichen",
+    "passwordLengthHint": "Zwischen {{min}} und {{max}} Zeichen",
     "download": "Herunterladen",
     "includeChain": "CA-Kette einschließen",
     "includeChainDesc": "Ausstellende CA-Zertifikate einbeziehen",

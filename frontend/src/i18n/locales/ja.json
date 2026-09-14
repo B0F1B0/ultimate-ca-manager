@@ -4157,6 +4157,7 @@
     "options": "オプション",
     "password": "パスワード",
     "passwordPlaceholder": "最小8文字",
+    "passwordLengthHint": "{{min}}〜{{max}}文字",
     "download": "ダウンロード",
     "includeChain": "CA チェーンを含める",
     "includeChainDesc": "発行元のCA証明書を含める",

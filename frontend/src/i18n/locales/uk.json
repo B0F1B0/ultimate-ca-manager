@@ -4157,6 +4157,7 @@
     "options": "Параметри",
     "password": "Пароль",
     "passwordPlaceholder": "Мін. 8 символів",
+    "passwordLengthHint": "Від {{min}} до {{max}} символів",
     "download": "Завантажити",
     "includeChain": "Включити ланцюжок CA",
     "includeChainDesc": "Включити сертифікати ЦС-емітента",
