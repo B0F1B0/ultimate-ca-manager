@@ -14,7 +14,7 @@ from cryptography.hazmat.primitives.serialization import pkcs12
 from utils.pkcs12_export import legacy_flag, pkcs12_encryption
 from flask import Blueprint, Response, g, request
 
-from auth.unified import require_auth
+from auth.unified import require_auth, has_permission
 from models import CA, AuthCertificate, Certificate, User, db
 from utils.key_codec import load_pem_bytes
 from services.audit_service import AuditService
@@ -315,6 +315,27 @@ def export_user_certificate(cert_id):
                 'Password must be sent via POST body (JSON), not query string',
                 400,
             )
+
+    # Taking somebody else's key is the same act here as on the certificate
+    # route, which gates it behind `read:private_keys` and says why: without
+    # that gate the approval-gated Key Recovery flow is pointless, since
+    # anyone who could request a recovery could export the key instead and
+    # skip the approval (#232). This route asked nothing at all, and
+    # `include_key` defaults to true, so the built-in Operator role -- which
+    # holds `read:user_certificates` and not `read:private_keys`, and whose
+    # access check reaches every user's enrolment -- had every user's private
+    # key for the asking.
+    #
+    # Taking your own is not that act, and stays: a person downloading their
+    # own enrolment from their own account page has always had their key with
+    # it, and that is the point of the page.
+    wants_key = include_key or export_format in ('pkcs12', 'p12', 'pfx', 'jks')
+    if wants_key and auth_cert.user_id != user.id:
+        if not has_permission('read:private_keys', g.permissions):
+            return error_response(
+                "Exporting another user's private key requires the "
+                'read:private_keys permission; roles without it must use the '
+                'Key Recovery approval flow', 403)
 
     try:
         cert_pem = base64.b64decode(cert.crt)
