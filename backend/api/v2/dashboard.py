@@ -18,6 +18,7 @@ from utils.cert_status import (
 from models.ssh import SSHCertificateAuthority, SSHCertificate
 from sqlalchemy import text
 from utils.datetime_utils import utc_now, utc_isoformat, to_naive_utc
+from utils.pagination import bounded_limit
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +198,7 @@ def get_dashboard_stats():
 def get_recent_cas():
     """Get recently created CAs"""
     
-    limit = request.args.get('limit', 5, type=int)
+    limit = bounded_limit(request.args.get('limit'), default=5, maximum=100)
     
     recent = CA.query.order_by(CA.created_at.desc()).limit(limit).all()
     
@@ -217,7 +218,7 @@ def get_recent_cas():
 def get_expiring_certificates():
     """Get next certificates to expire (soonest first, not yet expired)"""
     
-    limit = request.args.get('limit', 10, type=int)
+    limit = bounded_limit(request.args.get('limit'), default=10, maximum=100)
     
     # Only certs that haven't expired yet, sorted by soonest expiration
     certs = Certificate.query.filter(
@@ -249,7 +250,7 @@ def get_expiring_certificates():
 def get_activity_log():
     """Get recent activity"""
     
-    limit = request.args.get('limit', 20, type=int)
+    limit = bounded_limit(request.args.get('limit'), default=20, maximum=200)
     
     # Human-readable action labels
     ACTION_LABELS = {

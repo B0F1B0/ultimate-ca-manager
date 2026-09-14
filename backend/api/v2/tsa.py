@@ -209,7 +209,7 @@ def update_tsa_config():
         # Either form names the signing CA; a CA that cannot sign is refused
         # when it is chosen (a saved setting is not re-judged on every save)
         if 'ca_refid' in data:
-            new_refid = data['ca_refid'] or ''
+            new_refid = str(data['ca_refid'] or '')
             ca = CA.query.filter_by(refid=new_refid).first() if new_refid else None
         else:
             ca = db.session.get(CA, data['ca_id']) if data['ca_id'] else None
@@ -286,7 +286,7 @@ def issue_signer_certificate():
 
     ca = None
     if data.get('ca_refid'):
-        ca = CA.query.filter_by(refid=data['ca_refid']).first()
+        ca = CA.query.filter_by(refid=str(data['ca_refid'])).first()
     elif data.get('ca_id'):
         ca = db.session.get(CA, data['ca_id'])
     else:

@@ -155,10 +155,14 @@ def list_user_certificates():
         'last_used_at': AuthCertificate.last_used_at,
     }
     sort_col = sort_col_map.get(sort_by, AuthCertificate.created_at)
+    # Tie-break on the primary key: `name` is not unique and `last_used_at` is
+    # NULL for every certificate never used, so without it the page boundary
+    # falls wherever the plan puts it — and the two backends do not even order
+    # NULLs the same way.
     if sort_order == 'asc':
-        query = query.order_by(sort_col.asc())
+        query = query.order_by(sort_col.asc(), AuthCertificate.id.asc())
     else:
-        query = query.order_by(sort_col.desc())
+        query = query.order_by(sort_col.desc(), AuthCertificate.id.desc())
 
     # Execute with pagination
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)

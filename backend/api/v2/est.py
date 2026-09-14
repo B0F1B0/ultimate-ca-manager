@@ -106,7 +106,7 @@ def update_est_config():
     elif 'ca_refid' in data:
         # Validate CA exists if a non-empty refid was provided
         if data['ca_refid']:
-            ca = CA.query.filter_by(refid=data['ca_refid']).first()
+            ca = CA.query.filter_by(refid=str(data['ca_refid'])).first()
             if not ca:
                 return error_response('CA not found', 404)
             if ca.refid != get_config('est_ca_refid', '') and signing_ca_problem(ca):

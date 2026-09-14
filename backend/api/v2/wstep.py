@@ -76,7 +76,7 @@ def update_wstep_config():
         set_config('wstep_enabled', 'true' if data['enabled'] else 'false')
     if 'ca_refid' in data:
         if data['ca_refid']:
-            ca = CA.query.filter_by(refid=data['ca_refid']).first()
+            ca = CA.query.filter_by(refid=str(data['ca_refid'])).first()
             if not ca:
                 return error_response('CA not found', 404)
             # WSTEP issues: the CA must be able to sign when it is chosen

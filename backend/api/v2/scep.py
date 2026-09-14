@@ -432,7 +432,7 @@ def _validate_profile_payload(data, *, partial=False, profile_id=None):
     if not partial or 'ca_id' in data or 'ca_refid' in data:
         ca = None
         if data.get('ca_refid'):
-            ca = CA.query.filter_by(refid=data['ca_refid']).first()
+            ca = CA.query.filter_by(refid=str(data['ca_refid'])).first()
         elif data.get('ca_id'):
             ca = db.session.get(CA, data['ca_id'])
         if not ca:

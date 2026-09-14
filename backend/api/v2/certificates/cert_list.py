@@ -179,10 +179,15 @@ def list_certificates():
         else:
             query = query.order_by(compliance_order.asc(), _cn_sort.asc())
     elif sort_column not in ('special', 'special_compliance'):
+        # Tie-break on the primary key. Every sortable column here has
+        # duplicates — `revoked` has two distinct values for the whole table —
+        # and an ORDER BY that does not settle ties leaves the row order to the
+        # plan: SQLite and PostgreSQL then hand out different pages, and a row
+        # can show up twice or not at all while paging.
         if sort_order == 'desc':
-            query = query.order_by(sort_column.desc())
+            query = query.order_by(sort_column.desc(), Certificate.id.desc())
         else:
-            query = query.order_by(sort_column.asc())
+            query = query.order_by(sort_column.asc(), Certificate.id.asc())
 
     # Paginate
     pagination = query.paginate(page=page, per_page=per_page, error_out=False)

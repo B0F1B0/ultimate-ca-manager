@@ -18,6 +18,7 @@ from models import db, Certificate, DeployTarget, DeployBinding, DeployDelivery
 from services.deploy import DeployService
 from services.deploy.ssh import DeploySSHError, HostKeyMismatch
 from services.audit_service import AuditService
+from utils.pagination import bounded_limit
 
 logger = logging.getLogger(__name__)
 
@@ -380,7 +381,7 @@ def list_deliveries():
         if not binding_ids:
             return success_response(data=[])
         query = query.filter(DeployDelivery.binding_id.in_(binding_ids))
-    limit = min(request.args.get('limit', 50, type=int), 200)
+    limit = bounded_limit(request.args.get('limit'), default=50, maximum=200)
     deliveries = query.order_by(DeployDelivery.id.desc()).limit(limit).all()
     return success_response(data=[d.to_dict() for d in deliveries])
 

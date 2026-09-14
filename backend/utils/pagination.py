@@ -59,6 +59,28 @@ def parse_request_pagination(default_per_page=25, max_per_page=100):
     return page, per_page
 
 
+def bounded_limit(value, *, default, maximum, minimum=1):
+    """A row limit bounded at BOTH ends.
+
+    A ``min(value, maximum)`` caps the top and leaves the bottom open, and the
+    two backends disagree about what an open bottom means: SQLite reads
+    ``LIMIT -1`` as "no limit" and returns the whole table, PostgreSQL refuses
+    it with ``LIMIT must not be negative`` and the request 500s. So
+    ``?limit=-1`` was either a full dump of the audit log or an error,
+    depending on which database the deployment runs.
+
+    ``None`` and unparseable input fall back to *default*, as
+    ``request.args.get(..., type=int)`` already did.
+    """
+    if value is None:
+        return default
+    try:
+        value = int(value)
+    except (TypeError, ValueError):
+        return default
+    return min(max(minimum, value), maximum)
+
+
 def parse_date_filter(from_arg='date_from', to_arg='date_to'):
     """
     Parse ISO 8601 date range parameters from Flask request args.
