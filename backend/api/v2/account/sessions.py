@@ -3,6 +3,7 @@ import logging
 from flask import request, g
 from models import db, UserSession, AuditLog
 from services.audit_service import AuditService
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from utils.datetime_utils import utc_isoformat
@@ -91,8 +92,9 @@ def revoke_all_sessions():
 @require_auth()
 def get_activity_log():
     """Get user activity log"""
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    # Through the shared helper: with no ceiling, any signed-in account could
+    # ask this route for the whole table at once.
+    page, per_page = parse_request_pagination(default_per_page=20)
 
     # Filter by username (AuditLog doesn't have user_id, uses username)
     query = AuditLog.query.filter_by(username=g.current_user.username)

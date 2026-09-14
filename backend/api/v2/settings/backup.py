@@ -4,6 +4,7 @@ Settings - Backup management + schedule + history routes
 
 from flask import request, send_file
 from auth.unified import require_auth
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response, no_content_response
 from models import db, SystemConfig
 from services.audit_service import AuditService
@@ -376,8 +377,7 @@ def update_backup_schedule():
 def get_backup_history():
     """Get backup history (actual backup files on disk)"""
     from services.backup.schedule import list_backups
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
+    page, per_page = parse_request_pagination(default_per_page=20)
 
     all_backups = list_backups()
     total = len(all_backups)

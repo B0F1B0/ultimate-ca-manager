@@ -4,6 +4,7 @@ Settings - Notification settings + audit logs routes
 
 from flask import request
 from auth.unified import require_auth
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response
 from models import db
 from services.audit_service import AuditService
@@ -163,8 +164,11 @@ def get_audit_logs():
     from models import AuditLog
     from datetime import datetime
 
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
+    # Through the shared helper: asked for a million rows, this route loaded
+    # the whole audit table into memory and serialised it. The page size stays
+    # fifty here -- a log line is not a certificate -- only the ceiling is
+    # common.
+    page, per_page = parse_request_pagination(default_per_page=50)
     user_id = request.args.get('user_id', type=int)
     action = request.args.get('action')
     start_date = request.args.get('start_date')
