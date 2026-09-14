@@ -100,3 +100,57 @@ class TestTheKeyOnDiskIsAKey:
             'private key: HTTPS cannot come back up')
         assert written.strip() == pem.decode().strip(), (
             'the file does not hold the key of the certificate that was applied')
+
+
+class TestAColumnHoldingThePemItself:
+    """A row from before the key was stored base64-encoded.
+
+    `load_pem_bytes` hands such a value to the base64 decoder, which decodes
+    the body of the PEM into bytes that are not a key and does not raise, so
+    the previous version's explicit tolerance for it is kept rather than
+    traded for a silent corruption of the same kind this lot is about.
+    """
+
+    def test_the_route_writes_it_unchanged(self, app, auth_client,
+                                           https_paths, no_restart):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ec
+        from models import CA, Certificate
+        from utils.datetime_utils import utc_now
+        from datetime import timedelta
+        import base64 as b64
+
+        _cert_path, key_path = https_paths
+        key = ec.generate_private_key(ec.SECP256R1())
+        pem = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()).decode()
+
+        with app.app_context():
+            authority = CA.query.first()
+            cert = Certificate(
+                refid='https-apply-legacy-pem', descr='https apply legacy pem',
+                caref=authority.refid if authority else None,
+                crt=b64.b64encode(b'-----BEGIN CERTIFICATE-----\nx\n'
+                                  b'-----END CERTIFICATE-----\n').decode(),
+                prv=pem,
+                subject_cn='https-legacy.example.test',
+                valid_from=utc_now(), valid_to=utc_now() + timedelta(days=30))
+            db.session.add(cert)
+            db.session.commit()
+            cert_id = cert.id
+
+        try:
+            response = auth_client.post('/api/v2/system/https/apply',
+                                        json={'cert_id': cert_id})
+            assert response.status_code == 200, response.data
+            assert key_path.read_text().strip() == pem.strip(), (
+                'a column holding the PEM itself came out of the base64 '
+                'decoder as something that is not a key')
+        finally:
+            with app.app_context():
+                row = db.session.get(Certificate, cert_id)
+                if row is not None:
+                    db.session.delete(row)
+                    db.session.commit()

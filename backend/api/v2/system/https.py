@@ -277,14 +277,23 @@ def apply_https_cert():
         # to be written into the file gunicorn reads as the key. The renewal
         # path (`services/https_binding.materialize_https_cert`) has always
         # done it this way; this is the same work, written once more here.
-        try:
-            key_data = load_pem_bytes(
-                cert.prv, context=f"certificate {cert.id}").decode('utf-8')
-        except Exception as exc:
-            logger.error(f"HTTPS apply: private key unreadable: {exc}")
-            return error_response(
-                "The private key of this certificate could not be read; "
-                "nothing has been changed", 400)
+        if cert.prv.lstrip().startswith('-----BEGIN'):
+            # A column holding the PEM itself, from before the key was stored
+            # base64-encoded. `load_pem_bytes` would hand its body to the
+            # base64 decoder and produce bytes that are not a key, without
+            # raising, so the tolerance the previous version had is kept.
+            key_data = cert.prv
+        else:
+            try:
+                key_data = load_pem_bytes(
+                    cert.prv, context=f"certificate {cert.id}").decode('utf-8')
+            except Exception as exc:
+                logger.error(f"HTTPS apply: private key unreadable: {exc}")
+                return error_response(
+                    "The private key of this certificate could not be read. "
+                    "The certificate and key in use were not replaced; the "
+                    "copies taken before the attempt are on disk beside them",
+                    400)
 
         if not cert_data.startswith('-----BEGIN'):
             try:
