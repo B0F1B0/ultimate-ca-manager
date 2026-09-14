@@ -5,7 +5,7 @@ import logging
 import socket
 import threading
 from contextlib import contextmanager
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 
 logger = logging.getLogger(__name__)
 
@@ -515,39 +515,76 @@ def validated_addresses(url: str, allow_loopback: bool = False) -> tuple:
     return _resolve_and_validate(url, allow_loopback)
 
 
-def safe_request_post(url, allow_loopback: bool = False, **kwargs):
-    """requests.post() with DNS-rebinding protection.
+# Redirects are where a validated request stops being one: the first host is
+# resolved, vetted and pinned, then the upstream answers 302 and requests
+# follows it to an address nobody looked at. Each hop goes through the same
+# check.
+MAX_REDIRECTS = 5
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+_BODY_KEYS = ('data', 'json', 'files')
 
-    Resolves the URL hostname once, validates it against the cloud-metadata
-    deny-list, and pins the underlying TCP connection to the addresses that
-    were actually validated for the duration of the call — the whole set, so
-    a multi-A/dual-stack upstream keeps its failover (see pin_host). SNI and
-    certificate verification continue to use the original hostname so HTTPS
-    works normally.
+
+def safe_request(method: str, url: str, *, allow_loopback: bool = False,
+                 max_redirects: int = MAX_REDIRECTS, **kwargs):
+    """`requests` with every hop resolved, vetted and pinned, not just the first.
+
+    `allow_redirects=False` is honoured and returns the 3xx itself, which is
+    what the callers that refuse to follow already asked for. A 301, 302 or
+    303 turns a write into a GET, as RFC 9110 §15.4 describes and as requests
+    does, and the body is dropped with it.
+    """
+    import requests
+
+    kwargs.setdefault('timeout', 30)
+    follow = kwargs.pop('allow_redirects', True)
+    current_method = method.upper()
+    current_url = url
+
+    for _ in range(max_redirects + 1):
+        host, addresses = _resolve_and_validate(current_url, allow_loopback)
+        send = getattr(requests, current_method.lower(), None)
+        with pin_host(host, addresses):
+            if send is None:
+                response = requests.request(current_method, current_url,
+                                            allow_redirects=False, **kwargs)
+            else:
+                response = send(current_url, allow_redirects=False, **kwargs)
+
+        if not follow or response.status_code not in _REDIRECT_STATUSES:
+            return response
+        location = response.headers.get('Location')
+        if not location:
+            return response
+
+        current_url = urljoin(current_url, location)
+        if response.status_code in (301, 302, 303) and current_method not in ('GET', 'HEAD'):
+            current_method = 'GET'
+            for key in _BODY_KEYS:
+                kwargs.pop(key, None)
+
+    raise ValueError(
+        f"Too many redirects (more than {max_redirects}) starting at {url}")
+
+
+def safe_request_post(url, allow_loopback: bool = False, **kwargs):
+    """requests.post() with DNS-rebinding protection, redirects included.
+
+    Every hop is resolved, vetted against the cloud-metadata deny-list and
+    pinned to the addresses that were validated, the whole set so a
+    dual-stack upstream keeps its failover. SNI and certificate verification
+    keep the original hostname, so HTTPS works normally.
 
     allow_loopback=True permits a colocated upstream on 127.0.0.1 (ACME
     Pebble/step-ca); cloud metadata stays blocked. Default keeps loopback denied.
     """
-    import requests
-    kwargs.setdefault('timeout', 30)  # never hang forever on a stuck/slow upstream
-    host, ips = _resolve_and_validate(url, allow_loopback)
-    with pin_host(host, ips):
-        return requests.post(url, **kwargs)
+    return safe_request('POST', url, allow_loopback=allow_loopback, **kwargs)
 
 
 def safe_request_get(url, allow_loopback: bool = False, **kwargs):
     """requests.get() counterpart of safe_request_post()."""
-    import requests
-    kwargs.setdefault('timeout', 30)  # never hang forever on a stuck/slow upstream
-    host, ips = _resolve_and_validate(url, allow_loopback)
-    with pin_host(host, ips):
-        return requests.get(url, **kwargs)
+    return safe_request('GET', url, allow_loopback=allow_loopback, **kwargs)
 
 
 def safe_request_head(url, allow_loopback: bool = False, **kwargs):
     """requests.head() with DNS-rebinding protection (e.g. ACME newNonce)."""
-    import requests
-    kwargs.setdefault('timeout', 30)
-    host, ips = _resolve_and_validate(url, allow_loopback)
-    with pin_host(host, ips):
-        return requests.head(url, **kwargs)
+    return safe_request('HEAD', url, allow_loopback=allow_loopback, **kwargs)

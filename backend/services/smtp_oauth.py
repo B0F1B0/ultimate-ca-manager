@@ -28,7 +28,8 @@ from urllib.parse import urlencode
 
 import requests
 
-from utils.ssrf_protection import validate_url_not_cloud_metadata
+from utils.ssrf_protection import (safe_request_post,
+                                   validate_url_not_cloud_metadata)
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +175,8 @@ def exchange_code_for_tokens(config, code: str, redirect_uri: str) -> dict:
         "redirect_uri": redirect_uri,
         "grant_type": "authorization_code",
     }
-    resp = requests.post(token_url, data=data, timeout=_TOKEN_REQUEST_TIMEOUT)
+    resp = safe_request_post(token_url, data=data,
+                             timeout=_TOKEN_REQUEST_TIMEOUT)
     if resp.status_code >= 400:
         # Never echo full body — providers sometimes include client_secret hints
         logger.error(f"OAuth token exchange failed: HTTP {resp.status_code}")
@@ -205,7 +207,8 @@ def refresh_access_token(config) -> dict:
     if scope:
         data["scope"] = scope
 
-    resp = requests.post(token_url, data=data, timeout=_TOKEN_REQUEST_TIMEOUT)
+    resp = safe_request_post(token_url, data=data,
+                             timeout=_TOKEN_REQUEST_TIMEOUT)
     if resp.status_code >= 400:
         logger.error(f"OAuth token refresh failed: HTTP {resp.status_code}")
         raise RuntimeError(f"Token refresh failed (HTTP {resp.status_code})")

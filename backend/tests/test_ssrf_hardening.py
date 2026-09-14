@@ -5,12 +5,19 @@
 """
 
 
+class _Answer:
+    """What the wrappers get back: they read the status to spot a redirect."""
+
+    status_code = 200
+    headers = {}
+
+
 # ---- #6: default timeout on the SSRF-safe request wrappers ----
 def test_safe_request_get_defaults_timeout(monkeypatch):
     import requests
     from utils import ssrf_protection
     cap = {}
-    monkeypatch.setattr(requests, "get", lambda url, **kw: cap.update(kw) or "ok")
+    monkeypatch.setattr(requests, "get", lambda url, **kw: cap.update(kw) or _Answer())
     ssrf_protection.safe_request_get("https://93.184.216.34/")   # literal IP → no DNS
     assert cap.get("timeout") == 30
 
@@ -19,7 +26,7 @@ def test_safe_request_get_preserves_explicit_timeout(monkeypatch):
     import requests
     from utils import ssrf_protection
     cap = {}
-    monkeypatch.setattr(requests, "get", lambda url, **kw: cap.update(kw) or "ok")
+    monkeypatch.setattr(requests, "get", lambda url, **kw: cap.update(kw) or _Answer())
     ssrf_protection.safe_request_get("https://93.184.216.34/", timeout=5)
     assert cap.get("timeout") == 5
 
@@ -28,7 +35,7 @@ def test_safe_request_post_defaults_timeout(monkeypatch):
     import requests
     from utils import ssrf_protection
     cap = {}
-    monkeypatch.setattr(requests, "post", lambda url, **kw: cap.update(kw) or "ok")
+    monkeypatch.setattr(requests, "post", lambda url, **kw: cap.update(kw) or _Answer())
     ssrf_protection.safe_request_post("https://93.184.216.34/")
     assert cap.get("timeout") == 30
 
@@ -37,7 +44,7 @@ def test_safe_request_head_defaults_timeout(monkeypatch):
     import requests
     from utils import ssrf_protection
     cap = {}
-    monkeypatch.setattr(requests, "head", lambda url, **kw: cap.update(kw) or "ok")
+    monkeypatch.setattr(requests, "head", lambda url, **kw: cap.update(kw) or _Answer())
     ssrf_protection.safe_request_head("https://93.184.216.34/")
     assert cap.get("timeout") == 30
 

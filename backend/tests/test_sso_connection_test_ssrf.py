@@ -57,6 +57,7 @@ class TestTheReachabilityTestDoesNotWanderOff:
 
             class Answer:
                 status_code = 302
+                headers = {}
             return Answer()
 
         def forbidden_head(*args, **kwargs):
@@ -116,6 +117,7 @@ class TestTheHelperItselfDoesNotFollowRedirects:
 
             class Answer:
                 status_code = 302
+                headers = {}
             return Answer()
 
         monkeypatch.setattr(ssrf_protection, '_resolve_and_validate',

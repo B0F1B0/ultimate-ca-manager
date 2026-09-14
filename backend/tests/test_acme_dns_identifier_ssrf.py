@@ -578,6 +578,16 @@ def test_resolve_and_validate_returns_a_list_for_a_literal_ip():
     )
 
 
+class _Answer:
+    """A reply the wrappers can read: they look at the status for a redirect."""
+
+    status_code = 200
+    headers = {}
+
+    def __eq__(self, other):
+        return other in ('ok', 'delivered over sock')
+
+
 @pytest.mark.parametrize('verb', ['get', 'post', 'head'])
 def test_safe_request_pins_the_full_validated_set(verb, monkeypatch, dns_two_public):
     """safe_request_* must hand pin_host every validated address."""
@@ -589,7 +599,7 @@ def test_safe_request_pins_the_full_validated_set(verb, monkeypatch, dns_two_pub
         seen['pinned'] = dict(
             getattr(ssrf_protection._pinned_resolution, 'host_to_ip', None) or {}
         )
-        return 'ok'
+        return _Answer()
 
     monkeypatch.setattr(requests, verb, _capture)
     call = getattr(ssrf_protection, f'safe_request_{verb}')
@@ -624,11 +634,13 @@ def test_safe_request_fails_over_within_the_validated_set(
     def _request(url, **_kw):
         # What urllib3 does inside requests, while the pin is in force.
         sock = ssrf_protection._patched_create_connection(('multi.example.test', 443))
-        return f'delivered over {sock}'
+        answer = _Answer()
+        answer.delivered_over = sock
+        return answer
 
     monkeypatch.setattr(requests, verb, _request)
     call = getattr(ssrf_protection, f'safe_request_{verb}')
-    assert call('https://multi.example.test/x') == 'delivered over sock'
+    assert call('https://multi.example.test/x').delivered_over == 'sock'
     assert attempts == [('93.184.216.34', 443), ('198.41.0.4', 443)], (
         'the outbound request gave up after the first validated address'
     )
