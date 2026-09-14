@@ -22,13 +22,43 @@ export const EXPORT_EXTENSIONS = {
   key: 'key',
 }
 
+// Long enough for any CN (RFC 5280 caps it at 64) or ACME domain, short
+// enough that name + extension stays well inside the 255-byte limit every
+// common filesystem enforces.
+const MAX_BASENAME = 128
+
+/**
+ * Make a caller-supplied label safe to use as a filename.
+ *
+ * The label is a CN, an ACME domain or a CA description, and none of those are
+ * the operator's own text: they ride in on externally submitted CSRs, ACME
+ * orders, SCEP/EST enrolments and discovery scans. RFC 5280 happily allows
+ * `/`, `\`, `:`, `..` and control characters in a CN, while several of the
+ * files named here contain a private key.
+ *
+ * @param {string} name - the untrusted label
+ * @param {number} [maxLength] - cap for the returned base name
+ * @returns {string} a single path segment, never empty, never "." or ".."
+ */
+export function sanitizeFilename(name, maxLength = MAX_BASENAME) {
+  let safe = String(name ?? '').replace(/[^A-Za-z0-9._-]+/g, '_')
+  // Leading dots would hide the file, and "." / ".." are not names at all.
+  safe = safe.replace(/^\.+/, '')
+  if (safe.length > maxLength) safe = safe.slice(0, maxLength)
+  return safe || 'export'
+}
+
 /**
  * The filename a given export should land under.
+ *
+ * The naming convention itself (date-stamped or bare) stays with the caller;
+ * only the untrusted part is scrubbed, and the extension is appended after.
+ *
  * @param {string} name - already resolved by the caller (CN, description, …)
  * @param {string} format - an ExportModal format key
  */
 export function exportFileName(name, format) {
-  return `${name}.${EXPORT_EXTENSIONS[format] || format}`
+  return `${sanitizeFilename(name)}.${EXPORT_EXTENSIONS[format] || format}`
 }
 
 /**
