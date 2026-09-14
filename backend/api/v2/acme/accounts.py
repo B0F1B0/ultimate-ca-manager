@@ -14,6 +14,7 @@ from auth.unified import require_auth
 from utils.response import success_response, error_response
 from utils.db_transaction import safe_commit
 from utils.datetime_utils import utc_isoformat
+from services.acme.acme_client_service import CERT_KEY_TYPES
 
 from . import bp, logger, resolve_acme_account
 
@@ -52,6 +53,15 @@ def create_acme_account():
 
     if not email:
         return error_response('Email is required', 400)
+
+    # Judged against the same table the generator uses, the way the client
+    # settings route does it. Nothing compared this value before: an EC label
+    # this route did not know fell through to P-256 while the JWK went on to
+    # say P-256, and every other label fell through to the RSA branch, where
+    # the bit count came from the label itself with no ceiling.
+    if key_type not in CERT_KEY_TYPES:
+        return error_response(
+            f'Key type must be one of: {", ".join(CERT_KEY_TYPES)}', 400)
 
     # Check for existing account with same email
     existing = AcmeAccount.query.filter(

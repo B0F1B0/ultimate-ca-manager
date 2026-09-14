@@ -15,6 +15,7 @@ from utils.acme_public_url import get_acme_public_base, get_acme_proxy_public_ba
 from models import db, SystemConfig
 from utils.acme_debug import clear_acme_debug_cache
 from services.audit_service import AuditService
+from services.acme.acme_client_service import ACCOUNT_KEY_TYPES, CERT_KEY_TYPES
 from security.encryption import encrypt_text
 
 logger = logging.getLogger(__name__)
@@ -341,14 +342,14 @@ def update_settings():
         updates.append('eab_hmac_key')
 
     if 'key_type' in data:
-        valid_key_types = ['RSA-2048', 'RSA-4096', 'EC-P256', 'EC-P384']
+        valid_key_types = list(CERT_KEY_TYPES)
         if data['key_type'] not in valid_key_types:
             return error_response(f'Key type must be one of: {", ".join(valid_key_types)}', 400)
         _set_config('acme.client.key_type', data['key_type'], 'Certificate key type')
         updates.append('key_type')
 
     if 'account_key_type' in data:
-        valid_acct_types = ['RS256', 'ES256', 'ES384']
+        valid_acct_types = list(ACCOUNT_KEY_TYPES)
         if data['account_key_type'] not in valid_acct_types:
             return error_response(f'Account key type must be one of: {", ".join(valid_acct_types)}', 400)
         _set_config('acme.client.account_key_type', data['account_key_type'], 'Account key algorithm')

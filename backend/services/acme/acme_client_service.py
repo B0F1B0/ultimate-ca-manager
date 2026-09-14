@@ -467,8 +467,11 @@ class AcmeClientService:
             return self.account_key
 
         # Generate new key for this account
+        # One default for an unknown label, not two disagreeing ones: the line
+        # above already guarantees membership, so the `.get` fallback to RS256
+        # was unreachable and said the opposite of the ES256 it followed.
         acct_alg = self.account.account_key_algorithm if self.account.account_key_algorithm in ACCOUNT_KEY_TYPES else 'ES256'
-        key_info = ACCOUNT_KEY_TYPES.get(acct_alg, ACCOUNT_KEY_TYPES['RS256'])
+        key_info = ACCOUNT_KEY_TYPES[acct_alg]
         self.account_key = key_info['generate']()
 
         pem = self.account_key.private_bytes(
