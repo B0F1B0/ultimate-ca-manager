@@ -7,7 +7,7 @@ import { useState, useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { MARKDOWN_ELEMENT_CLASSES } from '../../lib/ui'
+import { MARKDOWN_ELEMENT_CLASSES } from '../../lib/markdown'
 import ProfilesEditor from './ProfilesEditor'
 import { pickerCas } from '../../lib/caSelection'
 

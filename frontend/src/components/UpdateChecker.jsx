@@ -9,7 +9,8 @@ import { Card, Button, Badge, LoadingSpinner, ServiceReconnectOverlay } from '..
 import { apiClient } from '../services'
 import { useNotification } from '../contexts'
 import { useServiceReconnect } from '../hooks'
-import { formatRelativeTime, MARKDOWN_ELEMENT_CLASSES } from '../lib/ui'
+import { formatRelativeTime } from '../lib/utils'
+import { MARKDOWN_ELEMENT_CLASSES } from '../lib/markdown'
 
 export function UpdateChecker() {
   const { t } = useTranslation()

@@ -204,3 +204,70 @@ export function formatSerialNumberHex(serial) {
 export function publicBaseUrl(configured, fallbackPath) {
   return (configured || `${window.location.origin}${fallbackPath}`).replace(/\/$/, '')
 }
+
+/**
+ * Parse a date string ensuring UTC interpretation.
+ * Backend stores UTC timestamps without 'Z' suffix — JS would parse as local time.
+ */
+function parseUTC(date) {
+  if (date instanceof Date) return date
+  if (typeof date === 'string' && !date.endsWith('Z') && !date.includes('+') && !date.includes('-', 10)) {
+    return new Date(date + 'Z')
+  }
+  return new Date(date)
+}
+
+/**
+ * Format relative time with precision:
+ *   < 60s  → "just now"
+ *   < 60m  → "Xm ago"
+ *   < 24h  → "Xh Ym ago"
+ *   < 7d   → "Xd Yh ago"
+ *   older  → formatted date
+ *
+ * Moved here from lib/ui.js, which carried a second copy of formatDate. That
+ * copy hardcoded `day: 'numeric'`, so under the `us` preference it rendered
+ * 02/6/2026 beside the 02/06/2026 every table cell showed, and its catch
+ * returned the raw input where this one returns '-'. Falling through to the
+ * formatDate above removes both divergences.
+ */
+export function formatRelativeTime(date, t) {
+  if (!date) return '-'
+
+  const now = new Date()
+  const then = parseUTC(date)
+  const diffMs = now - then
+  if (diffMs < 0) return formatDate(date)
+  const diffSecs = Math.floor(diffMs / 1000)
+  const diffMins = Math.floor(diffSecs / 60)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
+  const remainMins = diffMins % 60
+  const remainHours = diffHours % 24
+
+  if (t) {
+    if (diffSecs < 60) return t('common.justNow')
+    if (diffMins < 60) return t('common.minutesAgo', { count: diffMins })
+    if (diffHours < 24) {
+      if (remainMins > 0) return t('common.hoursMinutesAgo', { hours: diffHours, minutes: remainMins, defaultValue: `${diffHours}h ${remainMins}m ago` })
+      return t('common.hoursAgo', { count: diffHours })
+    }
+    if (diffDays < 7) {
+      if (remainHours > 0) return t('common.daysHoursAgo', { days: diffDays, hours: remainHours, defaultValue: `${diffDays}d ${remainHours}h ago` })
+      return t('common.daysAgo', { count: diffDays })
+    }
+  } else {
+    if (diffSecs < 60) return 'just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) {
+      if (remainMins > 0) return `${diffHours}h ${remainMins}m ago`
+      return `${diffHours}h ago`
+    }
+    if (diffDays < 7) {
+      if (remainHours > 0) return `${diffDays}d ${remainHours}h ago`
+      return `${diffDays}d ago`
+    }
+  }
+
+  return formatDate(date)
+}

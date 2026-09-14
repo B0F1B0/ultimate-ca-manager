@@ -17,7 +17,7 @@ import { apiClient } from '../services'
 import { useAuth } from '../contexts/AuthContext'
 import { getPreferences, persistPreference } from '../stores/userPreferencesStore'
 import { formatDate } from '../lib/utils'
-import { MARKDOWN_ELEMENT_CLASSES } from '../lib/ui'
+import { MARKDOWN_ELEMENT_CLASSES } from '../lib/markdown'
 
 export function UpdatePopup() {
   const { t } = useTranslation()

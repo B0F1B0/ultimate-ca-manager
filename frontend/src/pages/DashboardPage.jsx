@@ -23,7 +23,7 @@ import { CertificateTrendChart, StatusPieChart } from '../components/DashboardCh
 import { dashboardService, certificatesService, acmeService, truststoreService, systemService } from '../services'
 import { useNotification } from '../contexts'
 import { useWebSocket, EventType, usePermission } from '../hooks'
-import { formatRelativeTime } from '../lib/ui'
+import { formatRelativeTime } from '../lib/utils'
 
 // Default widgets configuration
 const DEFAULT_WIDGETS = [
