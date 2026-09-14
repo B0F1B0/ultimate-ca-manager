@@ -140,26 +140,15 @@ def request_certificate():
     if len(domains) > 100:
         return error_response('Too many domains (max 100 per order)', 400)
 
-    import re as _re
-    # FQDN: labels of 1-63 chars (alnum + hyphen, no leading/trailing hyphen),
-    # 1+ labels separated by dots; allow leading "*." for wildcards.
-    _label = r'(?!-)[A-Za-z0-9-]{1,63}(?<!-)'
-    _fqdn_re = _re.compile(rf'^(\*\.)?({_label}\.)+{_label}$')
+    from services.acme.identifiers import normalize_client_identifier
     normalized_domains = []
     has_ip_identifier = False
     for domain in domains:
-        if not isinstance(domain, str) or not domain:
-            return error_response('Invalid domain (empty or not a string)', 400)
-        normalized_ip = normalize_ip_for_identifier(domain)
-        if normalized_ip is not None:
-            normalized_domains.append(normalized_ip)
-            has_ip_identifier = True
-            continue
-        if len(domain) > 253:
-            return error_response(f'Invalid domain (>253 chars): {domain[:60]}...', 400)
-        if not _fqdn_re.match(domain):
-            return error_response(f'Invalid domain syntax: {domain}', 400)
-        normalized_domains.append(domain)
+        normalized, is_ip, problem = normalize_client_identifier(domain)
+        if problem:
+            return error_response(problem, 400)
+        normalized_domains.append(normalized)
+        has_ip_identifier = has_ip_identifier or is_ip
     domains = normalized_domains
 
     # Get email (from request or settings)

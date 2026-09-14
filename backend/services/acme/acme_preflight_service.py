@@ -83,16 +83,17 @@ class AcmePreflightService:
             steps.append(_step('domains', 'Domain list', False, 'At least one domain is required'))
             overall_ok = False
         else:
-            import re as _re
-            _label = r'(?!-)[A-Za-z0-9-]{1,63}(?<!-)'
-            _fqdn_re = _re.compile(rf'^(\*\.)?({_label}\.)+{_label}$')
-            bad = [d for d in domains if not isinstance(d, str) or not _fqdn_re.match(d)]
-            has_wildcard = any(d.startswith('*.') for d in domains)
+            # The rule the order route will apply, not a second copy of it:
+            # the copy here had no length cap, so this step reported OK for a
+            # name the order then refused with a 400.
+            from services.acme.identifiers import normalize_client_identifier
+            bad = [d for d in domains if normalize_client_identifier(d)[2]]
+            has_wildcard = any(isinstance(d, str) and d.startswith('*.') for d in domains)
             wildcard_ok = not (has_wildcard and challenge_type != 'dns-01')
             dom_ok = not bad and wildcard_ok
             detail = 'OK'
             if bad:
-                detail = f'Invalid domain syntax: {", ".join(bad[:5])}'
+                detail = f'Invalid domain syntax: {", ".join(str(d) for d in bad[:5])}'
             elif not wildcard_ok:
                 detail = 'Wildcard domains require DNS-01 challenge'
             steps.append(_step('domains', 'Domain validation', dom_ok, detail, {'domains': domains}))

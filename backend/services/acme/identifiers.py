@@ -90,3 +90,47 @@ def validate_acme_identifier(identifier: Dict[str, Any]) -> Tuple[bool, Optional
         identifier['value'] = result
 
     return True, None, None
+
+
+# ---------------------------------------------------------------------------
+# The outbound client's own rule
+#
+# Ordering FROM an upstream CA is a different question from answering an order:
+# UCM chooses the names it asks for, so it applies the stricter public-CA shape
+# (at least two labels, no underscore, no trailing dot) and refuses upfront what
+# Let's Encrypt would refuse anyway. That rule was written out twice — once in
+# the order route, once in the preflight report — and only the route carried the
+# length cap, so the preflight answered "Domain validation OK" for a name the
+# order then rejected with a 400. One rule, both readers.
+# ---------------------------------------------------------------------------
+
+CLIENT_MAX_DOMAIN_LENGTH = 253
+
+# Labels of 1-63 chars (alnum + hyphen, no leading/trailing hyphen), two or
+# more of them, with an optional leading "*." for wildcards.
+_CLIENT_LABEL = r'(?!-)[A-Za-z0-9-]{1,63}(?<!-)'
+_CLIENT_FQDN_RE = re.compile(rf'^(\*\.)?({_CLIENT_LABEL}\.)+{_CLIENT_LABEL}$')
+
+
+def normalize_client_identifier(value: Any) -> Tuple[Optional[str], bool, Optional[str]]:
+    """Judge one name the outbound ACME client is about to order.
+
+    Returns ``(normalized_value, is_ip_identifier, problem)``. ``problem`` is
+    None when the name is acceptable, otherwise it is the operator-facing
+    message — the same wording the order route has always returned.
+    """
+    if not isinstance(value, str) or not value:
+        return None, False, 'Invalid domain (empty or not a string)'
+
+    from utils.acme_ip import normalize_ip_for_identifier
+    normalized_ip = normalize_ip_for_identifier(value)
+    if normalized_ip is not None:
+        return normalized_ip, True, None
+
+    if len(value) > CLIENT_MAX_DOMAIN_LENGTH:
+        return None, False, (
+            f'Invalid domain (>{CLIENT_MAX_DOMAIN_LENGTH} chars): {value[:60]}...'
+        )
+    if not _CLIENT_FQDN_RE.match(value):
+        return None, False, f'Invalid domain syntax: {value}'
+    return value, False, None
