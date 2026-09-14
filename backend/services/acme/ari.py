@@ -20,7 +20,8 @@ from typing import Optional, Tuple
 from models import Certificate
 from models.acme_models import AcmeOrder
 from utils.datetime_utils import utc_now
-from utils.serial_format import serial_to_int, serial_variants
+from services.cert.serial_resolution import resolve_record_serial
+from utils.serial_format import serial_variants
 
 # How often a client should re-poll the renewalInfo resource (RFC 9773 §4.2
 # recommends advertising this via Retry-After).
@@ -84,7 +85,10 @@ def find_certificate(aki_hex: str, serial_int: int) -> Optional[Certificate]:
             .filter(Certificate.serial_number.in_(candidates))
             .all())
     for cert in rows:
-        if serial_to_int(cert.serial_number) == serial_int and _aki_matches(cert.aki, aki_hex):
+        # Against the stored certificate, not the column: an all-digit column
+        # reads as decimal but may have been written as hex, and confirming
+        # the candidate that way rejected the certificate that was asked for.
+        if resolve_record_serial(cert) == serial_int and _aki_matches(cert.aki, aki_hex):
             return cert
     return None
 

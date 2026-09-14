@@ -11,7 +11,7 @@ from cryptography.hazmat.backends import default_backend
 from models import db, CA, Certificate
 from models.crl import CRLMetadata
 from utils.datetime_utils import utc_now
-from utils.serial_format import serial_to_int
+from services.cert.serial_resolution import resolve_record_serial
 from utils.x509_aki import authority_key_identifier_from_issuer
 from ._constants import REASON_MAP
 from .query import CRLQueryMixin
@@ -110,7 +110,11 @@ def _add_freshest_crl(builder: x509.CertificateRevocationListBuilder, ca: CA):
 def _parse_revoked_serial(cert: Certificate, *, context: str) -> Optional[int]:
     if not cert.serial_number:
         return None
-    serial_int = serial_to_int(cert.serial_number)
+    # From the stored certificate, not from the column: three writers fill
+    # that column (decimal, lower hex, upper hex) and an all-digit value is
+    # ambiguous between them, so reading it as decimal published one
+    # certificate's serial in place of another's.
+    serial_int = resolve_record_serial(cert)
     if serial_int is None or serial_int <= 0:
         logger.warning(
             f"{context}: skipping cert {cert.id} with unparseable serial {cert.serial_number!r}"
@@ -324,14 +328,13 @@ class CRLGenerationMixin:
         # in-place renewal (cert row alive, not revoked, but carrying a new
         # serial) is published on the delta instead of waiting for the next
         # full CRL.
-        live_serials = {c.serial_number for c in revoked_certs}
         orphan_candidates = RevokedSerial.query.filter(
             RevokedSerial.caref == ca.refid,
             RevokedSerial.revoked_at > base_crl.this_update,
             RevokedSerial.valid_to > now
         ).all()
         revoked_certs.extend(
-            CRLQueryMixin._filter_orphan_serials(orphan_candidates, live_serials)
+            CRLQueryMixin._filter_orphan_serials(orphan_candidates, list(revoked_certs))
         )
 
         last_crl = CRLMetadata.query.filter_by(ca_id=ca_id).order_by(

@@ -81,6 +81,32 @@ def _record_holds_serial(record, cert_serial: int):
         return None
 
 
+def _cache_key_forms(serial, serial_hex: str) -> set:
+    """The cache keys a stored serial may have been cached under.
+
+    Entries are keyed by the hex of the integer carried in the request, which
+    is the certificate's real serial. Callers invalidate with the
+    ``serial_number`` column instead, and that column has three writers — an
+    all-digit value like ``"12345"`` reads as decimal 12345 here but was
+    written as hex 0x12345 there, so the key computed from it missed the
+    entry and the responder went on serving the ``good`` it had cached for a
+    certificate that had just been revoked (RFC 6960 §2.2 — a revocation
+    takes effect at once).
+
+    Both readings are therefore cleared. Clearing one entry too many costs a
+    regenerated response; clearing one too few leaves a lie in the cache.
+    """
+    forms = {serial_hex}
+    if isinstance(serial, str):
+        raw = serial.replace(':', '').strip().lower()
+        if raw.startswith('0x'):
+            raw = raw[2:]
+        # A hex reading of the same column, when it is one
+        if raw and all(c in '0123456789abcdef' for c in raw):
+            forms.add(raw.lstrip('0') or '0')
+    return forms
+
+
 def _child_ca_for_serial(issuer: CA, cert_serial: int, variants) -> Optional[CA]:
     """The CA signed by *issuer* whose certificate carries *cert_serial*.
 
@@ -968,15 +994,18 @@ class OCSPService:
         serial_hex = serial_to_hex(serial)
         if not serial_hex:
             return 0
+        forms = _cache_key_forms(serial, serial_hex)
 
         try:
             query = OCSPResponse.query
             if ca_id is not None:
                 query = query.filter(OCSPResponse.ca_id == ca_id)
-            deleted_count = query.filter(or_(
-                OCSPResponse.cert_serial == serial_hex,
-                OCSPResponse.cert_serial.like(f'{serial_hex}:%'),
-            )).delete(synchronize_session=False)
+            conditions = []
+            for form in forms:
+                conditions.append(OCSPResponse.cert_serial == form)
+                conditions.append(OCSPResponse.cert_serial.like(f'{form}:%'))
+            deleted_count = query.filter(or_(*conditions)).delete(
+                synchronize_session=False)
             db.session.commit()
             logger.info(
                 f"Invalidated {deleted_count} OCSP cache entries for serial {serial_hex}"

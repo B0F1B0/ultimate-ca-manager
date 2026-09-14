@@ -2,6 +2,7 @@ import logging
 from typing import List, Optional
 from models import db, CA, Certificate, RevokedSerial
 from models.crl import CRLMetadata
+from services.cert.serial_resolution import resolve_record_serial, same_serial
 from utils.datetime_utils import utc_now
 
 logger = logging.getLogger(__name__)
@@ -46,8 +47,6 @@ class CRLQueryMixin:
             CA.valid_to > now
         ).all()
         live_certs = live_certs + live_cas
-        # Collect serials that have a live certificate row
-        live_serials = {c.serial_number for c in live_certs}
 
         # Fallback: RevokedSerial entries for certs that were deleted
         # (certificate_id is NULL or the row no longer exists).
@@ -58,13 +57,13 @@ class CRLQueryMixin:
         ).all()
 
         orphan_serials = CRLQueryMixin._filter_orphan_serials(
-            revoked_serials, live_serials
+            revoked_serials, live_certs
         )
 
         return live_certs + orphan_serials
 
     @staticmethod
-    def _filter_orphan_serials(revoked_serials: List, live_serials: set) -> List:
+    def _filter_orphan_serials(revoked_serials: List, live_records: List) -> List:
         """Reduce RevokedSerial rows to the entries a CRL must still carry.
 
         Shared by the full CRL (``get_revoked_certificates``) and the delta
@@ -79,7 +78,17 @@ class CRLQueryMixin:
         - drop duplicates: two rows for the same serial (possible when a
           revoke and a renewal race) would otherwise emit the same serial
           twice in one CRL.
+
+        "Same serial" is the identical column *or* the same resolved integer:
+        the column has three writers, so one certificate can be a decimal row
+        here and a hex row there, and the entry is built from the integer.
+        Matching on the column alone let both through and put the same serial
+        on the CRL twice. Widening the test only ever drops more, never
+        resurrects an entry the column test dropped.
         """
+        if not revoked_serials:
+            return []
+
         cert_ids = {rs.certificate_id for rs in revoked_serials if rs.certificate_id}
         certs_by_id = {}
         if cert_ids:
@@ -88,17 +97,26 @@ class CRLQueryMixin:
                 for c in Certificate.query.filter(Certificate.id.in_(cert_ids)).all()
             }
 
+        live_columns = {r.serial_number for r in live_records}
+        live_ints = {resolve_record_serial(r) for r in live_records}
+        live_ints.discard(None)
+
         orphan_serials = []
-        seen_serials = set()
+        seen_columns = set()
+        seen_ints = set()
         for rs in revoked_serials:
-            if rs.serial_number in live_serials or rs.serial_number in seen_serials:
+            if rs.serial_number in live_columns or rs.serial_number in seen_columns:
+                continue
+            rs_int = resolve_record_serial(rs)
+            if rs_int is not None and (rs_int in live_ints or rs_int in seen_ints):
                 continue
             if rs.certificate_id:
                 existing = certs_by_id.get(rs.certificate_id)
-                if (existing and not existing.revoked
-                        and existing.serial_number == rs.serial_number):
+                if existing and not existing.revoked and same_serial(existing, rs):
                     continue
-            seen_serials.add(rs.serial_number)
+            seen_columns.add(rs.serial_number)
+            if rs_int is not None:
+                seen_ints.add(rs_int)
             orphan_serials.append(rs)
 
         return orphan_serials
