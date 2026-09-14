@@ -65,3 +65,44 @@ def test_guard_blocks_the_endpoints_it_had_not_heard_of(url):
 ])
 def test_the_nat64_prefix_is_not_refused_wholesale(url):
     validate_url_not_cloud_metadata(url)   # must not raise
+
+
+# The same family again: an IPv4 address written as IPv6. The guard understood
+# ::ffff: and, since the NAT64 pass, 64:ff9b::/96. `ipaddress` knows two more
+# encodings and answers them in one attribute each.
+@pytest.mark.parametrize("url", [
+    "https://[2002:a9fe:a9fe::1]/",          # 6to4 of 169.254.169.254
+    "https://[2002:c000:c0::1]/",            # 6to4 of Oracle's endpoint
+    "https://[2001::ffff:0:5601:5601]/",     # Teredo carrying 169.254.169.254
+    "https://[64:ff9b:1:a9fe:a900:fe00::]/",  # the local-use NAT64 prefix
+    "https://169.254.42.42/",                # Scaleway
+    "https://[fd00:42::42]/",                # Scaleway, IPv6
+])
+def test_guard_blocks_the_other_ways_of_writing_a_denied_address(url):
+    with pytest.raises(ValueError):
+        validate_url_not_cloud_metadata(url)
+
+
+@pytest.mark.parametrize("url", [
+    "https://[2002:5db8:d822::1]/",   # 6to4 of a public address
+    "https://[2002:a00:5::1]/",       # 6to4 of 10.0.0.5, private and allowed
+])
+def test_the_other_encodings_are_not_refused_wholesale(url):
+    validate_url_not_cloud_metadata(url)   # must not raise
+
+
+def test_the_local_use_prefix_is_read_the_way_the_gateway_reads_it():
+    """RFC 6052 spreads the address around a reserved byte at bits 72 to 79,
+    so the encoding is not simply the last 32 bits. An address whose reserved
+    byte is not zero is not a valid embedding, and decoding it the same way a
+    gateway would gives a different address, which is judged on its own."""
+    import ipaddress
+
+    from utils.ssrf_protection import _nat64_embedded_ipv4
+
+    assert _nat64_embedded_ipv4(
+        ipaddress.ip_address('64:ff9b:1:a9fe:a900:fe00::')
+    ) == ipaddress.ip_address('169.254.169.254')
+    assert _nat64_embedded_ipv4(
+        ipaddress.ip_address('64:ff9b::a9fe:a9fe')
+    ) == ipaddress.ip_address('169.254.169.254')

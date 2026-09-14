@@ -89,7 +89,9 @@ _CLOUD_METADATA_IPS = {
     '169.254.170.2',            # AWS ECS/EKS task credentials (see note below)
     '100.100.100.200',          # Alibaba Cloud
     '192.0.0.192',              # Oracle Cloud (see note below)
+    '169.254.42.42',            # Scaleway
     'fd00:ec2::254',            # AWS IPv6
+    'fd00:42::42',              # Scaleway IPv6
 }
 # 192.0.0.192 sits in 192.0.0.0/24, which `ipaddress` calls private, and this
 # guard lets private addresses through on purpose: UCM is pointed at internal
@@ -123,13 +125,53 @@ _CLOUD_METADATA_IP_OBJS = {ipaddress.ip_address(a) for a in _CLOUD_METADATA_IPS}
 # prefix is; that is a gap, and naming it here is better than implying it is
 # covered.
 _NAT64_WELL_KNOWN = ipaddress.ip_network('64:ff9b::/96')
+# RFC 8215's local-use prefix. Its /48 embedding puts the address in bits 48
+# to 71 and 72 to 79, with bits 64 to 71 reserved and skipped.
+_NAT64_LOCAL_USE = ipaddress.ip_network('64:ff9b:1::/48')
 
 
 def _nat64_embedded_ipv4(ip):
-    """The IPv4 address a well-known NAT64 form carries, or None."""
-    if ip.version != 6 or ip not in _NAT64_WELL_KNOWN:
+    """The IPv4 address a NAT64 form carries, or None.
+
+    Two prefixes are known without being told: the well-known one, where the
+    address is simply the last 32 bits, and the local-use one, where RFC 6052
+    spreads it around the reserved byte. A prefix an operator chose for
+    themselves cannot be decoded without knowing it, and that is a gap rather
+    than something this pretends to cover.
+    """
+    if ip.version != 6:
         return None
-    return ipaddress.ip_address(int(ip) & 0xFFFFFFFF)
+    if ip in _NAT64_WELL_KNOWN:
+        return ipaddress.ip_address(int(ip) & 0xFFFFFFFF)
+    if ip in _NAT64_LOCAL_USE:
+        value = int(ip)
+        high = (value >> 56) & 0xFFFFFF        # bits 48..71
+        low = (value >> 40) & 0xFF             # bits 80..87, past the reserved byte
+        return ipaddress.ip_address((high << 8) | low)
+    return None
+
+
+def _ipv4_written_as_ipv6(ip):
+    """The IPv4 address an IPv6 encoding carries, or None.
+
+    Four ways of writing an IPv4 address as IPv6 reach the same host: the
+    mapped form, 6to4, Teredo, and NAT64. A deny-list that understands one of
+    them refuses one spelling of an address and accepts the others, which is
+    how `169.254.169.254` kept coming back.
+    """
+    if ip.version != 6:
+        return None
+    for candidate in (getattr(ip, 'ipv4_mapped', None),
+                      getattr(ip, 'sixtofour', None),
+                      _nat64_embedded_ipv4(ip)):
+        if candidate is not None:
+            return candidate
+    teredo = getattr(ip, 'teredo', None)
+    if teredo is not None:
+        # (relay, client): the client is the host being reached, the relay is
+        # a third party this should not be sent to either.
+        return teredo[1]
+    return None
 
 
 def _forbidden_ip_reason(ip, allow_loopback: bool = False):
@@ -139,13 +181,9 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
 
     allow_loopback=True permits loopback/unspecified (for a colocated ACME upstream
     such as Pebble/step-ca on 127.0.0.1); cloud metadata stays blocked regardless."""
-    mapped = getattr(ip, 'ipv4_mapped', None)
-    if mapped is not None:
-        ip = mapped
-    else:
-        embedded = _nat64_embedded_ipv4(ip)
-        if embedded is not None:
-            ip = embedded
+    embedded = _ipv4_written_as_ipv6(ip)
+    if embedded is not None:
+        ip = embedded
     if ip in _CLOUD_METADATA_IP_OBJS:
         return "cloud metadata IP"
     if (ip.is_loopback or ip.is_unspecified) and not allow_loopback:
