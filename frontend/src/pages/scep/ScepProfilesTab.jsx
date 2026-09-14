@@ -5,6 +5,7 @@ import { Button, Input, Select, Card, Badge, Modal, EmptyState, HelpCard } from 
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch'
 import { scepService } from '../../services'
 import { useNotification } from '../../contexts'
+import { useClipboard } from '../../hooks/useClipboard'
 import { pickerCas } from '../../lib/caSelection'
 
 const EMPTY_FORM = {
@@ -18,6 +19,7 @@ const EMPTY_FORM = {
 export default function ScepProfilesTab({ profiles, cas, templates, canWrite, onChanged }) {
   const { t } = useTranslation()
   const { showSuccess, showError, showConfirm } = useNotification()
+  const { copy } = useClipboard()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState(null)
   const [formData, setFormData] = useState(EMPTY_FORM)
@@ -129,8 +131,11 @@ export default function ScepProfilesTab({ profiles, cas, templates, canWrite, on
       const res = await scepService.regenerateProfileChallenge(profile.id)
       const challenge = res.data?.challenge || res.challenge
       if (challenge) {
-        await navigator.clipboard.writeText(challenge).catch(() => {})
-        showSuccess(t('scep.profileChallengeRegenerated'))
+        // The rotation has already happened server-side and the new challenge
+        // is shown once: a clipboard that is unavailable (plain HTTP) must not
+        // turn that into a reported failure, nor skip the refresh below.
+        const copied = await copy(challenge)
+        showSuccess(copied ? t('scep.profileChallengeRegenerated') : t('scep.challengeRegenerated'))
       }
       onChanged()
     } catch (error) {
@@ -157,10 +162,9 @@ export default function ScepProfilesTab({ profiles, cas, templates, canWrite, on
   }
 
   const copyUrl = async (profile) => {
-    try {
-      await navigator.clipboard.writeText(`${baseUrl}/scep/${profile.url_slug}/pkiclient.exe`)
+    if (await copy(`${baseUrl}/scep/${profile.url_slug}/pkiclient.exe`)) {
       showSuccess(t('common.copied'))
-    } catch { /* clipboard unavailable */ }
+    }
   }
 
   return (

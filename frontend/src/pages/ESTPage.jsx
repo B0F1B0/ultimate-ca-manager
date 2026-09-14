@@ -16,7 +16,7 @@ import {
 } from '../components'
 import { estService, casService } from '../services'
 import { useNotification } from '../contexts'
-import { usePermission } from '../hooks'
+import { usePermission, useClipboard } from '../hooks'
 import { ToggleSwitch } from '../components/ui/ToggleSwitch'
 import MappingEditor from './settings/MappingEditor'
 import { pickerCas } from '../lib/caSelection'
@@ -25,6 +25,7 @@ export default function ESTPage() {
   const { t } = useTranslation()
   const { showSuccess, showError, showInfo } = useNotification()
   const { hasPermission, canWrite } = usePermission()
+  const { copy } = useClipboard()
 
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState({})
@@ -76,9 +77,8 @@ export default function ESTPage() {
     }
   }
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-    showInfo(t('est.copied'))
+  const copyToClipboard = async (text) => {
+    if (await copy(text)) showInfo(t('est.copied'))
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''

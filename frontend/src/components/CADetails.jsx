@@ -35,6 +35,7 @@ import { CompactSection, CompactGrid, CompactField } from './DetailCard'
 import { CertificateExtensions } from './CertificateExtensions'
 import { CACrlSection } from './cas/CACrlSection'
 import { cn } from '../lib/utils'
+import { useClipboard } from '../hooks/useClipboard'
 import { needsKeyImport } from '../lib/caSelection'
 
 // Format date helper - delegates to shared util
@@ -56,7 +57,8 @@ export function CADetails({
 }) {
   const { t } = useTranslation()
   const [showFullPem, setShowFullPem] = useState(false)
-  const [pemCopied, setPemCopied] = useState(false)
+  const { copy: copyPem, isCopied } = useClipboard()
+  const pemCopied = isCopied('pem')
 
   if (!ca) return null
 
@@ -340,9 +342,7 @@ export function CADetails({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                navigator.clipboard.writeText(ca.pem)
-                setPemCopied(true)
-                setTimeout(() => setPemCopied(false), 2000)
+                copyPem(ca.pem, 'pem')
               }}
             >
               {pemCopied ? <CheckCircle size={14} /> : <Copy size={14} />}

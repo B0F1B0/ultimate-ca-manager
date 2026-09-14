@@ -15,6 +15,7 @@ import {
   Link, Shield, ListBullets, Eye, Warning, ArrowsClockwise
 } from '@phosphor-icons/react'
 import { useMobile } from '../contexts'
+import { useClipboard } from '../hooks/useClipboard'
 import { Badge } from './Badge'
 import { Button } from './Button'
 
@@ -339,16 +340,14 @@ export function DetailField({
   compact = false,
   className 
 }) {
-  const [copied, setCopied] = useState(false)
+  // useClipboard owns both the "did it work" answer and the reset timer.
+  const { copy, isCopied } = useClipboard()
+  const copied = isCopied()
   const { isMobile } = useMobile()
   const { t } = useTranslation()
   
   const handleCopy = () => {
-    if (copyable && value) {
-      navigator.clipboard.writeText(String(value))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+    if (copyable && value) copy(String(value))
   }
   
   return (
@@ -555,7 +554,8 @@ export function CompactField({
   colSpan,
   children
 }) {
-  const [copied, setCopied] = useState(false)
+  const { copy, isCopied } = useClipboard()
+  const copied = isCopied()
   // children take precedence over value (rich content, e.g. value + action button)
   const content = children ?? value
 
@@ -570,11 +570,7 @@ export function CompactField({
   }
   
   const handleCopy = () => {
-    if (copyable && value) {
-      navigator.clipboard.writeText(String(value))
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    }
+    if (copyable && value) copy(String(value))
   }
   
   // If icon provided/detected, use layout with subtle icon

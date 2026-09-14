@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { useNotification } from '../../contexts'
+import { useClipboard } from '../../hooks/useClipboard'
 import { EnvelopeSimple, Envelope, Bell, Warning, ArrowsClockwise, FloppyDisk, CheckCircle, XCircle, Key, Copy, Info, PencilSimple } from '@phosphor-icons/react'
 import { Button, Input, HelpCard, DetailHeader, DetailSection, DetailGrid, DetailContent } from '../../components'
 import { ToggleSwitch } from '../../components/ui/ToggleSwitch'
@@ -10,6 +11,7 @@ import { WarningCircle } from '@phosphor-icons/react'
 export default function EmailSection({ settings, updateSetting, handleSave, saving, canWrite, isMobile, emailTestResult, emailTesting, handleTestEmail, oauthDirty, setOauthDirty, oauthPresets, applyOAuthProviderPreset, handleSmtpOAuthAuthorize, handleSmtpOAuthRevoke, expiryAlerts, setExpiryAlerts, saveExpiryAlerts, triggerExpiryCheck, showTemplateEditor, setShowTemplateEditor }) {
   const { t } = useTranslation()
   const { showSuccess } = useNotification()
+  const { copy } = useClipboard()
   const oauthProviderSetup = {
     google: {
       consoleUrl: 'https://console.cloud.google.com/apis/credentials',
@@ -238,11 +240,12 @@ export default function EmailSection({ settings, updateSetting, handleSave, savi
                         size="sm"
                         variant="ghost"
                         disabled={!settings.smtp_oauth_redirect_uri}
-                        onClick={() => {
+                        onClick={async () => {
                           const val = settings.smtp_oauth_redirect_uri || ''
                           if (!val) return
-                          navigator.clipboard?.writeText(val)
-                          showSuccess(t('common.copiedToClipboard'))
+                          // Plain HTTP has no async clipboard API: only
+                          // say it was copied once it really was.
+                          if (await copy(val)) showSuccess(t('common.copiedToClipboard'))
                         }}
                       >
                         <Copy size={14} className="mr-1.5" />

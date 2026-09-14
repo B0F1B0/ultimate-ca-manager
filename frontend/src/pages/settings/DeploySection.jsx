@@ -12,6 +12,7 @@ import { Button, Badge, HelpCard, DetailSection, DetailContent, DetailHeader, Em
 import { Modal } from '../../components/Modal'
 import { deployService } from '../../services'
 import { useNotification } from '../../contexts'
+import { useClipboard } from '../../hooks/useClipboard'
 import { extractData, formatDate } from '../../lib/utils'
 
 const EMPTY_FORM = {
@@ -30,7 +31,7 @@ export default function DeploySection() {
   const [form, setForm] = useState(EMPTY_FORM)
   const [saving, setSaving] = useState(false)
   const [publicKeyFor, setPublicKeyFor] = useState(null)
-  const [copied, setCopied] = useState(false)
+  const { copy, isCopied } = useClipboard(1500)
 
   const load = async () => {
     try {
@@ -129,13 +130,7 @@ export default function DeploySection() {
     }
   }
 
-  const copyPublicKey = async () => {
-    try {
-      await navigator.clipboard.writeText(publicKeyFor?.public_key || '')
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1500)
-    } catch { /* clipboard unavailable */ }
-  }
+  const copyPublicKey = () => copy(publicKeyFor?.public_key || '')
 
   const field = (key) => (e) => setForm({ ...form, [key]: e.target.value })
   const applySameHostPreset = () => setForm(current => ({
@@ -312,7 +307,7 @@ export default function DeploySection() {
           </pre>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={copyPublicKey} disabled={!publicKeyFor?.public_key}>
-              {copied ? <Check size={14} /> : <Copy size={14} />} {t('common.copy')}
+              {isCopied() ? <Check size={14} /> : <Copy size={14} />} {t('common.copy')}
             </Button>
             <Button type="button" variant="primary" onClick={() => setPublicKeyFor(null)}>
               {t('common.close')}

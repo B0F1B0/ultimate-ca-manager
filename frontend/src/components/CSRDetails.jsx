@@ -29,6 +29,7 @@ import { Badge } from './Badge'
 import { Button } from './Button'
 import { CompactSection, CompactGrid, CompactField } from './DetailCard'
 import { cn } from '../lib/utils'
+import { useClipboard } from '../hooks/useClipboard'
 
 // Format date helper — delegates to shared util
 function formatDate(dateStr) {
@@ -57,7 +58,8 @@ export function CSRDetails({
 }) {
   const { t } = useTranslation()
   const [showFullPem, setShowFullPem] = useState(false)
-  const [pemCopied, setPemCopied] = useState(false)
+  const { copy: copyPem, isCopied } = useClipboard()
+  const pemCopied = isCopied('pem')
   
   if (!csr) return null
   
@@ -212,9 +214,7 @@ export function CSRDetails({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                navigator.clipboard.writeText(csr.pem)
-                setPemCopied(true)
-                setTimeout(() => setPemCopied(false), 2000)
+                copyPem(csr.pem, 'pem')
               }}
             >
               {pemCopied ? <CheckCircle size={14} /> : <Copy size={14} />}

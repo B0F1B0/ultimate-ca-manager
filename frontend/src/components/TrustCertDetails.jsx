@@ -29,6 +29,7 @@ import { Badge } from './Badge'
 import { Button } from './Button'
 import { CompactSection, CompactGrid, CompactField } from './DetailCard'
 import { cn } from '../lib/utils'
+import { useClipboard } from '../hooks/useClipboard'
 import { getAppTimezone } from '../stores/timezoneStore'
 import { formatDate as formatDateUtil } from '../lib/utils'
 
@@ -36,15 +37,6 @@ import { formatDate as formatDateUtil } from '../lib/utils'
 function formatDate(dateStr) {
   if (!dateStr) return '—'
   return formatDateUtil(dateStr)
-}
-
-// Copy to clipboard helper
-async function copyToClipboard(text, onSuccess) {
-  try {
-    await navigator.clipboard.writeText(text)
-    onSuccess?.()
-  } catch (err) {
-  }
 }
 
 // Purpose badge configuration
@@ -68,7 +60,8 @@ export function TrustCertDetails({
 }) {
   const { t } = useTranslation()
   const [showFullPem, setShowFullPem] = useState(false)
-  const [pemCopied, setPemCopied] = useState(false)
+  const { copy: copyPem, isCopied } = useClipboard()
+  const pemCopied = isCopied('pem')
   
   if (!cert) return null
   
@@ -288,10 +281,7 @@ export function TrustCertDetails({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                copyToClipboard(cert.pem, () => {
-                  setPemCopied(true)
-                  setTimeout(() => setPemCopied(false), 2000)
-                })
+                copyPem(cert.pem, 'pem')
               }}
             >
               {pemCopied ? <CheckCircle size={14} /> : <Copy size={14} />}

@@ -16,7 +16,7 @@ import {
 } from '../components'
 import { tsaService, casService } from '../services'
 import { useNotification } from '../contexts'
-import { usePermission } from '../hooks'
+import { usePermission, useClipboard } from '../hooks'
 import { ToggleSwitch } from '../components/ui/ToggleSwitch'
 import { pickerCas } from '../lib/caSelection'
 
@@ -24,6 +24,7 @@ export default function TSAPage() {
   const { t } = useTranslation()
   const { showSuccess, showError, showInfo } = useNotification()
   const { hasPermission, canWrite } = usePermission()
+  const { copy } = useClipboard()
 
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState({})
@@ -134,9 +135,8 @@ export default function TSAPage() {
   // dedicated signer is saved: without one, /tsa would 503 every request.
   const dedicatedSignerReady = Boolean(signerStatus?.usable)
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-    showInfo(t('tsa.copied'))
+  const copyToClipboard = async (text) => {
+    if (await copy(text)) showInfo(t('tsa.copied'))
   }
 
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''

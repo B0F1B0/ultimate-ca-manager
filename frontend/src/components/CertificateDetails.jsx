@@ -52,6 +52,7 @@ import { CompactSection, CompactGrid, CompactField } from './DetailCard'
 import { CertificateExtensions, SubjectAltNames } from './CertificateExtensions'
 import { CertDeploySection } from './deploy/CertDeploySection'
 import { cn } from '../lib/utils'
+import { useClipboard } from '../hooks/useClipboard'
 
 // Maps a template_override field name to the i18n key of its label (#258).
 const OVERRIDE_FIELD_LABEL_KEYS = {
@@ -136,7 +137,8 @@ export function CertificateDetails({
   embedded = false,
 }) {
   const { t } = useTranslation()
-  const [pemCopied, setPemCopied] = useState(false)
+  const { copy: copyPem, isCopied } = useClipboard()
+  const pemCopied = isCopied('pem')
   const [showFullPem, setShowFullPem] = useState(false)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showLintModal, setShowLintModal] = useState(false)
@@ -531,9 +533,7 @@ export function CertificateDetails({
               variant="ghost"
               onClick={(e) => {
                 e.stopPropagation()
-                navigator.clipboard.writeText(cert.pem)
-                setPemCopied(true)
-                setTimeout(() => setPemCopied(false), 2000)
+                copyPem(cert.pem, 'pem')
               }}
             >
               {pemCopied ? <CheckCircle size={14} /> : <Copy size={14} />}

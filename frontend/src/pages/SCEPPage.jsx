@@ -19,7 +19,7 @@ import {
 import { scepService, casService, templatesService } from '../services'
 import ScepProfilesTab from './scep/ScepProfilesTab'
 import { useNotification } from '../contexts'
-import { usePermission } from '../hooks'
+import { usePermission, useClipboard } from '../hooks'
 import { formatDate, cn } from '../lib/utils'
 import { ToggleSwitch } from '../components/ui/ToggleSwitch'
 
@@ -27,6 +27,7 @@ export default function SCEPPage() {
   const { t } = useTranslation()
   const { showSuccess, showError, showInfo, showConfirm } = useNotification()
   const { hasPermission, canWrite } = usePermission()
+  const { copy } = useClipboard()
   
   const [loading, setLoading] = useState(true)
   const [config, setConfig] = useState({})
@@ -144,9 +145,8 @@ export default function SCEPPage() {
     }
   }
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-    showInfo(t('common.copiedToClipboard'))
+  const copyToClipboard = async (text) => {
+    if (await copy(text)) showInfo(t('common.copiedToClipboard'))
   }
 
   const getStatusBadge = (status) => {
