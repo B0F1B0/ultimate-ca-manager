@@ -400,6 +400,42 @@ class TestDeleteCA:
         r = auth_client.delete('/api/v2/cas/999999')
         assert_error(r, 404)
 
+    def test_no_deletion_is_recorded_until_it_has_happened(
+            self, app, auth_client, create_ca, monkeypatch):
+        """The audit entry describes the deletion; it must not precede it.
+
+        `AuditService.log_action` commits the session it is given. Written
+        before the row was removed, the entry saying the authority had been
+        deleted was durable while the deletion itself was not, and a failure
+        after it left an audit trail asserting something the database
+        contradicts. The files on disk are unlinked by then either way, so the
+        trail is the only place left that could say what happened.
+        """
+        from models import db, AuditLog
+
+        ca = create_ca(cn='DeleteFailsAfterAudit CA')
+
+        def _refuse(_obj):
+            raise RuntimeError('delete refused')
+
+        monkeypatch.setattr(db.session, 'delete', _refuse, raising=False)
+        r = auth_client.delete(f'/api/v2/cas/{ca["id"]}')
+        monkeypatch.undo()
+
+        assert r.status_code == 500, (
+            f'the deletion was supposed to fail here: {r.status_code}')
+        assert_success(auth_client.get(f'/api/v2/cas/{ca["id"]}'))
+        with app.app_context():
+            # By name, not by id: the suite shares one database and the
+            # backend hands out freed row ids again, so every earlier
+            # deletion in this class answers to the same resource_id.
+            recorded = [e.details for e in AuditLog.query.filter_by(
+                action='ca_deleted',
+                resource_name='DeleteFailsAfterAudit CA').all()]
+        assert recorded == [], (
+            'the trail says the authority was deleted and it is still there: '
+            f'{recorded}')
+
 
 # ============================================================
 # Export — All CAs
