@@ -328,6 +328,16 @@ def configure_crl(ca_id):
                 f'({effective_validity} days) — the validity margin is the grace period',
                 400)
 
+        ok, err = safe_commit(logger, 'Failed to update CRL schedule')
+        if not ok:
+            return err
+
+        # Recorded after the schedule is saved. Written first, this call was
+        # the one that decided: it commits the session it is given and rolls
+        # all of it back when its own entry cannot be written, so an audit
+        # failure undid the schedule while the commit that followed committed
+        # nothing, reported success, and the answer carried the values that
+        # had just been lost.
         AuditService.log_action(
             action='crl_config',
             resource_type='ca',
@@ -340,10 +350,6 @@ def configure_crl(ca_id):
             ),
             success=True
         )
-
-        ok, err = safe_commit(logger, 'Failed to update CRL schedule')
-        if not ok:
-            return err
 
         latest = CRLMetadata.query.filter_by(ca_id=ca_id, is_delta=False).order_by(
             CRLMetadata.crl_number.desc()
@@ -386,6 +392,11 @@ def configure_delta_crl(ca_id):
             ca.delta_crl_interval = interval
         
         username = getattr(g, 'user', {}).get('username', 'admin') if hasattr(g, 'user') else 'admin'
+        ok, err = safe_commit(logger, 'Failed to update delta CRL settings')
+        if not ok:
+            return err
+
+        # After the commit, for the reason written in configure_crl above.
         AuditService.log_action(
             action='delta_crl_config',
             resource_type='ca',
@@ -394,10 +405,6 @@ def configure_delta_crl(ca_id):
             details=f"Delta CRL config: enabled={ca.delta_crl_enabled}, interval={ca.delta_crl_interval}h",
             success=True
         )
-        
-        ok, err = safe_commit(logger, 'Failed to update delta CRL settings')
-        if not ok:
-            return err
 
         return success_response(
             data={
