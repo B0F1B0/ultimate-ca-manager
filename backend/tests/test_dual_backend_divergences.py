@@ -19,7 +19,7 @@ import pytest
 from sqlalchemy import Column, Integer, String, create_engine, select
 from sqlalchemy.orm import Session, declarative_base
 
-from utils.pagination import bounded_limit
+from utils.pagination import parse_request_limit
 
 _Base = declarative_base()
 
@@ -62,8 +62,12 @@ def test_sqlite_really_does_match_a_string_column_against_an_int():
     (999, 50),
     ('999', 50),
 ])
-def test_a_limit_is_bounded_at_both_ends(value, expected):
-    assert bounded_limit(value, default=10, maximum=50) == expected
+def test_a_limit_is_bounded_at_both_ends(app, value, expected):
+    # Two lots corrected this family independently; `parse_request_limit` is
+    # the one that survived, because it reads the request like its neighbour
+    # `parse_request_pagination` does.
+    with app.test_request_context(f'/?limit={value}'):
+        assert parse_request_limit(10, 50) == expected
 
 
 @pytest.mark.parametrize('path', [

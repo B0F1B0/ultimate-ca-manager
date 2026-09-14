@@ -6,8 +6,8 @@ from sqlalchemy import or_
 from auth.unified import require_auth, has_permission
 from models import Certificate, CA, User, CertificateTemplate
 from utils.response import success_response
+from utils.pagination import parse_request_limit
 from utils.datetime_utils import utc_now
-from utils.pagination import bounded_limit
 
 bp = Blueprint('search', __name__)
 
@@ -31,7 +31,7 @@ def global_search():
         }
     """
     query = request.args.get('q', '').strip()
-    limit = bounded_limit(request.args.get('limit'), default=5, maximum=20)  # per category
+    limit = parse_request_limit(5, 20)   # max 20 per category
     
     if len(query) < 2:
         return success_response(data={

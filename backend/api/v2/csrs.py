@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, g, Response
 from sqlalchemy import or_
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils.pagination import parse_request_pagination
 from utils.dn_validation import validate_dn_field
 from utils.file_validation import validate_upload, CERT_EXTENSIONS
 from utils.sanitize import sanitize_filename
@@ -52,8 +53,7 @@ _CA_CERT_TYPES = frozenset({'intermediate_ca'})
 @require_auth(['read:csrs'])
 def list_csrs():
     """List all pending CSRs (Certificates with no crt)"""
-    page = max(1, request.args.get('page', 1, type=int))
-    per_page = min(max(1, request.args.get('per_page', 20, type=int)), 100)
+    page, per_page = parse_request_pagination(default_per_page=20)
     search = request.args.get('search', '').strip()
 
     # Requests still awaiting their certificate. The exact complement of the
@@ -159,8 +159,7 @@ def _approval_for_csr(user, ca, cert, data, validity_days, cert_type, extra_ekus
 def list_csrs_history():
     """List all signed CSRs (Certificates that had a CSR and now have crt)"""
     
-    page = max(1, request.args.get('page', 1, type=int))
-    per_page = min(max(1, request.args.get('per_page', 20, type=int)), 100)
+    page, per_page = parse_request_pagination(default_per_page=20)
     
     # Requests that have received their certificate
     query = signed_requests().order_by(Certificate.created_at.desc())

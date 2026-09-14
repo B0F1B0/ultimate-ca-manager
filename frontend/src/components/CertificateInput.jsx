@@ -62,18 +62,23 @@ export function CertificateInput({
     if (managedCerts) return
     setLoadingCerts(true)
     try {
-      const first = await certificatesService.getAll({ page: 1, per_page: MANAGED_PER_PAGE })
+      // `limit` is not a parameter this listing reads: it pages on `per_page`,
+      // capped at 100, so asking for 500 returned the default 20. Pages
+      // through instead, with the key filter pushed to the server.
+      const query = { per_page: MANAGED_PER_PAGE }
+      if (requireKey) query.has_key = true
+      const first = await certificatesService.getAll({ ...query, page: 1 })
       let certs = first.data || []
       const total = Math.min(first.meta?.total ?? certs.length, MANAGED_MAX_CERTS)
       const pages = Math.ceil(total / MANAGED_PER_PAGE)
       if (pages > 1) {
         const rest = await Promise.all(
-          Array.from({ length: pages - 1 }, (_, i) =>
-            certificatesService.getAll({ page: i + 2, per_page: MANAGED_PER_PAGE }))
+          Array.from({ length: pages - 1 }, (_, k) =>
+            certificatesService.getAll({ ...query, page: k + 2 }))
         )
         certs = rest.reduce((acc, r) => acc.concat(r.data || []), certs)
       }
-      setManagedCerts(requireKey ? certs.filter(c => c.has_private_key) : certs)
+      setManagedCerts(certs)
     } catch {
       setManagedCerts([])
     } finally {

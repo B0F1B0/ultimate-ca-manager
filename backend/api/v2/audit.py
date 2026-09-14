@@ -5,7 +5,7 @@ View and manage audit logs
 from flask import Blueprint, request, jsonify, g, Response
 from auth.unified import require_auth
 from services.audit_service import AuditService
-from utils.pagination import bounded_limit, parse_request_pagination
+from utils.pagination import parse_request_pagination, parse_request_limit
 from utils.response import success_response, error_response
 from datetime import datetime
 import logging
@@ -150,7 +150,7 @@ def export_logs():
         limit: Max records (default: 10000)
     """
     format = request.args.get('format', 'json')
-    limit = bounded_limit(request.args.get('limit'), default=10000, maximum=50000)
+    limit = parse_request_limit(10000, 50000)
     
     # Parse dates
     date_from = None

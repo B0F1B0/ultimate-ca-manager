@@ -6,6 +6,7 @@ from sqlalchemy import or_, and_, case, func
 from sqlalchemy.orm import selectinload
 from auth.unified import require_auth
 from utils.response import success_response
+from utils.pagination import parse_request_pagination
 from models import Certificate, CA, db
 from utils.cert_status import (
     expired_condition, expiring_condition, issued_certificates,
@@ -23,8 +24,7 @@ logger = logging.getLogger(__name__)
 def list_certificates():
     """List certificates"""
 
-    page = max(1, request.args.get('page', 1, type=int))
-    per_page = min(max(1, request.args.get('per_page', 20, type=int)), 100)
+    page, per_page = parse_request_pagination(default_per_page=20)
     status_list = request.args.getlist('status')  # supports multi-select: ?status=valid&status=expired
     ca_id_list = request.args.getlist('ca_id', type=int)  # supports multi-select: ?ca_id=1&ca_id=2
     source_list = request.args.getlist('source')  # supports multi-select: ?source=msca&source=acme

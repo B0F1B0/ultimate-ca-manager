@@ -10,6 +10,13 @@ import os
 from datetime import datetime, timedelta
 from auth.unified import require_auth
 from utils.response import success_response
+from utils.pagination import parse_request_limit
+
+# The dashboard widgets show a handful of rows each. The number is the
+# client's to choose, the ceiling is not: without one, `?limit=1000000` on
+# /dashboard/activity loaded and serialised the whole audit table for any
+# authenticated account.
+DASHBOARD_MAX_ROWS = 100
 from models import db, CA, Certificate
 from utils.cert_status import (
     expired_condition, expiring_condition, issued_certificates,
@@ -18,7 +25,6 @@ from utils.cert_status import (
 from models.ssh import SSHCertificateAuthority, SSHCertificate
 from sqlalchemy import text
 from utils.datetime_utils import utc_now, utc_isoformat, to_naive_utc
-from utils.pagination import bounded_limit
 
 logger = logging.getLogger(__name__)
 
@@ -198,7 +204,7 @@ def get_dashboard_stats():
 def get_recent_cas():
     """Get recently created CAs"""
     
-    limit = bounded_limit(request.args.get('limit'), default=5, maximum=100)
+    limit = parse_request_limit(5, DASHBOARD_MAX_ROWS)
     
     recent = CA.query.order_by(CA.created_at.desc()).limit(limit).all()
     
@@ -218,7 +224,7 @@ def get_recent_cas():
 def get_expiring_certificates():
     """Get next certificates to expire (soonest first, not yet expired)"""
     
-    limit = bounded_limit(request.args.get('limit'), default=10, maximum=100)
+    limit = parse_request_limit(10, DASHBOARD_MAX_ROWS)
     
     # Only certs that haven't expired yet, sorted by soonest expiration
     certs = Certificate.query.filter(
@@ -250,7 +256,7 @@ def get_expiring_certificates():
 def get_activity_log():
     """Get recent activity"""
     
-    limit = bounded_limit(request.args.get('limit'), default=20, maximum=200)
+    limit = parse_request_limit(20, DASHBOARD_MAX_ROWS)
     
     # Human-readable action labels
     ACTION_LABELS = {

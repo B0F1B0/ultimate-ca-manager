@@ -8,6 +8,7 @@ import logging
 from flask import Blueprint, request, current_app, g
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils.pagination import parse_request_limit
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +273,7 @@ def ad_hoc_scan():
 @require_auth(['read:certificates'])
 def list_runs():
     """List scan run history."""
-    limit = _safe_int(request.args.get('limit', 50), 50, lo=1, hi=200)
+    limit = parse_request_limit(50, 200)
     offset = _safe_int(request.args.get('offset', 0), 0, lo=0)
     profile_id = request.args.get('profile_id', type=int)
     svc = _get_service()
@@ -297,7 +298,7 @@ def get_run(run_id):
 @require_auth(['read:certificates'])
 def list_discovered():
     """List discovered certificates with pagination and filtering."""
-    limit = _safe_int(request.args.get('limit', 50), 50, lo=1, hi=200)
+    limit = parse_request_limit(50, 200)
     offset = _safe_int(request.args.get('offset', 0), 0, lo=0)
     profile_id = request.args.get('profile_id', type=int)
     status_list = request.args.getlist('status')

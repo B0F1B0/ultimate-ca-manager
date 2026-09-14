@@ -6,6 +6,7 @@ from flask import request, g
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils.pagination import parse_request_pagination
 from services.ssh_ca_service import SSHCAService
 from services.audit_service import AuditService
 from models.ssh import SSHCertificateAuthority
@@ -18,8 +19,7 @@ from models import db
 @require_auth(['read:ssh'])
 def list_ssh_cas():
     """List all SSH CAs with optional filtering."""
-    page = max(1, request.args.get('page', 1, type=int))
-    per_page = min(max(1, request.args.get('per_page', 20, type=int)), 100)
+    page, per_page = parse_request_pagination(default_per_page=20)
     search = request.args.get('search', '').strip()
     ca_types = request.args.getlist('type')
 

@@ -20,6 +20,7 @@ from . import bp
 from flask import request, send_file
 from auth.unified import require_auth
 from utils.response import success_response, error_response
+from utils.pagination import parse_request_pagination
 from services.audit_service import AuditService
 from services.backup_service import (
     BackupService,
@@ -190,15 +191,7 @@ def list_backups():
         key, reverse = sorters.get(sort, sorters["created_desc"])
         files.sort(key=key, reverse=reverse)
 
-        try:
-            page = max(1, int(request.args.get("page", 1)))
-        except (ValueError, TypeError):
-            page = 1
-
-        try:
-            per_page = min(100, max(1, int(request.args.get("per_page", 20))))
-        except (ValueError, TypeError):
-            per_page = 20
+        page, per_page = parse_request_pagination(default_per_page=20)
 
         start = (page - 1) * per_page
         page_items = files[start:start + per_page]

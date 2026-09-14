@@ -64,11 +64,7 @@ def list_acme_orders():
     """List local ACME server orders (paginated since #303)."""
     status = request.args.get('status')
     domain = (request.args.get('domain') or '').strip()
-    try:
-        page = max(1, int(request.args.get('page', 1)))
-        per_page = min(200, max(1, int(request.args.get('per_page', 50))))
-    except (TypeError, ValueError):
-        page, per_page = 1, 50
+    page, per_page = parse_request_pagination(default_per_page=50)
     query = AcmeOrder.query
     if status:
         query = query.filter_by(status=status)

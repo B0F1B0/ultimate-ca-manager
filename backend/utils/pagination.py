@@ -59,26 +59,29 @@ def parse_request_pagination(default_per_page=25, max_per_page=100):
     return page, per_page
 
 
-def bounded_limit(value, *, default, maximum, minimum=1):
-    """A row limit bounded at BOTH ends.
+def parse_request_limit(default_limit, max_limit, arg='limit'):
+    """Row count asked for by the client, floored at 1 and capped at *max_limit*.
 
-    A ``min(value, maximum)`` caps the top and leaves the bottom open, and the
-    two backends disagree about what an open bottom means: SQLite reads
-    ``LIMIT -1`` as "no limit" and returns the whole table, PostgreSQL refuses
-    it with ``LIMIT must not be negative`` and the request 500s. So
-    ``?limit=-1`` was either a full dump of the audit log or an error,
-    depending on which database the deployment runs.
+    The listings that page use ``per_page`` and go through
+    :func:`parse_request_pagination`. A second family of routes hands the
+    client's number straight to ``.limit()`` instead, and those had the
+    unbounded-page-size bug the listings were fixed for, one layer down:
 
-    ``None`` and unparseable input fall back to *default*, as
-    ``request.args.get(..., type=int)`` already did.
+    * with no ceiling, ``?limit=1000000`` loads and serialises the whole
+      table -- the dashboard widgets did this from an ordinary account;
+    * with no floor, ``?limit=-1`` reaches the query as ``LIMIT -1``, which
+      SQLite reads as *no limit* and PostgreSQL refuses outright, so the same
+      request returned the whole table on one backend and a 500 on the other.
+
+    A value that is not a number is not a refusal either: it falls back to
+    *default_limit*, which is what ``type=int`` already did for the page size.
     """
-    if value is None:
-        return default
+    raw = request.args.get(arg, default_limit)
     try:
-        value = int(value)
+        value = int(raw)
     except (TypeError, ValueError):
-        return default
-    return min(max(minimum, value), maximum)
+        value = default_limit
+    return min(max(1, value), max_limit)
 
 
 def parse_date_filter(from_arg='date_from', to_arg='date_to'):

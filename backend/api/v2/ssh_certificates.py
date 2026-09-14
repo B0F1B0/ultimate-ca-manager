@@ -10,6 +10,7 @@ from flask import Blueprint, request, g, Response
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils.pagination import parse_request_pagination
 from services.ssh_cert_service import SSHCertificateService
 from services.audit_service import AuditService
 from sqlalchemy import or_, and_
@@ -130,8 +131,7 @@ def _validate_ssh_sign_payload(data, *, require_pubkey):
 @require_auth(['read:ssh'])
 def list_ssh_certificates():
     """List SSH certificates with filtering and pagination."""
-    page = max(1, request.args.get('page', 1, type=int))
-    per_page = min(max(1, request.args.get('per_page', 20, type=int)), 100)
+    page, per_page = parse_request_pagination(default_per_page=20)
     search = request.args.get('search', '').strip()
     statuses = request.args.getlist('status')
     cert_types = request.args.getlist('type')
