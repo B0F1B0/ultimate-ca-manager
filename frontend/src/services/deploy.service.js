@@ -2,7 +2,7 @@
  * Deploy Hooks Service (#299) — admin-only
  * Push certificates to remote hosts over SSH/SFTP with a reload command.
  */
-import { apiClient } from './apiClient'
+import { apiClient, buildQueryString } from './apiClient'
 
 export const deployService = {
   // Targets
@@ -27,10 +27,7 @@ export const deployService = {
 
   // Bindings
   async getBindings(params = {}) {
-    const query = new URLSearchParams(
-      Object.entries(params).filter(([, v]) => v != null)
-    ).toString()
-    return apiClient.get(`/deploy/bindings${query ? `?${query}` : ''}`)
+    return apiClient.get(`/deploy/bindings${buildQueryString(params)}`)
   },
   async createBinding(data) {
     return apiClient.post('/deploy/bindings', data)
@@ -47,10 +44,7 @@ export const deployService = {
 
   // Deliveries
   async getDeliveries(params = {}) {
-    const query = new URLSearchParams(
-      Object.entries(params).filter(([, v]) => v != null)
-    ).toString()
-    return apiClient.get(`/deploy/deliveries${query ? `?${query}` : ''}`)
+    return apiClient.get(`/deploy/deliveries${buildQueryString(params)}`)
   },
   async retryDelivery(id) {
     return apiClient.post(`/deploy/deliveries/${id}/retry`)

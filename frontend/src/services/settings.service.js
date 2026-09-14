@@ -1,7 +1,7 @@
 /**
  * Settings Service
  */
-import { apiClient } from './apiClient'
+import { apiClient, buildQueryString } from './apiClient'
 
 export const settingsService = {
   async getAll() {
@@ -84,9 +84,9 @@ export const settingsService = {
   },
 
   async getWebhookDeliveries(id, { page = 1, perPage = 25, status } = {}) {
-    const params = new URLSearchParams({ page, per_page: perPage })
-    if (status) params.set('status', status)
-    return apiClient.get(`/webhooks/${id}/deliveries?${params}`)
+    // URLSearchParams stringifies whatever it is given, so an explicit null
+    // used to reach the wire as the literal "null".
+    return apiClient.get(`/webhooks/${id}/deliveries${buildQueryString({ page, per_page: perPage, status })}`)
   },
 
   async retryWebhookDelivery(id, deliveryId) {
