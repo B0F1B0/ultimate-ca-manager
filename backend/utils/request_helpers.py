@@ -15,8 +15,7 @@ from utils.decorators import require_json_body  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-# ``safe_call`` is defined in utils.safe_call, the import path CLAUDE.md
-# documents and the module the name belongs to. A second copy lived here and
-# the two drifted on one parameter. Re-exported so the callers that import it
-# from here keep working.
+# ``safe_call`` is defined in utils.safe_call, the module the name belongs to.
+# A second copy lived here and the two drifted on one parameter. Re-exported
+# so the callers that import it from here keep working.
 from utils.safe_call import safe_call  # noqa: F401,E402

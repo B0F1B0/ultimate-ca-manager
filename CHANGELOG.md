@@ -1572,7 +1572,7 @@ Smoke-tested across SQLite and PostgreSQL on Debian, RHEL/Fedora, and Docker (33
 ### Testing
 - 5 new unit tests covering PSL validation (accept public, reject private TLDs), email format validation, and mocked upstream registration flow.
 - Backend: 1476 pass (+5). Frontend: 450 pass.
-- Functional verification on netsuit against LE staging: valid public email registers successfully, private-TLD emails rejected with HTTP 400, unregister fully cleans credentials.
+- Functional verification on a development instance against LE staging: valid public email registers successfully, private-TLD emails rejected with HTTP 400, unregister fully cleans credentials.
 
 
 
@@ -2205,7 +2205,7 @@ Smoke-tested across SQLite and PostgreSQL on Debian, RHEL/Fedora, and Docker (33
 
 ### Fixed
 - **False Session Expiration** — Frontend timer was 30min while backend defaults to 8h; now synced. Verifies with backend before logging out
-- **Hardcoded Domain Removed** — Replaced `pew.pet` with `example.com` in templates and config
+- **Hardcoded Domain Removed** — Replaced a hardcoded internal domain with `example.com` in templates and config
 - **Kerberos UI Clarification** — Marked as "(Optional)" in MS CA auth dropdown with warning banner
 
 ---
