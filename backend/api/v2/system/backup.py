@@ -5,6 +5,7 @@ System Backup Operations
 from services.backup import storage
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
+from services.backup.restore_report import restore_warnings
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -515,25 +516,10 @@ def restore_backup():
         restart_ok, restart_message = _request_restart_after_restore()
         results['restart_requested'] = restart_ok
 
-        not_restored = results.get('sections_not_restored') or []
         message = ("Backup restored successfully. Sign in again"
                    if restart_ok else
                    f"Backup restored successfully. Restart UCM to finish: {restart_message}")
-        if not_restored:
-            # The archive carries more than this version applies; saying so is
-            # the difference between a restore and a restore that looked fine.
-            message += (". The archive also holds sections this version does "
-                        "not restore: " + ", ".join(not_restored))
-
-        mismatches = results.get('key_mismatches') or []
-        if mismatches:
-            # The archive recorded these when it was written. An authority
-            # whose key is not its certificate's signs certificates nobody
-            # can verify, and the operator has to hear it now rather than
-            # from the first client that refuses the chain.
-            message += (f". {len(mismatches)} record(s) carry a private key "
-                        "that is not their certificate's and cannot sign: "
-                        + ", ".join(mismatches[:5]))
+        message += restore_warnings(results)
 
         return success_response(
             message=message,

@@ -12,6 +12,7 @@ from services.backup import storage
 from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
+from services.backup.restore_report import restore_warnings
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -185,27 +186,35 @@ def restore_backup():
         service = BackupService()
         try:
             with database_migration_lock(purpose='the restore'):
-                service.restore_backup(backup_bytes, password)
+                results = service.restore_backup(backup_bytes, password)
         except MigrationBusyError as busy:
             return error_response(
                 f"{busy} A backend migration or another restore is still "
                 "running.", 409)
 
-        # The restore has happened; recording it must not undo that answer.
-        # A replacing restore has just rewritten the audit table itself, so
-        # this is precisely where writing the entry is most likely to fail,
-        # and it used to come back as "Restore failed" on a restore that
-        # succeeded. The system route has always guarded it.
-        try:
-            AuditService.log_action(
-                action='system_restore',
-                resource_type='system',
-                resource_name=file.filename,
-                details=f'Restored from backup: {file.filename}',
-                success=True
+        # An archive that carried no section changed nothing, so there is
+        # nothing to invalidate and no reason to sign everyone out and ask for
+        # a restart. Announced as a restore, it revoked every session that was
+        # open, the caller's included, for a file that touched not one row.
+        if not (results or {}).get('sections_carried'):
+            logger.warning('Restore: the archive carried no data section')
+            return success_response(
+                data=results,
+                message=('The archive carried no data: nothing was restored, '
+                         'no session was revoked and no restart is needed.'),
             )
-        except Exception:
-            logger.exception('Restore completed but audit logging failed')
+
+        # Recorded after the restore has committed, so the rollback
+        # `log_action` performs when it cannot write its own entry has nothing
+        # of the restore left to undo. It does not need wrapping: it catches
+        # its own failures and answers None rather than raising.
+        AuditService.log_action(
+            action='system_restore',
+            resource_type='system',
+            resource_name=file.filename,
+            details=f'Restored from backup: {file.filename}',
+            success=True
+        )
 
         from services.backup.restore.invalidate import invalidate_after_restore
         try:
@@ -218,8 +227,9 @@ def restore_backup():
 
         return success_response(
             data={'filename': file.filename, 'restored': True},
-            message='Backup restored successfully. Every session opened before '
-                    'the restore was revoked; restart the application and sign in again.'
+            message=('Backup restored successfully. Every session opened '
+                     'before the restore was revoked; restart the application '
+                     'and sign in again.') + restore_warnings(results)
         )
     except BackupDecryptionError:
         logger.warning("Settings restore refused: the backup could not be decrypted")

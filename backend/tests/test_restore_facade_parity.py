@@ -107,3 +107,85 @@ class TestAModeThatIsNotHonouredIsRefused:
         # never about the mode.
         assert response.status_code != 400 or b'always replaces' not in \
             response.data.lower()
+
+
+class TestAnArchiveThatCarriesNothingChangesNothing:
+    """An archive holding only its own metadata restores no row.
+
+    Answering it as a success is wrong twice over: it revokes every session
+    that was open, the caller's included, and asks for a restart, for a file
+    that changed nothing. The system route has refused it since the backup
+    campaign; the settings route went on revoking and announcing.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_no_session_is_revoked_for_an_empty_archive(
+            self, app, auth_client, monkeypatch, route):
+        import importlib
+
+        revoked = []
+
+        for module in ('api.v2.system.backup', 'api.v2.settings.backup'):
+            loaded = importlib.import_module(module)
+            if hasattr(loaded, 'BackupService'):
+                monkeypatch.setattr(
+                    loaded.BackupService, 'restore_backup',
+                    lambda self, *a, **k: {'sections_carried': []},
+                    raising=False)
+
+        import services.backup.restore.invalidate as invalidate
+        monkeypatch.setattr(invalidate, 'invalidate_after_restore',
+                            lambda *a, **k: revoked.append('revoked'))
+
+        response = _upload(auth_client, route)
+
+        assert response.status_code == 200, response.data
+        assert revoked == [], (
+            f'{route} revoked every session for an archive that carried no '
+            'data')
+        assert b'no data' in response.data.lower(), (
+            f'{route} announced a restore for a file that changed nothing')
+
+
+class TestBothRoutesSayWhatTheArchiveGotWrong:
+    """Two warnings the backup campaign added, and only one route carried.
+
+    A record whose stored private key is not its certificate's signs
+    certificates nobody can verify; the archive records that when it is
+    written, deliberately, because a backup has to stay possible precisely
+    when something is wrong. And an archive from a newer version may carry
+    sections this one does not apply. Both must reach the operator whichever
+    page they used.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_a_key_that_cannot_sign_is_named(self, app, auth_client,
+                                             monkeypatch, route):
+        import importlib
+
+        results = {
+            'sections_carried': ['certificate_authorities'],
+            'key_mismatches': ['certificate authority Root CA'],
+            'sections_not_restored': ['something_newer'],
+        }
+        for module in ('api.v2.system.backup', 'api.v2.settings.backup'):
+            loaded = importlib.import_module(module)
+            if hasattr(loaded, 'BackupService'):
+                monkeypatch.setattr(loaded.BackupService, 'restore_backup',
+                                    lambda self, *a, **k: dict(results),
+                                    raising=False)
+
+        import services.backup.restore.invalidate as invalidate
+        monkeypatch.setattr(invalidate, 'invalidate_after_restore',
+                            lambda *a, **k: None)
+
+        response = _upload(auth_client, route)
+        body = response.data.lower()
+
+        assert b'root ca' in body, (
+            f'{route} did not say that a record carries a key that cannot '
+            'sign: the operator hears it from the first client that refuses '
+            'the chain instead')
+        assert b'something_newer' in body, (
+            f'{route} did not say the archive holds sections this version '
+            'does not restore')

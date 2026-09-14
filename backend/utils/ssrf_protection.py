@@ -125,53 +125,84 @@ _CLOUD_METADATA_IP_OBJS = {ipaddress.ip_address(a) for a in _CLOUD_METADATA_IPS}
 # prefix is; that is a gap, and naming it here is better than implying it is
 # covered.
 _NAT64_WELL_KNOWN = ipaddress.ip_network('64:ff9b::/96')
-# RFC 8215's local-use prefix. Its /48 embedding puts the address in bits 48
-# to 71 and 72 to 79, with bits 64 to 71 reserved and skipped.
+# RFC 8215's local-use prefix, a /48.
 _NAT64_LOCAL_USE = ipaddress.ip_network('64:ff9b:1::/48')
+
+
+def _rfc6052_ipv4(value: int, prefix_length: int):
+    """The IPv4 address an RFC 6052 §2.2 layout carries, or None.
+
+    The address is not simply the low 32 bits except for a /96 prefix: for
+    every shorter prefix the octets are laid around bits 64 to 71, which are
+    reserved and must be zero. Reading those eight bits as part of the
+    address is how `64:ff9b:1:a9fe:a9:fe00::`, which is the metadata service,
+    came back as 169.254.0.254 and went through.
+    """
+    if prefix_length == 96:
+        return ipaddress.ip_address(value & 0xFFFFFFFF)
+
+    if (value >> 56) & 0xFF:
+        return None                     # bits 64..71 are `u`, reserved
+
+    if prefix_length == 48:
+        high = (value >> 64) & 0xFFFF   # bits 48..63
+        low = (value >> 40) & 0xFFFF    # bits 72..87
+        return ipaddress.ip_address((high << 16) | low)
+
+    return None
 
 
 def _nat64_embedded_ipv4(ip):
     """The IPv4 address a NAT64 form carries, or None.
 
-    Two prefixes are known without being told: the well-known one, where the
-    address is simply the last 32 bits, and the local-use one, where RFC 6052
-    spreads it around the reserved byte. A prefix an operator chose for
-    themselves cannot be decoded without knowing it, and that is a gap rather
-    than something this pretends to cover.
+    Two prefixes are known without being told: the well-known one, a /96, and
+    the local-use one, a /48. A prefix an operator chose for themselves cannot
+    be decoded without knowing it, and that is a gap rather than something
+    this pretends to cover.
     """
     if ip.version != 6:
         return None
     if ip in _NAT64_WELL_KNOWN:
-        return ipaddress.ip_address(int(ip) & 0xFFFFFFFF)
+        return _rfc6052_ipv4(int(ip), 96)
     if ip in _NAT64_LOCAL_USE:
-        value = int(ip)
-        high = (value >> 56) & 0xFFFFFF        # bits 48..71
-        low = (value >> 40) & 0xFF             # bits 80..87, past the reserved byte
-        return ipaddress.ip_address((high << 8) | low)
+        return _rfc6052_ipv4(int(ip), 48)
     return None
 
 
-def _ipv4_written_as_ipv6(ip):
-    """The IPv4 address an IPv6 encoding carries, or None.
+# The deprecated IPv4-compatible form, ::a.b.c.d (RFC 4291 §2.5.5.1).
+_IPV4_COMPATIBLE = ipaddress.ip_network('::/96')
 
-    Four ways of writing an IPv4 address as IPv6 reach the same host: the
-    mapped form, 6to4, Teredo, and NAT64. A deny-list that understands one of
-    them refuses one spelling of an address and accepts the others, which is
-    how `169.254.169.254` kept coming back.
+
+def _ipv4_forms(ip):
+    """Every IPv4 address an IPv6 encoding carries. Possibly none.
+
+    Five ways of writing an IPv4 address as IPv6 reach the same host: the
+    mapped form, the deprecated compatible form, 6to4, Teredo and NAT64. A
+    deny-list that understands one of them refuses one spelling of an address
+    and accepts the others, which is how `169.254.169.254` kept coming back.
+
+    Teredo yields two: the relay that carries the traffic and the client it
+    carries it to. Both are addresses this server would end up talking to, so
+    both are judged.
     """
     if ip.version != 6:
-        return None
+        return ()
+
+    found = []
     for candidate in (getattr(ip, 'ipv4_mapped', None),
                       getattr(ip, 'sixtofour', None),
                       _nat64_embedded_ipv4(ip)):
         if candidate is not None:
-            return candidate
+            found.append(candidate)
+
     teredo = getattr(ip, 'teredo', None)
     if teredo is not None:
-        # (relay, client): the client is the host being reached, the relay is
-        # a third party this should not be sent to either.
-        return teredo[1]
-    return None
+        found.extend(teredo)
+
+    if not found and ip in _IPV4_COMPATIBLE and int(ip) != 0:
+        found.append(ipaddress.ip_address(int(ip) & 0xFFFFFFFF))
+
+    return tuple(found)
 
 
 def _forbidden_ip_reason(ip, allow_loopback: bool = False):
@@ -181,9 +212,14 @@ def _forbidden_ip_reason(ip, allow_loopback: bool = False):
 
     allow_loopback=True permits loopback/unspecified (for a colocated ACME upstream
     such as Pebble/step-ca on 127.0.0.1); cloud metadata stays blocked regardless."""
-    embedded = _ipv4_written_as_ipv6(ip)
-    if embedded is not None:
-        ip = embedded
+    for carried in _ipv4_forms(ip):
+        # Judged on every address the encoding carries, not only on the one
+        # this happens to recognise first.
+        if carried in _CLOUD_METADATA_IP_OBJS:
+            return "cloud metadata IP"
+        if (carried.is_loopback or carried.is_unspecified) and not allow_loopback:
+            return "loopback/unspecified address"
+
     if ip in _CLOUD_METADATA_IP_OBJS:
         return "cloud metadata IP"
     if (ip.is_loopback or ip.is_unspecified) and not allow_loopback:
