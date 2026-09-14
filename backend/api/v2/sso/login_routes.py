@@ -319,6 +319,12 @@ def sso_callback(provider_type):
 
         except Exception as e:
             logger.error(f"OAuth2 callback error: {e}\n{traceback.format_exc()}")
+            # Before the audit. `_get_or_create_sso_user` leaves the account
+            # it created or rebound staged when it cannot commit, and
+            # `log_action` commits the session it is given: auditing this
+            # failure is what would have written the half-made account, and
+            # the identity binding with it, on a login that never completed.
+            db.session.rollback()
             AuditService.log_action(
                 action='login_failure',
                 resource_type='sso',
@@ -459,6 +465,12 @@ def sso_callback(provider_type):
 
         except Exception as e:
             logger.error(f"SAML callback error: {e}\n{traceback.format_exc()}")
+            # Before the audit. `_get_or_create_sso_user` leaves the account
+            # it created or rebound staged when it cannot commit, and
+            # `log_action` commits the session it is given: auditing this
+            # failure is what would have written the half-made account, and
+            # the identity binding with it, on a login that never completed.
+            db.session.rollback()
             AuditService.log_action(
                 action='login_failure',
                 resource_type='sso',

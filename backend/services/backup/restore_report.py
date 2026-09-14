@@ -18,16 +18,31 @@ def with_restore_warnings(message: str, results: Dict[str, Any]) -> str:
     The joining is here rather than at each caller because the two messages
     are punctuated differently: one ends with a full stop and the other does
     not, so appending a clause that begins with one produced `again.. 1
-    record(s)…` on one side and read correctly on the other.
+    record(s)...` on one side and read correctly on the other.
+
+    Only one full stop is removed, and only a full stop. Stripping every
+    trailing one turned an ellipsis into a single dot, and adding one
+    unconditionally gave `Did it work?.` to anything ending in a question or
+    an exclamation mark. No caller writes either today; this is the joint
+    every future one goes through.
     """
-    message = message.rstrip().rstrip('.')
+    message = message.rstrip()
+    if message.endswith('.') and not message.endswith('..'):
+        message = message[:-1]
+    ends_a_sentence = message.endswith(('.', '?', '!'))
+
+    def _clause(text: str) -> str:
+        nonlocal ends_a_sentence
+        joiner = ' ' if ends_a_sentence else '. '
+        ends_a_sentence = False
+        return joiner + text if message else text
 
     not_restored = (results or {}).get('sections_not_restored') or []
     if not_restored:
         # The archive carries more than this version applies; saying so is
         # the difference between a restore and a restore that looked fine.
-        message += ('. The archive also holds sections this version does not '
-                    'restore: ' + ', '.join(not_restored))
+        message += _clause('The archive also holds sections this version '
+                           'does not restore: ' + ', '.join(not_restored))
 
     mismatches = (results or {}).get('key_mismatches') or []
     if mismatches:
@@ -35,8 +50,16 @@ def with_restore_warnings(message: str, results: Dict[str, Any]) -> str:
         # not its certificate's signs certificates nobody can verify, and the
         # operator has to hear it now rather than from the first client that
         # refuses the chain.
-        message += (f'. {len(mismatches)} record(s) carry a private key that '
-                    "is not their certificate's and cannot sign: "
-                    + ', '.join(mismatches[:5]))
+        shown = mismatches[:5]
+        record = 'record' if len(mismatches) == 1 else 'records'
+        carries = 'carries' if len(mismatches) == 1 else 'carry'
+        listing = ', '.join(shown)
+        if len(mismatches) > len(shown):
+            listing += f' and {len(mismatches) - len(shown)} more'
+        message += _clause(
+            f'{len(mismatches)} {record} {carries} a private key that is not '
+            f"their certificate's and cannot sign: {listing}")
 
-    return message + '.' if not message.endswith('.') else message
+    if not message:
+        return message
+    return message if message.endswith(('.', '?', '!')) else message + '.'
