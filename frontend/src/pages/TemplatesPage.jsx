@@ -21,6 +21,7 @@ import { useNotification, useMobile } from '../contexts'
 import { usePermission, usePersistedState, useCRUDPage } from '../hooks'
 import { formatDate , downloadBlob} from '../lib/utils'
 import { VALIDITY } from '../constants/config'
+import { ekuService } from '../services/eku.service'
 export default function TemplatesPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
@@ -671,7 +672,14 @@ const KEY_USAGE_OPTIONS = [
   'digitalSignature', 'keyEncipherment', 'contentCommitment',
   'dataEncipherment', 'keyAgreement'
 ]
-const EXT_KEY_USAGE_OPTIONS = [
+// Eight of the twenty-six purposes the backend resolves by name
+// (utils/cert_extensions.EKU_NAMES, served at /api/v2/eku/known, which the
+// issue form and the CSR page already read). Hard-coded here, this list made
+// timeStamping, msEFS, msDocumentSigning, msRemoteDesktop, the code-signing
+// purposes and the rest unreachable from the template editor although the
+// server accepts every one of them. Kept only as the answer for a browser
+// that cannot reach the catalog.
+const EXT_KEY_USAGE_FALLBACK = [
   'serverAuth', 'clientAuth', 'codeSigning',
   'emailProtection', 'ipsecEndSystem', 'ipsecUser', 'OCSPSigning',
   'msSmartcardLogin'
@@ -746,6 +754,20 @@ function TemplateForm({ template, onSubmit, onCancel }) {
   const { t } = useTranslation()
   const [formData, setFormData] = useState(() => buildInitialState(template))
   const [loading, setLoading] = useState(false)
+  const [ekuOptions, setEkuOptions] = useState(EXT_KEY_USAGE_FALLBACK)
+
+  useEffect(() => {
+    let cancelled = false
+    ekuService.getKnown()
+      .then((resp) => {
+        const names = (resp?.data?.ekus || resp?.ekus || [])
+          .map((e) => e.name)
+          .filter(Boolean)
+        if (!cancelled && names.length) setEkuOptions(names)
+      })
+      .catch(() => { /* the fallback list still lets a template be saved */ })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     setFormData(buildInitialState(template))
@@ -943,7 +965,7 @@ function TemplateForm({ template, onSubmit, onCancel }) {
         <div>
           <label className="block text-xs font-medium text-text-secondary mb-2">{t('common.extKeyUsage')}</label>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {EXT_KEY_USAGE_OPTIONS.map(eku => (
+            {ekuOptions.map(eku => (
               <label key={eku} className={checkboxCls}>
                 <input type="checkbox" checked={formData.extended_key_usage.includes(eku)} onChange={() => toggleCheckbox('extended_key_usage', eku)} className="accent-accent-primary" />
                 {eku}

@@ -64,6 +64,19 @@ ROLE_PERMISSIONS = {
 }
 
 
+# The built-in role names, which are exactly the keys above: a role is
+# built in because this table says what it may do.
+#
+# Three other modules restated this list and two dropped `auditor`. The CSV
+# user import checked against the short list and silently rewrote anything
+# else to `viewer`, so a file of auditors became viewers with no error -- and
+# `viewer` has no `read:audit`, so the accounts made for people who audit
+# could not read the audit log. `api/v2/rbac.RESERVED_ROLE_NAMES` dropped it
+# too, leaving `auditor` available as the name of a *custom* role beside the
+# built-in one.
+BUILTIN_ROLES = tuple(ROLE_PERMISSIONS)
+
+
 # Resources enforced by @require_auth but reachable ONLY through the '*' (admin) wildcard,
 # so they never appear in a named role's explicit scope list in ROLE_PERMISSIONS above.
 # They must still be scope-able on an API key (e.g. an admin minting a key for user

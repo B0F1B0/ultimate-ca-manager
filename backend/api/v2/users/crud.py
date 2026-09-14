@@ -8,6 +8,7 @@ import logging
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response
+from auth.permissions import BUILTIN_ROLES
 from utils.db_transaction import safe_commit
 from models import db, User
 from services.audit_service import AuditService
@@ -200,7 +201,7 @@ def create_user():
         return error_response('Email already exists', 409)
 
     # Validate role — only admins can assign non-viewer roles
-    valid_roles = ['admin', 'operator', 'auditor', 'viewer']
+    valid_roles = list(BUILTIN_ROLES)
     role = data.get('role', 'viewer')
     if role not in valid_roles:
         return error_response(f'Invalid role. Must be one of: {", ".join(valid_roles)}', 400)
@@ -315,7 +316,7 @@ def update_user(user_id):
     if 'role' in data:
         if g.current_user.role != 'admin':
             return error_response('Only admins can change roles', 403)
-        valid_roles = ['admin', 'operator', 'auditor', 'viewer']
+        valid_roles = list(BUILTIN_ROLES)
         if data['role'] not in valid_roles:
             return error_response(f'Invalid role. Must be one of: {", ".join(valid_roles)}', 400)
         # Block self-demotion away from admin (operator-level lockout risk)

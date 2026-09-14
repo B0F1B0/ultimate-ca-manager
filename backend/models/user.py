@@ -51,7 +51,7 @@ class User(db.Model):
     email = db.Column(db.String(120), nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(255))  # Full name for WebAuthn/certificates
-    role = db.Column(db.String(20), nullable=False, default="viewer")  # admin, operator, viewer
+    role = db.Column(db.String(20), nullable=False, default="viewer")  # see auth.permissions.BUILTIN_ROLES
     custom_role_id = db.Column(db.Integer, db.ForeignKey('pro_custom_roles.id', ondelete='SET NULL'), nullable=True)
     active = db.Column(db.Boolean, default=True)
     mfa_enabled = db.Column(db.Boolean, default=False)  # MFA enabled for this user

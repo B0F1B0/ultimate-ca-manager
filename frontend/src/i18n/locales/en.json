@@ -386,6 +386,7 @@
     "menu": "Menu",
     "keyTypes": {
       "rsa2048": "RSA 2048-bit",
+      "rsa3072": "RSA 3072-bit",
       "rsa4096": "RSA 4096-bit",
       "ecdsaP256": "ECDSA P-256",
       "ecdsaP384": "ECDSA P-384",

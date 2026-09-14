@@ -6,6 +6,7 @@ Custom roles and fine-grained permissions
 from flask import Blueprint, request
 from auth.unified import require_auth
 from utils.response import success_response, error_response
+from auth.permissions import BUILTIN_ROLES
 from models import db
 from models.rbac import CustomRole, RolePermission
 from services.audit_service import AuditService
@@ -66,7 +67,10 @@ def list_custom_roles():
     roles = CustomRole.query.all()
     return success_response(data=[r.to_dict() for r in roles])
 
-RESERVED_ROLE_NAMES = {'admin', 'operator', 'viewer'}
+# Every built-in role name, not a copy of some of them: `auditor` was
+# missing here, so a custom role could take the name of a built-in one
+# while the other three were refused with a 409.
+RESERVED_ROLE_NAMES = frozenset(BUILTIN_ROLES)
 MAX_ROLE_NAME_LEN = 64
 MAX_ROLE_DESC_LEN = 500
 MAX_ROLE_PERMS = 200

@@ -386,6 +386,7 @@
     "menu": "菜单",
     "keyTypes": {
       "rsa2048": "RSA 2048位",
+      "rsa3072": "RSA 3072位",
       "rsa4096": "RSA 4096位",
       "ecdsaP256": "ECDSA P-256",
       "ecdsaP384": "ECDSA P-384",

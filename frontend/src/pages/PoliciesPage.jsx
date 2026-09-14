@@ -26,9 +26,15 @@ const POLICY_TYPES = [
   { value: 'revocation', labelKey: 'policies.policyType.revocation' },
 ]
 
-// Key type options — labels resolved via t() inside component
+// Key type options — labels resolved via t() inside component.
+// RSA-3072 was missing here while `api/v2/templates._VALID_KEY_TYPES`
+// accepts it and `utils/key_type.RSA_SIZES` generates it, so a policy could
+// not be made to allow a key size the rest of the product offers: an
+// RSA-3072 template was refused at issuance with no way to permit it from
+// this screen.
 const KEY_TYPE_OPTIONS = [
   { value: 'RSA-2048', labelKey: 'common.keyTypes.rsa2048' },
+  { value: 'RSA-3072', labelKey: 'common.keyTypes.rsa3072' },
   { value: 'RSA-4096', labelKey: 'common.keyTypes.rsa4096' },
   { value: 'EC-P256', labelKey: 'common.keyTypes.ecdsaP256' },
   { value: 'EC-P384', labelKey: 'common.keyTypes.ecdsaP384' },
@@ -49,7 +55,7 @@ const DEFAULT_FORM = {
   priority: 100,
   rules: {
     max_validity_days: 397,
-    allowed_key_types: ['RSA-2048', 'RSA-4096', 'EC-P256', 'EC-P384'],
+    allowed_key_types: KEY_TYPE_OPTIONS.map(o => o.value),
     required_extensions: [],
     san_restrictions: {
       max_dns_names: 50,

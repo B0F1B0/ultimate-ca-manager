@@ -10,6 +10,7 @@ import logging
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response
+from auth.permissions import BUILTIN_ROLES
 from utils.db_transaction import safe_commit
 from models import db, User
 from services.audit_service import AuditService
@@ -411,10 +412,18 @@ def import_users():
                 errors.append(f"Row {row_num}: Email '{row['email']}' already exists")
                 continue
 
-            # Create user
-            role = row.get('role', 'viewer')
-            if role not in ['admin', 'operator', 'viewer']:
-                role = 'viewer'
+            # Create user. This used to check against a three-name list
+            # that had lost `auditor`, and to rewrite anything outside it to
+            # `viewer` without a word -- so a file of auditors came back as
+            # viewers, who have no read:audit and cannot read the audit log.
+            # Say so instead, as the single-user route next door does.
+            role = (row.get('role') or 'viewer').strip() or 'viewer'
+            if role not in BUILTIN_ROLES:
+                skipped += 1
+                errors.append(
+                    f"Row {row_num}: Invalid role '{role}'. Must be one of: "
+                    + ', '.join(BUILTIN_ROLES))
+                continue
 
             user = User(
                 username=row['username'],
