@@ -22,6 +22,7 @@ import { usersService, groupsService, rolesService, casService, accountService, 
 import { useNotification, useMobile } from '../contexts'
 import { usePermission, useWebSocket, usePersistedState, useCRUDPage } from '../hooks'
 import { formatDate, cn } from '../lib/utils'
+import { reportSilentFailure } from '../lib/silentFailure'
 export default function UsersGroupsPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
@@ -56,6 +57,18 @@ export default function UsersGroupsPage() {
     editing: editingUser, setEditing: setEditingUser,
     loadData,
   } = useCRUDPage({ loadFn, loadErrorMsg: t('messages.errors.loadFailed.generic') })
+
+  // Reload when the change was made elsewhere. The loader is read through a
+  // ref so the listener never holds a stale closure.
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.type === 'user' || e.detail?.type === 'group') loadDataRef.current()
+    }
+    window.addEventListener('ucm:data-changed', handler)
+    return () => window.removeEventListener('ucm:data-changed', handler)
+  }, [])
 
   // Selection
   const [selectedGroup, setSelectedGroup] = useState(null)
@@ -364,7 +377,7 @@ export default function UsersGroupsPage() {
     try {
       const response = await casService.getAll()
       setCas(response.data?.items || response.data || [])
-    } catch {}
+    } catch (error) { reportSilentFailure('loadCAsOnce', error) }
   }, [])
 
   // Load mTLS certs when user selected
@@ -1011,8 +1024,7 @@ export default function UsersGroupsPage() {
       try {
         const res = await groupsService.getById(item.id)
         setSelectedGroup(res.data) // Update with members
-      } catch (error) {
-      }
+      } catch (error) { reportSilentFailure('handleSelect', error) }
     }
   }
 

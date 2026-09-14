@@ -23,7 +23,8 @@ import { CertificateTrendChart, StatusPieChart } from '../components/DashboardCh
 import { dashboardService, certificatesService, acmeService, truststoreService, systemService } from '../services'
 import { useNotification } from '../contexts'
 import { useWebSocket, EventType, usePermission } from '../hooks'
-import { formatRelativeTime } from '../lib/utils'
+import { daysRemaining, formatRelativeTime } from '../lib/utils'
+import { reportSilentFailure } from '../lib/silentFailure'
 
 // Default widgets configuration
 const DEFAULT_WIDGETS = [
@@ -313,7 +314,7 @@ export default function DashboardPage() {
       try {
         const data = await systemService.getVersion()
         setVersionInfo(data.data || data || { version: '2.0.0', update_available: false })
-      } catch {}
+      } catch (error) { reportSilentFailure('loadVersion', error) }
     }
     loadVersion()
   }, [])
@@ -645,8 +646,10 @@ export default function DashboardPage() {
                   ) : (
                     <div className="space-y-1">
                       {nextExpirations.slice(0, 6).map((cert, i) => {
-                        const daysLeft = cert.valid_to 
-                          ? Math.max(0, Math.ceil((new Date(cert.valid_to) - new Date()) / (1000 * 60 * 60 * 24)))
+                        // Clamped: this widget lists what expires next and
+                        // its label is a count, not a signed distance.
+                        const daysLeft = cert.valid_to
+                          ? Math.max(0, daysRemaining(cert.valid_to))
                           : null
                         const totalLifespan = (cert.valid_from && cert.valid_to)
                           ? Math.max(1, Math.ceil((new Date(cert.valid_to) - new Date(cert.valid_from)) / (1000 * 60 * 60 * 24)))
@@ -1078,7 +1081,7 @@ export default function DashboardPage() {
                 ) : (
                   <div className="space-y-1">
                     {nextExpirations.slice(0, 5).map((cert, i) => {
-                      const daysLeft = cert.valid_to ? Math.max(0, Math.ceil((new Date(cert.valid_to) - new Date()) / (1000 * 60 * 60 * 24))) : null
+                      const daysLeft = cert.valid_to ? Math.max(0, daysRemaining(cert.valid_to)) : null
                       const totalLifespan = (cert.valid_from && cert.valid_to) ? Math.max(1, Math.ceil((new Date(cert.valid_to) - new Date(cert.valid_from)) / (1000 * 60 * 60 * 24))) : 365
                       const progress = daysLeft !== null ? Math.min(100, (daysLeft / totalLifespan) * 100) : 0
                       const urgency = daysLeft === null ? 'gray' : daysLeft <= 7 ? 'danger' : daysLeft <= 15 ? 'warning' : daysLeft <= 30 ? 'yellow' : 'success'

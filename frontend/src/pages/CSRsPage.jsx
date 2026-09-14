@@ -1,7 +1,7 @@
 /**
  * CSRs (Certificate Signing Requests) Page - With Pending/History Tabs
  */
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { 
@@ -150,6 +150,18 @@ export default function CSRsPage() {
       setLoading(false)
     }
   }
+
+  // Reload when the change was made elsewhere. The loader is read through a
+  // ref so the listener never holds the filters of the moment it registered.
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.type === 'certificate') loadDataRef.current()
+    }
+    window.addEventListener('ucm:data-changed', handler)
+    return () => window.removeEventListener('ucm:data-changed', handler)
+  }, [])
 
   const loadCSRDetails = async (csr) => {
     try {

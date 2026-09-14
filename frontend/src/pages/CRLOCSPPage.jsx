@@ -2,7 +2,7 @@
  * CRL & OCSP Management Page - Migrated to ResponsiveLayout
  * Certificate Revocation Lists and OCSP responder management
  */
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { 
   FileX, ShieldCheck, ArrowsClockwise, Download, Copy,
@@ -85,6 +85,18 @@ export default function CRLOCSPPage() {
       setLoading(false)
     }
   }
+
+  // Reload when the change was made elsewhere. The loader is read through a
+  // ref so the listener never holds the filters of the moment it registered.
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.detail?.type === 'ca') loadDataRef.current()
+    }
+    window.addEventListener('ucm:data-changed', handler)
+    return () => window.removeEventListener('ucm:data-changed', handler)
+  }, [])
 
   const loadCRLForCA = async (caId) => {
     try {

@@ -66,6 +66,7 @@ import MicrosoftCASection from './settings/MicrosoftCASection'
 import AutoRenewalSection from './settings/AutoRenewalSection'
 import { setAppTimezone } from '../stores/timezoneStore'
 import { setDateFormat, setShowTime } from '../stores/dateFormatStore'
+import { reportSilentFailure } from '../lib/silentFailure'
 
 // Settings categories with colors for visual distinction
 const BASE_SETTINGS_CATEGORIES = [
@@ -355,7 +356,7 @@ export default function SettingsPage() {
     try {
       const res = await settingsService.getExpiryAlerts()
       setExpiryAlerts(res.data || res)
-    } catch (e) {}
+    } catch (error) { reportSilentFailure('loadExpiryAlerts', error) }
   }
 
   const saveExpiryAlerts = async () => {
@@ -386,8 +387,7 @@ export default function SettingsPage() {
     try {
       const data = await casService.getAll()
       setCas(data.data || [])
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadCAs', error) }
   }
 
   const loadBackups = async (query = backupQuery) => {
@@ -403,8 +403,7 @@ export default function SettingsPage() {
         setBackupMeta(data.meta || { total: 0, pages: 1, page: 1 })
       }
       setSelectedBackups([])
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadBackups', error) }
   }
 
   const updateBackupQuery = (patch) => {
@@ -463,8 +462,7 @@ export default function SettingsPage() {
     try {
       const data = await systemService.getHttpsCertInfo()
       setHttpsInfo(data.data || {})
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadHttpsInfo', error) }
   }
 
   const loadDbStats = async () => {
@@ -477,8 +475,7 @@ export default function SettingsPage() {
         size: stats.size_mb ? `${stats.size_mb} MB` : '-',
         last_optimized: stats.last_vacuum || null
       })
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadDbStats', error) }
   }
 
   // SSO Functions
@@ -487,8 +484,7 @@ export default function SettingsPage() {
     try {
       const response = await ssoService.getProviders()
       setSsoProviders(response.data || [])
-    } catch (error) {
-    } finally {
+    } catch (error) { reportSilentFailure('loadSsoProviders', error) } finally {
       setSsoLoading(false)
     }
   }
@@ -566,8 +562,7 @@ export default function SettingsPage() {
     try {
       const response = await mscaService.getAll()
       setMscaConnections(response.data || [])
-    } catch (error) {
-    } finally {
+    } catch (error) { reportSilentFailure('loadMscaConnections', error) } finally {
       setMscaLoading(false)
     }
   }
@@ -692,8 +687,7 @@ export default function SettingsPage() {
     try {
       const response = await adConnectorService.get()
       setAdConnectorConfig(response.data || null)
-    } catch (error) {
-    } finally {
+    } catch (error) { reportSilentFailure('loadAdConnectorConfig', error) } finally {
       setAdConnectorLoading(false)
     }
   }
@@ -745,8 +739,7 @@ export default function SettingsPage() {
     try {
       const response = await settingsService.getWebhooks()
       setWebhooks(response.data || [])
-    } catch (error) {
-    } finally {
+    } catch (error) { reportSilentFailure('loadWebhooks', error) } finally {
       setWebhooksLoading(false)
     }
   }
@@ -818,8 +811,7 @@ export default function SettingsPage() {
     try {
       const response = await settingsService.getEncryptionStatus()
       setEncryptionStatus(response.data)
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadEncryptionStatus', error) }
   }
 
   const handleEnableEncryption = async () => {
@@ -909,8 +901,7 @@ export default function SettingsPage() {
     try {
       const response = await settingsService.getSecurityAnomalies()
       setAnomalies(response.data?.anomalies || response.anomalies || [])
-    } catch (error) {
-    } finally {
+    } catch (error) { reportSilentFailure('loadAnomalies', error) } finally {
       setAnomaliesLoading(false)
     }
   }
@@ -920,8 +911,7 @@ export default function SettingsPage() {
     try {
       const response = await settingsService.getSyslogConfig()
       setSyslogConfig(response.data || response)
-    } catch (error) {
-    }
+    } catch (error) { reportSilentFailure('loadSyslogConfig', error) }
   }
 
   const handleSaveSyslog = async () => {
@@ -957,8 +947,7 @@ export default function SettingsPage() {
     try {
       const response = await mtlsService.getSettings()
       setMtlsSettings(response.data || {})
-    } catch {
-    } finally {
+    } catch (error) { reportSilentFailure('loadMtlsSettings', error) } finally {
       setMtlsLoading(false)
     }
   }
@@ -992,8 +981,7 @@ export default function SettingsPage() {
     try {
       const response = await settingsService.getCTSettings()
       setCtSettings(response.data || { enabled: false, auto_submit: false, log_urls: [] })
-    } catch {
-    } finally {
+    } catch (error) { reportSilentFailure('loadCtSettings', error) } finally {
       setCtLoading(false)
     }
   }
@@ -1168,7 +1156,7 @@ export default function SettingsPage() {
         if (settled) return
         settled = true
         window.removeEventListener('message', handler)
-        try { bc && bc.close() } catch {}
+        try { bc && bc.close() } catch (error) { reportSilentFailure('finish', error) }
         if (ok) {
           showSuccess(t('settings.smtpOauthSuccess'))
           setOauthDirty(false)

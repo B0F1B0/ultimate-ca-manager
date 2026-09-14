@@ -48,6 +48,7 @@ import { useNotification } from '../contexts';
 import { usePermission, usePersistedState } from '../hooks';
 import auditService from '../services/audit.service';
 import { formatRelativeTime, formatDate, downloadBlob } from '../lib/utils';
+import { reportSilentFailure } from '../lib/silentFailure'
 // Action icons mapping
 const actionIcons = {
   login_success: SignIn,
@@ -172,8 +173,7 @@ export default function AuditLogsPage() {
       const res = await auditService.getLogs(params);
       setLogs(res.data || []);
       setTotal(res.meta?.total || 0);
-    } catch (err) {
-    }
+    } catch (error) { reportSilentFailure('loadLogs', error) }
   };
 
   const handleExport = async (format) => {

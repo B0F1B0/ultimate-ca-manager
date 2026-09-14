@@ -22,7 +22,7 @@ import { useNotification } from '../contexts'
 import { useWindowManager } from '../contexts/WindowManagerContext'
 import { useMobile } from '../contexts/MobileContext'
 import { usePermission, useModals, usePersistedState } from '../hooks'
-import { formatDate, cn , downloadBlob} from '../lib/utils'
+import { formatDate, cn, daysRemaining, downloadBlob } from '../lib/utils'
 export default function TrustStorePage() {
   const { t } = useTranslation()
   const { id: urlCertId } = useParams()
@@ -385,7 +385,7 @@ export default function TrustStorePage() {
   const getDaysRemaining = (cert) => {
     if (!cert?.not_after) return null
     const expiryDate = new Date(cert.not_after)
-    return Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24))
+    return daysRemaining(expiryDate)
   }
 
   // Detail panel content - same design as CertificateDetails

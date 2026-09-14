@@ -206,25 +206,21 @@ export function publicBaseUrl(configured, fallbackPath) {
 }
 
 /**
- * Whole days between now and an expiry date, truncated toward zero.
+ * Whole days between now and an expiry date, signed.
  *
- * The server already computes this for certificates (`days_remaining` in
- * Certificate.to_dict) with Python's `timedelta.days`, i.e. a floor; anything
- * the client recomputes must round the same way or the two disagree by a day
- * on the same certificate, which flips it between the 7-day critical band and
- * the 30-day warning band. Use the server's field when the payload carries it
- * and this only when it does not — CA payloads, for instance, have no
- * days_remaining at all.
- *
- * Returns null for a missing or unparseable date. Unlike the server field it
- * is NOT clamped at zero, so an already-expired item yields a negative number
- * and callers can distinguish "expired N days ago" from "expires today".
+ * Same convention as the server (contracts/days_remaining_contract.json):
+ * time left rounds up, time past rounds down, and a missing or unparseable
+ * date is null. It used to floor in both directions, so it read a day short
+ * of the `days_remaining` the payload carried and flipped a certificate
+ * between the 7-day and 30-day bands. Prefer the server's field when the
+ * payload has one; CA payloads do not.
  */
 export function daysRemaining(validTo) {
   if (!validTo) return null
   const end = new Date(validTo)
   if (Number.isNaN(end.getTime())) return null
-  return Math.floor((end - new Date()) / 86400000)
+  const millis = end - new Date()
+  return millis > 0 ? Math.ceil(millis / 86400000) : Math.floor(millis / 86400000)
 }
 
 /**

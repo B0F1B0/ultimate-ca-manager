@@ -28,7 +28,7 @@ import {
 import { Badge } from './Badge'
 import { Button } from './Button'
 import { CompactSection, CompactGrid, CompactField } from './DetailCard'
-import { cn } from '../lib/utils'
+import { cn, daysRemaining as computeDaysRemaining } from '../lib/utils'
 import { useClipboard } from '../hooks/useClipboard'
 import { getAppTimezone } from '../stores/timezoneStore'
 import { formatDate as formatDateUtil } from '../lib/utils'
@@ -68,11 +68,9 @@ export function TrustCertDetails({
   // Determine status based on validity
   const getStatus = () => {
     if (cert.valid_to) {
-      const expiryDate = new Date(cert.valid_to)
-      const now = new Date()
-      const daysRemaining = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24))
-      if (daysRemaining <= 0) return 'expired'
-      if (daysRemaining <= 30) return 'expiring'
+      const remaining = computeDaysRemaining(cert.valid_to)
+      if (remaining <= 0) return 'expired'
+      if (remaining <= 30) return 'expiring'
     }
     return 'valid'
   }
@@ -88,7 +86,7 @@ export function TrustCertDetails({
   
   // Calculate days remaining
   const daysRemaining = cert.valid_to ? 
-    Math.ceil((new Date(cert.valid_to) - new Date()) / (1000 * 60 * 60 * 24)) : null
+    computeDaysRemaining(cert.valid_to) : null
   
   // Get purposes as array
   const purposes = cert.purpose ? 

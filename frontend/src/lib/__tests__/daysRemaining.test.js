@@ -6,8 +6,11 @@
  * false, so it rendered with no colour band and a count of undefined.
  *
  * The helper below recomputes it from `valid_to`, rounding the way the server
- * does (`timedelta.days` is a floor) so the CA panel cannot disagree by a day
- * with the certificate panel next to it.
+ * does, so the CA panel cannot disagree by a day with the certificate panel
+ * next to it. That convention is signed and asymmetric (time left rounds up,
+ * time past rounds down); it lives in contracts/days_remaining_contract.json,
+ * which expiryContract.test.js reads. This file used to pin a floor in both
+ * directions, from a time when the server did too.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { daysRemaining } from '../utils'
@@ -23,14 +26,18 @@ function at(iso) {
 }
 
 describe('daysRemaining', () => {
-  it('floors, matching the server’s timedelta.days', () => {
-    // 7 days and 12 hours away is still "7 days", never 8
-    expect(at('2026-06-09T00:00:00Z')).toBe(7)
+  it('rounds time left up, so a part day never reads as one fewer', () => {
+    // 7 days and 12 hours away is 8, never 7: at half a day left the
+    // certificate is still there.
+    expect(at('2026-06-09T00:00:00Z')).toBe(8)
   })
 
-  it('does not round a partial day up into the next band', () => {
-    // 7.4 days: floor keeps it in the 7-day critical band, ceil would not
-    expect(at('2026-06-08T21:36:00Z')).toBe(7)
+  it('rounds the same way at any fraction', () => {
+    expect(at('2026-06-08T21:36:00Z')).toBe(8)
+  })
+
+  it('rounds time past down, so an hour past is already a day ago', () => {
+    expect(at('2026-06-01T11:00:00Z')).toBe(-1)
   })
 
   it('counts a whole number of days exactly', () => {

@@ -9,7 +9,7 @@ import {
 } from '@phosphor-icons/react'
 import { Modal, Button, Input, Badge, EmptyState, LoadingSpinner } from '../components'
 import { certificatesService } from '../services'
-import { formatDate } from '../lib/utils'
+import { daysRemaining, formatDate } from '../lib/utils'
 
 export default function CertificatePickerModal({ isOpen, onClose, onSelect, filters = {} }) {
   const { t } = useTranslation()
@@ -127,7 +127,7 @@ export default function CertificatePickerModal({ isOpen, onClose, onSelect, filt
               <tbody>
                 {certificates.map(cert => {
                   const isSelected = selectedId === cert.id
-                  const daysLeft = Math.ceil((new Date(cert.valid_to) - new Date()) / 86400000)
+                  const daysLeft = daysRemaining(cert.valid_to)
                   return (
                     <tr
                       key={cert.id}

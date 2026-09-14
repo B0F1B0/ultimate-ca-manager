@@ -15,7 +15,10 @@ import { cn } from '../lib/utils'
  * - Gradient shine on hover
  * - Smooth micro-interactions
  */
-export function Button({ children, variant = 'primary', size = 'sm', loading = false, loadingText, className, ...props }) {
+// `type` defaults to 'button', not the HTML default of 'submit': every one of
+// the 91 buttons inside a form already passes one explicitly, and the first
+// omission would submit the form instead of opening a modal, silently.
+export function Button({ children, type = 'button', variant = 'primary', size = 'sm', loading = false, loadingText, className, ...props }) {
   const { t } = useTranslation()
   const variants = {
     primary: 'btn-gradient text-white',
@@ -41,6 +44,7 @@ export function Button({ children, variant = 'primary', size = 'sm', loading = f
   
   return (
     <button
+      type={type}
       {...props}
       className={cn(
         'inline-flex items-center justify-center rounded-md font-medium',

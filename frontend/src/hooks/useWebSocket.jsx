@@ -66,6 +66,31 @@ export const ConnectionState = {
 
 const WebSocketContext = createContext(null);
 
+// A server event means somebody else changed the data. The pages refresh on
+// the in-app `ucm:data-changed` bus, which only the acting tab used to fire,
+// so another operator's revocation showed a toast beside a stale table.
+const DATA_CHANGED_TYPE = {
+  certificate: 'certificate',
+  ca: 'ca',
+  crl: 'ca',
+  user: 'user',
+  group: 'group',
+};
+
+function announceDataChange(eventType) {
+  const resource = DATA_CHANGED_TYPE[String(eventType).split('.')[0]];
+  if (!resource) return;
+  window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: resource } }));
+}
+
+// Events that arrived while the socket was down are gone. After a reconnect
+// the tables are refreshed wholesale rather than left on what they held.
+function announceEverythingChanged() {
+  for (const resource of new Set(Object.values(DATA_CHANGED_TYPE))) {
+    window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: resource } }));
+  }
+}
+
 /**
  * Maps a WS event to a notification method + message.
  *
@@ -149,6 +174,7 @@ export function WebSocketProvider({ children }) {
   const tRef = useRef(t);
   tRef.current = t;
   const muteUntilRef = useRef(0);
+  const hasConnectedRef = useRef(false);
   
   const connect = useCallback(() => {
     if (socketRef.current?.connected) return;
@@ -169,6 +195,8 @@ export function WebSocketProvider({ children }) {
     socket.on('connect', () => {
       if (import.meta.env.DEV) console.log('[WebSocket] Connected');
       setConnectionState(ConnectionState.CONNECTED);
+      if (hasConnectedRef.current) announceEverythingChanged();
+      hasConnectedRef.current = true;
     });
     
     socket.on('disconnect', (reason) => {
@@ -195,6 +223,8 @@ export function WebSocketProvider({ children }) {
         handlers.forEach((handler) => handler(payload.data, payload));
       }
       
+      announceDataChange(payload.type);
+
       // Show themed notification (skip if this tab just triggered the action)
       if (Date.now() < muteUntilRef.current) return;
       const notif = getEventNotification(payload, tRef.current);

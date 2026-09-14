@@ -5,6 +5,7 @@ import { templatesService, ekuService } from '../../services'
 import { getSanValidationError, getAutoSansFromCn } from '../../lib/sanValidate'
 import { useNotification } from '../../contexts'
 import { signingCas } from '../../lib/caSelection'
+import { daysRemaining } from '../../lib/utils'
 
 // Issue Certificate Form — full-featured with template, cert type, structured SANs, date picker
 export function IssueCertificateForm({ cas, initialData, onSubmit, onCancel, t }) {
@@ -271,9 +272,9 @@ export function IssueCertificateForm({ cas, initialData, onSubmit, onCancel, t }
     // Calculate validity_days from date if in date mode
     let validity_days = parseInt(formData.validity_days, 10) || 365
     if (validityMode === 'date' && formData.expiry_date) {
-      const expiry = new Date(formData.expiry_date)
-      const now = new Date()
-      validity_days = Math.max(1, Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)))
+      // Same rounding as the server, then at least a day: a validity of
+      // zero is refused.
+      validity_days = Math.max(1, daysRemaining(formData.expiry_date) ?? 1)
     }
 
     const payload = {
@@ -611,7 +612,7 @@ export function IssueCertificateForm({ cas, initialData, onSubmit, onCancel, t }
             value={formData.validity_days}
             onChange={(e) => update('validity_days', e.target.value)}
             min="1"
-            max={caExpiryDate ? Math.ceil((new Date(caExpiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : undefined}
+            max={caExpiryDate ? daysRemaining(caExpiryDate) : undefined}
           />
         ) : (
           <DatePicker

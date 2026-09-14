@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   daysSinceExpiry,
@@ -16,6 +16,7 @@ import {
   expiryVariant,
   hasExpiry,
 } from '../expiry'
+import { daysRemaining } from '../utils'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const contractPath = join(here, '..', '..', '..', '..', 'contracts', 'days_remaining_contract.json')
@@ -68,4 +69,30 @@ describe('a long-expired certificate says how long', () => {
       expect(daysSinceExpiry(days)).toBe(Math.abs(days))
     })
   }
+})
+
+describe('daysRemaining publishes what the contract says', () => {
+  const REFERENCE = new Date('2026-06-15T12:00:00Z')
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(REFERENCE)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  for (const { hours_from_now: hours, expected, why } of contract.published) {
+    it(`${why}`, () => {
+      const validTo = hours === null
+        ? null
+        : new Date(REFERENCE.getTime() + hours * 3600000).toISOString()
+      expect(daysRemaining(validTo)).toBe(expected)
+    })
+  }
+
+  it('reads an unparseable date as no date', () => {
+    expect(daysRemaining('not a date')).toBe(null)
+  })
 })

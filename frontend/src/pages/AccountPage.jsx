@@ -20,6 +20,7 @@ import { useClipboard, usePermission } from '../hooks'
 import { formatDate , downloadBlob} from '../lib/utils'
 import { canExportPrivateKey } from '../lib/exportPermissions'
 import { downloadExport } from '../lib/exportDownload'
+import { reportSilentFailure } from '../lib/silentFailure'
 
 export default function AccountPage() {
   const { t } = useTranslation()
@@ -116,7 +117,7 @@ export default function AccountPage() {
     try {
       const response = await casService.getAll()
       setCas(response.data || [])
-    } catch {}
+    } catch (error) { reportSilentFailure('loadCAs', error) }
   }
 
   const loadAccount = async () => {

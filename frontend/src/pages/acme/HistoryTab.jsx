@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Certificate, CheckCircle, XCircle, Clock, ClockCounterClockwise } from '@phosphor-icons/react'
 import { Badge, ResponsiveDataTable } from '../../components'
-import { cn, formatDate } from '../../lib/utils'
+import { cn, daysRemaining, formatDate } from '../../lib/utils'
 import CertDetailPanel from './CertDetailPanel'
 
 export default function HistoryTab({ history, filterStatus, onFilterStatusChange, filterCA, onFilterCAChange, filterSource, onFilterSourceChange, selectedCert, onSelectCert }) {
@@ -143,7 +143,7 @@ export default function HistoryTab({ history, filterStatus, onFilterStatusChange
         if (!value) return <span className="text-text-tertiary">N/A</span>
         const expires = new Date(value)
         const now = new Date()
-        const daysLeft = Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
+        const daysLeft = daysRemaining(expires)
         const isExpiring = daysLeft > 0 && daysLeft < 30
         const isExpired = daysLeft <= 0
         return (
@@ -171,7 +171,7 @@ export default function HistoryTab({ history, filterStatus, onFilterStatusChange
         if (!value) return null
         const expires = new Date(value)
         const now = new Date()
-        const daysLeft = Math.ceil((expires - now) / (1000 * 60 * 60 * 24))
+        const daysLeft = daysRemaining(expires)
         const isExpired = daysLeft <= 0
         return (
           <div className="flex items-center gap-2 text-xs">

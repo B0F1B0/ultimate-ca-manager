@@ -3,7 +3,7 @@
  */
 import { Certificate, Clock } from '@phosphor-icons/react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../../lib/utils'
+import { cn, daysRemaining } from '../../lib/utils'
 import { getAppTimezone } from '../../stores/timezoneStore'
 import { needsKeyImport } from '../../lib/caSelection'
 
@@ -15,7 +15,7 @@ export function formatExpiry(date, t) {
   if (!date) return null
   const d = new Date(date)
   const now = new Date()
-  const diffDays = Math.ceil((d - now) / (1000 * 60 * 60 * 24))
+  const diffDays = daysRemaining(d)
   if (diffDays < 0) return { text: t('common.expired'), variant: 'danger' }
   if (diffDays < 30) return { text: t('cas.daysLeft', { count: diffDays }), variant: 'warning' }
   if (diffDays < 365) return { text: `${Math.floor(diffDays / 30)}mo`, variant: 'default' }
