@@ -76,7 +76,7 @@
 - **Persisted UI state** -- Filter selections persist across reloads on every list page
 - **Database** -- SQLite (default) or **native PostgreSQL backend** with bidirectional migration UI
 - **Responsive UI** -- React 18 + Radix UI, mobile-friendly
-- **Real-time** -- WebSocket live updates
+- **Real-time** -- WebSocket live updates: a change made by another operator refreshes the lists that show it, and a reconnection after an outage reloads them rather than leaving stale rows on screen
 - **Multi-platform** -- Docker, Debian/Ubuntu (.deb), RHEL/Rocky/Fedora (.rpm)
 - **Reverse proxy ready** -- Public ports independent of the listen ports (an explicit `:80` or `:443` in the base URLs is advertised as typed), trusted proxies by IP or CIDR network, and Helm chart `proxy.*` values for an Ingress in front of UCM
 
