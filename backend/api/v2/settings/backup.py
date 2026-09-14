@@ -12,7 +12,7 @@ from services.backup import storage
 from services.backup.decrypt_mixin import BackupDecryptionError
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
-from services.backup.restore_report import restore_warnings
+from services.backup.restore_report import with_restore_warnings
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -192,6 +192,18 @@ def restore_backup():
                 f"{busy} A backend migration or another restore is still "
                 "running.", 409)
 
+        # Recorded before the archive is judged empty or not, as the system
+        # route does: a file that restored nothing was still uploaded and
+        # still deserves a line, and returning first meant it left no trace
+        # on one page and a trace on the other.
+        AuditService.log_action(
+            action='system_restore',
+            resource_type='system',
+            resource_name=file.filename,
+            details=f'Restored from backup: {file.filename}',
+            success=True
+        )
+
         # An archive that carried no section changed nothing, so there is
         # nothing to invalidate and no reason to sign everyone out and ask for
         # a restart. Announced as a restore, it revoked every session that was
@@ -204,18 +216,6 @@ def restore_backup():
                          'no session was revoked and no restart is needed.'),
             )
 
-        # Recorded after the restore has committed, so the rollback
-        # `log_action` performs when it cannot write its own entry has nothing
-        # of the restore left to undo. It does not need wrapping: it catches
-        # its own failures and answers None rather than raising.
-        AuditService.log_action(
-            action='system_restore',
-            resource_type='system',
-            resource_name=file.filename,
-            details=f'Restored from backup: {file.filename}',
-            success=True
-        )
-
         from services.backup.restore.invalidate import invalidate_after_restore
         try:
             invalidate_after_restore()
@@ -227,9 +227,10 @@ def restore_backup():
 
         return success_response(
             data={'filename': file.filename, 'restored': True},
-            message=('Backup restored successfully. Every session opened '
-                     'before the restore was revoked; restart the application '
-                     'and sign in again.') + restore_warnings(results)
+            message=with_restore_warnings(
+                'Backup restored successfully. Every session opened before '
+                'the restore was revoked; restart the application and sign '
+                'in again.', results)
         )
     except BackupDecryptionError:
         logger.warning("Settings restore refused: the backup could not be decrypted")

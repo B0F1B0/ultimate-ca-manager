@@ -11,6 +11,7 @@ import logging
 from datetime import datetime, timezone
 
 from auth.unified import require_auth, has_permission
+from utils.pagination import parse_request_pagination
 from utils.response import success_response, error_response, created_response, no_content_response
 from utils.pagination import paginate
 from utils.dn_validation import validate_dn_field, validate_dn
@@ -202,14 +203,7 @@ def list_cas():
     List CAs for current user
     Query: ?page=1&per_page=20&search=xxx&type=xxx
     """
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    if page < 1:
-        page = 1
-    if per_page < 1:
-        per_page = 20
-    if per_page > 100:
-        per_page = 100
+    page, per_page = parse_request_pagination(default_per_page=20)
     paginated = 'page' in request.args or 'per_page' in request.args
     search = request.args.get('search', '')
     ca_type = request.args.get('type', '')

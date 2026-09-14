@@ -7,7 +7,7 @@ from flask import request
 
 from auth.unified import require_auth
 from utils.response import success_response, error_response
-from utils.pagination import paginate
+from utils.pagination import paginate, parse_request_pagination
 from services.ca_service import CAService
 from models import Certificate, CA
 
@@ -20,14 +20,7 @@ def list_ca_certificates(ca_id):
     if not ca:
         return error_response('CA not found', 404)
 
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    if page < 1:
-        page = 1
-    if per_page < 1:
-        per_page = 20
-    if per_page > 100:
-        per_page = 100
+    page, per_page = parse_request_pagination(default_per_page=20)
 
     # Filter by CA refid
     query = Certificate.query.filter_by(caref=ca.refid).order_by(Certificate.created_at.desc())

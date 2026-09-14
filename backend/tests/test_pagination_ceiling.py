@@ -53,10 +53,54 @@ class TestNoListingRouteIsLeftWithoutACeiling:
     """A source scan, because an unbounded page size is invisible until the
     day someone asks for a million rows.
 
-    Read from the parsed source: a route that takes `per_page` from the query
-    string itself, rather than through the shared helper, is one that has to
-    bound it on its own, and three of them did not.
+    Read from the syntax tree, and from the nodes rather than from the text of
+    a dump: a first version matched substrings, so a route calling
+    `query.paginate(...)` looked bounded because the word appeared, and one
+    guarded by `admin:system` looked bounded because the word contains `min`.
+    It flagged none of the three routes it was written for.
     """
+
+    @staticmethod
+    def _reads_per_page_from_the_request(fn):
+        """The name a function binds `request.args.get('per_page', ...)` to."""
+        import ast
+
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+                continue
+            target = node.targets[0]
+            call = node.value
+            if not isinstance(target, ast.Name) or not isinstance(call, ast.Call):
+                continue
+            func = call.func
+            if not (isinstance(func, ast.Attribute) and func.attr == 'get'):
+                continue
+            owner = func.value
+            if not (isinstance(owner, ast.Attribute) and owner.attr == 'args'):
+                continue
+            if call.args and isinstance(call.args[0], ast.Constant) \
+                    and call.args[0].value == 'per_page':
+                return target.id
+        return None
+
+    @staticmethod
+    def _is_bounded(fn, name):
+        """Whether that name is clamped before it reaches the query."""
+        import ast
+
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            # min(per_page, ...) or min(..., per_page)
+            if isinstance(func, ast.Name) and func.id == 'min':
+                if any(isinstance(a, ast.Name) and a.id == name
+                       for a in node.args):
+                    return True
+            # paginate(..., max_per_page=...)
+            if any(kw.arg == 'max_per_page' for kw in node.keywords):
+                return True
+        return False
 
     def test_every_route_taking_per_page_bounds_it(self):
         import ast
@@ -73,18 +117,16 @@ class TestNoListingRouteIsLeftWithoutACeiling:
                     continue
                 path = os.path.join(base, name)
                 tree = ast.parse(open(path).read())
-                for node in ast.walk(tree):
-                    if not isinstance(node, ast.FunctionDef):
+                for fn in ast.walk(tree):
+                    if not isinstance(fn, ast.FunctionDef):
                         continue
-                    body = ast.dump(node)
-                    takes_it = "'per_page'" in body and 'args' in body
-                    bounds_it = ('min' in body or 'max_per_page' in body
-                                 or 'parse_request_pagination' in body
-                                 or 'paginate' in body)
-                    if takes_it and not bounds_it:
+                    bound_to = self._reads_per_page_from_the_request(fn)
+                    if bound_to is None:
+                        continue    # through the helper, or not paginated
+                    if not self._is_bounded(fn, bound_to):
                         unbounded.append(
-                            f'{os.path.relpath(path, here)}:{node.lineno} '
-                            f'{node.name}')
+                            f'{os.path.relpath(path, here)}:{fn.lineno} '
+                            f'{fn.name}')
 
         assert unbounded == [], (
             'these routes read per_page from the request and put no ceiling '

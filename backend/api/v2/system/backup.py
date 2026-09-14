@@ -5,7 +5,7 @@ System Backup Operations
 from services.backup import storage
 from services.backup.locking import BackupBusyError, backup_operation_lock
 from services.backup.restore.plan import RestoreValidationError
-from services.backup.restore_report import restore_warnings
+from services.backup.restore_report import with_restore_warnings
 from services.database_admin.lock import (
     MigrationBusyError,
     database_migration_lock,
@@ -516,10 +516,10 @@ def restore_backup():
         restart_ok, restart_message = _request_restart_after_restore()
         results['restart_requested'] = restart_ok
 
-        message = ("Backup restored successfully. Sign in again"
-                   if restart_ok else
-                   f"Backup restored successfully. Restart UCM to finish: {restart_message}")
-        message += restore_warnings(results)
+        message = with_restore_warnings(
+            "Backup restored successfully. Sign in again" if restart_ok else
+            f"Backup restored successfully. Restart UCM to finish: {restart_message}",
+            results)
 
         return success_response(
             message=message,

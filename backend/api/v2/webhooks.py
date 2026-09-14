@@ -355,6 +355,11 @@ def update_webhook(endpoint_id):
 
     auth_fields, auth_err = _validate_auth(data, is_create=False, endpoint=endpoint)
     if auth_err:
+        # Everything above was applied to the endpoint and nothing has been
+        # committed yet; recording the refusal commits the session, so the
+        # url, the signing secret and the rest were written down by the very
+        # act of saying no to the request that carried them.
+        db.session.rollback()
         AuditService.log_action(
             action='webhook.auth_token_invalid',
             resource_type='webhook',

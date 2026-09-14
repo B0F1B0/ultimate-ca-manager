@@ -182,23 +182,6 @@ class OrderMixin:
                     "ACME auto-approve: skipping challenge validation for "
                     f"{domain_value} (account={account_id}, order={order_id})"
                 )
-                try:
-                    from services.audit_service import AuditService
-                    AuditService.log_action(
-                        username='acme',
-                        action='acme_auto_approve',
-                        resource_type='acme_authorization',
-                        resource_id=domain_value,
-                        details={
-                            'domain': domain_value,
-                            'account_id': account_id,
-                            'order_id': order_id,
-                        },
-                        success=True
-                    )
-                except Exception as audit_err:
-                    logger.error(f"Failed to audit auto-approve: {audit_err}")
-
                 auth = AcmeAuthorization(
                     order_id=order_id,
                     account_id=account_id,
@@ -216,6 +199,25 @@ class OrderMixin:
                     db.session.rollback()
                     logger.error(f"DB commit failed: {e}")
                     raise
+
+                # Recorded once the authorization is committed. Written before
+                # it, this call decided the outcome for everything the
+                # transaction still held, an authorization reused a few lines
+                # above included: it commits the session it is given and rolls
+                # all of it back when its own entry cannot be written.
+                from services.audit_service import AuditService
+                AuditService.log_action(
+                    username='acme',
+                    action='acme_auto_approve',
+                    resource_type='acme_authorization',
+                    resource_id=domain_value,
+                    details={
+                        'domain': domain_value,
+                        'account_id': account_id,
+                        'order_id': order_id,
+                    },
+                    success=True
+                )
                 return auth
 
         # No reuse - create new pending authorization

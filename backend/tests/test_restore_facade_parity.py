@@ -189,3 +189,51 @@ class TestBothRoutesSayWhatTheArchiveGotWrong:
         assert b'something_newer' in body, (
             f'{route} did not say the archive holds sections this version '
             'does not restore')
+
+
+class TestAnUploadLeavesATrace:
+    """Even an archive that restored nothing was uploaded.
+
+    The empty-archive refusal returned before the audit entry on one route
+    and after it on the other, so the same file left a line in the trail or
+    did not, depending on which page it was dropped on. Introduced by a
+    commit whose subject was parity.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    def test_an_empty_archive_is_still_recorded(self, app, auth_client,
+                                                monkeypatch, route):
+        import importlib
+
+        recorded = []
+
+        for module in ('api.v2.system.backup', 'api.v2.settings.backup'):
+            loaded = importlib.import_module(module)
+            if hasattr(loaded, 'BackupService'):
+                monkeypatch.setattr(loaded.BackupService, 'restore_backup',
+                                    lambda self, *a, **k: {'sections_carried': []},
+                                    raising=False)
+
+        from services.audit_service import AuditService
+        monkeypatch.setattr(
+            AuditService, 'log_action',
+            staticmethod(lambda **kw: recorded.append(kw.get('action'))))
+
+        auth_client.post(route, data={'file': (io.BytesIO(b'x'), 'x.ucmbkp'),
+                                      'password': 'a-password-long-enough'},
+                         content_type='multipart/form-data')
+
+        assert 'system_restore' in recorded, (
+            f'{route} left no trace of an archive that was uploaded')
+
+
+class TestTheTwoMessagesReadTheSame:
+    def test_neither_ends_with_two_full_stops(self):
+        from services.backup.restore_report import with_restore_warnings
+
+        results = {'key_mismatches': ['CA x']}
+        for base in ('Backup restored successfully. Sign in again',
+                     'Backup restored successfully. Every session opened '
+                     'before the restore was revoked; restart the application '
+                     'and sign in again.'):
+            assert '..' not in with_restore_warnings(base, results)

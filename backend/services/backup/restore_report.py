@@ -12,12 +12,15 @@ from one page or the other, said different things about itself.
 from typing import Any, Dict
 
 
-def restore_warnings(results: Dict[str, Any]) -> str:
-    """The clauses to append to a successful restore's message.
+def with_restore_warnings(message: str, results: Dict[str, Any]) -> str:
+    """`message`, followed by what the archive had to warn about.
 
-    Empty when the archive had nothing to warn about.
+    The joining is here rather than at each caller because the two messages
+    are punctuated differently: one ends with a full stop and the other does
+    not, so appending a clause that begins with one produced `again.. 1
+    record(s)…` on one side and read correctly on the other.
     """
-    message = ''
+    message = message.rstrip().rstrip('.')
 
     not_restored = (results or {}).get('sections_not_restored') or []
     if not_restored:
@@ -36,4 +39,4 @@ def restore_warnings(results: Dict[str, Any]) -> str:
                     "is not their certificate's and cannot sign: "
                     + ', '.join(mismatches[:5]))
 
-    return message
+    return message + '.' if not message.endswith('.') else message

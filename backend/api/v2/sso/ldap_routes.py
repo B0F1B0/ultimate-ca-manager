@@ -382,6 +382,7 @@ def _get_or_create_sso_user(provider, username, email, fullname, external_data):
                 user.full_name = fullname
 
         # ── Role sync ────────────────────────────────────────────────────
+        role_change = None
         # See #81. Default behaviour: role is set at creation only and
         # then managed in the UCM UI. Re-sync on login is opt-in via
         # `sync_role_on_login` and only acts on an explicit role_mapping
@@ -393,18 +394,7 @@ def _get_or_create_sso_user(provider, username, email, fullname, external_data):
                     f"SSO role sync: user {username} role changed "
                     f"{user.role} → {mapped_role} (mapping match)"
                 )
-                from services.audit_service import AuditService
-                AuditService.log_action(
-                    action='role_change',
-                    resource_type='user',
-                    resource_name=username,
-                    username=username,
-                    details=(
-                        f"SSO role sync: role changed from {user.role} to "
-                        f"{mapped_role} (role_mapping match)"
-                    ),
-                    success=True
-                )
+                role_change = (user.role, mapped_role)
                 user.role = mapped_role
 
         user.last_login = utc_now()
@@ -413,6 +403,26 @@ def _get_or_create_sso_user(provider, username, email, fullname, external_data):
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to update SSO user {username}: {e}")
+            role_change = None
+
+        if role_change:
+            # Recorded once the new role is committed, and from the values
+            # captured before it was assigned. Written first, this call said
+            # the role had changed before it had, and its own rollback could
+            # undo the identity binding made a few lines above while the
+            # assignment that followed was committed anyway.
+            from services.audit_service import AuditService
+            AuditService.log_action(
+                action='role_change',
+                resource_type='user',
+                resource_name=username,
+                username=username,
+                details=(
+                    f"SSO role sync: role changed from {role_change[0]} to "
+                    f"{role_change[1]} (role_mapping match)"
+                ),
+                success=True
+            )
         return user, None
 
     # Create new user if auto_create is enabled
