@@ -338,7 +338,18 @@ class CACreationMixin:
                 ca.set_cdp_urls([f"{base_url}/cdp/{ca.url_ref}.crl"])
                 db.session.commit()
         except Exception:
-            pass
+            # Rolled back, not merely ignored. The authority itself is
+            # already committed above; what is staged here is the CDP flag
+            # and its URL. Swallowing the failure left them pending, and the
+            # next call to commit the session was the audit entry a few lines
+            # down, which committed a change whose own commit had just
+            # failed. On a backend that poisons a transaction after an error,
+            # it could not commit them and rolled the entry back instead, so
+            # the authority was created and nothing recorded it.
+            logger.warning(
+                "CA %s created; its CRL distribution point could not be set",
+                ca.id, exc_info=True)
+            db.session.rollback()
 
         # Audit log
         hsm_note = f' (HSM key: {hsm_key.label})' if hsm_key else ''

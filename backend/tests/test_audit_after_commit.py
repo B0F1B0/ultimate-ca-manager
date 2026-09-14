@@ -39,6 +39,7 @@ state here: capture what the entry needs, commit, then record.
 """
 import ast
 import os
+import re
 
 
 SESSION_WRITES = {'add', 'delete', 'add_all', 'merge'}
@@ -55,7 +56,7 @@ AUDIT_CALLS = {'log_action', 'log_acme', 'log_auth', 'log_ca', 'log_certificate'
 NOT_A_ROW = {
     'self', 'cls', 'g', 'request', 'response', 'app', 'current_app',
     'session', 'logger', 'os', 'sys', 'json', 'result', 'results',
-    'args', 'kwargs', 'e', 'err', 'exc',
+    'args', 'kwargs', 'e', 'err', 'exc', 'service', 'client', 'provider_cls',
 }
 COMMITS = {'safe_commit', '_safe_commit', 'commit_or_rollback'}
 # A rollback settles the session too. What follows it carries nothing, which
@@ -87,11 +88,30 @@ class _TooManyPaths(Exception):
 DELIBERATE = set()
 
 
+# Filled by `_offenders` before it scans: the plain function names that
+# reach an audit call themselves. Half the refusals in this codebase record
+# themselves through a local wrapper -- `_audit` in the Microsoft CA routes,
+# `_safe_audit_log` and `record_restore` around the backup ones, `_log_audit`
+# in the importer, `_audit_acme` in the ACME server. A scan that only knew
+# `X.log_action(...)` looked straight past all of them, which is how the
+# refusal that persisted what it refused stayed invisible to its own guard.
+# name -> whether the wrapper commits before it records. `_record_failure`
+# in the deployment service writes the failure down and then records it, so a
+# change staged before the call is settled by the time the entry is written;
+# `_audit` in the Microsoft CA routes only records. Reading both as a bare
+# audit reported the first for something it had just made safe.
+AUDIT_WRAPPERS = {}
+
+
 def _kind(call):
     """Classify a call as staging a change, committing, or auditing."""
     func = call.func
     if isinstance(func, ast.Attribute) and func.attr in AUDIT_CALLS:
         return 'audit'
+    if isinstance(func, ast.Name) and func.id in AUDIT_WRAPPERS:
+        return 'commit+audit' if AUDIT_WRAPPERS[func.id] else 'audit'
+    if isinstance(func, ast.Attribute) and func.attr in AUDIT_WRAPPERS:
+        return 'commit+audit' if AUDIT_WRAPPERS[func.attr] else 'audit'
     if isinstance(func, ast.Name) and func.id in COMMITS:
         return 'commit'
     if isinstance(func, ast.Attribute) and func.attr == 'commit':
@@ -125,6 +145,11 @@ def _stages_a_change(node):
     for target in targets:
         if not isinstance(target, ast.Attribute):
             continue
+        if target.attr.startswith('_'):
+            # A mapped column is never private. `service._finalizing_order_id`
+            # is bookkeeping on a Python object, and reading it as a staged
+            # change reported the ACME finalize route for a `finally` clause.
+            continue
         owner = target.value
         if isinstance(owner, ast.Name) and owner.id not in NOT_A_ROW:
             return True
@@ -136,11 +161,18 @@ def _events(node):
     for child in ast.walk(node):
         if isinstance(child, ast.Call):
             kind = _kind(child)
-            if kind:
+            if kind == 'commit+audit':
+                out.append((child.lineno, 'commit'))
+                out.append((child.lineno, 'audit'))
+            elif kind:
                 out.append((child.lineno, kind))
         elif _stages_a_change(child):
             out.append((child.lineno, 'write'))
-    return sorted(out)
+    # By line only, and stably. Sorting the pairs compared the kind as a
+    # string when two events shared a line, so `audit` came before `commit`
+    # by alphabet: a wrapper that commits and then records read as recording
+    # first, and two statements separated by a semicolon swapped as well.
+    return sorted(out, key=lambda event: event[0])
 
 
 def _paths(body, decided=None):
@@ -207,8 +239,12 @@ def _paths(body, decided=None):
             branches = [(asked + b + t, {})
                         for b, _bd in branches for t, _td in tail]
         elif isinstance(stmt, ast.Try):
-            # `else` runs after the body, not instead of it; a handler runs
-            # instead of some suffix of the body.
+            # `else` runs after the body, and a handler runs after some
+            # prefix of it. Modelling the handler as replacing the body
+            # entirely was the hole: a change staged in the body and audited
+            # in the handler appeared on no path at all, which is exactly the
+            # shape of the Microsoft CA refusal that persisted what it was
+            # refusing, and of every refusal written that way.
             arms = []
             for body_events, _d in _paths(stmt.body, {}):
                 if stmt.orelse:
@@ -218,7 +254,9 @@ def _paths(body, decided=None):
                     arms.append(body_events)
             for handler in stmt.handlers:
                 for handler_events, _d in _paths(handler.body, {}):
-                    arms.append(handler_events)
+                    for body_events, _d2 in _paths(stmt.body, {}):
+                        for prefix in _states_before_raising(body_events):
+                            arms.append(prefix + handler_events)
             if stmt.finalbody:
                 tails = [t for t, _d in _paths(stmt.finalbody, {})]
                 arms = [a + t for a in arms for t in tails][:PATH_CAP]
@@ -240,6 +278,32 @@ def _paths(body, decided=None):
         results = merged
 
     return results
+
+
+def _states_before_raising(events):
+    """One prefix of `events` per distinct state an exception can interrupt.
+
+    A handler runs after some prefix of the body, and which prefix matters
+    only through two facts: whether a change is staged, and whether anything
+    has been committed yet. Keeping one prefix per pair holds the model exact
+    without enumerating every statement boundary.
+    """
+    seen = {}
+    pending = False
+    committed = False
+    for index in range(len(events) + 1):
+        seen.setdefault((pending, committed), events[:index])
+        if index == len(events):
+            break
+        kind = events[index][1]
+        if kind == 'write':
+            pending = True
+        elif kind == 'commit':
+            pending = False
+            committed = True
+        elif kind == 'stop':
+            break
+    return list(seen.values())
 
 
 def _in_order(path):
@@ -283,6 +347,56 @@ def _in_order(path):
     return None
 
 
+def _handler_audits_over_pending_work(node):
+    """A handler that records an entry while the body still holds a change.
+
+    Cheap because it looks at one `try` at a time: the body of a single one
+    has few enough branches to enumerate whatever the size of the function
+    around it.
+    """
+    for stmt in ast.walk(node):
+        if not isinstance(stmt, ast.Try):
+            continue
+        try:
+            body_paths = [events for events, _d in _paths(stmt.body)]
+        except _TooManyPaths:
+            body_paths = [_events_of_block(stmt.body)]
+        except RecursionError:
+            body_paths = [_events_of_block(stmt.body)]
+        # Any point in the body where a change is staged and not yet
+        # committed is a point an exception can interrupt.
+        reaches_pending = False
+        for events in body_paths:
+            staged = False
+            for _line, kind in events:
+                if kind == 'write':
+                    staged = True
+                elif kind == 'commit':
+                    staged = False
+                if staged:
+                    reaches_pending = True
+                    break
+            if reaches_pending:
+                break
+        if not reaches_pending:
+            continue
+        for handler in stmt.handlers:
+            settled = False
+            for line, kind in _events_of_block(handler.body):
+                if kind == 'commit':
+                    settled = True
+                elif kind == 'audit' and not settled:
+                    return line
+    return None
+
+
+def _events_of_block(body):
+    out = []
+    for stmt in body:
+        out.extend(_events(stmt))
+    return sorted(out, key=lambda event: event[0])
+
+
 def _audit_out_of_order(fn):
     """The line of the first audit this function reaches out of order.
 
@@ -307,7 +421,13 @@ def _audit_out_of_order(fn):
                 if pending:
                     return line
                 pending = False
-        return None
+        # Reading the statements in order settles a change at the first
+        # commit it meets, which hides the one shape this whole rule exists
+        # for: a refusal audited in a handler, reached from the middle of a
+        # body whose commit is further down and never ran. Every `try` in the
+        # function is therefore looked at on its own, where the enumeration
+        # is small enough to be exact.
+        return _handler_audits_over_pending_work(fn)
 
     for path in paths:
         out_of_order = _in_order(path)
@@ -322,9 +442,85 @@ ZONES = ('api', 'services', 'auth', 'utils', 'middleware', 'security',
          'websocket', 'models')
 
 
+def _find_audit_wrappers(trees):
+    """Function names that reach an audit call, directly or through another.
+
+    Iterated to a fixed point so a wrapper around a wrapper counts too.
+    """
+    bodies = {}
+    for tree in trees:
+        for fn in ast.walk(tree):
+            if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                bodies.setdefault(fn.name, []).append(fn)
+
+    wrappers = set()
+    changed = True
+    while changed:
+        changed = False
+        for name, definitions in bodies.items():
+            if name in wrappers:
+                continue
+            for fn in definitions:
+                for call in ast.walk(fn):
+                    if not isinstance(call, ast.Call):
+                        continue
+                    func = call.func
+                    reaches = (
+                        (isinstance(func, ast.Attribute)
+                         and (func.attr in AUDIT_CALLS or func.attr in wrappers))
+                        or (isinstance(func, ast.Name) and func.id in wrappers))
+                    if reaches:
+                        wrappers.add(name)
+                        changed = True
+                        break
+                if name in wrappers:
+                    break
+    # A route named after what it does is not a wrapper for it. Only names
+    # that read as "record this" are followed; anything else would make every
+    # function that happens to audit into an audit itself, and the rule would
+    # fire on its own callers.
+    # Named like something that records an entry, not merely containing the
+    # word. `create_txt_record` publishes a DNS record and matched on
+    # "record", so every provider call that publishes one read as an audit.
+    named = {name for name in wrappers
+             if 'audit' in name.lower()
+             or re.match(r'_?(log|record)(_|$)', name.lower())}
+
+    # And whether each one settles the session before it records.
+    settles_first = {}
+    for name in named:
+        settles = False
+        for fn in bodies.get(name, []):
+            seen_commit = False
+            events = [(c.lineno, _kind_without_wrappers(c))
+                      for c in ast.walk(fn) if isinstance(c, ast.Call)
+                      and _kind_without_wrappers(c)]
+            for line, kind in sorted(events, key=lambda event: event[0]):
+                if kind == 'commit':
+                    seen_commit = True
+                elif kind == 'audit' and seen_commit:
+                    settles = True
+                    break
+        settles_first[name] = settles
+    return settles_first
+
+
+def _kind_without_wrappers(call):
+    """`_kind` before the wrapper table exists, used to build it."""
+    func = call.func
+    if isinstance(func, ast.Attribute) and func.attr in AUDIT_CALLS:
+        return 'audit'
+    if isinstance(func, ast.Name) and func.id in COMMITS:
+        return 'commit'
+    if isinstance(func, ast.Attribute) and func.attr == 'commit':
+        return 'commit'
+    return None
+
+
 def _offenders():
     here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     found = []
+    parsed = []
     for zone in ZONES:
         for base, _dirs, names in os.walk(os.path.join(here, zone)):
             if '__pycache__' in base:
@@ -337,14 +533,20 @@ def _offenders():
                     tree = ast.parse(open(path).read())
                 except SyntaxError:
                     continue
-                for fn in ast.walk(tree):
-                    if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        continue
-                    hit = _audit_out_of_order(fn)
-                    if hit:
-                        rel = os.path.relpath(path, here)
-                        if f'{rel}:{fn.name}' not in DELIBERATE:
-                            found.append(f'{rel}:{hit} {fn.name}')
+                parsed.append((path, tree))
+
+    AUDIT_WRAPPERS.clear()
+    AUDIT_WRAPPERS.update(_find_audit_wrappers([t for _p, t in parsed]))
+
+    for path, tree in parsed:
+        for fn in ast.walk(tree):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            hit = _audit_out_of_order(fn)
+            if hit:
+                rel = os.path.relpath(path, here)
+                if f'{rel}:{fn.name}' not in DELIBERATE:
+                    found.append(f'{rel}:{hit} {fn.name}')
     return sorted(found)
 
 

@@ -187,9 +187,16 @@ def reset_db():
         # reset failed", and the route answered 500 without resetting
         # anything, on every call. The rest of the codebase reads the actor
         # off `g`, which `require_auth` has already put there.
+        # Read as plain strings, now, and passed to the entry by value. The
+        # entry is written after `drop_all`, and `log_action` falls back on
+        # `g.current_user.username` when it is given no name: that instance
+        # is expired by then and its row is gone, so reading it raises, and
+        # `log_action` swallows the failure and writes nothing. The reset
+        # answered "successfully" and left no trace of itself. It only looked
+        # right because the administrator running it was usually the one the
+        # reset recreates, who comes back with the same identifier.
         actor = getattr(g, 'current_user', None)
         actor_name = getattr(actor, 'username', None) or 'unknown'
-        actor_id = getattr(actor, 'id', None)
 
         # Drop all tables and recreate
         db.drop_all()
@@ -232,7 +239,7 @@ def reset_db():
                 resource_id='database',
                 details=(f"Initiated by {actor_name}; the database was reset "
                          "but the administrator account could not be created"),
-                user_id=actor_id,
+                username=actor_name,
                 success=False,
             )
             return err
@@ -246,7 +253,7 @@ def reset_db():
             resource_type='system',
             resource_id='database',
             details=f"Initiated by {actor_name}",
-            user_id=actor_id,
+            username=actor_name,
         )
 
         return success_response(message="Database reset successfully. Default admin user created.")

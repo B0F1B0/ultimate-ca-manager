@@ -275,6 +275,11 @@ def create_connection():
 
     except Exception as e:
         logger.error(f"Failed to create MS CA connection: {e}")
+        # Before the audit, for the reason `update_connection` has above: the
+        # row is already staged by then, and `_audit` commits the session it
+        # is handed, so recording the refusal was what saved the connection
+        # the refusal was about, credentials included.
+        db.session.rollback()
         _audit('msca.create', None, f"name={name} error={e}", success=False)
         return error_response("Failed to create connection", 500)
 
