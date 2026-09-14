@@ -73,8 +73,8 @@ class DesecDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"deSEC API request failed: {e}")
-            return False, str(e)
+            logger.error(f"deSEC API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_domain_name(self, domain: str) -> Optional[str]:
         """Get domain name for a subdomain"""

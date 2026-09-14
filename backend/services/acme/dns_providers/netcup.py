@@ -61,8 +61,8 @@ class NetcupDnsProvider(BaseDnsProvider):
             return True, result
             
         except requests.RequestException as e:
-            logger.error(f"Netcup API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Netcup API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _login(self) -> Tuple[bool, str]:
         """Login to get session ID"""

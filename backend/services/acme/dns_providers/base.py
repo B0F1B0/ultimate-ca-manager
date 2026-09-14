@@ -27,7 +27,11 @@ class BaseDnsProvider(ABC):
     PROVIDER_DESCRIPTION: str = "Base DNS provider class"
     REQUIRED_CREDENTIALS: List[str] = []
     OPTIONAL_CREDENTIALS: List[str] = []
-    
+
+    # How much of a failing response body an error message may quote. The body
+    # is attacker-influenced text on its way to a log line and to the browser.
+    MAX_ERROR_BODY_CHARS: int = 500
+
     def __init__(self, credentials: Dict[str, Any]):
         """
         Initialize provider with credentials.
@@ -36,8 +40,9 @@ class BaseDnsProvider(ABC):
             credentials: Dict with API keys and secrets
         """
         self.credentials = credentials or {}
+        self._transient_secrets: List[str] = []
         self._validate_credentials()
-    
+
     def _validate_credentials(self) -> None:
         """Validate that all required credentials are present"""
         missing = []
@@ -48,6 +53,19 @@ class BaseDnsProvider(ABC):
         if missing:
             raise ValueError(f"Missing required credentials: {', '.join(missing)}")
 
+    def remember_secret(self, value: Optional[str]) -> Optional[str]:
+        """Register a secret obtained at run time so it is redacted too.
+
+        A provider that trades its credentials for a bearer token holds a
+        secret that is not in ``self.credentials``, so redaction could not see
+        it — and the token is what the next request puts in its Authorization
+        header, which is what a connection error quotes back. Returns *value*
+        so it can be used inline: ``self._token = self.remember_secret(...)``.
+        """
+        if isinstance(value, str) and len(value) >= 6:
+            self._transient_secrets.append(value)
+        return value
+
     def redact_secrets(self, message) -> str:
         """Replace credential values in *message* with '***'.
 
@@ -56,11 +74,43 @@ class BaseDnsProvider(ABC):
         ConnectionError/Timeout messages embed the full URL.
         """
         msg = str(message)
-        for value in self.credentials.values():
+        values = list(self.credentials.values())
+        values.extend(getattr(self, '_transient_secrets', ()))
+        for value in values:
             if isinstance(value, str) and len(value) >= 6 and value in msg:
                 msg = msg.replace(value, '***')
         return msg
-    
+
+    def _error(self, resp, prefix: str = '') -> str:
+        """The message for an HTTP response the provider treats as a failure.
+
+        Says what the server answered — status and reason — and quotes a bound
+        slice of the body, redacted. Returning ``resp.text`` whole was the
+        habit: unbounded, and an API that echoes the request it refused (or a
+        token endpoint that quotes the assertion) hands the secret straight
+        back to the browser through the provider-test route.
+        """
+        status = getattr(resp, 'status_code', '?')
+        reason = (getattr(resp, 'reason', '') or '').strip()
+        head = f"{prefix}HTTP {status}" + (f" {reason}" if reason else '')
+
+        body = (getattr(resp, 'text', '') or '').strip()
+        if not body:
+            return head
+        body = self.redact_secrets(body)
+        if len(body) > self.MAX_ERROR_BODY_CHARS:
+            body = body[:self.MAX_ERROR_BODY_CHARS] + '…'
+        return f"{head}: {body}"
+
+    def _failure(self, exc, prefix: str = '') -> str:
+        """The message for a transport-level failure, with secrets removed.
+
+        ``str(exc)`` on a requests exception embeds the full URL, so for the
+        providers that authenticate with query parameters it embeds the
+        credentials as well.
+        """
+        return f"{prefix}{self.redact_secrets(exc)}"
+
     @abstractmethod
     def create_txt_record(
         self, 

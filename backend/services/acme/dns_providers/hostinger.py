@@ -38,7 +38,7 @@ class HostingerDnsProvider(BaseDnsProvider):
                 return False, error_msg
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def create_txt_record(self, domain: str, record_name: str, record_value: str, ttl: int = 300) -> Tuple[bool, str]:
         # The caller passes the name being validated; the zone to address is

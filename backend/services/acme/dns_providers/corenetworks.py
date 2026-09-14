@@ -31,7 +31,7 @@ class CoreNetworksDnsProvider(BaseDnsProvider):
                 data={'login': self.credentials['username'], 'password': self.credentials['password']},
                 timeout=30)
             if resp.status_code == 200:
-                self._token = resp.json().get('token')
+                self._token = self.remember_secret(resp.json().get('token'))
                 return True
             return False
         except Exception:
@@ -45,11 +45,11 @@ class CoreNetworksDnsProvider(BaseDnsProvider):
                 headers={'Authorization': f'Bearer {self._token}', 'Content-Type': 'application/json'},
                 json=data, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             return True, resp.json() if resp.text and resp.status_code != 204 else None
         except requests.RequestException as e:
-            logger.error(f"Core-Networks API error: {e}")
-            return False, str(e)
+            logger.error(f"Core-Networks API error: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _find_zone(self, domain):
         success, result = self._request('GET', '/dns/zones/')

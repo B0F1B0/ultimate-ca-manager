@@ -38,11 +38,11 @@ class DnsMadeEasyDnsProvider(BaseDnsProvider):
             resp = requests.request(method, f"{self.BASE_URL}{path}",
                 headers=self._get_headers(), json=data, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            logger.error(f"DNS Made Easy API error: {e}")
-            return False, str(e)
+            logger.error(f"DNS Made Easy API error: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _find_domain(self, domain):
         success, result = self._request('GET', '/dns/managed/')

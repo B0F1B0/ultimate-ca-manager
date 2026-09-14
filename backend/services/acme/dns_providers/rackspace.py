@@ -37,7 +37,7 @@ class RackspaceDnsProvider(BaseDnsProvider):
             if resp.status_code != 200:
                 return False, f"Auth failed: {resp.reason}"
             body = resp.json()
-            self._token = body['access']['token']['id']
+            self._token = self.remember_secret(body['access']['token']['id'])
             for sc in body['access']['serviceCatalog']:
                 if sc['name'] == 'cloudDNS':
                     self._dns_endpoint = sc['endpoints'][0]['publicURL']
@@ -46,7 +46,7 @@ class RackspaceDnsProvider(BaseDnsProvider):
                 return False, "Could not find Cloud DNS endpoint"
             return True, "Authenticated"
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _request(self, method: str, path: str, data: Optional[Dict] = None) -> Tuple[bool, Any]:
         ok, err = self._authenticate()
@@ -60,7 +60,7 @@ class RackspaceDnsProvider(BaseDnsProvider):
                 return False, resp.reason
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _find_domain(self, domain: str) -> Optional[Dict]:
         success, result = self._request('GET', f'/domains?name={domain}')

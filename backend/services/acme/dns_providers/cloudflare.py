@@ -90,8 +90,8 @@ class CloudflareDnsProvider(BaseDnsProvider):
             return True, result.get('result')
             
         except requests.RequestException as e:
-            logger.error(f"Cloudflare API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Cloudflare API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_zone_id(self, domain: str) -> Optional[str]:
         """Get zone ID for domain"""

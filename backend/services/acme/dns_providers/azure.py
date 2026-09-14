@@ -69,12 +69,12 @@ class AzureDnsProvider(BaseDnsProvider):
                 return False, f"Authentication failed: {error_msg}"
             
             data = response.json()
-            self._access_token = data["access_token"]
+            self._access_token = self.remember_secret(data["access_token"])
             return True, self._access_token
             
         except requests.RequestException as e:
-            logger.error(f"Azure OAuth2 token request failed: {e}")
-            return False, str(e)
+            logger.error(f"Azure OAuth2 token request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_headers(self) -> Optional[Dict[str, str]]:
         """Get request headers with Bearer token"""
@@ -124,8 +124,8 @@ class AzureDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"Azure DNS API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Azure DNS API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _zones_path(self) -> str:
         """Build base path for DNS zones"""

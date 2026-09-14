@@ -45,7 +45,7 @@ class ConstellixDnsProvider(BaseDnsProvider):
                 return False, resp.reason
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _find_domain(self, domain: str) -> Optional[Dict]:
         success, result = self._request('GET', '/domains')

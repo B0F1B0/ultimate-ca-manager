@@ -35,10 +35,10 @@ class MythicBeastsDnsProvider(BaseDnsProvider):
                 timeout=30)
             if resp.status_code != 200:
                 return False, f"Auth failed: {resp.reason}"
-            self._token = resp.json()['access_token']
+            self._token = self.remember_secret(resp.json()['access_token'])
             return True, "OK"
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _request(self, method: str, path: str, data: Optional[str] = None) -> Tuple[bool, Any]:
         ok, err = self._authenticate()
@@ -51,10 +51,10 @@ class MythicBeastsDnsProvider(BaseDnsProvider):
         try:
             resp = requests.request(method=method, url=url, headers=headers, data=data, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text or resp.reason
+                return False, self._error(resp)
             return True, resp.json() if resp.text and resp.headers.get('content-type', '').startswith('application/json') else resp.text
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def create_txt_record(self, domain: str, record_name: str, record_value: str, ttl: int = 300) -> Tuple[bool, str]:
         # The caller passes the name being validated; the zone to address is

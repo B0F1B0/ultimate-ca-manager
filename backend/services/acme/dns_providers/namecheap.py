@@ -79,11 +79,11 @@ class NamecheapDnsProvider(BaseDnsProvider):
             return True, root
             
         except ET.ParseError as e:
-            logger.error(f"Namecheap XML parse failed: {e}")
+            logger.error(f"Namecheap XML parse failed: {self._failure(e)}")
             return False, f"XML parse error: {e}"
         except requests.RequestException as e:
-            logger.error(f"Namecheap API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Namecheap API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _parse_domain(self, domain: str) -> Tuple[str, str]:
         """Parse domain into the SLD and TLD Namecheap expects.

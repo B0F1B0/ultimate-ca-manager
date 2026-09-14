@@ -73,8 +73,8 @@ class DigitalOceanDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"DigitalOcean API request failed: {e}")
-            return False, str(e)
+            logger.error(f"DigitalOcean API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_domain(self, domain: str) -> Optional[str]:
         """Find the DO domain that manages this domain"""

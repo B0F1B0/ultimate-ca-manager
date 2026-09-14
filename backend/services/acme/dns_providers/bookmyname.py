@@ -69,7 +69,7 @@ class BookMyNameDnsProvider(BaseDnsProvider):
             result_text = response.text.strip()
             
             if response.status_code >= 400:
-                return False, f"HTTP {response.status_code}: {result_text}"
+                return False, self._error(response)
             
             # Check for success indicators
             if 'ok' in result_text.lower() or 'good' in result_text.lower():
@@ -81,8 +81,8 @@ class BookMyNameDnsProvider(BaseDnsProvider):
                 return True, result_text
             
         except requests.RequestException as e:
-            logger.error(f"BookMyName API request failed: {e}")
-            return False, str(e)
+            logger.error(f"BookMyName API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def create_txt_record(
         self, 

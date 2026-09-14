@@ -30,11 +30,11 @@ class EasyDnsDnsProvider(BaseDnsProvider):
         try:
             resp = requests.request(method, url, json=data, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            logger.error(f"EasyDNS API error: {e}")
-            return False, str(e)
+            logger.error(f"EasyDNS API error: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _find_zone(self, domain):
         parts = domain.split('.')

@@ -35,7 +35,7 @@ class ClouDnsDnsProvider(BaseDnsProvider):
         try:
             resp = requests.get(f"{self.BASE_URL}{path}", params=p, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             data = resp.json()
             if isinstance(data, dict) and data.get('status') == 'Failed':
                 return False, data.get('statusDescription', 'Unknown error')

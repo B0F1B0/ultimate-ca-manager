@@ -38,7 +38,7 @@ class RcodeZeroDnsProvider(BaseDnsProvider):
                 return False, error_msg
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _find_zone(self, domain: str) -> Optional[str]:
         success, result = self._request('GET', '/zones')

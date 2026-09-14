@@ -25,11 +25,11 @@ class AlwaysdataDnsProvider(BaseDnsProvider):
                 auth=(self.credentials['api_key'], ''),
                 json=data, timeout=30, headers={'Content-Type': 'application/json'})
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             return True, resp.json() if resp.text and resp.status_code not in (201, 204) else None
         except requests.RequestException as e:
-            logger.error(f"Alwaysdata API error: {e}")
-            return False, str(e)
+            logger.error(f"Alwaysdata API error: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _find_domain(self, domain):
         success, result = self._request('GET', '/domain/')

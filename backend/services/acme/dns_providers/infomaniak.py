@@ -69,8 +69,8 @@ class InfomaniakDnsProvider(BaseDnsProvider):
             return True, result.get('data', result)
             
         except requests.RequestException as e:
-            logger.error(f"Infomaniak API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Infomaniak API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_domain_info(self, domain: str) -> Optional[Dict]:
         """Get domain info from Infomaniak"""

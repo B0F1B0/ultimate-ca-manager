@@ -80,7 +80,7 @@ class DuckDnsDnsProvider(BaseDnsProvider):
             elif result == 'KO':
                 return False, "DuckDNS returned KO - check token and domain"
             else:
-                return False, f"Unexpected response: {result}"
+                return False, self.redact_secrets(f"Unexpected response: {result}")
                 
         except requests.RequestException as e:
             msg = self.redact_secrets(e)
@@ -119,7 +119,7 @@ class DuckDnsDnsProvider(BaseDnsProvider):
             elif result == 'KO':
                 return False, "DuckDNS returned KO - check token and domain"
             else:
-                return False, f"Unexpected response: {result}"
+                return False, self.redact_secrets(f"Unexpected response: {result}")
                 
         except requests.RequestException as e:
             msg = self.redact_secrets(e)

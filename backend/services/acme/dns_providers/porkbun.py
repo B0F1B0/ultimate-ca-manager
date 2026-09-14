@@ -37,8 +37,8 @@ class PorkbunDnsProvider(BaseDnsProvider):
                 return True, result
             return False, result.get('message', 'Unknown error')
         except requests.RequestException as e:
-            logger.error(f"Porkbun API error: {e}")
-            return False, str(e)
+            logger.error(f"Porkbun API error: {self._failure(e)}")
+            return False, self._failure(e)
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         zone = self.get_zone_for_domain(domain)

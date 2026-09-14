@@ -70,8 +70,8 @@ class HetznerDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"Hetzner Cloud API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Hetzner Cloud API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_zone(self, domain: str) -> Optional[Dict]:
         """Get zone info for domain"""

@@ -94,10 +94,10 @@ class GoogleCloudDnsProvider(BaseDnsProvider):
         }, timeout=30)
         
         if resp.status_code != 200:
-            raise RuntimeError(f"Failed to obtain access token: {resp.text}")
+            raise RuntimeError(self._error(resp, "Failed to obtain access token: "))
         
         data = resp.json()
-        self._access_token = data['access_token']
+        self._access_token = self.remember_secret(data['access_token'])
         self._token_expiry = now + data.get('expires_in', 3600)
         return self._access_token
     
@@ -140,8 +140,8 @@ class GoogleCloudDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"Google Cloud DNS API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Google Cloud DNS API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_zone(self, domain: str) -> Optional[Dict]:
         """Get managed zone info for domain"""

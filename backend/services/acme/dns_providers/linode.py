@@ -77,8 +77,8 @@ class LinodeDnsProvider(BaseDnsProvider):
             return True, None
             
         except requests.RequestException as e:
-            logger.error(f"Linode API request failed: {e}")
-            return False, str(e)
+            logger.error(f"Linode API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_domain(self, domain: str) -> Optional[Dict]:
         """Get domain info for a domain name"""

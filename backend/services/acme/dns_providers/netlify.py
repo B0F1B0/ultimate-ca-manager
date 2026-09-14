@@ -45,7 +45,7 @@ class NetlifyDnsProvider(BaseDnsProvider):
             return True, None
         except requests.RequestException as e:
             logger.error("Netlify API request failed: %s", e)
-            return False, str(e)
+            return False, self._failure(e)
     
     def _get_zone_id(self, domain: str) -> Optional[str]:
         if domain in self._zone_cache:

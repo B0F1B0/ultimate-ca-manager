@@ -72,7 +72,7 @@ class Route53DnsProvider(BaseDnsProvider):
             return None
             
         except Exception as e:
-            logger.error(f"Failed to list Route53 zones: {e}")
+            logger.error(f"Failed to list Route53 zones: {self._failure(e)}")
             return None
     
     def create_txt_record(
@@ -116,8 +116,8 @@ class Route53DnsProvider(BaseDnsProvider):
             return True, f"Record created successfully (change: {change_id})"
             
         except Exception as e:
-            logger.error(f"Route53 create record failed: {e}")
-            return False, str(e)
+            logger.error(f"Route53 create record failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
         """Delete TXT record via Route53"""
@@ -165,8 +165,8 @@ class Route53DnsProvider(BaseDnsProvider):
         except Exception as e:
             if 'ResourceRecordSet not found' in str(e) or 'was not found' in str(e):
                 return True, "Record not found (already deleted?)"
-            logger.error(f"Route53 delete record failed: {e}")
-            return False, str(e)
+            logger.error(f"Route53 delete record failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def test_connection(self) -> Tuple[bool, str]:
         """Test Route53 API connection"""

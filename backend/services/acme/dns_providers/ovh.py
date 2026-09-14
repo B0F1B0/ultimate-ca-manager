@@ -107,8 +107,8 @@ class OvhDnsProvider(BaseDnsProvider):
             return True, response.json() if response.text else None
             
         except requests.RequestException as e:
-            logger.error(f"OVH API request failed: {e}")
-            return False, str(e)
+            logger.error(f"OVH API request failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_zone(self, domain: str) -> Optional[str]:
         """Find the zone that manages this domain.

@@ -31,9 +31,9 @@ class HurricaneDnsProvider(BaseDnsProvider):
             body = resp.text.strip()
             if body.startswith('good') or body.startswith('nochg'):
                 return True, "Record created successfully"
-            return False, f"HE update failed: {body}"
+            return False, self._error(resp, "HE update failed: ")
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
         # HE doesn't have a delete API — set TXT to empty value
@@ -45,7 +45,7 @@ class HurricaneDnsProvider(BaseDnsProvider):
             }, timeout=30)
             return True, "Record cleared (HE does not support delete)"
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def test_connection(self) -> Tuple[bool, str]:
         # HE has no list/status endpoint — just verify credentials format

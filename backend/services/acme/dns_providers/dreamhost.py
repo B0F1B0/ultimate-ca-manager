@@ -26,7 +26,7 @@ class DreamhostDnsProvider(BaseDnsProvider):
         try:
             resp = requests.get(self.BASE_URL, params=p, timeout=30)
             if resp.status_code >= 400:
-                return False, resp.text
+                return False, self._error(resp)
             data = resp.json()
             if data.get('result') == 'success':
                 return True, data

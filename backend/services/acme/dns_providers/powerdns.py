@@ -38,7 +38,7 @@ class PowerDnsDnsProvider(BaseDnsProvider):
                 return False, error_msg
             return True, resp.json() if resp.text and resp.status_code != 204 else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _find_zone(self, domain: str) -> Optional[str]:
         success, zones = self._request('GET', '/zones')

@@ -36,7 +36,7 @@ class NamecomDnsProvider(BaseDnsProvider):
                 return False, error_msg
             return True, resp.json() if resp.text else None
         except requests.RequestException as e:
-            return False, str(e)
+            return False, self._failure(e)
     
     def _find_domain(self, domain: str) -> Optional[str]:
         domain_parts = domain.split('.')

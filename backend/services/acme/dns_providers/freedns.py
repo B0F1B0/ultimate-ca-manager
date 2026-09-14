@@ -79,8 +79,8 @@ class FreeDnsDnsProvider(BaseDnsProvider):
             return False, "Login verification failed"
             
         except requests.RequestException as e:
-            logger.error(f"FreeDNS login failed: {e}")
-            return False, str(e)
+            logger.error(f"FreeDNS login failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def _get_domain_id(self, domain: str) -> Optional[str]:
         """Get domain_id for a domain from FreeDNS"""
@@ -113,7 +113,7 @@ class FreeDnsDnsProvider(BaseDnsProvider):
             return None
             
         except requests.RequestException as e:
-            logger.error(f"FreeDNS get domain ID failed: {e}")
+            logger.error(f"FreeDNS get domain ID failed: {self._failure(e)}")
             return None
     
     def _get_txt_record_id(self, record_name: str) -> Optional[str]:
@@ -135,7 +135,7 @@ class FreeDnsDnsProvider(BaseDnsProvider):
             return None
             
         except requests.RequestException as e:
-            logger.error(f"FreeDNS get TXT record ID failed: {e}")
+            logger.error(f"FreeDNS get TXT record ID failed: {self._failure(e)}")
             return None
     
     def create_txt_record(
@@ -191,8 +191,8 @@ class FreeDnsDnsProvider(BaseDnsProvider):
             return True, "Record submitted (verification pending)"
             
         except requests.RequestException as e:
-            logger.error(f"FreeDNS create record failed: {e}")
-            return False, str(e)
+            logger.error(f"FreeDNS create record failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
         """Delete TXT record via FreeDNS web interface"""
@@ -222,8 +222,8 @@ class FreeDnsDnsProvider(BaseDnsProvider):
             return True, "Record deleted successfully"
             
         except requests.RequestException as e:
-            logger.error(f"FreeDNS delete record failed: {e}")
-            return False, str(e)
+            logger.error(f"FreeDNS delete record failed: {self._failure(e)}")
+            return False, self._failure(e)
     
     def test_connection(self) -> Tuple[bool, str]:
         """Test FreeDNS connection"""
