@@ -110,130 +110,21 @@ def ssl_context(conf, default_ssl_context_factory):
     return ctx
 
 
-def _wstep_enabled():
-    """Whether WSTEP is administratively enabled, read directly from the
-    database at worker startup — same raw-sqlite3 approach as
-    _load_mtls_config, to avoid a Flask/SQLAlchemy dependency this early.
-    Determines whether the TLS 1.2 cap in ssl_context() is needed at all.
-    """
-    db_path = os.path.join(data_path, 'ucm.db')
-    if not os.path.exists(db_path):
-        return False
+from boot_config import mtls_client_ca, wstep_enabled
 
-    import sqlite3
-    try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT value FROM system_config WHERE key = 'wstep_enabled'")
-        row = cursor.fetchone()
-        conn.close()
-        return bool(row) and row[0] == 'true'
-    except Exception as e:
-        print(f"WSTEP: config load failed, assuming disabled: {e}", file=sys.stderr)
-        return False
-
-
-WSTEP_TLS12_CAP_NEEDED = _wstep_enabled()
+# Drives the TLS 1.2 cap in ssl_context().
+WSTEP_TLS12_CAP_NEEDED = wstep_enabled(data_path)
 
 
 def _load_mtls_config():
-    """Read mTLS settings from database at startup and configure client cert verification.
-    Uses raw sqlite3 to avoid Flask/SQLAlchemy dependency at config load time.
-    """
+    """Configure client certificate verification from the stored settings."""
     global cert_reqs, ca_certs
 
-    db_path = os.path.join(data_path, 'ucm.db')
-    if not os.path.exists(db_path):
-        return
-
-    import sqlite3
-    import base64
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-
-        cursor.execute(
-            "SELECT key, value FROM system_config "
-            "WHERE key IN ('mtls_enabled', 'mtls_required', 'mtls_trusted_ca_id')"
-        )
-        config = dict(cursor.fetchall())
-
-        if config.get('mtls_enabled') != 'true':
-            conn.close()
+        found = mtls_client_ca(data_path)
+        if not found:
             return
-
-        ca_refid = config.get('mtls_trusted_ca_id')
-        if not ca_refid:
-            conn.close()
-            return
-
-        cursor.execute(
-            "SELECT crt, descr FROM certificate_authorities WHERE refid = ?",
-            (ca_refid,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-
-        if not row or not row[0]:
-            print("mTLS: trusted CA not found in database", file=sys.stderr)
-            return
-
-        # Decode CA cert (base64 encoded in DB)
-        try:
-            ca_pem = base64.b64decode(row[0]).decode('utf-8')
-        except Exception:
-            ca_pem = row[0]
-
-        # Validate PEM format
-        if '-----BEGIN CERTIFICATE-----' not in ca_pem or '-----END CERTIFICATE-----' not in ca_pem:
-            print(f"mTLS: CA cert for {ca_refid} is not valid PEM format", file=sys.stderr)
-            return
-
-        # Build full chain (include parent CAs up to root)
-        full_chain = ca_pem
-        cursor2 = sqlite3.connect(db_path).cursor()
-        current_refid = ca_refid
-        # caref carries no foreign key, so a repaired hierarchy can point back
-        # at a CA already visited. This walk runs in the gunicorn master before
-        # any worker forks: an unguarded loop here means the service never
-        # starts. Same bound as utils/ca_chain.walk_ca_chain, reimplemented on
-        # raw sqlite3 because no application module is importable yet.
-        seen_refids = {current_refid}
-        while True:
-            cursor2.execute(
-                "SELECT caref FROM certificate_authorities WHERE refid = ?",
-                (current_refid,)
-            )
-            parent_row = cursor2.fetchone()
-            if not parent_row or not parent_row[0]:
-                break
-            parent_refid = parent_row[0]
-            if parent_refid in seen_refids:
-                print(
-                    f"mTLS: CA chain of {ca_refid} loops at {parent_refid}; "
-                    "serving the chain collected so far",
-                    file=sys.stderr,
-                )
-                break
-            seen_refids.add(parent_refid)
-            cursor2.execute(
-                "SELECT crt FROM certificate_authorities WHERE refid = ?",
-                (parent_refid,)
-            )
-            parent_cert_row = cursor2.fetchone()
-            if not parent_cert_row or not parent_cert_row[0]:
-                break
-            try:
-                parent_pem = base64.b64decode(parent_cert_row[0]).decode('utf-8')
-            except Exception:
-                parent_pem = parent_cert_row[0]
-            if '-----BEGIN CERTIFICATE-----' not in parent_pem:
-                break
-            if not full_chain.endswith('\n'):
-                full_chain += '\n'
-            full_chain += parent_pem
-            current_refid = parent_refid
-        cursor2.connection.close()
+        full_chain, ca_name, required = found
 
         # Write CA cert atomically (temp file + rename) with restricted permissions
         import tempfile
@@ -253,10 +144,9 @@ def _load_mtls_config():
             raise e
 
         ca_certs = ca_file_path
-        cert_reqs = 2 if config.get('mtls_required') == 'true' else 1
+        cert_reqs = 2 if required else 1
 
         mode = "REQUIRED" if cert_reqs == 2 else "OPTIONAL"
-        ca_name = row[1] or ca_refid
         print(f"mTLS: {mode} — trusted CA: {ca_name}", file=sys.stderr)
 
     except Exception as e:
