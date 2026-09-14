@@ -41,10 +41,9 @@ class BunnyDnsProvider(BaseDnsProvider):
         success, result = self._request('GET', '/dnszone')
         if not success:
             return None
-        for z in result.get('Items', []):
-            if domain.endswith(z['Domain']):
-                return z['Id'], z['Domain']
-        return None
+        z = self.find_zone(domain, result.get('Items', []),
+                           key=lambda zone: zone.get('Domain', ''))
+        return (z['Id'], z['Domain']) if z else None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         info = self._find_zone(domain)

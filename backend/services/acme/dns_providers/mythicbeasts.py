@@ -57,17 +57,23 @@ class MythicBeastsDnsProvider(BaseDnsProvider):
             return False, str(e)
     
     def create_txt_record(self, domain: str, record_name: str, record_value: str, ttl: int = 300) -> Tuple[bool, str]:
-        relative = self.get_relative_record_name(record_name, domain)
+        # The caller passes the name being validated; the zone to address is
+        # the registrable domain under it (no zone API here to ask).
+        zone = self.get_zone_for_domain(domain) or domain
+        relative = self.get_relative_record_name(record_name, zone)
         record_line = f"{relative} {ttl} TXT {record_value}"
-        success, result = self._request('POST', f'/zones/{domain}/records', data=record_line)
+        success, result = self._request('POST', f'/zones/{zone}/records', data=record_line)
         if not success:
             return False, f"Failed to create record: {result}"
         return True, "Record created successfully"
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
-        relative = self.get_relative_record_name(record_name, domain)
+        # Same zone resolution as the create path, so the record is looked
+        # for where it was written.
+        zone = self.get_zone_for_domain(domain) or domain
+        relative = self.get_relative_record_name(record_name, zone)
         record_line = f"{relative} TXT"
-        success, result = self._request('DELETE', f'/zones/{domain}/records', data=record_line)
+        success, result = self._request('DELETE', f'/zones/{zone}/records', data=record_line)
         if not success:
             return False, f"Failed to delete record: {result}"
         return True, "Record deleted successfully"

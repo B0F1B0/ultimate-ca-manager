@@ -86,13 +86,28 @@ class NamecheapDnsProvider(BaseDnsProvider):
             return False, str(e)
     
     def _parse_domain(self, domain: str) -> Tuple[str, str]:
-        """Parse domain into SLD and TLD"""
-        parts = domain.split('.')
-        if len(parts) >= 2:
-            tld = parts[-1]
-            sld = '.'.join(parts[:-1])
-            return sld, tld
-        return domain, ''
+        """Parse domain into the SLD and TLD Namecheap expects.
+
+        Namecheap addresses the *registered* domain, so the split is taken
+        from the registrable zone, not from the name being validated: the
+        previous split of the full name made `sub.example.com` into SLD
+        `sub.example` + TLD `com`, a domain that does not exist on the
+        account, and `example.co.uk` into SLD `example.co` + TLD `uk`.
+        """
+        zone = self.get_zone_for_domain(domain) or domain
+        labels = zone.split('.')
+        if len(labels) >= 2:
+            return labels[0], '.'.join(labels[1:])
+        return zone, ''
+
+    def _relative_host(self, record_name: str, domain: str) -> str:
+        """The record name relative to the zone Namecheap is addressing."""
+        zone = self.get_zone_for_domain(domain) or domain
+        if record_name == zone:
+            return '@'
+        if record_name.endswith('.' + zone):
+            return record_name[:-len(zone) - 1]
+        return record_name
     
     def _get_existing_records(self, sld: str, tld: str) -> List[Dict]:
         """Get existing DNS records for a domain"""
@@ -127,13 +142,8 @@ class NamecheapDnsProvider(BaseDnsProvider):
         # Parse domain
         sld, tld = self._parse_domain(domain)
         
-        # Get relative name
-        if record_name.endswith('.' + domain):
-            host_name = record_name[:-len(domain) - 1]
-        elif record_name == domain:
-            host_name = '@'
-        else:
-            host_name = record_name
+        # Get relative name, against the zone Namecheap is addressing
+        host_name = self._relative_host(record_name, domain)
         
         # Get existing records
         existing_records = self._get_existing_records(sld, tld)
@@ -169,13 +179,8 @@ class NamecheapDnsProvider(BaseDnsProvider):
         # Parse domain
         sld, tld = self._parse_domain(domain)
         
-        # Get relative name
-        if record_name.endswith('.' + domain):
-            host_name = record_name[:-len(domain) - 1]
-        elif record_name == domain:
-            host_name = '@'
-        else:
-            host_name = record_name
+        # Get relative name, against the zone Namecheap is addressing
+        host_name = self._relative_host(record_name, domain)
         
         # Get existing records
         existing_records = self._get_existing_records(sld, tld)

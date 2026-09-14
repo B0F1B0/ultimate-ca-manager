@@ -35,10 +35,8 @@ class DomeneshopDnsProvider(BaseDnsProvider):
         success, result = self._request('GET', '/domains')
         if not success:
             return None
-        for d in result or []:
-            if domain.endswith(d['domain']):
-                return d['id'], d['domain']
-        return None
+        d = self.find_zone(domain, result or [], key=lambda z: z.get('domain', ''))
+        return (d['id'], d['domain']) if d else None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         info = self._find_domain(domain)

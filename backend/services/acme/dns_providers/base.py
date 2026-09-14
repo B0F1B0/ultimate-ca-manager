@@ -111,23 +111,103 @@ class BaseDnsProvider(ABC):
         """
         pass
     
+    # Registry suffixes that take two labels, so the registrable domain under
+    # them takes three. Without this, `example.co.uk` reads as `co.uk` and the
+    # record is aimed at a zone nobody can hold. Kept here rather than in one
+    # provider because every provider that has no zone API needs it.
+    _MULTI_PART_TLDS = {
+        'co.uk', 'org.uk', 'ac.uk', 'me.uk', 'net.uk',  # UK
+        'com.au', 'net.au', 'org.au', 'edu.au',  # Australia
+        'co.jp', 'or.jp', 'ne.jp', 'ac.jp', 'go.jp',  # Japan
+        'co.nz', 'org.nz', 'net.nz', 'govt.nz',  # New Zealand
+        'com.br', 'net.br', 'org.br',  # Brazil
+        'co.in', 'co.za', 'co.ke', 'co.zw',  # India/South Africa/Kenya/Zimbabwe
+        'com.hk', 'net.hk', 'org.hk',  # Hong Kong
+        'com.sg', 'net.sg', 'org.sg', 'gov.sg',  # Singapore
+        'com.tw', 'org.tw', 'edu.tw', 'gov.tw', 'idv.tw',  # Taiwan
+        'com.vn', 'net.vn', 'org.vn',  # Vietnam
+        'com.my', 'net.my', 'org.my',  # Malaysia
+        'com.mx', 'net.mx', 'org.mx',  # Mexico
+        'com.ar', 'net.ar', 'org.ar',  # Argentina
+        'com.pe', 'net.pe', 'org.pe',  # Peru
+        'com.co', 'net.co', 'org.co',  # Colombia
+        'com.ec', 'net.ec', 'org.ec',  # Ecuador
+        'com.ve', 'net.ve', 'org.ve',  # Venezuela
+    }
+
+    @staticmethod
+    def _normalise_name(name) -> str:
+        """Lowercase, no trailing root dot, no wildcard label."""
+        if not name or not isinstance(name, str):
+            return ''
+        name = name.strip().lower().rstrip('.')
+        if name.startswith('*.'):
+            name = name[2:]
+        return name
+
+    @classmethod
+    def find_zone(cls, fqdn: str, candidates, key=None):
+        """The most specific zone in `candidates` that holds `fqdn`.
+
+        A dns-01 record only answers from the zone that is authoritative for
+        it. When an operator holds both `example.co.uk` and a delegated
+        `sub.example.co.uk`, the record for a name under the child belongs in
+        the child; written to the parent it is never served, the CA keeps
+        retrying and the order expires with nothing in UCM explaining why.
+
+        Selection is therefore by longest match, not by whichever candidate
+        the provider's API happened to list first. `endswith` alone is not
+        enough either: it has no label boundary, so zone `example.com` would
+        capture `notexample.com`, and an empty candidate name matches
+        everything.
+
+        Args:
+            fqdn: the name being validated (a leading `*.` is ignored)
+            candidates: zone names, or objects to read a name out of
+            key: how to read the name from a candidate (default: itself)
+
+        Returns:
+            The winning candidate exactly as it was given, or None.
+        """
+        target = cls._normalise_name(fqdn)
+        if not target:
+            return None
+
+        best = None
+        best_len = -1
+        for candidate in candidates or []:
+            raw = key(candidate) if key else candidate
+            zone = cls._normalise_name(raw)
+            if not zone:
+                continue
+            if target != zone and not target.endswith('.' + zone):
+                continue
+            if len(zone) > best_len:
+                best, best_len = candidate, len(zone)
+        return best
+
     def get_zone_for_domain(self, domain: str) -> Optional[str]:
         """
-        Find the appropriate zone for a domain.
+        Guess the registrable zone for a domain, for providers with no zone API.
+
         Override if provider needs special zone detection.
-        
+
         Args:
             domain: The domain to find zone for
-        
+
         Returns:
             Zone name or None if not found
         """
-        # Default: return the domain itself or parent domain
+        domain = self._normalise_name(domain)
+        if not domain:
+            return None
         parts = domain.split('.')
+        if len(parts) >= 3 and '.'.join(parts[-2:]) in self._MULTI_PART_TLDS:
+            return '.'.join(parts[-3:])
         if len(parts) >= 2:
             return '.'.join(parts[-2:])
         return domain
-    
+
     def get_acme_challenge_name(self, domain: str) -> str:
         """
         Get the full record name for ACME challenge.

@@ -52,19 +52,25 @@ class HoverDnsProvider(BaseDnsProvider):
             return False, str(e)
     
     def create_txt_record(self, domain: str, record_name: str, record_value: str, ttl: int = 300) -> Tuple[bool, str]:
-        relative = self.get_relative_record_name(record_name, domain)
+        # The caller passes the name being validated; the zone to address is
+        # the registrable domain under it (no zone API here to ask).
+        zone = self.get_zone_for_domain(domain) or domain
+        relative = self.get_relative_record_name(record_name, zone)
         data = {'name': relative, 'type': 'TXT', 'content': record_value}
-        success, result = self._request('POST', f'/domains/{domain}/dns', data)
+        success, result = self._request('POST', f'/domains/{zone}/dns', data)
         if not success:
             return False, f"Failed to create record: {result}"
         return True, "Record created successfully"
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
-        success, result = self._request('GET', f'/domains/{domain}/dns')
+        # Same zone resolution as the create path, so the record is looked
+        # for where it was written.
+        zone = self.get_zone_for_domain(domain) or domain
+        success, result = self._request('GET', f'/domains/{zone}/dns')
         if not success:
             return False, f"Failed to list records: {result}"
         for rec in result.get('domains', [{}])[0].get('entries', []):
-            if rec.get('type') == 'TXT' and rec.get('name') == self.get_relative_record_name(record_name, domain):
+            if rec.get('type') == 'TXT' and rec.get('name') == self.get_relative_record_name(record_name, zone):
                 self._request('DELETE', f'/dns/{rec["id"]}')
         return True, "Record deleted successfully"
     

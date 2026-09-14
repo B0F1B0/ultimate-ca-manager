@@ -64,9 +64,9 @@ class ClouDnsDnsProvider(BaseDnsProvider):
             return None
         # result is a list of zones
         if isinstance(result, list):
-            for z in result:
-                if domain.endswith(z.get('name', '')):
-                    return z['name']
+            z = self.find_zone(domain, result, key=lambda zone: zone.get('name', ''))
+            if z:
+                return z['name']
         return None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):

@@ -35,10 +35,8 @@ class AlwaysdataDnsProvider(BaseDnsProvider):
         success, result = self._request('GET', '/domain/')
         if not success:
             return None
-        for d in result or []:
-            if domain.endswith(d.get('name', '')):
-                return d['id'], d['name']
-        return None
+        d = self.find_zone(domain, result or [], key=lambda z: z.get('name', ''))
+        return (d['id'], d['name']) if d else None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         info = self._find_domain(domain)

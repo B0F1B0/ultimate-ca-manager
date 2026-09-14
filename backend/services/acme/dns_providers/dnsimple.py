@@ -42,10 +42,9 @@ class DnsimpleDnsProvider(BaseDnsProvider):
         success, result = self._request('GET', '/zones')
         if not success:
             return None
-        for z in result.get('data', []):
-            if domain.endswith(z['name']):
-                return z['name']
-        return None
+        z = self.find_zone(domain, result.get('data', []),
+                           key=lambda zone: zone.get('name', ''))
+        return z['name'] if z else None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         zone = self._find_zone(domain)

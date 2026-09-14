@@ -37,22 +37,28 @@ class EpikDnsProvider(BaseDnsProvider):
             return False, self.redact_secrets(e)
     
     def create_txt_record(self, domain: str, record_name: str, record_value: str, ttl: int = 300) -> Tuple[bool, str]:
-        host = self.get_relative_record_name(record_name, domain)
+        # The caller passes the name being validated; the zone to address is
+        # the registrable domain under it (no zone API here to ask).
+        zone = self.get_zone_for_domain(domain) or domain
+        host = self.get_relative_record_name(record_name, zone)
         data = {'HOST': host, 'TYPE': 'TXT', 'DATA': record_value, 'TTL': ttl, 'AUX': 0}
-        success, result = self._request('POST', f'/domains/{domain}/records', data=data)
+        success, result = self._request('POST', f'/domains/{zone}/records', data=data)
         if not success:
             return False, f"Failed to create record: {result}"
         return True, "Record created successfully"
     
     def delete_txt_record(self, domain: str, record_name: str) -> Tuple[bool, str]:
-        success, result = self._request('GET', f'/domains/{domain}/records')
+        # Same zone resolution as the create path, so the record is looked
+        # for where it was written.
+        zone = self.get_zone_for_domain(domain) or domain
+        success, result = self._request('GET', f'/domains/{zone}/records')
         if not success:
             return False, f"Failed to list records: {result}"
-        host = self.get_relative_record_name(record_name, domain)
+        host = self.get_relative_record_name(record_name, zone)
         records = result.get('data', {}).get('records', [])
         for rec in records:
             if rec.get('TYPE') == 'TXT' and rec.get('HOST') == host:
-                self._request('DELETE', f'/domains/{domain}/records/{rec["ID"]}')
+                self._request('DELETE', f'/domains/{zone}/records/{rec["ID"]}')
         return True, "Record deleted successfully"
     
     def test_connection(self) -> Tuple[bool, str]:

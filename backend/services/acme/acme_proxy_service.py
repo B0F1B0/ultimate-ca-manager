@@ -1563,12 +1563,17 @@ class AcmeProxyService:
                 credentials = json.loads(provider_model.credentials) if provider_model.credentials else {}
                 provider = create_provider(provider_model.provider_type, credentials)
 
-                # Find the best zone for this domain
-                zone = provider.get_zone_for_domain(domain)
+                # Hand the provider the name being validated and let it
+                # resolve its own zone, which is what the ACME client path
+                # already does. Guessing the zone here took it away from the
+                # providers that can ask their API: a delegated child zone
+                # was invisible to them, and the record landed in the parent
+                # where the resolver never serves it.
+                zone_name = self._strip_wildcard(domain)
                 full_record_name = provider.get_acme_challenge_name(domain)
 
-                logger.info(f"[ACME Proxy BG] Creating DNS TXT record for {domain} in zone {zone}: {full_record_name}")
-                provider.create_txt_record(zone, full_record_name, txt_value)
+                logger.info(f"[ACME Proxy BG] Creating DNS TXT record for {domain}: {full_record_name}")
+                provider.create_txt_record(zone_name, full_record_name, txt_value)
 
                 # Client-side pre-check support (#306/#307): lego/Caddy compute
                 # the expected TXT value from THEIR account key, not from the
@@ -1580,10 +1585,10 @@ class AcmeProxyService:
                     order, key_authz, txt_value, authz_url=authz_url
                 ):
                     try:
-                        provider.create_txt_record(zone, full_record_name, extra_value)
+                        provider.create_txt_record(zone_name, full_record_name, extra_value)
                         records = json.loads(order.dns_records_created) if order.dns_records_created else []
                         records.append({
-                            'domain': zone,
+                            'domain': zone_name,
                             'record_name': full_record_name,
                             'value': extra_value,
                             'provider_id': provider_model.id
@@ -1620,7 +1625,7 @@ class AcmeProxyService:
                 # Store record info for cleanup
                 records = json.loads(order.dns_records_created) if order.dns_records_created else []
                 records.append({
-                    'domain': zone,
+                    'domain': zone_name,
                     'record_name': full_record_name,
                     'value': txt_value,
                     'provider_id': provider_model.id

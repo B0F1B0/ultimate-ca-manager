@@ -55,11 +55,8 @@ class CoreNetworksDnsProvider(BaseDnsProvider):
         success, result = self._request('GET', '/dns/zones/')
         if not success:
             return None
-        for z in result or []:
-            name = z.get('name', '')
-            if domain.endswith(name):
-                return name
-        return None
+        z = self.find_zone(domain, result or [], key=lambda zone: zone.get('name', ''))
+        return z['name'] if z else None
     
     def create_txt_record(self, domain, record_name, record_value, ttl=300):
         zone = self._find_zone(domain)
