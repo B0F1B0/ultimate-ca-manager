@@ -235,15 +235,15 @@ def list_trusted_certificates():
 def add_trusted_certificate():
     """
     Add certificate to trust store
-    
-    POST /api/v2/truststore
-    {
-        "name": "DigiCert Global Root CA",
-        "description": "DigiCert public root CA",
-        "certificate_pem": "-----BEGIN CERTIFICATE-----...",
-        "purpose": "root_ca",
-        "notes": "Trusted for code signing"
-    }
+
+    POST /api/v2/truststore with a JSON body carrying `name` (required),
+    `description`, `certificate_pem` (required), `purpose` (e.g. `root_ca`)
+    and `notes`.
+
+    Kept as prose on purpose: flasgger parses every route docstring as YAML
+    to build /api/docs/apispec.json, and an indented JSON example is a YAML
+    mapping with a syntax error in it. One of these took the whole served
+    API description down with a 500.
     """
     data = request.get_json()
     

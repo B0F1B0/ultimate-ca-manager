@@ -131,7 +131,7 @@ See [Installation Guide](docs/installation/README.md) for all methods including 
 | User Guide | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) |
 | Admin Guide | [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) |
 | API Reference | [docs/API_REFERENCE.md](docs/API_REFERENCE.md) |
-| OpenAPI Spec | [docs/openapi.yaml](docs/openapi.yaml) |
+| API Explorer | `/api/docs` on a running server (live, versioned with the build) |
 | Security | [docs/SECURITY.md](docs/SECURITY.md) |
 | Upgrade Guide | [UPGRADE.md](UPGRADE.md) |
 | Changelog | [CHANGELOG.md](CHANGELOG.md) |

@@ -36,24 +36,19 @@ def _content_too_large(content) -> bool:
 def analyze_import():
     """
     Analyze content for import without actually importing.
-    
-    Request body:
-    {
-        "content": "-----BEGIN CERTIFICATE-----...",
-        "password": "optional password for encrypted content"
-    }
-    
-    Response:
-    {
-        "success": true,
-        "data": {
-            "objects": [...],
-            "chains": [...],
-            "matching": {...},
-            "validation": {...},
-            "summary": {...}
-        }
-    }
+
+    Request body: `content` (PEM/PKCS#12/JKS text or base64) and an optional
+    `password` for encrypted content.
+
+    Response `data` carries `objects`, `chains`, `matching`, `validation`
+    and `summary`.
+
+    Written as prose, without a PEM header or a JSON example. flasgger
+    builds /api/docs/apispec.json by treating a run of three dashes in a
+    route docstring as the start of a YAML block, and a PEM header is such
+    a run. What followed was not a YAML mapping, and the whole served API
+    description answered 500. tests/test_one_api_description.py keeps it
+    answering 200.
     """
     data = request.get_json()
     
@@ -84,33 +79,17 @@ def analyze_import():
 def execute_import():
     """
     Execute the smart import.
-    
-    Request body:
-    {
-        "content": "-----BEGIN CERTIFICATE-----...",
-        "password": "optional password",
-        "options": {
-            "import_cas": true,
-            "import_certs": true,
-            "import_csrs": true,
-            "skip_duplicates": true,
-            "description_prefix": "Imported: "
-        }
-    }
-    
-    Response:
-    {
-        "success": true,
-        "data": {
-            "certificates_imported": 1,
-            "cas_imported": 2,
-            "keys_matched": 1,
-            "csrs_imported": 0,
-            "errors": [],
-            "warnings": [],
-            "imported_ids": {...}
-        }
-    }
+
+    Request body: `content`, an optional `password`, and `options` with
+    `import_cas`, `import_certs`, `import_csrs`, `skip_duplicates` and
+    `description_prefix`.
+
+    Response `data` carries the counts (`certificates_imported`,
+    `cas_imported`, `keys_matched`, `csrs_imported`), plus `errors`,
+    `warnings` and `imported_ids`.
+
+    Prose rather than a JSON example, for the reason given on
+    `analyze_import` above.
     """
     data = request.get_json()
     
