@@ -132,10 +132,13 @@ class RateLimitConfig:
             # The rest of utils/public_endpoints.PROTOCOL_PREFIXES. Missing
             # here, they shared the `_default` bucket with the admin API: a
             # timestamping client and the interface spent the same quota.
-            '/ca/': {'rpm': protocol_rpm, 'burst': protocol_burst},
-            '/tsa/': {'rpm': protocol_rpm, 'burst': protocol_burst},
-            '/tsa': {'rpm': protocol_rpm, 'burst': protocol_burst},
-            '/ssh/setup/': {'rpm': protocol_rpm, 'burst': protocol_burst},
+            # They keep the standard rate: giving them a bucket of their own
+            # must not take throughput away from a machine client, and
+            # `protocol_rpm` is *lower* than `standard_rpm` by default.
+            '/ca/': {'rpm': standard_rpm, 'burst': standard_burst},
+            '/tsa/': {'rpm': standard_rpm, 'burst': standard_burst},
+            '/tsa': {'rpm': standard_rpm, 'burst': standard_burst},
+            '/ssh/setup/': {'rpm': standard_rpm, 'burst': standard_burst},
             # Windows enrolment: a GPO refresh fans a fleet out at once, and
             # these had `_default` before. Separate bucket, same rate.
             '/ADPolicyProvider_CEP_': {'rpm': standard_rpm, 'burst': standard_burst},

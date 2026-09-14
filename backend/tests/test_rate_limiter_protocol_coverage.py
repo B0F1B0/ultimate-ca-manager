@@ -7,6 +7,8 @@ with the whole admin API: a timestamping client and the operator's browser
 spent the same quota, and the one that hit the ceiling was whichever went
 second.
 """
+import os
+
 import pytest
 
 from security.rate_limiter import RateLimitConfig, RateLimiter
@@ -28,6 +30,19 @@ SAMPLE_PATH = {
 @pytest.fixture()
 def limiter():
     return RateLimiter()
+
+
+@pytest.fixture()
+def stock_limits(monkeypatch):
+    """The limits as shipped, with every RATE_LIMIT_* override removed."""
+    for name in [key for key in os.environ if key.startswith('RATE_LIMIT_')]:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(RateLimitConfig, '_limits_loaded', False)
+    monkeypatch.setattr(RateLimitConfig, '_default_limits', {})
+    RateLimitConfig._load_limits()
+    yield
+    RateLimitConfig._limits_loaded = False
+    RateLimitConfig._load_limits()
 
 
 class TestNoProtocolPathFallsThrough:
@@ -53,9 +68,12 @@ class TestABarePathIsNotAPrefix:
         assert RateLimitConfig.get_limit('/tsa-config') == \
             RateLimitConfig.get_default_limits()['_default']
 
-    def test_the_protocol_path_itself_is_not_the_default(self):
-        assert RateLimitConfig.get_limit('/tsa') != \
-            RateLimitConfig.get_default_limits()['_default']
+    def test_the_protocol_path_itself_has_its_own_bucket(self, limiter):
+        """Same rate as the admin API, a bucket of its own: that is the point.
+        Sharing the rate is deliberate (classifying must not throttle), so the
+        separation shows in the bucket, not in the number."""
+        assert limiter._get_key('10.0.0.1', '/tsa') == '10.0.0.1:/tsa'
+        assert RateLimitConfig.pattern_for('/tsa') == '/tsa'
 
 
 class TestTheLimitsStayProtocolSized:
@@ -64,9 +82,15 @@ class TestTheLimitsStayProtocolSized:
                         '/ADCertificateService_CES_UsernamePassword/service.svc']
 
     @pytest.mark.parametrize('path', NEWLY_CLASSIFIED)
-    def test_classifying_a_path_never_throttles_it(self, path):
+    def test_classifying_a_path_never_throttles_it(self, path, stock_limits):
         """These fell in `_default` before: giving them a bucket must not
-        take rate away from a machine client at the same time."""
+        take rate away from a machine client at the same time.
+
+        Judged on the shipped defaults, never on this machine's env file: a
+        deployment that lowers `RATE_LIMIT_STANDARD_RPM` below the protocol
+        rate hid the regression locally while CI, which has no env file at
+        all, failed on it.
+        """
         assert RateLimitConfig.get_limit(path)['rpm'] >= \
             RateLimitConfig.get_default_limits()['_default']['rpm'], path
 
