@@ -46,9 +46,20 @@ def _rate_limit_lan_exempt():
     the primary use case, not an attack vector. This mirrors the LAN-trust
     bypass in security.rate_limiter (v2.155) so the per-endpoint login limits
     (`@limiter.limit(...)`) don't lock out internal clients (or CI runners on
-    127.0.0.1). Gated by RATE_LIMIT_TRUST_LAN (default: true). The key is the
-    immediate peer (get_remote_address), so a spoofed X-Forwarded-For cannot
-    be used to gain the exemption.
+    127.0.0.1). Gated by RATE_LIMIT_TRUST_LAN (default: true).
+
+    What stops a spoofed X-Forwarded-For from buying the exemption is
+    ForwardedHeadersGate, which strips those headers from any peer that is not
+    listed in UCM_TRUSTED_PROXIES, not the choice of key function: behind a
+    declared proxy, ProxyFix has already rewritten REMOTE_ADDR, so
+    get_remote_address() is the client's address and the exemption is decided
+    on the client, which is what it should be. Without UCM_BEHIND_PROXY the
+    address is the proxy's, every client shares one bucket, and the startup
+    log says so.
+
+    Do not swap this for client_ip(): that reads the left-most value of a
+    forwarded header, which a proxy relaying its client's header makes
+    attacker-controlled, and the exemption would follow it.
     """
     try:
         from security.rate_limiter import _is_lan_ip, _get_env_bool

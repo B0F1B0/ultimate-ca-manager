@@ -20,8 +20,11 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization import pkcs12
 from utils.pkcs12_export import legacy_flag, pkcs12_encryption
 
-from auth.unified import require_auth
-from auth.permissions import has_permission
+from auth.unified import require_auth, has_permission
+# `auth.permissions` exports a function of the same name whose arguments
+# are in the opposite order, by role rather than by permission list.
+# This route imported that one and called it the way this one expects,
+# so the administrator half of the rule below answered no to everyone.
 from utils.response import success_response, error_response, created_response
 from utils.key_codec import load_pem_bytes
 from utils.datetime_utils import utc_now
