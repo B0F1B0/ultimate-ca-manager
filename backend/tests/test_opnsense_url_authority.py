@@ -237,3 +237,38 @@ class TestTheOrdinaryFormsStillWork:
         assert response.status_code == 400, (
             f'{route} answered {response.status_code} for host={host!r}')
         assert attempted == []
+
+
+class TestAnAddressDoesNotCarryAZone:
+    """The third shape of the same defect.
+
+    A zone identifier names an interface of the machine doing the fetching.
+    Two addresses differing only by their zone are unequal since Python 3.9,
+    so an address carrying one is not the metadata address as far as the
+    deny-list is concerned; the client then decodes the zone as RFC 6874 asks
+    (`%25` becomes `%`) and hands the resolver the address without it.
+    """
+
+    @pytest.mark.parametrize('route', ROUTES)
+    @pytest.mark.parametrize('host', [
+        'fd00:ec2::254%251',        # the IPv6 metadata address, zoned
+        '[fd00:ec2::254%251]',
+        '::1%25lo',
+        'fe80::1%25eth0',
+    ])
+    def test_a_zoned_address_is_refused(self, auth_client, attempted, route,
+                                        host):
+        response = auth_client.post(route, json=_payload(host=host))
+
+        assert response.status_code == 400, (
+            f'{route} accepted host={host!r} and answered '
+            f'{response.status_code}')
+        assert attempted == [], f'{route} connected to {attempted}'
+
+    def test_the_zone_is_what_makes_them_differ(self):
+        """Kept as a test because it is the whole mechanism: without it the
+        case above would be an ordinary deny-list hit."""
+        import ipaddress
+
+        assert (ipaddress.ip_address('fd00:ec2::254')
+                != ipaddress.ip_address('fd00:ec2::254%251'))

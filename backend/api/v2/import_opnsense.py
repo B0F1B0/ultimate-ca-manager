@@ -147,6 +147,16 @@ def _canonical_host(host):
             # from the requested one all over again.
             return None
     else:
+        if getattr(address, 'scope_id', None):
+            # A zone identifier names an interface of this machine, which an
+            # appliance's address has no business carrying, and it makes the
+            # checked value differ from the reached one twice over: since
+            # Python 3.9 two addresses differing only by their zone are
+            # unequal, so `fd00:ec2::254%251` is not the metadata address as
+            # far as the deny-list is concerned, while the client decodes the
+            # zone as RFC 6874 asks and hands the resolver `fd00:ec2::254%1`,
+            # which is exactly it.
+            return None
         return f'[{address}]' if address.version == 6 else str(address)
 
     if bare.isascii():
