@@ -167,9 +167,15 @@ export default function AccountPage() {
   }
 
   // Password handlers
-  const handleChangePassword = async (passwordData) => {
+  const handleChangePassword = async ({ current_password, new_password, confirm_password }) => {
+    // The form asks twice; nothing used to compare the answers, and the route
+    // never sees confirm_password — so a typo silently set the wrong password.
+    if (new_password !== confirm_password) {
+      showError(t('common.passwordMismatch'))
+      return
+    }
     try {
-      await accountService.changePassword(passwordData)
+      await accountService.changePassword({ current_password, new_password })
       showSuccess(t('messages.success.other.passwordChanged'))
       setShowPasswordModal(false)
     } catch (error) {

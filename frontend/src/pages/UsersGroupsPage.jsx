@@ -26,7 +26,7 @@ export default function UsersGroupsPage() {
   const { t } = useTranslation()
   const { isMobile } = useMobile()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { showSuccess, showError, showConfirm } = useNotification()
+  const { showSuccess, showError, showConfirm, showPrompt } = useNotification()
   const { canWrite, canDelete } = usePermission()
   const { muteToasts } = useWebSocket()
   
@@ -170,9 +170,17 @@ export default function UsersGroupsPage() {
       confirmText: t('common.reset')
     })
     if (!confirmed) return
+    // The admin chooses the password: the route takes one and never invents one.
+    const newPassword = await showPrompt(t('common.newPassword'), {
+      title: t('users.resetPassword'),
+      type: 'password',
+      placeholder: t('common.passwordPlaceholder'),
+      confirmText: t('common.reset'),
+    })
+    if (!newPassword) return
     try {
-      const res = await usersService.resetPassword(user.id)
-      showSuccess(t('users.newPassword', { password: res.password || t('users.checkEmail') }))
+      await usersService.resetPassword(user.id, newPassword)
+      showSuccess(t('messages.success.other.passwordReset'))
     } catch (error) {
       showError(error.message || t('users.resetPasswordFailed'))
     }

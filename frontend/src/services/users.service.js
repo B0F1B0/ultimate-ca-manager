@@ -24,8 +24,10 @@ export const usersService = {
     return apiClient.delete(`/users/${id}`)
   },
 
-  async resetPassword(id) {
-    return apiClient.post(`/users/${id}/reset-password`)
+  // The route reads new_password and refuses 400 without it; it does not
+  // generate one, and it returns a message only (no password in the answer).
+  async resetPassword(id, newPassword) {
+    return apiClient.post(`/users/${id}/reset-password`, { new_password: newPassword })
   },
 
   async reset2FA(id) {
