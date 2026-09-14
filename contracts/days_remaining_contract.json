@@ -1,0 +1,45 @@
+{
+  "_comment": [
+    "What the `days_remaining` field means, for the server that fills it in",
+    "and the screens that read it.",
+    "",
+    "It is signed: negative once the certificate is past its expiry, and null",
+    "when the row carries no expiry date at all. Zero is the instant of",
+    "expiry and nothing else -- time left rounds up, time past rounds down.",
+    "",
+    "`hours_from_now` is how far the expiry date sits from now; `expected` is",
+    "the number the server must publish for it. `buckets` then says what a",
+    "given published number means, which is what every badge, colour and",
+    "threshold in the UI is deciding.",
+    "",
+    "Read by backend/tests/test_days_remaining_contract.py and",
+    "frontend/src/lib/__tests__/expiryContract.test.js."
+  ],
+  "published": [
+    { "hours_from_now": 87600, "expected": 3650, "why": "a ten-year CA" },
+    { "hours_from_now": 8760, "expected": 365, "why": "a year out" },
+    { "hours_from_now": 720, "expected": 30, "why": "the edge of the expiry window" },
+    { "hours_from_now": 48, "expected": 2, "why": "two days" },
+    { "hours_from_now": 24, "expected": 1, "why": "a day" },
+    { "hours_from_now": 12, "expected": 1, "why": "half a day left still reads as a day, never as expired" },
+    { "hours_from_now": 1, "expected": 1, "why": "an hour left is not zero" },
+    { "hours_from_now": -1, "expected": -1, "why": "an hour past is already a day ago, not zero" },
+    { "hours_from_now": -12, "expected": -1, "why": "half a day past" },
+    { "hours_from_now": -24, "expected": -1, "why": "a day past" },
+    { "hours_from_now": -48, "expected": -2, "why": "two days past" },
+    { "hours_from_now": -9888, "expected": -412, "why": "long expired, and the screen says how long" },
+    { "hours_from_now": null, "expected": null, "why": "no expiry date is not the same as expired" }
+  ],
+  "buckets": [
+    { "days_remaining": null, "bucket": "none", "why": "nothing to say about a row with no expiry date" },
+    { "days_remaining": -412, "bucket": "expired" },
+    { "days_remaining": -1, "bucket": "expired" },
+    { "days_remaining": 0, "bucket": "expired", "why": "the instant of expiry" },
+    { "days_remaining": 1, "bucket": "expiring" },
+    { "days_remaining": 7, "bucket": "expiring" },
+    { "days_remaining": 30, "bucket": "expiring", "why": "utils/cert_status EXPIRY_WINDOW_DAYS" },
+    { "days_remaining": 31, "bucket": "valid" },
+    { "days_remaining": 365, "bucket": "valid" },
+    { "days_remaining": 3650, "bucket": "valid" }
+  ]
+}

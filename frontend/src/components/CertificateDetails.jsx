@@ -19,6 +19,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAppTimezone } from '../stores/timezoneStore'
 import { formatDate as formatDateUtil, formatSerialNumberHex } from '../lib/utils'
+import { daysSinceExpiry, hasExpiry } from '../lib/expiry'
 import { 
   Certificate, 
   Key, 
@@ -90,11 +91,19 @@ function ExpiryIndicator({ daysRemaining, validTo, t }) {
   let color = 'text-status-success'
   let bgColor = 'bg-status-success-op10'
   let label = `${daysRemaining}d`
-  
+
+  // `days_remaining` is signed and may be null when the row carries no
+  // expiry date. `null <= 0` is true in JavaScript, so without this the
+  // panel called a certificate that never expires expired.
+  if (!hasExpiry(daysRemaining)) {
+    return null
+  }
   if (daysRemaining <= 0) {
     color = 'text-status-danger'
     bgColor = 'bg-status-danger-op10'
-    label = t('common.expired')
+    label = daysRemaining < 0
+      ? t('details.expiredDaysAgo', { count: daysSinceExpiry(daysRemaining) })
+      : t('common.expired')
   } else if (daysRemaining <= 7) {
     color = 'text-status-danger'
     bgColor = 'bg-status-danger-op10'
@@ -212,7 +221,7 @@ export function CertificateDetails({
       </div>
       
       {/* Expiry indicator */}
-      {!cert.revoked && cert.days_remaining !== undefined && (
+      {!cert.revoked && hasExpiry(cert.days_remaining) && (
         <ExpiryIndicator daysRemaining={cert.days_remaining} validTo={cert.valid_to} t={t} />
       )}
       
@@ -275,7 +284,7 @@ export function CertificateDetails({
         <div className="flex items-center gap-2 flex-wrap px-3 py-2 rounded-lg border border-border bg-tertiary-op30">
           <Badge variant={statusBadge.variant} size="sm">{statusBadge.label}</Badge>
           {sourceBadge && <Badge variant={sourceBadge.variant} size="sm">{sourceBadge.label}</Badge>}
-          {cert.days_remaining !== undefined && !cert.revoked && (
+          {hasExpiry(cert.days_remaining) && !cert.revoked && (
             <span className={cn(
               "text-2xs font-medium",
               cert.days_remaining <= 0 ? "text-status-danger" :

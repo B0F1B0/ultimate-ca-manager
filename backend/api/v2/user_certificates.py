@@ -20,6 +20,7 @@ from utils.key_codec import load_pem_bytes
 from services.audit_service import AuditService
 from services.cert_service import CertificateService
 from utils.pagination import parse_request_pagination
+from utils.days_remaining import days_remaining as compute_days_remaining
 from utils.response import error_response, no_content_response, success_response
 from utils.db_transaction import safe_commit
 from utils.sanitize import sanitize_filename
@@ -97,7 +98,8 @@ def _build_cert_response(auth_cert, certificate, owner_user=None):
         else:
             result['status'] = 'valid'
         if certificate.valid_to:
-            result['days_remaining'] = (certificate.valid_to - now).days
+            result['days_remaining'] = compute_days_remaining(
+                certificate.valid_to, now)
     else:
         result['status'] = 'orphan'
         result['has_private_key'] = False

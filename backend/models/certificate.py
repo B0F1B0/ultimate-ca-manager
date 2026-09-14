@@ -372,12 +372,14 @@ class Certificate(db.Model):
             return ""
     
     @property
-    def days_remaining(self) -> int:
-        """Days until expiration"""
-        if not self.valid_to:
-            return -1
-        delta = self.valid_to - utc_now()
-        return max(0, delta.days)
+    def days_remaining(self):
+        """Days until expiration; negative once past, None with no expiry.
+
+        See utils/days_remaining for why this is signed and why "no expiry
+        date" is None rather than -1.
+        """
+        from utils.days_remaining import days_remaining as _days_remaining
+        return _days_remaining(self.valid_to)
     
     @property
     def san_combined(self) -> str:

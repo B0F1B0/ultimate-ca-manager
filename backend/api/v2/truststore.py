@@ -22,6 +22,7 @@ import os
 bp = Blueprint('truststore_v2', __name__)
 import logging
 from utils.datetime_utils import utc_now, utc_isoformat
+from utils.days_remaining import days_remaining as compute_days_remaining
 
 logger = logging.getLogger(__name__)
 
@@ -597,7 +598,7 @@ def get_expiring_trusted_certs():
         ).order_by(TrustedCertificate.not_after.desc()).all()
         
         def cert_to_dict(c):
-            days_left = (c.not_after - now).days if c.not_after else None
+            days_left = compute_days_remaining(c.not_after, now)
             return {
                 'id': c.id,
                 'name': c.name,

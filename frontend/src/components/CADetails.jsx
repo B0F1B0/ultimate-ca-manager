@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getAppTimezone } from '../stores/timezoneStore'
 import { formatDate as formatDateUtil, daysRemaining } from '../lib/utils'
+import { daysSinceExpiry, expiryBucket, hasExpiry } from '../lib/expiry'
 import {
   Certificate,
   Key,
@@ -73,7 +74,7 @@ export function CADetails({
   const getStatus = () => {
     if (ca.revoked || ca.status === 'Revoked') return 'revoked'
     if (ca.status === 'Expired') return 'expired'
-    if (caDaysRemaining !== null && caDaysRemaining <= 30) return 'expiring'
+    if (expiryBucket(caDaysRemaining) === 'expiring') return 'expiring'
     return 'valid'
   }
 
@@ -136,7 +137,9 @@ export function CADetails({
       </div>
 
       {/* Days Remaining Indicator */}
-      {caDaysRemaining !== null && (
+      {/* Computed from `valid_to`, which the CA payload does carry: reading
+          `ca.days_remaining` rendered "undefined days remaining". */}
+      {hasExpiry(caDaysRemaining) && (
         <div className={cn(
           "flex items-center gap-2 px-3 py-2 rounded-lg text-xs",
           caDaysRemaining <= 0 && "bg-status-danger-op10 text-status-danger",
@@ -146,7 +149,7 @@ export function CADetails({
         )}>
           <Clock size={14} />
           {caDaysRemaining <= 0 ? (
-            <span>{t('details.expiredDaysAgo', { count: Math.abs(caDaysRemaining) })}</span>
+            <span>{t('details.expiredDaysAgo', { count: daysSinceExpiry(caDaysRemaining) })}</span>
           ) : (
             <span>{t('details.daysRemaining', { count: caDaysRemaining })}</span>
           )}

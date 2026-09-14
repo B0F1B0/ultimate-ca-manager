@@ -23,6 +23,7 @@ import { usePermission, useModals } from '../hooks'
 import { useMobile } from '../contexts/MobileContext'
 import { extractData, formatDate, cn , downloadBlob} from '../lib/utils'
 import { getSanValidationError } from '../lib/sanValidate'
+import { daysSinceExpiry, expiryVariant, hasExpiry } from '../lib/expiry'
 import { VALIDITY } from '../constants/config'
 import { signingCas } from '../lib/caSelection'
 export default function CSRsPage() {
@@ -581,10 +582,12 @@ export default function CSRsPage() {
       hideOnMobile: true,
       render: (val, row) => {
         const days = row.days_remaining
-        const variant = days < 0 ? 'danger' : days < 30 ? 'warning' : 'success'
+        if (!hasExpiry(days)) return <span className="text-text-tertiary">—</span>
         return (
-          <Badge variant={variant} size="sm">
-            {days < 0 ? t('common.expired') : t('csrs.daysRemaining', { days })}
+          <Badge variant={expiryVariant(days)} size="sm">
+            {days <= 0
+              ? t('details.expiredDaysAgo', { count: daysSinceExpiry(days) })
+              : t('csrs.daysRemaining', { days })}
           </Badge>
         )
       }
@@ -1373,8 +1376,10 @@ function CSRDetailsPanel({ csr, canWrite, canDelete, onSign, onDownload, onDownl
 
 function SignedCSRDetailsPanel({ cert, onDownload, onRekey, t }) {
   const navigate = useNavigate()
-  const daysRemaining = cert.days_remaining || 0
-  const expiryVariant = daysRemaining < 0 ? 'danger' : daysRemaining < 30 ? 'warning' : 'success'
+  // `|| 0` turned a null expiry date into a confident "0 days left", and
+  // turned the old -1 "no expiry" sentinel into "Expired".
+  const daysRemaining = cert.days_remaining
+  const expiryBadge = expiryVariant(daysRemaining)
   const isAcme = cert.source === 'acme'
   const isScep = cert.source === 'scep'
   
@@ -1398,7 +1403,9 @@ function SignedCSRDetailsPanel({ cert, onDownload, onRekey, t }) {
       {/* Stats */}
       <CompactStats stats={[
         { icon: Stamp, value: cert.signed_by || cert.issuer_name || '—' },
-        { icon: Clock, value: t('csrs.remaining', { days: daysRemaining }) },
+        { icon: Clock, value: hasExpiry(daysRemaining)
+            ? t('csrs.remaining', { days: daysRemaining })
+            : t('common.never') },
       ]} />
 
       {/* Actions */}
@@ -1430,8 +1437,12 @@ function SignedCSRDetailsPanel({ cert, onDownload, onRekey, t }) {
           <CompactField 
             autoIcon="status" label={t('common.status')} 
             value={
-              <Badge variant={expiryVariant} size="sm">
-                {daysRemaining < 0 ? t('common.expired') : t('csrs.daysLeft', { days: daysRemaining })}
+              <Badge variant={expiryBadge} size="sm">
+                {!hasExpiry(daysRemaining)
+                  ? t('common.never')
+                  : daysRemaining <= 0
+                    ? t('details.expiredDaysAgo', { count: daysSinceExpiry(daysRemaining) })
+                    : t('csrs.daysLeft', { days: daysRemaining })}
               </Badge>
             } 
           />
