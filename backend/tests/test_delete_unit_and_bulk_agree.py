@@ -141,15 +141,20 @@ class TestBulkDeletesAsThoroughlyAsTheUnitRoute:
 
 
 class TestEveryBulkListIsBounded:
+    # The five bulk delete routes. `csrs` and `users` read the list
+    # themselves and capped nothing, so a JSON string was iterated character
+    # by character and a list of any length became that many transactions.
+    BULK_ROUTES = ('cas', 'certificates', 'templates', 'csrs', 'users')
+
     def test_an_oversized_id_list_is_refused_everywhere(self, auth_client):
         many = list(range(900000, 900000 + 101))
-        for resource in ('cas', 'certificates', 'templates'):
+        for resource in self.BULK_ROUTES:
             r = _bulk(auth_client, resource, many)
             assert r.status_code == 400, (resource, r.data)
             assert b'max 100 per request' in r.data, resource
 
     def test_a_list_that_is_not_a_list_is_refused_everywhere(self, auth_client):
-        for resource in ('cas', 'certificates', 'templates'):
+        for resource in self.BULK_ROUTES:
             r = _bulk(auth_client, resource, 'abc')
             assert r.status_code == 400, (resource, r.data)
             assert b'must be an array' in r.data, resource

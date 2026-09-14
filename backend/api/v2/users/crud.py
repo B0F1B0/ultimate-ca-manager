@@ -12,6 +12,7 @@ from auth.permissions import BUILTIN_ROLES
 from utils.db_transaction import safe_commit
 from models import db, User
 from services.audit_service import AuditService
+from services.deletion_blockers import parse_bulk_ids
 
 logger = logging.getLogger(__name__)
 
@@ -472,11 +473,10 @@ def bulk_delete_users():
     if g.current_user.role != 'admin':
         return error_response('Insufficient permissions', 403)
 
-    data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
 
-    ids = data['ids']
     results = {'success': [], 'failed': []}
     total_sessions_invalidated = 0
 

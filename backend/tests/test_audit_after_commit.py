@@ -28,9 +28,13 @@ and the two deployment paths that recorded a push already made on a remote
 host before the record of it was safe.
 
 Correcting them one at a time does not stop the twentieth. This does, as far
-as it reaches: a scan cannot see an audit reached through a variable, and it
-reads the thirteen largest functions in these zones by statement order alone
-rather than by path. What it does cover is every shape the nineteen took.
+as it reaches. It reads one function at a time, so a write staged inside a
+helper that function calls is invisible to it: three of the nineteen hid
+theirs that way (`acme_api.py`, `msca.py:sign_csr`, `hsm.py`) and would not
+be caught coming back. A scan cannot see an audit reached through a variable
+either, and it reads the thirteen largest functions in these zones by
+statement order alone rather than by path. What it does cover is every shape
+the nineteen took.
 
 The alternative was to change `log_action` so that it stops committing its
 caller's session. That changes the meaning of 324 call sites at once, several

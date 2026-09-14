@@ -210,11 +210,16 @@ Requires SMTP configuration in Settings > Email.
 
 ### 7. SSRF Protection (v2.52+)
 
-Network scan endpoints (discovery, SSL checker) are protected against SSRF attacks:
+Two guards, because the two jobs have different answers.
+
+**Network scan endpoints** (discovery, SSL checker) use `validate_url_not_private`:
 
 - Private/loopback IP ranges blocked by default (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-- DNS rebinding protection — resolved IPs are validated against the blocklist
+- DNS rebinding protection: resolved IPs are validated against the blocklist
 - Configurable allowlist for internal network scanning use cases
+
+**User-supplied outbound URLs** (webhooks, SSO, ACME, imports) use `validate_url_not_cloud_metadata`, which blocks cloud metadata and loopback while deliberately allowing the LAN. UCM is deployed on premises: an RFC1918 webhook or an internal SSO endpoint is the primary use case, not an attack.
+
 - Cloud metadata endpoints always blocked: the link-local address every major provider answers on, plus the ones that sit elsewhere (Oracle Cloud, Scaleway, and Google's and Alibaba's named forms)
 - An IPv4 address written as IPv6 is read back and judged the same way, in each of the six forms that reach the same host: mapped, the deprecated compatible form, 6to4, Teredo, ISATAP and NAT64. For NAT64's local-use prefix, where the specification allows several layouts and the address does not say which is in use, every layout is read and judged against the metadata endpoints
 

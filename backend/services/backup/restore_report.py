@@ -41,8 +41,15 @@ def with_restore_warnings(message: str, results: Dict[str, Any]) -> str:
     if not_restored:
         # The archive carries more than this version applies; saying so is
         # the difference between a restore and a restore that looked fine.
-        message += _clause('The archive also holds sections this version '
-                           'does not restore: ' + ', '.join(not_restored))
+        # Bounded like the list below it: an archive from a much newer
+        # version can name every section it has.
+        shown = not_restored[:5]
+        subject = 'a section' if len(not_restored) == 1 else 'sections'
+        listing = ', '.join(shown)
+        if len(not_restored) > len(shown):
+            listing += f' and {len(not_restored) - len(shown)} more'
+        message += _clause(f'The archive also holds {subject} this version '
+                           f'does not restore: {listing}')
 
     mismatches = (results or {}).get('key_mismatches') or []
     if mismatches:

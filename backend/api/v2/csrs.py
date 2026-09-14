@@ -19,6 +19,7 @@ from utils.file_validation import validate_upload, CERT_EXTENSIONS
 from utils.sanitize import sanitize_filename
 from models import db, Certificate, CA
 from services.cert_service import CertificateService
+from services.deletion_blockers import parse_bulk_ids
 from services.audit_service import AuditService
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -1023,11 +1024,10 @@ def bulk_sign_csrs():
 def bulk_delete_csrs():
     """Bulk delete CSRs"""
 
-    data = request.get_json()
-    if not data or not data.get('ids'):
-        return error_response('ids array required', 400)
+    ids, ids_error = parse_bulk_ids(request.get_json())
+    if ids_error:
+        return ids_error
 
-    ids = data['ids']
     results = {'success': [], 'failed': []}
 
     for csr_id in ids:

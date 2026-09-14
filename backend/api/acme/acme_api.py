@@ -140,6 +140,25 @@ def acme_error(
 
 
 @acme_bp.before_request
+def _enforce_acme_enabled():
+    """Turning ACME off in the settings turns the server off.
+
+    The key was displayed, and read by the settings page and the dashboard
+    tile; no endpoint under /acme consulted it.
+    """
+    from services.settings_registry import effective
+    if effective('acme.enabled'):
+        return None
+    response = make_response(jsonify({
+        'type': 'urn:ietf:params:acme:error:serverInternal',
+        'detail': 'ACME is disabled on this server',
+        'status': 503,
+    }), 503)
+    response.headers['Content-Type'] = 'application/problem+json'
+    return response
+
+
+@acme_bp.before_request
 def require_jose_content_type():
     """Require the RFC 8555 media type for every JWS POST."""
     if request.method == 'POST' and request.mimetype != 'application/jose+json':

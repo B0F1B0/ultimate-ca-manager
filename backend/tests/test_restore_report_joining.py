@@ -147,3 +147,28 @@ class TestTheTwoRoutesFinishTheSameWay:
             restore_completion.AuditService, 'log_action', _refuse)
         # Must not raise: the restore has already happened.
         restore_completion.record_restore(action='system_restore')
+
+
+class TestTheSectionsListIsBounded:
+    """An archive from a newer version can name every section it has.
+
+    The neighbouring list of key mismatches stops at five and says how many
+    it left; this one joined everything it was given.
+    """
+
+    def test_one_section_reads_as_one(self):
+        answer = with_restore_warnings('Restore completed.', SECTIONS)
+        assert 'holds a section this version does not restore' in answer, answer
+
+    def test_two_sections_read_as_several(self):
+        answer = with_restore_warnings('Restore completed.', {
+            'sections_not_restored': ['hsm_providers', 'sso_providers']})
+        assert 'holds sections this version does not restore' in answer, answer
+
+    def test_a_long_list_is_cut_at_five(self):
+        sections = [f'section_{index}' for index in range(9)]
+        answer = with_restore_warnings('Restore completed.', {
+            'sections_not_restored': sections})
+        assert 'section_4' in answer, answer
+        assert 'section_5' not in answer, answer
+        assert 'and 4 more' in answer, answer
