@@ -7,6 +7,13 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- A certificate asked for three years came back valid for ninety days. Five example issuance policies were seeded active and without a scope on installations upgraded from an older release, and their ceilings contradict each other, so once the rules started being applied at issuance the lowest of them capped every request. The examples an administrator never adapted are switched off; anything renamed, given a scope, rewritten or created by hand is left as it is.
+
+---
+
 ## [2.230] - 2026-09-15
 
 ### Added
