@@ -7,7 +7,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
-## [Unreleased]
+## [2.231] - 2026-09-15
 
 ### Changed
 - A request the server honours on other terms than the ones asked for now says so. Shortening a validity was the silent case: a policy ceiling or the issuing CA's own expiry cut the requested duration, the answer was still a success, and the only trace was an expiry date nobody reads until it matters. Issuance, CSR signing and renewal return what was granted, what was asked for and which policy or which CA expiry decided, and the interface shows it next to the result.
