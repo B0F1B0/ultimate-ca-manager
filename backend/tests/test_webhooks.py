@@ -14,6 +14,7 @@ Tests all webhook endpoints:
 
 Uses shared conftest fixtures: app, client, auth_client.
 """
+import pytest
 import json
 from tests.conftest import get_json, assert_success, assert_error
 
@@ -93,6 +94,16 @@ class TestWebhookEvents:
 # ============================================================
 
 class TestWebhookCRUD:
+    @pytest.fixture(autouse=True)
+    def _quick_delivery(self, monkeypatch):
+        """Do not wait out the POST timeout on an endpoint that answers nothing.
+
+        The delivery is still attempted and still fails; only the waiting is
+        shortened. In a full run this test spent ten seconds on it.
+        """
+        from services.webhook_service import WebhookService
+        monkeypatch.setattr(WebhookService, 'DELIVERY_TIMEOUT_SECONDS', 0.5)
+
     """Full CRUD lifecycle: create → get → update → toggle → test → delete."""
 
     def test_list_webhooks_empty_initially(self, auth_client):

@@ -160,7 +160,18 @@ def _stages_a_change(node):
     return False
 
 
+# `_events` is pure over an immutable tree, and `_paths` asks it for the same
+# subtrees over and over as it walks every control-flow path: 1.5 million
+# calls for 3744 functions in one run, each re-walking its subtree. Keyed by
+# node identity and emptied whenever the wrapper set is recomputed, since
+# `_kind` reads it.
+_EVENTS_CACHE = {}
+
+
 def _events(node):
+    cached = _EVENTS_CACHE.get(node)
+    if cached is not None:
+        return cached
     out = []
     for child in ast.walk(node):
         if isinstance(child, ast.Call):
@@ -176,7 +187,9 @@ def _events(node):
     # string when two events shared a line, so `audit` came before `commit`
     # by alphabet: a wrapper that commits and then records read as recording
     # first, and two statements separated by a semicolon swapped as well.
-    return sorted(out, key=lambda event: event[0])
+    result = sorted(out, key=lambda event: event[0])
+    _EVENTS_CACHE[node] = result
+    return result
 
 
 def _paths(body, decided=None):
@@ -457,28 +470,37 @@ def _find_audit_wrappers(trees):
             if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 bodies.setdefault(fn.name, []).append(fn)
 
+    # What each name calls, collected once. The fixed point below then reads
+    # these sets instead of walking every function again on every pass, which
+    # is what made this the slowest test in the suite: same answer, one walk.
+    attribute_calls = {}
+    plain_calls = {}
+    for name, definitions in bodies.items():
+        attrs, plains = set(), set()
+        for fn in definitions:
+            for call in ast.walk(fn):
+                if not isinstance(call, ast.Call):
+                    continue
+                func = call.func
+                if isinstance(func, ast.Attribute):
+                    attrs.add(func.attr)
+                elif isinstance(func, ast.Name):
+                    plains.add(func.id)
+        attribute_calls[name] = attrs
+        plain_calls[name] = plains
+
     wrappers = set()
     changed = True
     while changed:
         changed = False
-        for name, definitions in bodies.items():
+        for name in bodies:
             if name in wrappers:
                 continue
-            for fn in definitions:
-                for call in ast.walk(fn):
-                    if not isinstance(call, ast.Call):
-                        continue
-                    func = call.func
-                    reaches = (
-                        (isinstance(func, ast.Attribute)
-                         and (func.attr in AUDIT_CALLS or func.attr in wrappers))
-                        or (isinstance(func, ast.Name) and func.id in wrappers))
-                    if reaches:
-                        wrappers.add(name)
-                        changed = True
-                        break
-                if name in wrappers:
-                    break
+            attrs = attribute_calls[name]
+            if (attrs & AUDIT_CALLS or attrs & wrappers
+                    or plain_calls[name] & wrappers):
+                wrappers.add(name)
+                changed = True
     # A route named after what it does is not a wrapper for it. Only names
     # that read as "record this" are followed; anything else would make every
     # function that happens to audit into an audit itself, and the rule would
@@ -541,6 +563,7 @@ def _offenders():
 
     AUDIT_WRAPPERS.clear()
     AUDIT_WRAPPERS.update(_find_audit_wrappers([t for _p, t in parsed]))
+    _EVENTS_CACHE.clear()   # `_kind` reads AUDIT_WRAPPERS, just rebuilt
 
     for path, tree in parsed:
         for fn in ast.walk(tree):
@@ -552,6 +575,44 @@ def _offenders():
                 if f'{rel}:{fn.name}' not in DELIBERATE:
                     found.append(f'{rel}:{hit} {fn.name}')
     return sorted(found)
+
+
+CANARY = """
+from models import db
+from services.audit_service import AuditService
+
+
+def revoke_thing_out_of_order(cert, reason):
+    cert.revoked = True
+    AuditService.log_certificate('revoke', cert.id, {'reason': reason})
+    db.session.commit()
+
+
+def revoke_thing_in_order(cert, reason):
+    cert.revoked = True
+    db.session.commit()
+    AuditService.log_certificate('revoke', cert.id, {'reason': reason})
+"""
+
+
+class TestTheScanStillFinds:
+    """The rule above asserts an empty list, which is also what a broken
+    scanner returns. `DELIBERATE` is empty, so nothing else exercises the
+    detection: these two do, on a known offender and its corrected twin.
+    """
+
+    def _function(self, name):
+        tree = ast.parse(CANARY)
+        return next(fn for fn in ast.walk(tree)
+                    if isinstance(fn, ast.FunctionDef) and fn.name == name)
+
+    def test_an_audit_before_the_commit_is_reported(self):
+        assert _audit_out_of_order(self._function(
+            'revoke_thing_out_of_order')) is not None
+
+    def test_the_same_function_written_in_order_is_not(self):
+        assert _audit_out_of_order(self._function(
+            'revoke_thing_in_order')) is None
 
 
 class TestAuditLast:

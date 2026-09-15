@@ -26,6 +26,10 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('import_opnsense', __name__)
 
+# How long a call to the appliance may take. Named rather than inline so a
+# test can reach an unreachable host without waiting the full ten seconds.
+REQUEST_TIMEOUT_SECONDS = 10
+
 
 def _clean(value):
     return value.strip() if isinstance(value, str) else value
@@ -289,7 +293,7 @@ def _fetch_rows(session, base_url, api_key, api_secret, resource, pin):
         response = session.get(
             url,
             auth=(api_key, api_secret),
-            timeout=10,
+            timeout=REQUEST_TIMEOUT_SECONDS,
             allow_redirects=False,
         )
     if response.status_code in (301, 302, 303, 307, 308):

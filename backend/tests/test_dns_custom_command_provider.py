@@ -107,6 +107,8 @@ class TestCustomCommandProvider:
         ok, msg = p.create_txt_record('example.com', '_acme-challenge.example.com', 'v')
         elapsed = _t.monotonic() - started
         assert not ok and 'timed out' in msg
+        # The provider floors the timeout at 5s (max(5, ...)), so this wait is
+        # not reducible from the test: it is the product's own lower bound.
         assert elapsed < 15
 
     def test_schema_advertises_create_command(self):

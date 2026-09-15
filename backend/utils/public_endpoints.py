@@ -23,6 +23,12 @@ from utils.acme_public_url import is_valid_public_vhost
 
 logger = logging.getLogger(__name__)
 
+# How long a preflight probe waits on a host that answers nothing. Named
+# rather than inline so a test can exercise the unreachable path without
+# waiting them out.
+TLS_PROBE_TIMEOUT_SECONDS = 10
+HTTP_PROBE_TIMEOUT_SECONDS = 5
+
 _IP_RE = re.compile(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$')
 _DEFAULT_LOCALHOSTS = frozenset({
     'localhost', '127.0.0.1', '::1', 'localhost.localdomain',
@@ -866,7 +872,7 @@ def run_preflight_checks() -> dict:
                 None,
             )
             target = connect_ip or hostname
-            with socket.create_connection((target, port), timeout=10) as sock:
+            with socket.create_connection((target, port), timeout=TLS_PROBE_TIMEOUT_SECONDS) as sock:
                 with ctx.wrap_socket(sock, server_hostname=hostname) as ssock:
                     cert = ssock.getpeercert()
                     sans = [v for t, v in cert.get('subjectAltName', ()) if t == 'DNS']
@@ -910,7 +916,7 @@ def run_preflight_checks() -> dict:
                 None,
             )
             target = connect_ip or hostname
-            with socket.create_connection((target, port), timeout=5):
+            with socket.create_connection((target, port), timeout=HTTP_PROBE_TIMEOUT_SECONDS):
                 pass
             entry = next(e for e in results if e['label'] == label)
             entry['tls'] = 'ok'

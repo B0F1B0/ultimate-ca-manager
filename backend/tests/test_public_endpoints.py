@@ -123,6 +123,20 @@ class TestUrlValidation:
 
 
 class TestPreflightDiagnostics:
+    @pytest.fixture(autouse=True)
+    def _quick_probes(self, monkeypatch):
+        """Wait a moment on an unreachable host, not the production delay.
+
+        These tests point the preflight at addresses that answer nothing, so
+        they used to spend fifteen seconds per run waiting out the TCP
+        timeouts. The probes still run, still fail, and are still read the
+        same way; only the waiting is shortened.
+        """
+        monkeypatch.setattr(
+            'utils.public_endpoints.TLS_PROBE_TIMEOUT_SECONDS', 0.3)
+        monkeypatch.setattr(
+            'utils.public_endpoints.HTTP_PROBE_TIMEOUT_SECONDS', 0.3)
+
     def test_loopback_resolution_is_warn_not_fail(self, app):
         with app.app_context():
             from utils.public_endpoints import _classify_preflight_dns

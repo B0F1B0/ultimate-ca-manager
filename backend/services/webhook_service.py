@@ -280,6 +280,9 @@ class WebhookService:
     DEFAULT_MAX_ATTEMPTS = 5
     _BACKOFF_BASE_SECONDS = 60      # 1st retry ~1 min
     _BACKOFF_CAP_SECONDS = 3600     # capped at 1 h
+    # How long a delivery POST may take. Named rather than inline so a test
+    # can exercise an unreachable endpoint without waiting it out.
+    DELIVERY_TIMEOUT_SECONDS = 10
     _CLAIM_LEASE_SECONDS = 120      # delivery lease; longer than the POST timeout
                                     # so a crashed claim is reclaimed, not lost (#139)
 
@@ -365,7 +368,8 @@ class WebhookService:
 
         from utils.ssrf_protection import safe_request_post
         try:
-            response = safe_request_post(endpoint.url, data=body_json, headers=headers, timeout=10)
+            response = safe_request_post(endpoint.url, data=body_json, headers=headers,
+                                        timeout=WebhookService.DELIVERY_TIMEOUT_SECONDS)
             return bool(response.ok), response.status_code, (None if response.ok else f"HTTP {response.status_code}")
         except requests.RequestException as e:
             return False, None, str(e)

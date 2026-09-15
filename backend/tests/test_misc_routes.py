@@ -794,8 +794,15 @@ class TestOPNsense:
         r = post_json(auth_client, '/api/v2/import/opnsense/import', {})
         assert r.status_code in (400, 500)
 
-    def test_test_with_invalid_host(self, auth_client):
-        """Test connection with unreachable host."""
+    def test_test_with_invalid_host(self, auth_client, monkeypatch):
+        """Test connection with unreachable host.
+
+        192.0.2.1 (RFC 5737) answers nothing, so the route waits out its own
+        timeout. The wait is what is shortened here, not the path: the request
+        is really attempted and really fails, which is what this pins.
+        """
+        monkeypatch.setattr(
+            'api.v2.import_opnsense.REQUEST_TIMEOUT_SECONDS', 0.5)
         r = post_json(auth_client, '/api/v2/import/opnsense/test', {
             'host': '192.0.2.1',
             'port': 443,
