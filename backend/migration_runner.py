@@ -52,6 +52,17 @@ from pathlib import Path
 
 from sqlalchemy import create_engine, text, inspect
 
+
+def say(*args, **kwargs):
+    """say() that reaches the journal now, not when the process ends.
+
+    The progress line is written without a newline (``  -> name...`` then
+    ``OK``), so an unflushed stream leaves journald holding a partial line:
+    the upgrade ran, and its report only appeared at the next shutdown.
+    """
+    kwargs.setdefault('flush', True)
+    print(*args, **kwargs)
+
 MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
@@ -182,15 +193,15 @@ def run_all_migrations(dry_run: bool = False, verbose: bool = False) -> bool:
     try:
         engine = create_engine(db_url)
     except Exception as exc:
-        print(f"✗ Could not connect to database ({backend}): {exc}")
+        say(f"✗ Could not connect to database ({backend}): {exc}")
         return False
 
     try:
         state, applied = _get_state(engine)
 
         if state == "fresh":
-            print(
-                f"✓ Fresh {backend} database — schema will be built by "
+            say(
+                f"✓ Fresh {backend} database: schema will be built by "
                 f"SQLAlchemy create_all() (skipping legacy SQL migrations)"
             )
             return True
@@ -202,10 +213,10 @@ def run_all_migrations(dry_run: bool = False, verbose: bool = False) -> bool:
         pending = [n for n in all_names if n not in applied]
 
         if not pending:
-            print(f"✓ {backend} database up to date (no pending migrations)")
+            say(f"✓ {backend} database up to date (no pending migrations)")
             return True
 
-        print(f"Found {len(pending)} pending migration(s) for {backend}:")
+        say(f"Found {len(pending)} pending migration(s) for {backend}:")
         if is_pg:
             return _run_pending_pg(engine, pending, dry_run)
         # Pass the SQLite path derived from db_url so DATABASE_URL stays the
@@ -224,7 +235,7 @@ def _run_pending_sqlite(pending, dry_run, db_path: str = None) -> bool:
     if not db_path:
         db_path = os.environ.get("DATABASE_PATH", "/opt/ucm/data/ucm.db")
     if not os.path.exists(db_path):
-        print(f"✗ SQLite file not found: {db_path}")
+        say(f"✗ SQLite file not found: {db_path}")
         return False
     conn = sqlite3.connect(db_path)
     try:
@@ -233,9 +244,9 @@ def _run_pending_sqlite(pending, dry_run, db_path: str = None) -> bool:
         for name in pending:
             path = MIGRATIONS_DIR / f"{name}.py"
             if not _run_one_sqlite(conn, path, db_path, dry_run):
-                print("✗ Migration failed — stopping")
+                say("✗ Migration failed, stopping")
                 return False
-        print("✓ All migrations applied")
+        say("✓ All migrations applied")
         return True
     finally:
         conn.close()
@@ -250,9 +261,9 @@ def _load_module(path: Path):
 
 def _run_one_sqlite(conn, path: Path, db_path: str, dry_run: bool) -> bool:
     name = path.stem
-    print(f"  → {name}...", end=" ", flush=True)
+    say(f"  → {name}...", end=" ", flush=True)
     if dry_run:
-        print("(dry run)")
+        say("(dry run)")
         return True
     try:
         mod = _load_module(path)
@@ -274,15 +285,15 @@ def _run_one_sqlite(conn, path: Path, db_path: str, dry_run: bool) -> bool:
         elif hasattr(mod, "MIGRATION_SQL"):
             conn.executescript(mod.MIGRATION_SQL)
         else:
-            print("SKIP (no upgrade)")
+            say("SKIP (no upgrade)")
             return False
         conn.execute("INSERT INTO _migrations (name) VALUES (?)", (name,))
         conn.commit()
-        print("✓")
+        say("✓")
         return True
     except sqlite3.IntegrityError:
         conn.rollback()
-        print("(already applied)")
+        say("(already applied)")
         return True
     except Exception as e:  # noqa: BLE001
         conn.rollback()
@@ -292,9 +303,9 @@ def _run_one_sqlite(conn, path: Path, db_path: str, dry_run: bool) -> bool:
                 "INSERT OR IGNORE INTO _migrations (name) VALUES (?)", (name,)
             )
             conn.commit()
-            print("✓ (table existed)")
+            say("✓ (table existed)")
             return True
-        print(f"✗ {e}")
+        say(f"✗ {e}")
         return False
 
 
@@ -333,9 +344,9 @@ def _run_pending_pg(engine, pending, dry_run) -> bool:
     """
     for name in pending:
         path = MIGRATIONS_DIR / f"{name}.py"
-        print(f"  → {name}...", end=" ", flush=True)
+        say(f"  → {name}...", end=" ", flush=True)
         if dry_run:
-            print("(dry run)")
+            say("(dry run)")
             continue
         try:
             mod = _load_module(path)
@@ -344,8 +355,8 @@ def _run_pending_pg(engine, pending, dry_run) -> bool:
 
             if not is_pg_compatible and idx >= PG_COMPATIBLE_REQUIRED_FROM:
                 # Hard fail — refuse to silently skip a "new-era" migration.
-                print("✗")
-                print(
+                say("✗")
+                say(
                     f"    Migration {name} is numbered >= {PG_COMPATIBLE_REQUIRED_FROM:03d} "
                     f"but does not declare `pg_compatible = True`. "
                     f"Silent-skip would corrupt the PostgreSQL schema (issue #115). "
@@ -356,9 +367,9 @@ def _run_pending_pg(engine, pending, dry_run) -> bool:
             with engine.begin() as conn:
                 if is_pg_compatible and hasattr(mod, "upgrade"):
                     mod.upgrade(conn)
-                    print("✓")
+                    say("✓")
                 else:
-                    print("(SQLite-only — skipped)")
+                    say("(SQLite-only, skipped)")
                 conn.execute(
                     text(
                         "INSERT INTO _migrations (name) VALUES (:n) "
@@ -367,9 +378,9 @@ def _run_pending_pg(engine, pending, dry_run) -> bool:
                     {"n": name},
                 )
         except Exception as e:  # noqa: BLE001
-            print(f"✗ {e}")
+            say(f"✗ {e}")
             return False
-    print("✓ All migrations applied")
+    say("✓ All migrations applied")
     return True
 
 
@@ -380,25 +391,25 @@ def _run_pending_pg(engine, pending, dry_run) -> bool:
 def show_status():
     db_url = _get_db_url()
     is_pg = _is_postgres(db_url)
-    print("=== Migration Status ===")
-    print(f"Backend: {'PostgreSQL' if is_pg else 'SQLite'}")
-    print(f"URL:     {db_url.split('@')[-1] if '@' in db_url else db_url}")
+    say("=== Migration Status ===")
+    say(f"Backend: {'PostgreSQL' if is_pg else 'SQLite'}")
+    say(f"URL:     {db_url.split('@')[-1] if '@' in db_url else db_url}")
     try:
         engine = create_engine(db_url)
     except Exception as e:
-        print(f"✗ Cannot connect: {e}")
+        say(f"✗ Cannot connect: {e}")
         return
     try:
         state, applied = _get_state(engine)
-        print(f"State:   {state}")
+        say(f"State:   {state}")
         all_names = _list_migration_names()
         pending = [n for n in all_names if n not in applied]
-        print(f"Applied: {len(applied)}")
-        print(f"Pending: {len(pending)}")
+        say(f"Applied: {len(applied)}")
+        say(f"Pending: {len(pending)}")
         for n in sorted(applied):
-            print(f"  ✓ {n}")
+            say(f"  ✓ {n}")
         for n in pending:
-            print(f"  ○ {n}")
+            say(f"  ○ {n}")
     finally:
         engine.dispose()
 
@@ -424,4 +435,4 @@ if __name__ == "__main__":
         sys.exit(0 if run_all_migrations(verbose=args.verbose) else 1)
     elif args.command == "mark-applied":
         mark_all_applied()
-        print("✓ All current migrations marked as applied")
+        say("✓ All current migrations marked as applied")
