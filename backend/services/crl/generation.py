@@ -79,7 +79,7 @@ def _apply_revoke_reason(
 
     if revoke_reason == 'removeFromCRL' and not is_delta:
         logger.warning(
-            "CRL: omitting removeFromCRL reason on full CRL (RFC 5280 §5.3.1 — delta only)"
+            "CRL: omitting removeFromCRL reason on full CRL (RFC 5280 §5.3.1, delta only)"
         )
         return revoked_builder
 
@@ -139,7 +139,7 @@ def _parse_revoked_serial(cert: Certificate, *, context: str) -> Optional[int]:
         # RFC 5280 §4.1.2.2 caps serials at 20 octets (≤159 bits effective).
         logger.error(
             f"{context}: cert {cert.id} serial exceeds 159 bits "
-            f"({serial_int.bit_length()} bits); skipping — revocation NOT in CRL"
+            f"({serial_int.bit_length()} bits); skipping: revocation NOT in CRL"
         )
         return None
     return serial_int
@@ -314,7 +314,7 @@ class CRLGenerationMixin:
         ).order_by(CRLMetadata.crl_number.desc()).first()
 
         if not base_crl:
-            raise ValueError(f"No base CRL exists for CA {ca.descr} — generate a full CRL first")
+            raise ValueError(f"No base CRL exists for CA {ca.descr}: generate a full CRL first")
 
         if not ca.crt:
             raise ValueError(f"CA {ca.descr} is awaiting its certificate - cannot generate CRL")

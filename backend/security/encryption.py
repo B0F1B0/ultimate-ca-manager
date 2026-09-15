@@ -64,7 +64,7 @@ class KeyEncryption:
                 file_mode = MASTER_KEY_PATH.stat().st_mode & 0o777
                 if file_mode & 0o077:
                     logger.warning(
-                        f"⚠️ {MASTER_KEY_PATH} has insecure permissions {oct(file_mode)} — "
+                        f"⚠️ {MASTER_KEY_PATH} has insecure permissions {oct(file_mode)}, "
                         f"should be 0600. Fixing..."
                     )
                     MASTER_KEY_PATH.chmod(0o600)
@@ -94,7 +94,7 @@ class KeyEncryption:
                     'KEY_ENCRYPTION_KEY.'
                 )
             logger.error(
-                "🔓 Private-key encryption is DISABLED — no %s and no "
+                "🔓 Private-key encryption is DISABLED, no %s and no "
                 "KEY_ENCRYPTION_KEY. CA and certificate private keys will be "
                 "stored UNENCRYPTED at rest. Configure a key, and set "
                 "UCM_REQUIRE_KEY_ENCRYPTION=true to refuse startup without one.",
@@ -119,7 +119,7 @@ class KeyEncryption:
                 raise RuntimeError(
                     'Private-key encryption is required (UCM_REQUIRE_KEY_ENCRYPTION) '
                     f'but the configured key (source: {self._key_source}) is invalid: {e}. '
-                    f'Fix {MASTER_KEY_PATH} or KEY_ENCRYPTION_KEY — refusing to run '
+                    f'Fix {MASTER_KEY_PATH} or KEY_ENCRYPTION_KEY, refusing to run '
                     'with plaintext key storage.'
                 )
             self._enabled = False

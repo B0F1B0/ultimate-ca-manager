@@ -53,5 +53,5 @@ def parse_duration_seconds(value, *, field='duration') -> int:
         if match:
             seconds = int(match.group(1)) * _UNIT_SECONDS[match.group(2).lower()]
     if seconds is None or seconds < 0 or seconds > _MAX_SECONDS:
-        raise ValueError(f"Invalid {field}: {value!r} — {hint}")
+        raise ValueError(f"Invalid {field}: {value!r}, {hint}")
     return seconds

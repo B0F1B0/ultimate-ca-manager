@@ -25,7 +25,7 @@ export default {
       },
     ],
     tips: [
-      'SSL Checker admite puertos personalizados — úselo para verificar cualquier servicio TLS',
+      'SSL Checker admite puertos personalizados: úselo para verificar cualquier servicio TLS',
       'Key Matcher compara hashes de módulo para verificar pares coincidentes',
       'Converter conserva la cadena completa de certificados al crear PKCS#12',
     ],
@@ -76,7 +76,7 @@ Muestra: sujeto, emisor, SAN, validez, número de serie, uso de clave, extension
 Verificar que un certificado, CSR y clave privada pertenecen al mismo conjunto:
 
 1. Pegue el **certificado** PEM
-2. Pegue la **clave privada** PEM (opcionalmente cifrada — proporcione la contraseña)
+2. Pegue la **clave privada** PEM (opcionalmente cifrada: proporcione la contraseña)
 3. Opcionalmente pegue un **CSR** PEM
 4. Haga clic en **Verificar correspondencia**
 

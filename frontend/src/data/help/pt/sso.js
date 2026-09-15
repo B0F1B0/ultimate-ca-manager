@@ -9,7 +9,7 @@ export default {
         items: [
           { label: 'Provedor de Identidade', text: 'Configurar URL de metadados do IDP ou enviar XML' },
           { label: 'URL de Metadados SP', text: 'Forneça esta URL ao seu IDP para configurar automaticamente o UCM como provedor de serviço' },
-          { label: 'Certificado SP', text: 'Certificado HTTPS do UCM incluído nos metadados — deve ser confiável pelo IDP ou os metadados serão rejeitados' },
+          { label: 'Certificado SP', text: 'Certificado HTTPS do UCM incluído nos metadados, deve ser confiável pelo IDP ou os metadados serão rejeitados' },
           { label: 'Entity ID', text: 'Identificador de entidade do provedor de serviço UCM' },
           { label: 'URL ACS', text: 'URL de callback do Assertion Consumer Service' },
           { label: 'Mapeamento de Atributos', text: 'Mapear atributos do IDP para campos de usuário UCM' },
@@ -29,7 +29,7 @@ export default {
         title: 'Provisionamento de Funções (#81)',
         items: [
           { label: 'Função Padrão', text: 'Aplicada APENAS quando um usuário é criado automaticamente no primeiro login SSO. Alterações de função feitas depois no UCM são preservadas.' },
-          { label: 'Mapeamento de Funções', text: 'Mapear grupos externos (Azure AD, Okta, LDAP) → funções UCM (admin / operator / viewer). Usado na criação do usuário e a cada login quando a sincronização de funções está ativada. Quando vários grupos correspondem, a função de maior privilégio vence (admin > operator > auditor > viewer) — a ordem das entradas não importa (#221).' },
+          { label: 'Mapeamento de Funções', text: 'Mapear grupos externos (Azure AD, Okta, LDAP) → funções UCM (admin / operator / viewer). Usado na criação do usuário e a cada login quando a sincronização de funções está ativada. Quando vários grupos correspondem, a função de maior privilégio vence (admin > operator > auditor > viewer): a ordem das entradas não importa (#221).' },
           { label: 'Sincronizar função a cada login', text: 'DESATIVADO (padrão): o SSO nunca sobrescreve funções gerenciadas no UCM. ATIVADO: a função é ressincronizada a partir de role_mapping a cada login; usuários sem correspondência no mapeamento mantêm sua função armazenada (default_role nunca é reaplicada).' },
           { label: 'Atualização Automática de Usuários', text: 'Atualiza e-mail e nome completo a cada login. NÃO altera a função.' },
         ]
@@ -53,7 +53,7 @@ export default {
       'O certificado HTTPS do UCM deve ser confiável pelo IDP para que os metadados SAML sejam aceitos',
     ],
     warnings: [
-      'SSO mal configurado pode bloquear todos os usuários — sempre mantenha um administrador local',
+      'SSO mal configurado pode bloquear todos os usuários: sempre mantenha um administrador local',
     ],
   },
   helpGuides: {
@@ -74,11 +74,11 @@ https://seu-host-ucm:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 Esta URL retorna um documento XML compatível com SAML 2.0 contendo:
-- **Entity ID** — Identificador do provedor de serviço UCM
-- **URL ACS** — Endpoint do Assertion Consumer Service (HTTP-POST)
-- **URL SLO** — Endpoint do serviço de Single Logout
-- **Certificado de Assinatura** — Certificado HTTPS do UCM para verificação de assinatura
-- **Formato NameID** — Formato de identificador de nome solicitado
+- **Entity ID**: Identificador do provedor de serviço UCM
+- **URL ACS**: Endpoint do Assertion Consumer Service (HTTP-POST)
+- **URL SLO**: Endpoint do serviço de Single Logout
+- **Certificado de Assinatura**: Certificado HTTPS do UCM para verificação de assinatura
+- **Formato NameID**: Formato de identificador de nome solicitado
 
 Copie esta URL na configuração "Adicionar Service Provider" ou "Aplicação SAML" do seu IDP.
 
@@ -88,7 +88,7 @@ Copie esta URL na configuração "Adicionar Service Provider" ou "Aplicação SA
 1. Obtenha a URL de metadados do IDP ou arquivo XML do seu provedor de identidade
 2. No UCM, vá para **Configurações → SSO**
 3. Clique em **Adicionar Provedor** → SAML
-4. Insira a **URL de Metadados do IDP** — o UCM preenche automaticamente Entity ID, URLs SSO/SLO e certificado
+4. Insira a **URL de Metadados do IDP**: o UCM preenche automaticamente Entity ID, URLs SSO/SLO e certificado
 5. Ou cole o XML de metadados do IDP diretamente
 6. Configure o **mapeamento de atributos** (nome de usuário, e-mail, grupos)
 7. Clique em **Salvar** e **Ativar**

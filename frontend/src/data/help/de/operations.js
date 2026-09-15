@@ -15,7 +15,7 @@ export default {
       {
         title: 'Massenaktionen',
         items: [
-          { label: 'Zertifikate', text: 'Widerrufen, erneuern, löschen oder exportieren — filtern nach Status und ausstellender CA' },
+          { label: 'Zertifikate', text: 'Widerrufen, erneuern, löschen oder exportieren, filtern nach Status und ausstellender CA' },
           { label: 'CAs', text: 'Zertifizierungsstellen löschen oder exportieren' },
           { label: 'CSRs', text: 'Mit einer CA signieren oder ausstehende Anfragen löschen' },
           { label: 'Templates', text: 'Zertifikatstemplates löschen' },
@@ -30,7 +30,7 @@ export default {
       'Überprüfen Sie Änderungen vor der Bestätigung von Massenoperationen',
     ],
     warnings: [
-      'Massenlöschung ist unwiderruflich — erstellen Sie vorher immer eine Sicherung',
+      'Massenlöschung ist unwiderruflich: erstellen Sie vorher immer eine Sicherung',
       'Massenwiderruf veröffentlicht aktualisierte CRLs für alle betroffenen CAs',
     ],
   },
@@ -43,11 +43,11 @@ Massenoperationen und Datenverwaltung. Führen Sie Stapelaktionen über mehrere 
 
 ## Import/Export-Tab
 
-Identisch mit der Import/Export-Seite — Smart-Import-Assistent und Massenexport-Funktionalität.
+Identisch mit der Import/Export-Seite. Smart-Import-Assistent und Massenexport-Funktionalität.
 
 ## OPNsense-Tab
 
-Identisch mit der Import/Export OPNsense-Integration — verbinden, durchsuchen und von OPNsense importieren.
+Identisch mit der Import/Export OPNsense-Integration: verbinden, durchsuchen und von OPNsense importieren.
 
 ## Massenaktionen
 
@@ -63,26 +63,26 @@ Führen Sie Stapeloperationen auf mehreren Ressourcen gleichzeitig durch.
 ### Verfügbare Aktionen nach Ressource
 
 #### Zertifikate
-- **Massenwiderruf** — Mehrere Zertifikate auf einmal widerrufen
-- **Massenerneuerung** — Mehrere Zertifikate erneuern
-- **Massenexport** — Ausgewählte Zertifikate als Bündel herunterladen
-- **Massenlöschung** — Ausgewählte Zertifikate dauerhaft entfernen
+- **Massenwiderruf**: Mehrere Zertifikate auf einmal widerrufen
+- **Massenerneuerung**: Mehrere Zertifikate erneuern
+- **Massenexport**: Ausgewählte Zertifikate als Bündel herunterladen
+- **Massenlöschung**: Ausgewählte Zertifikate dauerhaft entfernen
 
 #### CAs
-- **Massenexport** — Ausgewählte CAs herunterladen
-- **Massenlöschung** — Ausgewählte CAs entfernen (dürfen keine untergeordneten CAs haben)
+- **Massenexport**: Ausgewählte CAs herunterladen
+- **Massenlöschung**: Ausgewählte CAs entfernen (dürfen keine untergeordneten CAs haben)
 
 #### CSRs
-- **Massensignierung** — Mehrere CSRs mit einer ausgewählten CA signieren
-- **Massenlöschung** — Ausgewählte CSRs entfernen
+- **Massensignierung**: Mehrere CSRs mit einer ausgewählten CA signieren
+- **Massenlöschung**: Ausgewählte CSRs entfernen
 
 #### Templates
-- **Massenexport** — Als JSON exportieren
-- **Massenlöschung** — Ausgewählte Templates entfernen
+- **Massenexport**: Als JSON exportieren
+- **Massenlöschung**: Ausgewählte Templates entfernen
 
 #### Benutzer
-- **Massendeaktivierung** — Ausgewählte Benutzerkonten deaktivieren
-- **Massenlöschung** — Ausgewählte Benutzer dauerhaft entfernen
+- **Massendeaktivierung**: Ausgewählte Benutzerkonten deaktivieren
+- **Massenlöschung**: Ausgewählte Benutzer dauerhaft entfernen
 
 > ⚠ Massenoperationen sind unwiderruflich. Erstellen Sie immer eine Sicherung, bevor Sie Massenlöschungen oder -widerrufe durchführen.
 

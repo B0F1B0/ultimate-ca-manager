@@ -231,7 +231,7 @@ def create_mtls_certificate():
             ca = CA.query.filter_by(refid=trusted_refid).first()
     if not ca:
         return error_response(
-            'No mTLS CA configured — set the mTLS trusted CA or pass an explicit ca_id',
+            'No mTLS CA configured: set the mTLS trusted CA or pass an explicit ca_id',
             400,
         )
 

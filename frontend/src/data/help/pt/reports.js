@@ -49,7 +49,7 @@ Gere, baixe e agende relatórios de conformidade PKI. Os relatórios fornecem vi
 Lista completa de todos os certificados gerenciados pelo UCM. Inclui sujeito, emissor, número de série, datas de validade, tipo de chave e status atual. Use para auditorias de conformidade e documentação de infraestrutura.
 
 ### Certificados Expirando
-Certificados expirando dentro de uma janela de tempo especificada (padrão: 30 dias). Crítico para evitar interrupções — revise este relatório regularmente ou agende-o para entrega diária.
+Certificados expirando dentro de uma janela de tempo especificada (padrão: 30 dias). Crítico para evitar interrupções, revise este relatório regularmente ou agende-o para entrega diária.
 
 ### Hierarquia de CA
 Estrutura da Autoridade Certificadora mostrando relações pai-filho, contagens de certificados por CA e status da CA. Útil para entender sua topologia PKI.
@@ -66,18 +66,18 @@ Clique em **Baixar PDF** no canto superior direito para gerar um relatório exec
 
 ### Conteúdo
 O relatório PDF inclui 9 seções:
-1. **Página de Capa** — Métricas principais, medidor de risco e descobertas principais de relance
-2. **Índice** — Navegação rápida
-3. **Resumo Executivo** — Saúde geral da PKI, distribuição de certificados e nível de risco
-4. **Avaliação de Risco** — Descobertas críticas, certificados expirando, algoritmos fracos
-5. **Inventário de Certificados** — Detalhamento por status, tipo de chave e CA emissora
-6. **Análise de Conformidade** — Distribuição de pontuações, detalhamento de notas, pontuações por categoria
-7. **Ciclo de Vida de Certificados** — Linha do tempo de expiração e taxa de automação
-8. **Infraestrutura de CA** — Detalhes de CAs raiz e intermediárias, hierarquia
-9. **Recomendações** — Itens acionáveis baseados no estado atual da PKI
+1. **Página de Capa**: Métricas principais, medidor de risco e descobertas principais de relance
+2. **Índice**: Navegação rápida
+3. **Resumo Executivo**: Saúde geral da PKI, distribuição de certificados e nível de risco
+4. **Avaliação de Risco**: Descobertas críticas, certificados expirando, algoritmos fracos
+5. **Inventário de Certificados**: Detalhamento por status, tipo de chave e CA emissora
+6. **Análise de Conformidade**: Distribuição de pontuações, detalhamento de notas, pontuações por categoria
+7. **Ciclo de Vida de Certificados**: Linha do tempo de expiração e taxa de automação
+8. **Infraestrutura de CA**: Detalhes de CAs raiz e intermediárias, hierarquia
+9. **Recomendações**: Itens acionáveis baseados no estado atual da PKI
 
 ### Gráficos e Visuais
-O relatório inclui elementos visuais: barra de medidor de risco, distribuição de status, detalhamento de notas de conformidade e linha do tempo de expiração — projetado para partes interessadas não técnicas.
+O relatório inclui elementos visuais: barra de medidor de risco, distribuição de status, detalhamento de notas de conformidade e linha do tempo de expiração, projetado para partes interessadas não técnicas.
 
 > 💡 O relatório PDF é gerado a partir de dados ao vivo. Baixe-o antes de reuniões para o snapshot mais atual.
 
@@ -91,8 +91,8 @@ O relatório inclui elementos visuais: barra de medidor de risco, distribuição
 ## Baixando Relatórios
 
 Cada linha de relatório tem botões de download:
-- **CSV** — Formato de planilha para Excel, Google Sheets ou LibreOffice
-- **JSON** — Dados estruturados para automação e integração
+- **CSV**: Formato de planilha para Excel, Google Sheets ou LibreOffice
+- **JSON**: Dados estruturados para automação e integração
 
 > 💡 Relatórios CSV são mais fáceis para partes interessadas não técnicas. JSON é melhor para scripts e integrações de API.
 
@@ -117,11 +117,11 @@ Antes de ativar agendamentos, use o botão ✈️ em qualquer linha de relatóri
 
 ## Permissões
 
-- **read:reports** — Gerar e baixar relatórios
-- **read:audit + export:audit** — Baixar relatório PDF executivo
-- **write:settings** — Configurar agendamentos de relatórios
+- **read:reports**: Gerar e baixar relatórios
+- **read:audit + export:audit**: Baixar relatório PDF executivo
+- **write:settings**: Configurar agendamentos de relatórios
 
-> 💡 Agende o relatório de expiração primeiro — é o mais valioso operacionalmente e ajuda a prevenir interrupções relacionadas a certificados.
+> 💡 Agende o relatório de expiração primeiro: é o mais valioso operacionalmente e ajuda a prevenir interrupções relacionadas a certificados.
 `
   }
 }

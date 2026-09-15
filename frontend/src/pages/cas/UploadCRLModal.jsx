@@ -58,7 +58,7 @@ export function UploadCRLModal({ open, onClose, ca, onSuccess }) {
   }
 
   const title = useMemo(
-    () => `${t('cas.uploadCrlTitle')} — ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
+    () => `${t('cas.uploadCrlTitle')}: ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
     [t, ca]
   )
 

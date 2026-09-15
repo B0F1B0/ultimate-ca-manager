@@ -22,7 +22,7 @@ export default {
     tips: [
       'Glissez les widgets pour réorganiser la disposition de votre tableau de bord',
       'Cliquez sur l\'icône œil dans l\'en-tête pour afficher/masquer des widgets spécifiques',
-      'Le tableau de bord se met à jour en temps réel via WebSocket — aucune actualisation manuelle nécessaire',
+      'Le tableau de bord se met à jour en temps réel via WebSocket : aucune actualisation manuelle nécessaire',
       'La disposition est sauvegardée par utilisateur et persiste entre les sessions',
     ],
   },
@@ -37,20 +37,20 @@ Le tableau de bord est votre centre de surveillance principal. Il affiche des m�
 
 ### Carte de statistiques
 Affiche quatre compteurs clés :
-- **Total des CA** — Autorités de certification racines et intermédiaires
-- **Certificats actifs** — Certificats valides et non révoqués
-- **CSR en attente** — Demandes de signature de certificat en attente d'approbation
-- **Expiration imminente** — Certificats expirant dans les 30 jours
+- **Total des CA** : Autorités de certification racines et intermédiaires
+- **Certificats actifs** : Certificats valides et non révoqués
+- **CSR en attente** : Demandes de signature de certificat en attente d'approbation
+- **Expiration imminente** : Certificats expirant dans les 30 jours
 
 ### Tendance des certificats
 Un graphique linéaire montrant l'émission de certificats dans le temps. Survolez les points de données pour voir les comptages exacts.
 
 ### Distribution des statuts
 Diagramme circulaire montrant la répartition des états des certificats :
-- **Valide** — Dans la période de validité et non révoqué
-- **Expirant** — Expire dans les 30 jours
-- **Expiré** — Après la date « Not After »
-- **Révoqué** — Explicitement révoqué
+- **Valide** : Dans la période de validité et non révoqué
+- **Expirant** : Expire dans les 30 jours
+- **Expiré** : Après la date « Not After »
+- **Révoqué** : Explicitement révoqué
 
 ### Prochaine expiration
 Liste les certificats expirant le plus tôt. Cliquez sur n'importe quel certificat pour accéder à ses détails. Configurez le seuil dans **Paramètres → Général**.
@@ -86,7 +86,7 @@ Cliquez sur l'**icône œil** dans l'en-tête de la page pour basculer la visibi
 Votre configuration de disposition est sauvegardée par utilisateur dans le navigateur. Elle persiste entre les sessions et les appareils partageant le même profil de navigateur.
 
 ## Mises à jour en temps réel
-Le tableau de bord reçoit des mises à jour en direct via WebSocket. Aucune actualisation manuelle n'est nécessaire — les nouveaux certificats, changements de statut et entrées d'activité apparaissent automatiquement.
+Le tableau de bord reçoit des mises à jour en direct via WebSocket. Aucune actualisation manuelle n'est nécessaire : les nouveaux certificats, changements de statut et entrées d'activité apparaissent automatiquement.
 
 > 💡 Si le WebSocket est déconnecté, un indicateur jaune apparaît dans la barre latérale. Les données s'actualiseront à la reconnexion.
 `

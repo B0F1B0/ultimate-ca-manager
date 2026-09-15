@@ -149,7 +149,7 @@ class CustomCommandDnsProvider(BaseDnsProvider):
                 'label': 'Create TXT record command',
                 'type': 'text',
                 'required': True,
-                'help': 'Absolute binary path, e.g. /usr/local/bin/ucm-dns-create.sh — record arrives in $RECORD_NAME / $RECORD_VALUE env vars.',
+                'help': 'Absolute binary path, e.g. /usr/local/bin/ucm-dns-create.sh: record arrives in $RECORD_NAME / $RECORD_VALUE env vars.',
             },
             {
                 'name': 'delete_command',

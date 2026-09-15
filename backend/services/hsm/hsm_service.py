@@ -628,7 +628,7 @@ class HsmService:
 
         lib_path = hsm_check._find_softhsm()
         if not lib_path:
-            logger.debug("HSM_DEFAULT_PIN set but SoftHSM library not found — skipping auto-register")
+            logger.debug("HSM_DEFAULT_PIN set but SoftHSM library not found, skipping auto-register")
             return
 
         try:

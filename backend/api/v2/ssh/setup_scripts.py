@@ -88,7 +88,7 @@ printf "%b========================================%b\\n" "$BOLD" "$NC"
 printf "%bSSH User CA Trust Setup%b\\n" "$BOLD" "$NC"
 printf "CA: %s\\n" "{ca_label}"
 if [ "$DRY_RUN" = true ]; then
-    printf "%b>>> DRY RUN — no changes will be made <<<%b\\n" "$YELLOW" "$NC"
+    printf "%b>>> DRY RUN, no changes will be made <<<%b\\n" "$YELLOW" "$NC"
 fi
 printf "%b========================================%b\\n\\n" "$BOLD" "$NC"
 
@@ -180,13 +180,13 @@ info "Checking sshd_config for TrustedUserCAKeys directive..."
 if grep -qE "^\\s*TrustedUserCAKeys" "$SSHD_CONFIG" 2>/dev/null; then
     CURRENT=$(grep -E "^\\s*TrustedUserCAKeys" "$SSHD_CONFIG" | head -1)
     warn "TrustedUserCAKeys is already configured: $CURRENT"
-    warn "Skipping — please verify the path is correct or update manually."
+    warn "Skipping: please verify the path is correct or update manually."
 else
     if [ "$DRY_RUN" = true ]; then
         info "Would add to $SSHD_CONFIG:"
         info "  TrustedUserCAKeys $CA_KEY_FILE"
     else
-        printf "\\n# SSH User CA Trust — added by UCM setup script\\nTrustedUserCAKeys %s\\n" "$CA_KEY_FILE" >> "$SSHD_CONFIG"
+        printf "\\n# SSH User CA Trust: added by UCM setup script\\nTrustedUserCAKeys %s\\n" "$CA_KEY_FILE" >> "$SSHD_CONFIG"
         ok "Added TrustedUserCAKeys directive to sshd_config"
     fi
 fi
@@ -234,7 +234,7 @@ if command -v sshd >/dev/null 2>&1; then
         fi
     fi
 else
-    warn "sshd binary not found in PATH — skipping config validation"
+    warn "sshd binary not found in PATH, skipping config validation"
 fi
 
 # --- Step 7: Reload sshd ---
@@ -254,7 +254,7 @@ fi
 # --- Done ---
 printf "\\n%b========================================%b\\n" "$BOLD" "$NC"
 if [ "$DRY_RUN" = true ]; then
-    printf "%bDry run complete — no changes were made.%b\\n" "$YELLOW" "$NC"
+    printf "%bDry run complete, no changes were made.%b\\n" "$YELLOW" "$NC"
 else
     printf "%bSetup complete!%b\\n" "$GREEN" "$NC"
 fi
@@ -342,7 +342,7 @@ printf "%bSSH Host CA Trust Setup%b\\n" "$BOLD" "$NC"
 printf "CA: %s\\n" "{ca_label}"
 printf "Host: %s\\n" "$HOSTNAME"
 if [ "$DRY_RUN" = true ]; then
-    printf "%b>>> DRY RUN — no changes will be made <<<%b\\n" "$YELLOW" "$NC"
+    printf "%b>>> DRY RUN, no changes will be made <<<%b\\n" "$YELLOW" "$NC"
 fi
 printf "%b========================================%b\\n\\n" "$BOLD" "$NC"
 
@@ -476,13 +476,13 @@ info "Checking sshd_config for HostCertificate directive..."
 if grep -qE "^\\s*HostCertificate" "$SSHD_CONFIG" 2>/dev/null; then
     CURRENT=$(grep -E "^\\s*HostCertificate" "$SSHD_CONFIG" | head -1)
     warn "HostCertificate is already configured: $CURRENT"
-    warn "Skipping — please verify the path is correct or update manually."
+    warn "Skipping: please verify the path is correct or update manually."
 else
     if [ "$DRY_RUN" = true ]; then
         info "Would add to $SSHD_CONFIG:"
         info "  HostCertificate $CERT_FILE"
     else
-        printf "\\n# SSH Host Certificate — added by UCM setup script\\nHostCertificate %s\\n" "$CERT_FILE" >> "$SSHD_CONFIG"
+        printf "\\n# SSH Host Certificate: added by UCM setup script\\nHostCertificate %s\\n" "$CERT_FILE" >> "$SSHD_CONFIG"
         ok "Added HostCertificate directive to sshd_config"
     fi
 fi
@@ -503,7 +503,7 @@ if command -v sshd >/dev/null 2>&1; then
         fi
     fi
 else
-    warn "sshd binary not found in PATH — skipping config validation"
+    warn "sshd binary not found in PATH, skipping config validation"
 fi
 
 # --- Step 7: Reload sshd ---
@@ -519,7 +519,7 @@ if [ -n "$RESTART_CMD" ]; then
                 warn "sshd reload returned non-zero. Check service status manually."
             fi
         else
-            warn "Skipping sshd reload — host certificate not yet present."
+            warn "Skipping sshd reload: host certificate not yet present."
             warn "Sign the host key first, then reload sshd manually."
         fi
     fi
@@ -528,7 +528,7 @@ fi
 # --- Done ---
 printf "\\n%b========================================%b\\n" "$BOLD" "$NC"
 if [ "$DRY_RUN" = true ]; then
-    printf "%bDry run complete — no changes were made.%b\\n" "$YELLOW" "$NC"
+    printf "%bDry run complete, no changes were made.%b\\n" "$YELLOW" "$NC"
 else
     printf "%bSetup complete!%b\\n" "$GREEN" "$NC"
 fi

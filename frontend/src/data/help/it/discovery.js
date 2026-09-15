@@ -8,14 +8,14 @@ export default {
         title: 'Schede',
         items: [
           { label: 'Rilevati', text: 'Tutti i certificati trovati dalle scansioni, con stato, scadenza e dettagli dell\'endpoint' },
-          { label: 'Profili', text: 'Configurazioni di scansione salvate — target, porte, pianificazione, notifiche' },
+          { label: 'Profili', text: 'Configurazioni di scansione salvate, target, porte, pianificazione, notifiche' },
           { label: 'Cronologia', text: 'Esecuzioni di scansione passate con durata, target scansionati e certificati trovati' },
         ]
       },
       {
         title: 'Scansione',
         items: [
-          { label: 'Scansione rapida', text: 'Scansione ad-hoc senza salvare un profilo — inserisci target e porte, i risultati arrivano in tempo reale' },
+          { label: 'Scansione rapida', text: 'Scansione ad-hoc senza salvare un profilo, inserisci target e porte, i risultati arrivano in tempo reale' },
           { label: 'Target', text: 'Uno per riga: hostname, IP, sottorete CIDR (192.168.1.0/24) o host:porta (10.0.0.1:8443)' },
           { label: 'Porte', text: 'Porte TCP separate da virgole (es. 443, 8443, 636), oppure il preset delle porte comuni' },
           { label: 'Opzioni avanzate', text: 'Risoluzione DNS inversa (record PTR), timeout e concorrenza' },
@@ -27,15 +27,15 @@ export default {
         title: 'Stati dei risultati',
         items: [
           { label: 'Gestito', text: 'L\'impronta SHA-256 del certificato corrisponde a un certificato nell\'inventario di UCM' },
-          { label: 'Non gestito', text: 'Trovato sulla rete ma non nell\'inventario — un candidato da portare sotto gestione' },
-          { label: 'Errore', text: 'L\'endpoint non ha potuto essere scansionato — il suggerimento di errore distingue rifiuti, DNS, timeout ed errori TLS/SNI; riprova singolarmente o tutti insieme' },
+          { label: 'Non gestito', text: 'Trovato sulla rete ma non nell\'inventario, un candidato da portare sotto gestione' },
+          { label: 'Errore', text: 'L\'endpoint non ha potuto essere scansionato, il suggerimento di errore distingue rifiuti, DNS, timeout ed errori TLS/SNI; riprova singolarmente o tutti insieme' },
           { label: 'Cambiato', text: 'Un endpoint che presenta un certificato diverso dalla scansione precedente è contrassegnato con un timestamp di ultimo cambiamento' },
         ]
       },
     ],
     tips: [
       'Filtra i risultati con le etichette di stato: Gestito, Non gestito, Errore, Scaduto, In scadenza',
-      'Esporta i certificati rilevati come CSV o JSON — i filtri attivi si applicano all\'esportazione',
+      'Esporta i certificati rilevati come CSV o JSON: i filtri attivi si applicano all\'esportazione',
       'Pianifica una scansione giornaliera delle tue sottoreti server con la notifica dei nuovi certificati abilitata',
     ],
     warnings: [
@@ -55,7 +55,7 @@ Il Rilevamento certificati scansiona la tua rete per trovare i certificati TLS d
 Tutti i certificati trovati dalle scansioni, con stato, scadenza e dettagli dell'endpoint. Fai clic su una riga per aprire il pannello dettaglio con le informazioni del certificato, i Subject Alternative Names e la cronologia delle scansioni (visto la prima volta, visto l'ultima volta, ultimo cambiamento).
 
 ### Profili
-Configurazioni di scansione salvate per scansioni ricorrenti — target, porte, pianificazione e notifiche.
+Configurazioni di scansione salvate per scansioni ricorrenti: target, porte, pianificazione e notifiche.
 
 ### Cronologia
 Esecuzioni di scansione passate con durata, target scansionati, certificati trovati e chi ha avviato l'esecuzione.
@@ -65,51 +65,51 @@ Esecuzioni di scansione passate con durata, target scansionati, certificati trov
 Esegui una scansione ad-hoc senza salvare un profilo:
 
 1. Fai clic su **Scansione rapida**
-2. Inserisci i **target** — uno per riga: hostname, IP, sottorete CIDR (\`192.168.1.0/24\`) o \`host:porta\` (\`10.0.0.1:8443\`)
-3. Inserisci le **porte** — porte TCP separate da virgole (es. \`443, 8443, 636\`), oppure scegli il preset delle porte comuni
-4. Facoltativamente regola le **opzioni avanzate** — risoluzione DNS inversa (record PTR), timeout, concorrenza
-5. Fai clic su **Avvia scansione** — l'avanzamento si aggiorna in tempo reale via WebSocket
+2. Inserisci i **target**: uno per riga: hostname, IP, sottorete CIDR (\`192.168.1.0/24\`) o \`host:porta\` (\`10.0.0.1:8443\`)
+3. Inserisci le **porte**: porte TCP separate da virgole (es. \`443, 8443, 636\`), oppure scegli il preset delle porte comuni
+4. Facoltativamente regola le **opzioni avanzate**: risoluzione DNS inversa (record PTR), timeout, concorrenza
+5. Fai clic su **Avvia scansione**: l'avanzamento si aggiorna in tempo reale via WebSocket
 
 ## Profili di scansione
 
 I profili salvano una configurazione di target per un uso ripetuto:
 
-- **Target e porte** — stessi formati della Scansione rapida
-- **Pianificazione** — manuale, oppure automatica ogni 1h / 6h / 12h / 24h / 7g
-- **Notifiche** — avvisi email quando vengono rilevati nuovi certificati, quando un certificato cambia su un endpoint o quando i certificati rilevati stanno per scadere
+- **Target e porte**: stessi formati della Scansione rapida
+- **Pianificazione**: manuale, oppure automatica ogni 1h / 6h / 12h / 24h / 7g
+- **Notifiche**: avvisi email quando vengono rilevati nuovi certificati, quando un certificato cambia su un endpoint o quando i certificati rilevati stanno per scadere
 
 Esegui un profilo su richiesta con **Scansiona**, oppure lascia che lo scheduler lo esegua all'intervallo configurato.
 
 ## Stati dei risultati
 
-- **Gestito** — L'impronta SHA-256 del certificato corrisponde a un certificato nell'inventario di UCM
-- **Non gestito** — Trovato sulla rete ma non nell'inventario — un candidato da portare sotto gestione
-- **Errore** — L'endpoint non ha potuto essere scansionato; la colonna errore mostra un suggerimento (connessione rifiutata, errore DNS, timeout, problema di handshake TLS / SNI)
+- **Gestito**: L'impronta SHA-256 del certificato corrisponde a un certificato nell'inventario di UCM
+- **Non gestito**: Trovato sulla rete ma non nell'inventario: un candidato da portare sotto gestione
+- **Errore**: L'endpoint non ha potuto essere scansionato; la colonna errore mostra un suggerimento (connessione rifiutata, errore DNS, timeout, problema di handshake TLS / SNI)
 
 ### Rilevamento dei cambiamenti
 Quando un endpoint presenta un certificato diverso dalla scansione precedente, il cambiamento viene registrato (impronta precedente conservata, timestamp **Ultimo cambiamento**) e può attivare una notifica.
 
 ## Filtri ed esportazione
 
-- **Etichette di filtro per stato** — Gestito, Non gestito, Errore, Scaduto, In scadenza
-- **Filtro per profilo** — Limita i risultati a un solo profilo di scansione
-- **Esporta** — Scarica i certificati rilevati come CSV o JSON (i filtri si applicano)
-- **Riprova** — Riscansiona i singoli target in errore, oppure **Riprova tutti gli errori** in una volta
-- **Risolvi DNS** — Risoluzione DNS inversa in blocco per gli IP rilevati
+- **Etichette di filtro per stato**: Gestito, Non gestito, Errore, Scaduto, In scadenza
+- **Filtro per profilo**: Limita i risultati a un solo profilo di scansione
+- **Esporta**: Scarica i certificati rilevati come CSV o JSON (i filtri si applicano)
+- **Riprova**: Riscansiona i singoli target in errore, oppure **Riprova tutti gli errori** in una volta
+- **Risolvi DNS**: Risoluzione DNS inversa in blocco per gli IP rilevati
 
 ## Limiti e sicurezza
 
 - Le sottoreti sono limitate a 1024 indirizzi (equivalente a un /22 IPv4); fino a 1000 target per scansione di profilo
-- Gli intervalli privati RFC1918 e il loopback sono scansionabili — il modello di deployment on-prem di UCM; gli intervalli link-local, multicast e riservati sono bloccati
+- Gli intervalli privati RFC1918 e il loopback sono scansionabili: il modello di deployment on-prem di UCM; gli intervalli link-local, multicast e riservati sono bloccati
 - Tutte le azioni di scansione sono registrate nel log di audit
 
 ## Permessi
 
-- **read:certificates** — Visualizzare i certificati rilevati, i profili e la cronologia
-- **admin:system** — Creare/modificare i profili ed eseguire le scansioni
-- **delete:certificates** — Eliminare i risultati rilevati
+- **read:certificates**: Visualizzare i certificati rilevati, i profili e la cronologia
+- **admin:system**: Creare/modificare i profili ed eseguire le scansioni
+- **delete:certificates**: Eliminare i risultati rilevati
 
-> 💡 Pianifica una scansione giornaliera delle tue sottoreti server e abilita la notifica dei nuovi certificati — intercetta i certificati distribuiti fuori dal tuo processo PKI.
+> 💡 Pianifica una scansione giornaliera delle tue sottoreti server e abilita la notifica dei nuovi certificati: intercetta i certificati distribuiti fuori dal tuo processo PKI.
 `
   }
 }

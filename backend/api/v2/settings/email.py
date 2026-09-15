@@ -228,7 +228,7 @@ def smtp_oauth_authorize_url():
 
     smtp = SMTPConfig.query.first()
     if not smtp:
-        return error_response('SMTP configuration not found — save settings first', 404)
+        return error_response('SMTP configuration not found: save settings first', 404)
 
     data = request.json or {}
     redirect_uri = (
@@ -297,8 +297,8 @@ def smtp_oauth_callback():
     expected_state = session.pop('smtp_oauth_state', None)
     redirect_uri = session.pop('smtp_oauth_redirect_uri', None)
     if not expected_state or state != expected_state:
-        logger.warning('OAuth callback state mismatch — possible CSRF')
-        return _html('Authorization failed', 'State mismatch — please retry', ok=False)
+        logger.warning('OAuth callback state mismatch: possible CSRF')
+        return _html('Authorization failed', 'State mismatch: please retry', ok=False)
     if not redirect_uri:
         return _html('Authorization failed', 'Missing redirect URI in session', ok=False)
 
@@ -310,7 +310,7 @@ def smtp_oauth_callback():
         payload = oauth_helper.exchange_code_for_tokens(smtp, code, redirect_uri)
     except Exception as e:
         logger.error(f"OAuth code exchange failed: {e}")
-        return _html('Authorization failed', 'Token exchange failed — see server logs', ok=False)
+        return _html('Authorization failed', 'Token exchange failed, see server logs', ok=False)
 
     refresh_token = payload.get('refresh_token')
     if not refresh_token:
@@ -318,7 +318,7 @@ def smtp_oauth_callback():
         # we forgot prompt=consent, or it's a non-offline scope.
         return _html(
             'Authorization incomplete',
-            'No refresh_token received — revoke prior consent in your provider account and retry.',
+            'No refresh_token received: revoke prior consent in your provider account and retry.',
             ok=False,
         )
 

@@ -17,7 +17,7 @@ export default {
         items: [
           { label: 'Seleção de Modelo', text: 'Escolha entre modelos de certificado disponíveis na MS CA' },
           { label: 'Auto-Aprovado', text: 'Modelos com autoenroll retornam o certificado imediatamente' },
-          { label: 'Aprovação do Gerente', text: 'Alguns modelos requerem aprovação do gerente — o UCM rastreia a solicitação pendente' },
+          { label: 'Aprovação do Gerente', text: 'Alguns modelos requerem aprovação do gerente, o UCM rastreia a solicitação pendente' },
           { label: 'Consulta de Status', text: 'Verificar o status da solicitação pendente no painel de detalhes do CSR' },
         ]
       },
@@ -33,15 +33,15 @@ export default {
       {
         title: 'Ciclo de Vida: Renovar e Revogar',
         items: [
-          { label: 'Renovar', text: 'Renovar um certificado emitido pelo AD CS reenvia o CSR original à mesma conexão e ao mesmo modelo — quem assina é a CA emissora, não o UCM.' },
-          { label: 'Revogar', text: 'Revogar um certificado emitido pelo AD CS é local ao UCM, a menos que o canal de administração WinRM esteja configurado — nesse caso, é propagado para a CA Windows.' },
+          { label: 'Renovar', text: 'Renovar um certificado emitido pelo AD CS reenvia o CSR original à mesma conexão e ao mesmo modelo, quem assina é a CA emissora, não o UCM.' },
+          { label: 'Revogar', text: 'Revogar um certificado emitido pelo AD CS é local ao UCM, a menos que o canal de administração WinRM esteja configurado, nesse caso, é propagado para a CA Windows.' },
           { label: 'Renovação pendente', text: 'Se a CA retiver a renovação para aprovação do gerente, o UCM a rastreia como qualquer outra solicitação pendente.' },
         ]
       },
       {
         title: 'Canal de Administração WinRM (opcional)',
         items: [
-          { label: 'Propósito', text: 'Executa operações de gerenciamento na CA Windows (revogar, desfazer revogação, publicar CRL, inventário, aprovar/negar) via PowerShell remoting + certutil — coisas que a inscrição web do AD CS não pode fazer.' },
+          { label: 'Propósito', text: 'Executa operações de gerenciamento na CA Windows (revogar, desfazer revogação, publicar CRL, inventário, aprovar/negar) via PowerShell remoting + certutil, coisas que a inscrição web do AD CS não pode fazer.' },
           { label: 'Transporte', text: 'NTLM ou Kerberos sobre HTTP/HTTPS. Recomenda-se Kerberos + HTTPS; Kerberos reutiliza o keytab da conexão.' },
           { label: 'Credenciais', text: 'Reutiliza por padrão as da própria conexão. Conexões mTLS devem definir uma conta WinRM dedicada (oficial "Emitir e Gerenciar Certificados" com privilégios mínimos).' },
           { label: 'Requisito', text: 'WinRM habilitado na CA e o pacote opcional pywinrm instalado. Operações de gerenciamento exigem admin:system.' },
@@ -66,14 +66,14 @@ export default {
     ],
     tips: [
       'Teste a conexão primeiro para verificar a autenticação e descobrir modelos disponíveis.',
-      'Ative EOBO marcando a caixa de seleção no modal de assinatura — os campos são preenchidos automaticamente dos dados do CSR.',
-      'A autenticação por certificado de cliente é recomendada para produção — não requer ingressar no domínio.',
+      'Ative EOBO marcando a caixa de seleção no modal de assinatura: os campos são preenchidos automaticamente dos dados do CSR.',
+      'A autenticação por certificado de cliente é recomendada para produção: não requer ingressar no domínio.',
       'Habilite o canal de administração WinRM para propagar revogações à CA e gerenciar solicitações pendentes a partir do UCM.',
     ],
     warnings: [
-      'Kerberos requer que a máquina esteja ingressada no domínio ou um keytab configurado — não disponível no Docker.',
+      'Kerberos requer que a máquina esteja ingressada no domínio ou um keytab configurado: não disponível no Docker.',
       'EOBO requer um certificado de agente de inscrição configurado no servidor AD CS.',
-      'Sem o canal de administração WinRM, revogar um certificado AD CS apenas o marca como revogado no UCM — a CA Windows não é notificada.',
+      'Sem o canal de administração WinRM, revogar um certificado AD CS apenas o marca como revogado no UCM: a CA Windows não é notificada.',
     ],
   },
   helpGuides: {
@@ -98,8 +98,8 @@ O UCM integra com o Microsoft Active Directory Certificate Services (AD CS) para
 
 | Método | Requisitos | Melhor Para |
 |--------|-----------|-------------|
-| **Certificado de Cliente (mTLS)** | PEM cert/chave do cliente da CA | Produção — não requer ingressar no domínio |
-| **Basic Auth** | Usuário + senha, HTTPS | Configurações simples — ative basic auth no IIS certsrv |
+| **Certificado de Cliente (mTLS)** | PEM cert/chave do cliente da CA | Produção: não requer ingressar no domínio |
+| **Basic Auth** | Usuário + senha, HTTPS | Configurações simples: ative basic auth no IIS certsrv |
 | **Kerberos** | Máquina ingressada no domínio + keytab | Ambientes AD empresariais |
 
 ### Configuração de Certificado de Cliente (Recomendado)
@@ -141,14 +141,14 @@ EOBO permite que um agente de inscrição solicite certificados em nome de outro
 1. No modal de assinatura, selecione a conexão Microsoft CA e o modelo
 2. Marque a caixa **Inscrição em Nome de Outro (EOBO)**
 3. Os campos são preenchidos automaticamente do CSR:
-   - **DN do Inscrito** — do sujeito do CSR (ex.: CN=João Silva,OU=Usuários,DC=corp,DC=local)
-   - **UPN do Inscrito** — do e-mail SAN do CSR (ex.: joao.silva@corp.local)
+   - **DN do Inscrito**: do sujeito do CSR (ex.: CN=João Silva,OU=Usuários,DC=corp,DC=local)
+   - **UPN do Inscrito**: do e-mail SAN do CSR (ex.: joao.silva@corp.local)
 4. Ajuste os valores se necessário
 5. Clique em **Assinar**
 
 O UCM passa isso como atributos de solicitação ADCS:
-- EnrolleeObjectName:<DN> — identifica o usuário alvo no AD
-- EnrolleePrincipalName:<UPN> — o nome de login do usuário
+- EnrolleeObjectName:<DN>: identifica o usuário alvo no AD
+- EnrolleePrincipalName:<UPN>: o nome de login do usuário
 
 ### EOBO vs Inscrição Direta
 
@@ -162,12 +162,12 @@ O UCM passa isso como atributos de solicitação ADCS:
 ## Ciclo de Vida dos Certificados
 
 ### Renovar um certificado AD CS
-A renovação **não** reassina localmente (a chave emissora reside na CA Windows). O UCM reenvia o CSR original do certificado — mesma chave, sujeito e SANs — à conexão e ao modelo que o emitiram, e atualiza o certificado no lugar. Se a CA retiver a renovação para aprovação do gerente, ela é rastreada como uma solicitação pendente.
+A renovação **não** reassina localmente (a chave emissora reside na CA Windows). O UCM reenvia o CSR original do certificado: mesma chave, sujeito e SANs, à conexão e ao modelo que o emitiram, e atualiza o certificado no lugar. Se a CA retiver a renovação para aprovação do gerente, ela é rastreada como uma solicitação pendente.
 
 ### Revogar um certificado AD CS
 A inscrição web do AD CS não tem endpoint de revogação. Revogar um certificado emitido pelo AD CS:
-- **Sem o canal de administração WinRM** — marca como revogado apenas no UCM; a CA Windows não é notificada. Revogue-o também na CA.
-- **Com o canal de administração WinRM** — o UCM propaga a revogação para a CA Windows (certutil -revoke + publicação da CRL). Remover um certificateHold também propaga o desfazer da revogação.
+- **Sem o canal de administração WinRM**: marca como revogado apenas no UCM; a CA Windows não é notificada. Revogue-o também na CA.
+- **Com o canal de administração WinRM**: o UCM propaga a revogação para a CA Windows (certutil -revoke + publicação da CRL). Remover um certificateHold também propaga o desfazer da revogação.
 
 ## Canal de Administração WinRM (opcional)
 
@@ -182,14 +182,14 @@ O canal de administração permite ao UCM executar na CA Windows operações de 
 1. Edite a conexão e habilite o **canal de administração WinRM**
 2. Defina o host (por padrão, o servidor da conexão), a porta e o transporte
 3. **Transporte**: Kerberos (recomendado, reutiliza o keytab da conexão) ou NTLM, sobre HTTP ou HTTPS
-4. **Credenciais**: deixe vazio para reutilizar as da própria conexão (Basic/Kerberos). Conexões mTLS não têm credenciais WinRM reutilizáveis — defina uma conta dedicada
+4. **Credenciais**: deixe vazio para reutilizar as da própria conexão (Basic/Kerberos). Conexões mTLS não têm credenciais WinRM reutilizáveis, defina uma conta dedicada
 5. Clique em **Testar canal de administração**
 
 | Modo de autenticação de inscrição | Reutiliza credenciais para WinRM? |
 |-----------------------------------|------------------------------------|
-| Kerberos (keytab) | Sim — mesmo principal/keytab |
-| Basic (usuário/senha) | Sim — senha para NTLM/Kerberos |
-| Certificado (mTLS) | Não — defina uma conta WinRM dedicada |
+| Kerberos (keytab) | Sim: mesmo principal/keytab |
+| Basic (usuário/senha) | Sim: senha para NTLM/Kerberos |
+| Certificado (mTLS) | Não: defina uma conta WinRM dedicada |
 
 ## Sincronização de Revogações via CRL
 
@@ -202,8 +202,8 @@ Habilite **Importar certificados emitidos diretamente na CA** para trazer ao rep
 ## Painel de Controle da CA
 
 O painel de controle (aberto a partir da conexão, requer o canal de administração) gerencia as solicitações aguardando aprovação do gerente da CA e mostra a saúde da CA:
-- **Solicitações pendentes** — listar, **Aprovar** (certutil -resubmit; o certificado emitido é importado automaticamente) ou **Negar** (certutil -deny)
-- **Saúde** — status do serviço da CA, expiração do certificado da CA, próxima atualização da CRL e contagem de solicitações pendentes
+- **Solicitações pendentes**: listar, **Aprovar** (certutil -resubmit; o certificado emitido é importado automaticamente) ou **Negar** (certutil -deny)
+- **Saúde**: status do serviço da CA, expiração do certificado da CA, próxima atualização da CRL e contagem de solicitações pendentes
 
 ## Solução de Problemas
 
@@ -214,8 +214,8 @@ O painel de controle (aberto a partir da conexão, requer o canal de administra�
 | EOBO negado | Verifique certificado de agente de inscrição e permissões do modelo |
 | Solicitação presa em pendente | Aprove-a no Painel de Controle da CA, ou no console da CA Windows e depois atualize o status no UCM |
 | Teste do canal de administração falha | Verifique se o WinRM está habilitado na CA, a porta/transporte e se o pywinrm está instalado |
-| Revogação não chega à CA | Habilite o canal de administração WinRM — sem ele, a revogação é local ao UCM |
-| Pendente não detectado (CA em outro idioma) | Corrigido na v2.192 — o UCM agora reconhece páginas de pendência localizadas do AD CS |
+| Revogação não chega à CA | Habilite o canal de administração WinRM: sem ele, a revogação é local ao UCM |
+| Pendente não detectado (CA em outro idioma) | Corrigido na v2.192: o UCM agora reconhece páginas de pendência localizadas do AD CS |
 
 > 💡 Use o botão **Testar Conexão** para verificar a autenticação e descobrir modelos disponíveis antes de assinar. Habilite o **canal de administração WinRM** para gerenciar revogação, CRLs, inventário e solicitações pendentes diretamente do UCM.
 `

@@ -25,10 +25,10 @@ export default {
       {
         title: 'Autoenrollment Windows',
         items: [
-          { label: 'Autoriser l\'autoenrollment', text: 'Annonce le modèle avec autoEnroll=true dans la Certificate Enrollment Policy afin que les clients GPO/Kerberos le demandent automatiquement à l\'ouverture de session. Désactivé par défaut — l\'enrôlement manuel reste possible sans lui' },
-          { label: 'Construire le sujet depuis Active Directory', text: 'Dériver le sujet et les SAN depuis l\'objet AD du demandeur (via le connecteur AD) au lieu d\'exiger que le client les fournisse — pour l\'autoenrollment GPO sans intervention' },
+          { label: 'Autoriser l\'autoenrollment', text: 'Annonce le modèle avec autoEnroll=true dans la Certificate Enrollment Policy afin que les clients GPO/Kerberos le demandent automatiquement à l\'ouverture de session. Désactivé par défaut, l\'enrôlement manuel reste possible sans lui' },
+          { label: 'Construire le sujet depuis Active Directory', text: 'Dériver le sujet et les SAN depuis l\'objet AD du demandeur (via le connecteur AD) au lieu d\'exiger que le client les fournisse, pour l\'autoenrollment GPO sans intervention' },
           { label: 'Restreindre l\'enrôlement à un groupe AD', text: 'Seuls les membres du groupe AD configuré (appartenance imbriquée incluse) peuvent enrôler via le point de terminaison Kerberos. Vide = tout principal authentifié. Non appliqué sur le point de terminaison Username/Password' },
-          { label: 'Champs de sujet épinglés', text: 'Force les valeurs C/ST/L/O/OU sur chaque certificat émis via WSTEP, en écrasant le CSR ou la dérivation AD pour ces champs. Le CN et les SAN ne sont jamais affectés — laissez un champ vide pour le garder dynamique' },
+          { label: 'Champs de sujet épinglés', text: 'Force les valeurs C/ST/L/O/OU sur chaque certificat émis via WSTEP, en écrasant le CSR ou la dérivation AD pour ces champs. Le CN et les SAN ne sont jamais affectés, laissez un champ vide pour le garder dynamique' },
         ]
       },
     ],
@@ -49,13 +49,13 @@ Les modèles définissent des profils de certificat réutilisables. Au lieu de c
 
 ### Modèles d'entité finale
 Pour les certificats serveur, les certificats client, la signature de code et la protection e-mail. Ces modèles définissent généralement :
-- **Utilisation de la clé** — Signature numérique, chiffrement de clé
-- **Utilisation étendue de la clé** — Authentification serveur, authentification client, signature de code, protection e-mail
+- **Utilisation de la clé** : Signature numérique, chiffrement de clé
+- **Utilisation étendue de la clé** : Authentification serveur, authentification client, signature de code, protection e-mail
 
 ### Modèles de CA
 Pour créer des CA intermédiaires. Ceux-ci définissent :
-- **Utilisation de la clé** — Signature de certificat, signature de CRL
-- **Contraintes de base** — CA:TRUE, longueur de chemin optionnelle
+- **Utilisation de la clé** : Signature de certificat, signature de CRL
+- **Contraintes de base** : CA:TRUE, longueur de chemin optionnelle
 
 ## Créer un modèle
 
@@ -79,17 +79,17 @@ Lors de l'émission d'un certificat ou de la signature d'une CSR, sélectionnez 
 
 Les modèles portent trois indicateurs opt-in utilisés par les protocoles d'autoenrollment Windows (XCEP/WSTEP, configurés dans **Paramètres → Autoenrollment Windows**) :
 
-- **Autoriser l'autoenrollment** — Annonce le modèle avec \`autoEnroll=true\` dans la Certificate Enrollment Policy, afin que les clients authentifiés GPO/Kerberos le demandent automatiquement à l'ouverture de session, sans action de l'utilisateur. Désactivé par défaut — comme sur un vrai ADCS, un modèle peut toujours être enrôlé manuellement (MMC « Demander un nouveau certificat », \`certreq\`) sans cet indicateur, puisque Enroll et Autoenroll sont des permissions distinctes.
-- **Construire le sujet depuis Active Directory** — Pour l'autoenrollment GPO sans intervention : dérive le sujet et les SAN du certificat depuis l'objet AD du demandeur (via le connecteur AD) au lieu d'exiger que le client les fournisse.
-- **Restreindre l'enrôlement à un groupe AD** — Seuls les principaux appartenant au groupe Active Directory configuré (appartenance imbriquée incluse) peuvent enrôler avec ce modèle via le point de terminaison authentifié Kerberos. Saisissez un nom de groupe ou un DN complet ; laissez vide pour autoriser tout principal authentifié, comme le défaut d'un vrai ADCS. Non appliqué sur le point de terminaison Username/Password, qui n'a pas d'identité par requête à vérifier.
+- **Autoriser l'autoenrollment** : Annonce le modèle avec \`autoEnroll=true\` dans la Certificate Enrollment Policy, afin que les clients authentifiés GPO/Kerberos le demandent automatiquement à l'ouverture de session, sans action de l'utilisateur. Désactivé par défaut : comme sur un vrai ADCS, un modèle peut toujours être enrôlé manuellement (MMC « Demander un nouveau certificat », \`certreq\`) sans cet indicateur, puisque Enroll et Autoenroll sont des permissions distinctes.
+- **Construire le sujet depuis Active Directory** : Pour l'autoenrollment GPO sans intervention : dérive le sujet et les SAN du certificat depuis l'objet AD du demandeur (via le connecteur AD) au lieu d'exiger que le client les fournisse.
+- **Restreindre l'enrôlement à un groupe AD** : Seuls les principaux appartenant au groupe Active Directory configuré (appartenance imbriquée incluse) peuvent enrôler avec ce modèle via le point de terminaison authentifié Kerberos. Saisissez un nom de groupe ou un DN complet ; laissez vide pour autoriser tout principal authentifié, comme le défaut d'un vrai ADCS. Non appliqué sur le point de terminaison Username/Password, qui n'a pas d'identité par requête à vérifier.
 
 Les modèles portant ces indicateurs affichent des badges **AD**, **Auto** et **ACL** dans la liste des modèles.
 
 ## Champs de sujet épinglés
 
-Un modèle peut **épingler** les champs organisationnels du sujet — **C, ST, L, O, OU** — pour les certificats émis via WSTEP. Une valeur épinglée est imposée sur chaque certificat émis, quelle que soit la valeur fournie par le CSR du client ou par la dérivation Active Directory pour ce champ.
+Un modèle peut **épingler** les champs organisationnels du sujet : **C, ST, L, O, OU** : pour les certificats émis via WSTEP. Une valeur épinglée est imposée sur chaque certificat émis, quelle que soit la valeur fournie par le CSR du client ou par la dérivation Active Directory pour ce champ.
 
-- **Le Common Name et les Subject Alternative Names ne sont jamais affectés** — ils restent dynamiques par demandeur
+- **Le Common Name et les Subject Alternative Names ne sont jamais affectés** : ils restent dynamiques par demandeur
 - Laissez un champ vide pour le garder dynamique
 - Les modèles avec champs épinglés affichent un badge **Épinglé**, et les valeurs épinglées apparaissent dans le panneau de détails du modèle
 
@@ -106,8 +106,8 @@ Exportez les modèles au format JSON pour les partager entre instances UCM.
 
 ### Importer
 Importez depuis :
-- **Fichier JSON** — Téléversez un fichier JSON de modèle
-- **Coller du JSON** — Collez le JSON directement dans la zone de texte
+- **Fichier JSON** : Téléversez un fichier JSON de modèle
+- **Coller du JSON** : Collez le JSON directement dans la zone de texte
 
 ## Exemples de modèles courants
 

@@ -11,7 +11,7 @@ Every renewal therefore behaves identically:
 1. the superseded serial is recorded in ``revoked_serials`` (reason
    ``superseded``) so it stays on the CRL and answers ``revoked`` over OCSP
    until the old notAfter passes,
-2. the ``certificates`` row is updated **in place** — ``id``, ``refid`` and
+2. the ``certificates`` row is updated **in place**: ``id``, ``refid`` and
    ``created_at`` never change, ``renewed_at`` / ``renewed_times`` are
    maintained,
 3. the on-disk cert/key files, the OCSP response cache, the CRL, the audit
@@ -62,6 +62,7 @@ from utils.x509_aki import authority_key_identifier_from_issuer
 from utils.ca_pointer_extensions import add_ca_pointer_extensions
 from utils.leaf_key_usage import constrain_builder_key_usage
 from utils.datetime_utils import cert_not_before
+from utils import notices as notices_mod
 
 
 _SCT_LIST_OID = x509.ObjectIdentifier('1.3.6.1.4.1.11129.2.4.2')
@@ -184,7 +185,7 @@ def _key_algo_label(public_key) -> str:
 def _extract_sans(certificate: x509.Certificate) -> dict:
     """SAN lists keyed by column name, ready for the Certificate row.
 
-    x509 GeneralName objects expose no ``.type`` attribute — the canonical
+    x509 GeneralName objects expose no ``.type`` attribute: the canonical
     discrimination is isinstance() (see utils/cert_extensions._parse_san).
     """
     dns, ips, emails, uris = [], [], [], []
@@ -246,7 +247,7 @@ def _record_superseded_serial(cert: Certificate, old_serial, old_caref,
     link back to the certificate row; the CRL query distinguishes the current
     serial (good) from superseded ones by comparing serial numbers.
 
-    Staged only — the caller commits it together with the in-place row update
+    Staged only: the caller commits it together with the in-place row update
     so the two can never diverge.
     """
     if not (old_caref and old_serial):
@@ -446,7 +447,8 @@ def renew_certificate_in_place(
     key_label = (str(public_key.key_size) if isinstance(public_key, rsa.RSAPublicKey)
                  else public_key.curve.name if isinstance(public_key, ec.EllipticCurvePublicKey)
                  else None)
-    violations, validity_days = PolicyEvaluationService.enforce_rules(
+    requested_validity = validity_days
+    violations, validity_days, capped_by = PolicyEvaluationService.enforce_rules(
         PolicyEvaluationService.applicable_policies(
             ca.id, getattr(cert, 'template_id', None),
             cn_attrs[0].value if cn_attrs else None, orig_dns),
@@ -454,7 +456,19 @@ def renew_certificate_in_place(
     if violations:
         raise RenewalError('Policy violation: ' + '; '.join(violations), 400)
     not_before = cert_not_before()
-    not_after = min(now + timedelta(days=validity_days), ca_not_after)
+    uncapped_not_after = now + timedelta(days=validity_days)
+    not_after = min(uncapped_not_after, ca_not_after)
+    # Both shortenings are reported: a renewal that comes back valid for less
+    # than it asked for is otherwise indistinguishable from one that did not.
+    renewal_notices = []
+    if capped_by and validity_days < requested_validity:
+        renewal_notices.append(notices_mod.validity_shortened(
+            requested_validity, validity_days,
+            notices_mod.policy_validity_reason(capped_by, validity_days)))
+    if not_after < uncapped_not_after:
+        renewal_notices.append(notices_mod.validity_shortened(
+            validity_days, max((not_after - now).days, 0),
+            notices_mod.issuer_expiry_reason(ca_not_after)))
 
     # Re-validate the subject/SANs against the CA chain's NameConstraints
     # before re-issuing: the CA's constraints may have been tightened since
@@ -669,4 +683,5 @@ def renew_certificate_in_place(
         'ca_id': ca.id,
         'ca_refid': ca.refid,
         'rekeyed': rekey,
+        'notices': renewal_notices,
     }

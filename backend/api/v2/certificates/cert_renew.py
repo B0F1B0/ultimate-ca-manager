@@ -121,7 +121,7 @@ def _renew_msca_certificate(cert):
     if result.get('status') == 'pending':
         return success_response(
             data=cert.to_dict(),
-            message='Renewal submitted to Microsoft CA — pending CA manager approval',
+            message='Renewal submitted to Microsoft CA: pending CA manager approval',
             meta={'msca_status': 'pending'}
         )
 

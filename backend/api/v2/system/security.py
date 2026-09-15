@@ -178,12 +178,12 @@ def download_master_key():
         from security.encryption import key_encryption, MASTER_KEY_PATH
 
         if not key_encryption.is_enabled:
-            return error_response("Encryption is not enabled — no master key to download", 400)
+            return error_response("Encryption is not enabled, no master key to download", 400)
 
         if key_encryption.key_source != 'file' or not MASTER_KEY_PATH.exists():
             return error_response(
                 "Master key is not stored as a file (likely loaded from "
-                "KEY_ENCRYPTION_KEY env var) — backup must be done manually.",
+                "KEY_ENCRYPTION_KEY env var), backup must be done manually.",
                 409
             )
 

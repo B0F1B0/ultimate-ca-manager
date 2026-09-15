@@ -24,7 +24,7 @@ export default {
       },
     ],
     tips: [
-      'Befolgen Sie das Prinzip der geringsten Rechte — gewähren Sie nur notwendige Berechtigungen',
+      'Befolgen Sie das Prinzip der geringsten Rechte: gewähren Sie nur notwendige Berechtigungen',
       'Systemrollen können nicht geändert oder gelöscht werden',
       'Schalten Sie ganze Kategorien ein/aus für schnelle Rolleneinrichtung',
     ],
@@ -40,10 +40,10 @@ RBAC bietet feingliedrige Berechtigungsverwaltung. Definieren Sie benutzerdefini
 
 Vier integrierte Rollen, die nicht geändert oder gelöscht werden können:
 
-- **Admin** — Vollständiger Zugriff auf alles
-- **Operator** — Zertifikate, CAs, CSRs, Templates verwalten. Kein Zugriff auf Systemeinstellungen, Benutzer oder RBAC
-- **Auditor** — Nur-Lese-Zugriff auf alle Betriebsdaten (Zertifikate, CAs, ACME, SCEP, HSM, Audit-Protokolle, Richtlinien, Gruppen), aber nicht auf Einstellungen oder Benutzerverwaltung
-- **Viewer** — Grundlegender Nur-Lese-Zugriff auf Zertifikate, CAs, CSRs, Templates und Vertrauensspeicher
+- **Admin**: Vollständiger Zugriff auf alles
+- **Operator**: Zertifikate, CAs, CSRs, Templates verwalten. Kein Zugriff auf Systemeinstellungen, Benutzer oder RBAC
+- **Auditor**: Nur-Lese-Zugriff auf alle Betriebsdaten (Zertifikate, CAs, ACME, SCEP, HSM, Audit-Protokolle, Richtlinien, Gruppen), aber nicht auf Einstellungen oder Benutzerverwaltung
+- **Viewer**: Grundlegender Nur-Lese-Zugriff auf Zertifikate, CAs, CSRs, Templates und Vertrauensspeicher
 
 ## Benutzerdefinierte Rollen
 
@@ -55,24 +55,24 @@ Vier integrierte Rollen, die nicht geändert oder gelöscht werden können:
 
 ### Berechtigungsmatrix
 Berechtigungen sind nach Kategorie organisiert:
-- **CAs** — Erstellen, Lesen, Aktualisieren, Löschen, Importieren, Exportieren
-- **Zertifikate** — Ausstellen, Lesen, Widerrufen, Erneuern, Löschen, Exportieren (nur Zertifikat — siehe Private Schlüssel)
-- **Private Schlüssel** — Direkter Export privater Schlüssel (\`read:private_keys\`), nur für Admins: keine eingebaute Rolle außer Admin besitzt sie. Rollen ohne diese Berechtigung gehen über die Schlüsselwiederherstellung
-- **CSRs** — Erstellen, Lesen, Signieren, Löschen
-- **Templates** — Erstellen, Lesen, Aktualisieren, Löschen
-- **Benutzer** — Erstellen, Lesen, Aktualisieren, Löschen
-- **Gruppen** — Erstellen, Lesen, Aktualisieren, Löschen
-- **Einstellungen** — Lesen, Aktualisieren
-- **Audit** — Lesen, Exportieren, Bereinigen
-- **ACME** — Konfigurieren, Konten verwalten
-- **SCEP** — Konfigurieren, Anfragen genehmigen
-- **Vertrauensspeicher** — Vertrauenswürdige Zertifikate verwalten
-- **HSM** — Anbieter und Schlüssel verwalten
-- **SSH** — SSH-CAs und -Zertifikate verwalten
-- **Richtlinien** — Zertifikatsrichtlinien anzeigen
-- **Genehmigungen** — Genehmigungsanfragen anzeigen und entscheiden
-- **Schlüsselwiederherstellung** — Wiederherstellungen beantragen und Anfragen einsehen (Genehmigung nur durch Admins)
-- **Sicherung** — Erstellen, Wiederherstellen
+- **CAs**: Erstellen, Lesen, Aktualisieren, Löschen, Importieren, Exportieren
+- **Zertifikate**: Ausstellen, Lesen, Widerrufen, Erneuern, Löschen, Exportieren (nur Zertifikat: siehe Private Schlüssel)
+- **Private Schlüssel**: Direkter Export privater Schlüssel (\`read:private_keys\`), nur für Admins: keine eingebaute Rolle außer Admin besitzt sie. Rollen ohne diese Berechtigung gehen über die Schlüsselwiederherstellung
+- **CSRs**: Erstellen, Lesen, Signieren, Löschen
+- **Templates**: Erstellen, Lesen, Aktualisieren, Löschen
+- **Benutzer**: Erstellen, Lesen, Aktualisieren, Löschen
+- **Gruppen**: Erstellen, Lesen, Aktualisieren, Löschen
+- **Einstellungen**: Lesen, Aktualisieren
+- **Audit**: Lesen, Exportieren, Bereinigen
+- **ACME**: Konfigurieren, Konten verwalten
+- **SCEP**: Konfigurieren, Anfragen genehmigen
+- **Vertrauensspeicher**: Vertrauenswürdige Zertifikate verwalten
+- **HSM**: Anbieter und Schlüssel verwalten
+- **SSH**: SSH-CAs und -Zertifikate verwalten
+- **Richtlinien**: Zertifikatsrichtlinien anzeigen
+- **Genehmigungen**: Genehmigungsanfragen anzeigen und entscheiden
+- **Schlüsselwiederherstellung**: Wiederherstellungen beantragen und Anfragen einsehen (Genehmigung nur durch Admins)
+- **Sicherung**: Erstellen, Wiederherstellen
 
 ### Kategorie-Schalter
 Klicken Sie auf eine Kategorieüberschrift, um alle Berechtigungen in dieser Kategorie gleichzeitig zu aktivieren/deaktivieren.
@@ -83,8 +83,8 @@ Ein Prozent-Badge zeigt, wie viel des gesamten Berechtigungssatzes die Rolle abd
 ## Rollen zuweisen
 
 Rollen werden zugewiesen:
-- **Direkt** — Auf der Benutzerseite einen Benutzer bearbeiten und eine Rolle auswählen
-- **Über Gruppen** — Eine Gruppe gewährt einen Berechtigungssatz; jedes Mitglied erhält ihn zusätzlich zu seiner eigenen Rolle
+- **Direkt**: Auf der Benutzerseite einen Benutzer bearbeiten und eine Rolle auswählen
+- **Über Gruppen**: Eine Gruppe gewährt einen Berechtigungssatz; jedes Mitglied erhält ihn zusätzlich zu seiner eigenen Rolle
 
 ## Effektive Berechtigungen
 

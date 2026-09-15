@@ -227,7 +227,7 @@ def create_binding():
         return error_response('At least one destination path is required', 400)
     if fields.get('key_path') and not certificate.prv:
         return error_response(
-            'This certificate has no private key in UCM — remove the key path', 400)
+            'This certificate has no private key in UCM: remove the key path', 400)
 
     if DeployBinding.query.filter_by(
             target_id=target.id, certificate_id=certificate.id).first():
@@ -273,8 +273,8 @@ def create_binding():
                  + ('initial deployment queued' if queued else
                     'initial deployment not queued (binding or target disabled)')),
         success=True)
-    message = ('Deploy binding created — initial deployment queued' if queued
-               else 'Deploy binding created — no deployment queued (binding or target disabled)')
+    message = ('Deploy binding created: initial deployment queued' if queued
+               else 'Deploy binding created, no deployment queued (binding or target disabled)')
     return created_response(data=result, message=message)
 
 
@@ -305,7 +305,7 @@ def update_binding(binding_id):
     if binding.key_path and binding.certificate and not binding.certificate.prv:
         db.session.rollback()
         return error_response(
-            'This certificate has no private key in UCM — remove the key path', 400)
+            'This certificate has no private key in UCM: remove the key path', 400)
 
     ok, err = safe_commit(logger, 'Failed to update deploy binding')
     if not ok:

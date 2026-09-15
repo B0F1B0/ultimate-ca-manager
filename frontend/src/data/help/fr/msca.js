@@ -17,7 +17,7 @@ export default {
         items: [
           { label: 'Sélection du modèle', text: 'Choisir parmi les modèles de certificats disponibles sur la MS CA' },
           { label: 'Auto-approuvé', text: 'Les modèles avec autoenroll retournent le certificat immédiatement' },
-          { label: 'Approbation du gestionnaire', text: 'Certains modèles exigent l\'approbation du gestionnaire — UCM suit la requête en attente' },
+          { label: 'Approbation du gestionnaire', text: 'Certains modèles exigent l\'approbation du gestionnaire, UCM suit la requête en attente' },
           { label: 'Interrogation du statut', text: 'Vérifier le statut des requêtes en attente depuis le panneau de détail de la CSR' },
         ]
       },
@@ -33,15 +33,15 @@ export default {
       {
         title: 'Cycle de vie : renouvellement & révocation',
         items: [
-          { label: 'Renouveler', text: 'Le renouvellement d\'un certificat émis par AD CS resoumet sa CSR d\'origine à la même connexion et au même modèle — c\'est la CA émettrice qui signe, pas UCM.' },
-          { label: 'Révoquer', text: 'La révocation d\'un certificat émis par AD CS est locale à UCM, sauf si le canal admin WinRM est configuré — elle est alors propagée à la CA Windows.' },
+          { label: 'Renouveler', text: 'Le renouvellement d\'un certificat émis par AD CS resoumet sa CSR d\'origine à la même connexion et au même modèle, c\'est la CA émettrice qui signe, pas UCM.' },
+          { label: 'Révoquer', text: 'La révocation d\'un certificat émis par AD CS est locale à UCM, sauf si le canal admin WinRM est configuré, elle est alors propagée à la CA Windows.' },
           { label: 'Renouvellement en attente', text: 'Si la CA retient le renouvellement pour approbation du gestionnaire, UCM le suit comme n\'importe quelle requête en attente.' },
         ]
       },
       {
         title: 'Canal admin WinRM (optionnel)',
         items: [
-          { label: 'Rôle', text: 'Exécute les opérations de gestion sur la CA Windows (révoquer, dé-révoquer, publier la CRL, inventaire, approuver/refuser) via PowerShell remoting + certutil — ce que l\'inscription Web AD CS ne sait pas faire.' },
+          { label: 'Rôle', text: 'Exécute les opérations de gestion sur la CA Windows (révoquer, dé-révoquer, publier la CRL, inventaire, approuver/refuser) via PowerShell remoting + certutil, ce que l\'inscription Web AD CS ne sait pas faire.' },
           { label: 'Transport', text: 'NTLM ou Kerberos sur HTTP/HTTPS. Kerberos + HTTPS recommandé ; Kerberos réutilise le keytab de la connexion.' },
           { label: 'Identifiants', text: 'Réutilise par défaut ceux de la connexion. Les connexions en mTLS doivent définir un compte WinRM dédié (officier « Émettre et gérer les certificats » à moindre privilège).' },
           { label: 'Prérequis', text: 'WinRM activé sur la CA et le paquet optionnel pywinrm installé. Les opérations de gestion exigent admin:system.' },
@@ -66,14 +66,14 @@ export default {
     ],
     tips: [
       'Testez d\'abord la connexion pour vérifier l\'authentification et découvrir les modèles disponibles.',
-      'Activez EOBO en cochant la case dans le modal de signature — les champs se remplissent automatiquement depuis la CSR.',
-      'L\'authentification par certificat client est recommandée pour la production — elle ne nécessite pas de jonction au domaine.',
+      'Activez EOBO en cochant la case dans le modal de signature : les champs se remplissent automatiquement depuis la CSR.',
+      'L\'authentification par certificat client est recommandée pour la production : elle ne nécessite pas de jonction au domaine.',
       'Activez le canal admin WinRM pour propager les révocations à la CA et gérer les requêtes en attente depuis UCM.',
     ],
     warnings: [
-      'Kerberos nécessite une machine jointe au domaine ou un keytab configuré — non disponible dans Docker.',
+      'Kerberos nécessite une machine jointe au domaine ou un keytab configuré : non disponible dans Docker.',
       'EOBO nécessite un certificat d\'agent d\'inscription configuré sur le serveur AD CS.',
-      'Sans le canal admin WinRM, révoquer un certificat AD CS ne le marque révoqué que dans UCM — la CA Windows n\'est pas notifiée.',
+      'Sans le canal admin WinRM, révoquer un certificat AD CS ne le marque révoqué que dans UCM : la CA Windows n\'est pas notifiée.',
     ],
   },
   helpGuides: {
@@ -98,8 +98,8 @@ UCM s'intègre avec Microsoft Active Directory Certificate Services (AD CS) pour
 
 | Méthode | Prérequis | Idéal pour |
 |---------|-----------|------------|
-| **Certificat client (mTLS)** | Cert/clé client PEM de la CA | Production — pas besoin de jonction au domaine |
-| **Basic Auth** | Nom d'utilisateur + mot de passe, HTTPS | Configurations simples — activer basic auth dans IIS certsrv |
+| **Certificat client (mTLS)** | Cert/clé client PEM de la CA | Production : pas besoin de jonction au domaine |
+| **Basic Auth** | Nom d'utilisateur + mot de passe, HTTPS | Configurations simples : activer basic auth dans IIS certsrv |
 | **Kerberos** | Machine jointe au domaine + keytab | Environnements AD d'entreprise |
 
 ### Configuration du certificat client (recommandée)
@@ -141,14 +141,14 @@ EOBO permet à un agent d'inscription de demander des certificats pour le compte
 1. Dans le modal de signature, sélectionnez la connexion Microsoft CA et le modèle
 2. Cochez la case **Inscription pour le compte d'autrui (EOBO)**
 3. Les champs se remplissent automatiquement depuis la CSR :
-   - **DN du bénéficiaire** — depuis le sujet de la CSR (par ex. CN=Jean Dupont,OU=Utilisateurs,DC=corp,DC=local)
-   - **UPN du bénéficiaire** — depuis le SAN e-mail de la CSR (par ex. jean.dupont@corp.local)
+   - **DN du bénéficiaire** : depuis le sujet de la CSR (par ex. CN=Jean Dupont,OU=Utilisateurs,DC=corp,DC=local)
+   - **UPN du bénéficiaire** : depuis le SAN e-mail de la CSR (par ex. jean.dupont@corp.local)
 4. Ajustez les valeurs si nécessaire
 5. Cliquez sur **Signer**
 
 UCM transmet ces valeurs comme attributs de requête ADCS :
-- EnrolleeObjectName:<DN> — identifie l'utilisateur cible dans AD
-- EnrolleePrincipalName:<UPN> — le nom de connexion de l'utilisateur
+- EnrolleeObjectName:<DN> : identifie l'utilisateur cible dans AD
+- EnrolleePrincipalName:<UPN> : le nom de connexion de l'utilisateur
 
 ### EOBO vs inscription directe
 
@@ -162,12 +162,12 @@ UCM transmet ces valeurs comme attributs de requête ADCS :
 ## Cycle de vie des certificats
 
 ### Renouveler un certificat AD CS
-Le renouvellement ne re-signe **pas** localement (la clé émettrice réside sur la CA Windows). UCM resoumet la CSR d'origine du certificat — mêmes clé, sujet et SAN — à la connexion et au modèle qui l'ont émis, puis met à jour le certificat en place. Si la CA retient le renouvellement pour approbation du gestionnaire, il est suivi comme une requête en attente.
+Le renouvellement ne re-signe **pas** localement (la clé émettrice réside sur la CA Windows). UCM resoumet la CSR d'origine du certificat : mêmes clé, sujet et SAN, à la connexion et au modèle qui l'ont émis, puis met à jour le certificat en place. Si la CA retient le renouvellement pour approbation du gestionnaire, il est suivi comme une requête en attente.
 
 ### Révoquer un certificat AD CS
 L'inscription Web AD CS n'a pas de point de terminaison de révocation. Révoquer un certificat émis par AD CS :
-- **Sans le canal admin WinRM** — le marque révoqué dans UCM uniquement ; la CA Windows n'est pas notifiée. Révoquez-le aussi sur la CA.
-- **Avec le canal admin WinRM** — UCM propage la révocation à la CA Windows (certutil -revoke + publication de la CRL). La levée d'un certificateHold propage aussi la dé-révocation.
+- **Sans le canal admin WinRM** : le marque révoqué dans UCM uniquement ; la CA Windows n'est pas notifiée. Révoquez-le aussi sur la CA.
+- **Avec le canal admin WinRM** : UCM propage la révocation à la CA Windows (certutil -revoke + publication de la CRL). La levée d'un certificateHold propage aussi la dé-révocation.
 
 ## Canal admin WinRM (optionnel)
 
@@ -182,14 +182,14 @@ Le canal admin permet à UCM d'exécuter sur la CA Windows des opérations de ge
 1. Modifiez la connexion et activez le **canal admin WinRM**
 2. Définissez l'hôte (par défaut le serveur de la connexion), le port et le transport
 3. **Transport** : Kerberos (recommandé, réutilise le keytab de la connexion) ou NTLM, sur HTTP ou HTTPS
-4. **Identifiants** : laissez vide pour réutiliser ceux de la connexion (Basic/Kerberos). Les connexions mTLS n'ont pas d'identifiant WinRM réutilisable — définissez un compte dédié
+4. **Identifiants** : laissez vide pour réutiliser ceux de la connexion (Basic/Kerberos). Les connexions mTLS n'ont pas d'identifiant WinRM réutilisable, définissez un compte dédié
 5. Cliquez sur **Tester le canal admin**
 
 | Mode d'auth d'inscription | Réutilise les identifiants pour WinRM ? |
 |---------------------------|-----------------------------------------|
-| Kerberos (keytab) | Oui — même principal/keytab |
-| Basic (utilisateur/mot de passe) | Oui — mot de passe vers NTLM/Kerberos |
-| Certificat (mTLS) | Non — définissez un compte WinRM dédié |
+| Kerberos (keytab) | Oui : même principal/keytab |
+| Basic (utilisateur/mot de passe) | Oui : mot de passe vers NTLM/Kerberos |
+| Certificat (mTLS) | Non : définissez un compte WinRM dédié |
 
 ## Synchronisation CRL des révocations
 
@@ -202,8 +202,8 @@ Activez **Importer les certificats émis directement sur la CA** pour ramener da
 ## Panneau de contrôle CA
 
 Le panneau de contrôle (ouvert depuis la connexion, nécessite le canal admin) gère les requêtes en attente d'approbation du gestionnaire de la CA et affiche la santé de la CA :
-- **Requêtes en attente** — lister, **Approuver** (certutil -resubmit ; le certificat émis est importé automatiquement) ou **Refuser** (certutil -deny)
-- **Santé** — état du service CA, expiration du certificat CA, prochaine mise à jour de la CRL et nombre de requêtes en attente
+- **Requêtes en attente** : lister, **Approuver** (certutil -resubmit ; le certificat émis est importé automatiquement) ou **Refuser** (certutil -deny)
+- **Santé** : état du service CA, expiration du certificat CA, prochaine mise à jour de la CRL et nombre de requêtes en attente
 
 ## Dépannage
 
@@ -214,8 +214,8 @@ Le panneau de contrôle (ouvert depuis la connexion, nécessite le canal admin) 
 | EOBO refusé | Vérifiez le certificat d'agent d'inscription et les permissions du modèle |
 | Requête bloquée en attente | Approuvez-la depuis le panneau de contrôle CA, ou sur la console CA Windows puis actualisez le statut dans UCM |
 | Le test du canal admin échoue | Vérifiez que WinRM est activé sur la CA, le port/transport, et que pywinrm est installé |
-| Révocation absente sur la CA | Activez le canal admin WinRM — sans lui, la révocation est locale à UCM |
-| Attente non détectée (CA non anglophone) | Corrigé en v2.192 — UCM reconnaît désormais les pages d'attente AD CS localisées |
+| Révocation absente sur la CA | Activez le canal admin WinRM : sans lui, la révocation est locale à UCM |
+| Attente non détectée (CA non anglophone) | Corrigé en v2.192. UCM reconnaît désormais les pages d'attente AD CS localisées |
 
 > 💡 Utilisez le bouton **Tester la connexion** pour vérifier l'authentification et découvrir les modèles disponibles avant de signer. Activez le **canal admin WinRM** pour gérer révocation, CRL, inventaire et requêtes en attente directement depuis UCM.
 `

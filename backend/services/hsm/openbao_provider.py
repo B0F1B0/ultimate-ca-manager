@@ -217,7 +217,7 @@ class OpenBaoProvider(BaseHsmProvider):
 
             return {
                 'success': True,
-                'message': f'Connected to OpenBao {server_info["version"]} — {key_count} key(s)',
+                'message': f'Connected to OpenBao {server_info["version"]}, {key_count} key(s)',
                 'details': server_info,
             }
         except HsmConnectionError as e:
@@ -335,7 +335,7 @@ class OpenBaoProvider(BaseHsmProvider):
 
         transit_type = data.get('type', '')
         if transit_type in ('aes128-gcm96', 'aes256-gcm96', 'chacha20-poly1305'):
-            raise HsmOperationError(f'Key {key_identifier} is symmetric — no public key')
+            raise HsmOperationError(f'Key {key_identifier} is symmetric, no public key')
 
         latest_ver = str(data.get('latest_version', 1))
         ver_data = data.get('keys', {}).get(latest_ver, {})

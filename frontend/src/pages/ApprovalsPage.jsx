@@ -372,7 +372,7 @@ export default function ApprovalsPage() {
         onStatClick={(stat) => setStatusFilter(stat.filterValue || 'pending')}
         helpPageKey="approvals"
         slideOverOpen={!!selectedRequest}
-        slideOverTitle={selectedRequest ? `#${selectedRequest.id} — ${selectedRequest.request_type}` : ''}
+        slideOverTitle={selectedRequest ? `#${selectedRequest.id}: ${selectedRequest.request_type}` : ''}
         slideOverContent={slideOverContent}
         onSlideOverClose={() => setSelectedRequest(null)}
         loading={loading}

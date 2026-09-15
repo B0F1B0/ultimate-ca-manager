@@ -7,7 +7,7 @@ export default {
       {
         title: 'Importação',
         items: [
-          { label: 'Importação Inteligente', text: 'Envie qualquer arquivo de certificado — o UCM detecta automaticamente o formato (PEM, DER, P12, P7B)' },
+          { label: 'Importação Inteligente', text: 'Envie qualquer arquivo de certificado, o UCM detecta automaticamente o formato (PEM, DER, P12, P7B)' },
           { label: 'Sincronização OPNsense', text: 'Conecte ao firewall OPNsense e importe seus certificados e CAs' },
         ]
       },
@@ -45,10 +45,10 @@ Importe certificados de fontes externas e exporte seus dados PKI para backup ou 
 O assistente de Importação Inteligente detecta automaticamente os tipos de arquivo e os processa:
 
 ### Formatos Suportados
-- **PEM** — Certificados únicos ou em pacote, CAs e chaves
-- **DER** — Certificado ou chave em formato binário
-- **PKCS#12 (P12/PFX)** — Certificado + chave + cadeia (requer senha)
-- **PKCS#7 (P7B)** — Cadeia de certificados sem chaves
+- **PEM**: Certificados únicos ou em pacote, CAs e chaves
+- **DER**: Certificado ou chave em formato binário
+- **PKCS#12 (P12/PFX)**: Certificado + chave + cadeia (requer senha)
+- **PKCS#7 (P7B)**: Cadeia de certificados sem chaves
 
 ### Como Funciona
 1. Clique em **Importar** ou arraste arquivos para a zona de soltar
@@ -77,15 +77,15 @@ O UCM importa certificados com suas chaves privadas (se disponíveis) e preserva
 ## Exportar Certificados
 
 Exportação em massa de todos os certificados:
-- **PEM** — Arquivos PEM individuais
-- **Pacote P7B** — Todos os certificados em um único arquivo PKCS#7
-- **ZIP** — Todos os certificados como arquivos PEM individuais em um ZIP
+- **PEM**: Arquivos PEM individuais
+- **Pacote P7B**: Todos os certificados em um único arquivo PKCS#7
+- **ZIP**: Todos os certificados como arquivos PEM individuais em um ZIP
 
 ## Exportar CAs
 
 Exportação em massa de todas as Autoridades Certificadoras:
-- **PEM** — Cadeia de certificados em formato PEM
-- **Cadeia completa** — Raiz → Intermediária → Sub-CA
+- **PEM**: Cadeia de certificados em formato PEM
+- **Cadeia completa**: Raiz → Intermediária → Sub-CA
 
 ## Migração Entre Instâncias UCM
 

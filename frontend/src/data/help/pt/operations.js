@@ -15,7 +15,7 @@ export default {
       {
         title: 'Ações em Massa',
         items: [
-          { label: 'Certificados', text: 'Revogar, renovar, excluir ou exportar — filtrar por status e CA emissora' },
+          { label: 'Certificados', text: 'Revogar, renovar, excluir ou exportar, filtrar por status e CA emissora' },
           { label: 'CAs', text: 'Excluir ou exportar autoridades certificadoras' },
           { label: 'CSRs', text: 'Assinar com uma CA ou excluir solicitações pendentes' },
           { label: 'Modelos', text: 'Excluir modelos de certificado' },
@@ -30,7 +30,7 @@ export default {
       'Visualize as alterações antes de confirmar operações em massa',
     ],
     warnings: [
-      'A exclusão em massa é irreversível — sempre crie um backup primeiro',
+      'A exclusão em massa é irreversível: sempre crie um backup primeiro',
       'A revogação em massa publicará CRLs atualizadas para todas as CAs afetadas',
     ],
   },
@@ -43,11 +43,11 @@ Operações em massa e gerenciamento de dados. Realize ações em lote em múlti
 
 ## Aba Importar/Exportar
 
-Igual à página de Importação/Exportação — assistente de Importação Inteligente e funcionalidade de exportação em massa.
+Igual à página de Importação/Exportação: assistente de Importação Inteligente e funcionalidade de exportação em massa.
 
 ## Aba OPNsense
 
-Igual à integração OPNsense de Importação/Exportação — conecte, navegue e importe do OPNsense.
+Igual à integração OPNsense de Importação/Exportação: conecte, navegue e importe do OPNsense.
 
 ## Ações em Massa
 
@@ -63,26 +63,26 @@ Realize operações em lote em múltiplos recursos de uma vez.
 ### Ações Disponíveis por Recurso
 
 #### Certificados
-- **Revogar em Massa** — Revogar múltiplos certificados de uma vez
-- **Renovar em Massa** — Renovar múltiplos certificados
-- **Exportar em Massa** — Baixar certificados selecionados como pacote
-- **Excluir em Massa** — Remover permanentemente certificados selecionados
+- **Revogar em Massa**: Revogar múltiplos certificados de uma vez
+- **Renovar em Massa**: Renovar múltiplos certificados
+- **Exportar em Massa**: Baixar certificados selecionados como pacote
+- **Excluir em Massa**: Remover permanentemente certificados selecionados
 
 #### CAs
-- **Exportar em Massa** — Baixar CAs selecionadas
-- **Excluir em Massa** — Remover CAs selecionadas (não devem ter CAs filhas)
+- **Exportar em Massa**: Baixar CAs selecionadas
+- **Excluir em Massa**: Remover CAs selecionadas (não devem ter CAs filhas)
 
 #### CSRs
-- **Assinar em Massa** — Assinar múltiplos CSRs com uma CA selecionada
-- **Excluir em Massa** — Remover CSRs selecionados
+- **Assinar em Massa**: Assinar múltiplos CSRs com uma CA selecionada
+- **Excluir em Massa**: Remover CSRs selecionados
 
 #### Modelos
-- **Exportar em Massa** — Exportar como JSON
-- **Excluir em Massa** — Remover modelos selecionados
+- **Exportar em Massa**: Exportar como JSON
+- **Excluir em Massa**: Remover modelos selecionados
 
 #### Usuários
-- **Desativar em Massa** — Desativar contas de usuário selecionadas
-- **Excluir em Massa** — Remover permanentemente usuários selecionados
+- **Desativar em Massa**: Desativar contas de usuário selecionadas
+- **Excluir em Massa**: Remover permanentemente usuários selecionados
 
 > ⚠ Operações em massa são irreversíveis. Sempre crie um backup antes de realizar exclusões ou revogações em massa.
 

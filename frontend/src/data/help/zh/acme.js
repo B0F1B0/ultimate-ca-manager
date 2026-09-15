@@ -10,21 +10,21 @@ export default {
         items: [
           { label: "建议窗口", text: "返回一个以到期前为中心的开始/结束窗口，使续期错峰分布" },
           { label: "吊销", text: "已吊销证书返回过去的窗口 → 合规客户端立即续期" },
-          { label: "无需认证", text: "renewalInfo 是普通 GET——无需账户或 JWS（RFC 9773）" },
+          { label: "无需认证", text: "renewalInfo 是普通 GET,, 无需账户或 JWS（RFC 9773）" },
         ]
       },
       {
         title: 'ACME 客户端',
         items: [
-          { label: '客户端', text: '从任何 ACME CA 请求证书——Let\'s Encrypt、ZeroSSL、Buypass、HARICA 或自定义' },
+          { label: '客户端', text: '从任何 ACME CA 请求证书,, Let\'s Encrypt、ZeroSSL、Buypass、HARICA 或自定义' },
           { label: '订单标签页 (v2.219)', text: '客户端订单现在有专属的侧边栏标签页「Let\'s Encrypt orders」，带有可见/总数计数和状态过滤器，与 Local orders 视图保持一致' },
-          { label: '外部 CA 账户', text: '每个 CA 可以有多个账户 —— 多个账户可以共享同一个目录 URL（例如两个 Let\'s Encrypt 账户用于管理分离）；目录 URL 留空默认为 Let\'s Encrypt 生产环境' },
+          { label: '外部 CA 账户', text: '每个 CA 可以有多个账户,, 多个账户可以共享同一个目录 URL（例如两个 Let\'s Encrypt 账户用于管理分离）；目录 URL 留空默认为 Let\'s Encrypt 生产环境' },
           { label: '自定义服务器', text: '设置自定义 ACME 目录 URL 以使用任何符合 RFC 8555 的 CA' },
           { label: 'EAB', text: '支持外部账户绑定，用于需要预注册的 CA（ZeroSSL、HARICA 等）' },
           { label: '密钥类型', text: '证书密钥支持 RSA-2048、RSA-4096、ECDSA P-256、ECDSA P-384' },
           { label: '账户密钥', text: 'ACME 账户密钥支持 ES256 (P-256)、ES384 (P-384) 或 RS256 算法' },
           { label: 'DNS 提供商', text: '配置 DNS-01 挑战提供商（Cloudflare、Route53、Tencent DNSPod 等）' },
-          { label: '自定义命令', text: '运行管理员配置的本地命令来创建/删除 TXT 记录的 DNS 提供商类型——记录详情通过 DOMAIN、RECORD_NAME、RECORD_VALUE、TTL、ACTION 环境变量传递。要求二进制文件绝对路径，不经过 shell，超时可配置' },
+          { label: '自定义命令', text: '运行管理员配置的本地命令来创建/删除 TXT 记录的 DNS 提供商类型,, 记录详情通过 DOMAIN、RECORD_NAME、RECORD_VALUE、TTL、ACTION 环境变量传递。要求二进制文件绝对路径，不经过 shell，超时可配置' },
           { label: '域名', text: '将域名映射到 DNS 提供商以进行自动验证' },
         ]
       },
@@ -60,9 +60,9 @@ export default {
           { label: '签发', text: '从 ACME → EAB Credentials 生成新的 kid + HMAC 密钥对' },
           { label: '分发', text: '将 kid + HMAC 交给客户端(cert-manager、certbot、acme.sh)' },
           { label: '绑定', text: '客户端在 newAccount 上对 MAC 密钥签名 JWS 以绑定其 ACME 账户' },
-          { label: '轮换 / 撤销', text: '随时撤销 kid — 现有账户继续工作,新绑定被拒绝' },
+          { label: '轮换 / 撤销', text: '随时撤销 kid, 现有账户继续工作,新绑定被拒绝' },
           { label: '审计', text: '签发、轮换和撤销在执行操作员名下进行审计' },
-          { label: '域名限制', text: '将凭据限制为其可申请的域名：*（任意）、*.example.com（所有子域名）或显式列表——空列表将完全阻止签发。在 new-order/new-authz 上强制执行，服务器和代理均适用；仅在要求 EAB 时有意义' },
+          { label: '域名限制', text: '将凭据限制为其可申请的域名：*（任意）、*.example.com（所有子域名）或显式列表,, 空列表将完全阻止签发。在 new-order/new-authz 上强制执行，服务器和代理均适用；仅在要求 EAB 时有意义' },
         ]
       },
       {
@@ -71,15 +71,15 @@ export default {
           { label: '账户级覆盖', text: '在验证 _acme-challenge TXT 记录时覆盖系统解析器' },
           { label: '分裂视图', text: '当权威服务器在内部但公网视图被其他地方缓存时有用' },
           { label: '过时记录', text: '在快速自动续期期间避免公共解析器缓存' },
-          { label: 'host:port 条目', text: '接受不在 53 端口监听的解析器（例如仅监听环回的 BIND 或使用备用端口的 dnsmasq）——逗号分隔，纯 IP 仍然有效' },
+          { label: 'host:port 条目', text: '接受不在 53 端口监听的解析器（例如仅监听环回的 BIND 或使用备用端口的 dnsmasq）,, 逗号分隔，纯 IP 仍然有效' },
         ]
       },
       {
         title: '在内部 / 私有 IP 上的 ACME',
-        content: 'HTTP-01 和 TLS-ALPN-01 验证对 RFC1918、loopback、.lan / .local / .corp 目标开箱即用 — UCM 的主要部署模式。',
+        content: 'HTTP-01 和 TLS-ALPN-01 验证对 RFC1918、loopback、.lan / .local / .corp 目标开箱即用, UCM 的主要部署模式。',
         items: [
           { label: '开关', text: 'Settings → SystemConfig → acme.allow_private_ips(默认:true)' },
-          { label: '开关', text: 'Let\'s Encrypt 标签页 → 允许回环 ACME CA — 用于 127.0.0.1 上的同机 CA（默认：关闭）' },
+          { label: '开关', text: 'Let\'s Encrypt 标签页 → 允许回环 ACME CA, 用于 127.0.0.1 上的同机 CA（默认：关闭）' },
           { label: '始终阻止', text: '云元数据 IP(169.254.169.254、fd00:ec2::254 等)无条件阻止' },
         ]
       },
@@ -87,9 +87,9 @@ export default {
         title: '多 CA 解析',
         content: '当 ACME 客户端请求证书时，UCM 按以下顺序解析签名 CA：',
         items: [
-          '1. 本地域名映射——精确域名匹配，然后父域名',
-          '2. DNS 域名映射——检查为 DNS 提供商配置的签发 CA',
-          '3. 全局默认——ACME 服务器配置中设置的 CA',
+          '1. 本地域名映射:, 精确域名匹配，然后父域名',
+          '2. DNS 域名映射:, 检查为 DNS 提供商配置的签发 CA',
+          '3. 全局默认:, ACME 服务器配置中设置的 CA',
           '4. 第一个拥有私钥的可用 CA',
         ]
       },
@@ -98,21 +98,21 @@ export default {
         content: '本地 ACME 服务器不仅可以为 DNS 名称签发证书，还可以为 IPv4 和 IPv6 地址签发证书。在订单中使用标识符类型“ip”。',
         items: [
           { label: '标识符', text: '使用 { "type": "ip", "value": "192.0.2.10" }（IPv4）或像 2001:db8::1 这样的 IPv6 字面量下单' },
-          { label: '质询', text: '仅提供 HTTP-01 和 TLS-ALPN-01 — 根据 RFC 8738，IP 标识符禁止使用 DNS-01' },
+          { label: '质询', text: '仅提供 HTTP-01 和 TLS-ALPN-01, 根据 RFC 8738，IP 标识符禁止使用 DNS-01' },
           { label: 'TLS-ALPN-01 SNI', text: '验证使用反向 DNS 形式（in-addr.arpa / ip6.arpa）作为 SNI 主机名' },
           { label: '签发的 SAN', text: '证书包含 iPAddress SAN；支持 DNS + IP 混合订单' },
-          { label: '内部 IP', text: 'RFC1918 和环回地址开箱即可验证 — UCM 的主要部署模式' },
+          { label: '内部 IP', text: 'RFC1918 和环回地址开箱即可验证, UCM 的主要部署模式' },
         ]
       },
       {
         title: '持久 DNS 验证 (dns-persist-01)',
-        content: '本地 ACME 服务器可通过绑定到 ACME 账户的持久 TXT 记录验证域名 (draft-ietf-acme-dns-persist)——续期时无需写入 DNS。可选启用，默认关闭。',
+        content: '本地 ACME 服务器可通过绑定到 ACME 账户的持久 TXT 记录验证域名 (draft-ietf-acme-dns-persist):, 续期时无需写入 DNS。可选启用，默认关闭。',
         items: [
-          { label: '记录', text: '创建 _validation-persist.<域名> TXT "<签发者域名>; accounturi=<账户 URL>"——challenge 对象会公布这两个期望值' },
+          { label: '记录', text: '创建 _validation-persist.<域名> TXT "<签发者域名>; accounturi=<账户 URL>",, challenge 对象会公布这两个期望值' },
           { label: '启用', text: 'ACME → 配置 → 持久 DNS 验证 (dns-persist-01)' },
           { label: '通配符 / 子域名', text: '追加 policy=wildcard 可同时授权通配符证书及已验证名称的子域名' },
           { label: 'persistUntil', text: '可选的 persistUntil=<unix 时间戳> 会在该时间之后阻止新的验证' },
-          { label: '安全', text: '只要记录存在，账户密钥即拥有签发能力——删除 TXT 记录即可撤销' },
+          { label: '安全', text: '只要记录存在，账户密钥即拥有签发能力,, 删除 TXT 记录即可撤销' },
         ]
       }
     ],
@@ -130,7 +130,7 @@ export default {
       '在 certbot 中使用代理 URL：certbot certonly --server https://your-server:port/acme/proxy/directory',
     ],
     warnings: [
-      '域名验证是必需的——您的服务器必须可达或已配置 DNS',
+      '域名验证是必需的:, 您的服务器必须可达或已配置 DNS',
       '更改账户密钥类型需要重新注册 ACME 账户',
     ],
   },
@@ -141,18 +141,18 @@ export default {
 
 UCM 支持两种 ACME（自动化证书管理环境）模式：
 
-- **ACME 客户端** — 从任何符合 RFC 8555 的 CA 获取证书（Let's Encrypt、ZeroSSL、Buypass、HARICA 或自定义）
-- **本地 ACME 服务器** — 内置 ACME 服务器，用于内部 PKI 自动化，支持多 CA
+- **ACME 客户端**: 从任何符合 RFC 8555 的 CA 获取证书（Let's Encrypt、ZeroSSL、Buypass、HARICA 或自定义）
+- **本地 ACME 服务器**: 内置 ACME 服务器，用于内部 PKI 自动化，支持多 CA
 
 ## ACME 客户端
 
 ### 客户端设置
 管理您的 ACME 客户端配置：
-- **环境** — 测试（staging）或生产（正式证书）
-- **联系邮箱** — 账户注册时必填
-- **自动续期** — 在证书到期前自动续期
-- **证书密钥类型** — RSA-2048、RSA-4096、ECDSA P-256 或 ECDSA P-384
-- **账户密钥算法** — ES256、ES384 或 RS256 用于 ACME 账户签名
+- **环境**: 测试（staging）或生产（正式证书）
+- **联系邮箱**: 账户注册时必填
+- **自动续期**: 在证书到期前自动续期
+- **证书密钥类型**: RSA-2048、RSA-4096、ECDSA P-256 或 ECDSA P-384
+- **账户密钥算法**: ES256、ES384 或 RS256 用于 ACME 账户签名
 
 ### 自定义 ACME 服务器
 使用任何符合 RFC 8555 的 CA，不仅限于 Let's Encrypt：
@@ -170,11 +170,11 @@ UCM 支持两种 ACME（自动化证书管理环境）模式：
 ### 外部 CA 账户
 管理 UCM 注册的所有外部 CA 账户：
 
-- **每个 CA 允许多个账户** —— 多个账户可共享相同的目录 URL（例如两个使用不同联系邮箱的 Let's Encrypt 账户用于管理分离，配合 dns-persist-01 很有用）。账户行本身是身份标识，而非 URL。
-- **目录 URL 留空** —— 默认为 Let's Encrypt 生产环境。
-- **默认账户** —— 当请求未选择账户时使用；基于 URL 的查找解析到默认账户。
-- **导入** —— 创建时导入现有账户的私钥：接受 PKCS#8、SEC1/X9.62（\`BEGIN EC PRIVATE KEY\`）和 PKCS#1（\`BEGIN RSA PRIVATE KEY\`）封装；算法从私钥自动推导。
-- **专用代理端点** —— 每个账户可以使用自己的 slug 公开 \`/acme/proxy/<slug>/directory\`。
+- **每个 CA 允许多个账户**:: 多个账户可共享相同的目录 URL（例如两个使用不同联系邮箱的 Let's Encrypt 账户用于管理分离，配合 dns-persist-01 很有用）。账户行本身是身份标识，而非 URL。
+- **目录 URL 留空**:: 默认为 Let's Encrypt 生产环境。
+- **默认账户**:: 当请求未选择账户时使用；基于 URL 的查找解析到默认账户。
+- **导入**:: 创建时导入现有账户的私钥：接受 PKCS#8、SEC1/X9.62（\`BEGIN EC PRIVATE KEY\`）和 PKCS#1（\`BEGIN RSA PRIVATE KEY\`）封装；算法从私钥自动推导。
+- **专用代理端点**:: 每个账户可以使用自己的 slug 公开 \`/acme/proxy/<slug>/directory\`。
 
 ### 外部账户绑定（EAB）
 某些 CA 需要 EAB 凭据将您的 ACME 账户与 CA 上的现有账户关联：
@@ -194,14 +194,14 @@ UCM 支持两种 ACME（自动化证书管理环境）模式：
 | **ECDSA P-256** | 256 位 | ≈ RSA-3072 | 快得多 |
 | **ECDSA P-384** | 384 位 | ≈ RSA-7680 | 更快 |
 
-ECDSA 密钥推荐用于现代部署——更小、更快且同样安全。
+ECDSA 密钥推荐用于现代部署:, 更小、更快且同样安全。
 
 ### 密钥来源
 申请证书时，选择私钥的来源：
 
-- **生成新密钥** *(默认)* — UCM 为每个订单创建全新密钥对
-- **续期时重用密钥** — 在多次续期间保持同一私钥（DANE/TLSA 记录和密钥固定所必需）；首次签发生成密钥，续期时重新加载
-- **提供外部 CSR** — 粘贴在外部生成的 PEM CSR；UCM 在 finalize 时提交，私钥永不进入 UCM。CSR 的域名必须与订单标识符完全一致
+- **生成新密钥** *(默认)*: UCM 为每个订单创建全新密钥对
+- **续期时重用密钥**: 在多次续期间保持同一私钥（DANE/TLSA 记录和密钥固定所必需）；首次签发生成密钥，续期时重新加载
+- **提供外部 CSR**: 粘贴在外部生成的 PEM CSR；UCM 在 finalize 时提交，私钥永不进入 UCM。CSR 的域名必须与订单标识符完全一致
 
 ### 预检（试运行）
 在申请表单上**运行预检**，可针对 Let's Encrypt **staging** 目录验证整个请求，而不消耗生产环境速率限制：
@@ -211,7 +211,7 @@ ECDSA 密钥推荐用于现代部署——更小、更快且同样安全。
 - **仅验证**模式只检查配置与连通性，不创建订单
 - 可选：添加记录后验证 DNS TXT 传播情况
 
-> 💡 自定义 CA 没有 staging 端点 — 此时预检仅验证配置与连通性。
+> 💡 自定义 CA 没有 staging 端点: 此时预检仅验证配置与连通性。
 
 ### DNS 提供商
 配置 DNS-01 挑战提供商以进行域名验证。支持的提供商包括：
@@ -229,16 +229,16 @@ ECDSA 密钥推荐用于现代部署——更小、更快且同样安全。
 #### 自定义命令提供商
 对于没有原生驱动的 DNS 服务，**自定义命令**提供商运行管理员配置的本地命令来创建/删除 TXT 记录。记录详情通过环境变量传递：
 
-- \`DOMAIN\` — 正在验证的基础域名
-- \`RECORD_NAME\` — 完整的 TXT 记录名（\`_acme-challenge.example.com\`）
-- \`RECORD_VALUE\` — TXT 内容（质询摘要）
-- \`TTL\` — 记录 TTL（秒）
-- \`ACTION\` — \`create\` 或 \`delete\`
+- \`DOMAIN\`: 正在验证的基础域名
+- \`RECORD_NAME\`: 完整的 TXT 记录名（\`_acme-challenge.example.com\`）
+- \`RECORD_VALUE\`: TXT 内容（质询摘要）
+- \`TTL\`: 记录 TTL（秒）
+- \`ACTION\`: \`create\` 或 \`delete\`
 
 命令要求**二进制文件绝对路径**，不经过 shell 运行（无管道或变量展开），并在可配置的超时后被终止（5–300 秒，默认 60）。可使用一个小的包装脚本对接任何外部 DNS 工具。
 
 ### 自定义 DNS 解析器
-可选地覆盖用于验证 \`_acme-challenge\` TXT 记录的解析器（适用于分裂视图 DNS 或避免公共解析器缓存）。条目以逗号分隔，接受纯 IP 或 \`host:port\`——例如仅监听环回的 BIND 或使用备用端口的 dnsmasq 实例。
+可选地覆盖用于验证 \`_acme-challenge\` TXT 记录的解析器（适用于分裂视图 DNS 或避免公共解析器缓存）。条目以逗号分隔，接受纯 IP 或 \`host:port\`:, 例如仅监听环回的 BIND 或使用备用端口的 dnsmasq 实例。
 
 ### 域名
 将域名映射到 DNS 提供商。当为域名请求证书时，UCM 使用映射的提供商创建 DNS-01 挑战记录。
@@ -275,8 +275,8 @@ ACME代理允许内部客户端通过UCM从公共CA（Let's Encrypt、ZeroSSL等
 1. 打开 **外部 CA 账户**（同一 Let's Encrypt 选项卡）
 2. 编辑或创建 CA 账户
 3. 启用 **通过 ACME 代理暴露**
-4. 设置唯一的 **代理路径 (slug)** — 如 \`actalis-production\`
-5. 保存 — URL 显示在代理部分和账户卡片上
+4. 设置唯一的 **代理路径 (slug)**: 如 \`actalis-production\`
+5. 保存: URL 显示在代理部分和账户卡片上
 
 客户端使用：
 \`\`\`
@@ -299,7 +299,7 @@ https://your-ucm-server:8443/acme/proxy/directory
 ### 清理被替换的证书
 每次代理续期都会向清单导入一张新证书，被替换的证书会随时间累积。**清理被替换的证书**开关（代理设置）可自动清理：当代理订单 finalize 时，之前由代理订单为**完全相同域名集合**导入的证书将被删除。
 
-- **已吊销证书始终保留**——吊销记录保持完整
+- **已吊销证书始终保留**:: 吊销记录保持完整
 - 非通过代理签发的证书绝不受影响
 - 默认关闭
 
@@ -328,7 +328,7 @@ certbot certonly \\
   -d subdomain.example.com
 \`\`\`
 
-> 💡 代理 EAB 凭据与客户端 EAB 不同——用于 UCM 向上游 CA 认证。
+> 💡 代理 EAB 凭据与客户端 EAB 不同:, 用于 UCM 向上游 CA 认证。
 
 > ⚠ 前提：域名须在 ACME Domains 中配置 DNS 提供商。代理仅支持 dns-01。
 
@@ -339,9 +339,9 @@ certbot certonly \\
 ## 本地 ACME 服务器
 
 ### 配置
-- **启用/禁用** — 切换内置 ACME 服务器
-- **默认 CA** — 选择默认签署证书的 CA
-- **服务条款** — 客户端可选的服务条款 URL
+- **启用/禁用**: 切换内置 ACME 服务器
+- **默认 CA**: 选择默认签署证书的 CA
+- **服务条款**: 客户端可选的服务条款 URL
 
 ### ACME 目录 URL
 \`\`\`
@@ -361,21 +361,21 @@ certbot、acme.sh 或 Caddy 等客户端使用此 URL 来发现 ACME 端点。
 
 ### CA 解析顺序
 当 ACME 客户端请求证书时，UCM 按以下顺序确定签名 CA：
-1. **本地域名映射** — 精确匹配，然后父域名匹配
-2. **DNS 域名映射** — 为 DNS 提供商配置的 CA
-3. **全局默认** — ACME 服务器配置中设置的 CA
-4. **第一个可用** — 任何拥有私钥的 CA
+1. **本地域名映射**: 精确匹配，然后父域名匹配
+2. **DNS 域名映射**: 为 DNS 提供商配置的 CA
+3. **全局默认**: ACME 服务器配置中设置的 CA
+4. **第一个可用**: 任何拥有私钥的 CA
 
 ### EAB 凭据（服务器端）
 当 UCM 作为 ACME 服务器（或代理）时，可以要求 **External Account Binding**：客户端必须出示预先签发的 kid + HMAC 密钥才能注册账户。在 **ACME → EAB Credentials** 中签发和撤销凭据。
 
 每个凭据都可以限制为**其可申请证书的域名**：
-- \`*\` — 任意域名（新建及既有凭据的默认值）
-- \`*.example.com\` — 该域名及其所有子域名
+- \`*\`: 任意域名（新建及既有凭据的默认值）
+- \`*.example.com\`: 该域名及其所有子域名
 - 显式域名列表
 - **空列表将完全阻止**该凭据的签发
 
-限制在 new-order 和 new-authz 上强制执行，内置 ACME 服务器和代理均适用。仅在**要求 EAB** 时才有意义——否则客户端无需凭据即可注册。
+限制在 new-order 和 new-authz 上强制执行，内置 ACME 服务器和代理均适用。仅在**要求 EAB** 时才有意义:, 否则客户端无需凭据即可注册。
 
 ### 账户
 查看已注册的 ACME 客户端账户：
@@ -414,11 +414,11 @@ certbot、acme.sh 或 Caddy 等客户端使用此 URL 来发现 ACME 端点。
 ### 签发的证书
 签名后的证书为每个已验证的 IP 包含一个 **iPAddress** SubjectAltName 条目。
 
-> 💡 内部地址（RFC1918、环回）开箱即可验证 — UCM 的主要部署模式。云元数据 IP 仍被阻止。
+> 💡 内部地址（RFC1918、环回）开箱即可验证: UCM 的主要部署模式。云元数据 IP 仍被阻止。
 
 ## 持久 DNS 验证 (dns-persist-01)
 
-本地 ACME 服务器支持 **dns-persist-01** (draft-ietf-acme-dns-persist)：通过绑定到 ACME 账户的**持久** TXT 记录进行验证——续期时无需写入 DNS。
+本地 ACME 服务器支持 **dns-persist-01** (draft-ietf-acme-dns-persist)：通过绑定到 ACME 账户的**持久** TXT 记录进行验证:, 续期时无需写入 DNS。
 
 ### 设置
 1. 在 **ACME → 配置 → 持久 DNS 验证** 中启用（默认关闭）。
@@ -429,15 +429,15 @@ _validation-persist.app.example.com. IN TXT "ca.example.com; accounturi=https://
 challenge 对象会公布期望的 \`accounturi\` 和 \`issuer-domain-names\`。
 
 ### 选项
-- \`policy=wildcard\` — 同时授权通配符证书及已验证名称的子域名（父域名上的记录覆盖其子域名）
-- \`persistUntil=<unix 时间戳>\` — 在该时间之后阻止新的验证
+- \`policy=wildcard\`: 同时授权通配符证书及已验证名称的子域名（父域名上的记录覆盖其子域名）
+- \`persistUntil=<unix 时间戳>\`: 在该时间之后阻止新的验证
 
-> ⚠️ 只要记录存在，ACME 账户密钥即拥有签发能力——删除 TXT 记录即可撤销。
+> ⚠️ 只要记录存在，ACME 账户密钥即拥有签发能力:, 删除 TXT 记录即可撤销。
 
 ## 使用 certbot
 
 \`\`\`
-# 注册账户（Let's Encrypt——默认）
+# 注册账户（Let's Encrypt:, 默认）
 certbot register --agree-tos --email admin@example.com
 
 # 使用自定义 ACME CA + EAB 注册

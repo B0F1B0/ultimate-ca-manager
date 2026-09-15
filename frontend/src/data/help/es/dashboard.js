@@ -22,7 +22,7 @@ export default {
     tips: [
       'Arrastre los widgets para reorganizar el diseño de su panel de control',
       'Haga clic en el icono del ojo en el encabezado para mostrar/ocultar widgets específicos',
-      'El panel de control se actualiza en tiempo real mediante WebSocket — no es necesario actualizar manualmente',
+      'El panel de control se actualiza en tiempo real mediante WebSocket, no es necesario actualizar manualmente',
       'El diseño se guarda por usuario y persiste entre sesiones',
     ],
   },
@@ -37,20 +37,20 @@ El panel de control es su centro de supervisión principal. Muestra métricas en
 
 ### Tarjeta de estadísticas
 Muestra cuatro contadores clave:
-- **Total de CA** — Autoridades de certificación raíz e intermedias
-- **Certificados activos** — Certificados válidos y no revocados
-- **CSR pendientes** — Solicitudes de firma de certificado en espera de aprobación
-- **Próximos a expirar** — Certificados que expiran dentro de 30 días
+- **Total de CA**: Autoridades de certificación raíz e intermedias
+- **Certificados activos**: Certificados válidos y no revocados
+- **CSR pendientes**: Solicitudes de firma de certificado en espera de aprobación
+- **Próximos a expirar**: Certificados que expiran dentro de 30 días
 
 ### Tendencia de certificados
 Un gráfico de líneas que muestra la emisión de certificados a lo largo del tiempo. Pase el cursor sobre los puntos de datos para ver los conteos exactos.
 
 ### Distribución de estados
 Gráfico circular que muestra el desglose de los estados de los certificados:
-- **Válido** — Dentro del período de validez y no revocado
-- **Por expirar** — Expira dentro de 30 días
-- **Expirado** — Posterior a la fecha «Not After»
-- **Revocado** — Revocado explícitamente
+- **Válido**: Dentro del período de validez y no revocado
+- **Por expirar**: Expira dentro de 30 días
+- **Expirado**: Posterior a la fecha «Not After»
+- **Revocado**: Revocado explícitamente
 
 ### Próxima expiración
 Lista los certificados que expiran más pronto. Haga clic en cualquier certificado para ir a sus detalles. Configure el umbral en **Configuración → General**.
@@ -86,7 +86,7 @@ Haga clic en el **icono del ojo** en el encabezado de la página para alternar l
 Su configuración de diseño se guarda por usuario en el navegador. Persiste entre sesiones y dispositivos que comparten el mismo perfil de navegador.
 
 ## Actualizaciones en tiempo real
-El panel de control recibe actualizaciones en directo mediante WebSocket. No es necesario actualizar manualmente — los nuevos certificados, cambios de estado y entradas de actividad aparecen automáticamente.
+El panel de control recibe actualizaciones en directo mediante WebSocket. No es necesario actualizar manualmente: los nuevos certificados, cambios de estado y entradas de actividad aparecen automáticamente.
 
 > 💡 Si el WebSocket se desconecta, aparece un indicador amarillo en la barra lateral. Los datos se actualizarán al reconectarse.
 `

@@ -15,7 +15,7 @@ export default {
       {
         title: 'Actions en masse',
         items: [
-          { label: 'Certificats', text: 'Révoquer, renouveler, supprimer ou exporter — filtrer par statut et CA émettrice' },
+          { label: 'Certificats', text: 'Révoquer, renouveler, supprimer ou exporter, filtrer par statut et CA émettrice' },
           { label: 'CA', text: 'Supprimer ou exporter des autorités de certification' },
           { label: 'CSR', text: 'Signer avec une CA ou supprimer les requêtes en attente' },
           { label: 'Modèles', text: 'Supprimer des modèles de certificats' },
@@ -30,7 +30,7 @@ export default {
       'Prévisualisez les changements avant de confirmer les opérations en masse',
     ],
     warnings: [
-      'La suppression en masse est irréversible — créez toujours une sauvegarde d\'abord',
+      'La suppression en masse est irréversible : créez toujours une sauvegarde d\'abord',
       'La révocation en masse publiera des CRL mises à jour pour toutes les CA concernées',
     ],
   },
@@ -43,11 +43,11 @@ Opérations en masse et gestion des données. Effectuez des actions par lots sur
 
 ## Onglet Importation/Exportation
 
-Identique à la page Importation & Exportation — assistant d'importation intelligente et fonctionnalité d'export en masse.
+Identique à la page Importation & Exportation : assistant d'importation intelligente et fonctionnalité d'export en masse.
 
 ## Onglet OPNsense
 
-Identique à l'intégration OPNsense de la page Importation & Exportation — connectez-vous, parcourez et importez depuis OPNsense.
+Identique à l'intégration OPNsense de la page Importation & Exportation : connectez-vous, parcourez et importez depuis OPNsense.
 
 ## Actions en masse
 
@@ -63,26 +63,26 @@ Effectuez des opérations par lots sur plusieurs ressources à la fois.
 ### Actions disponibles par ressource
 
 #### Certificats
-- **Révocation en masse** — Révoquer plusieurs certificats à la fois
-- **Renouvellement en masse** — Renouveler plusieurs certificats
-- **Exportation en masse** — Télécharger les certificats sélectionnés en bundle
-- **Suppression en masse** — Supprimer définitivement les certificats sélectionnés
+- **Révocation en masse** : Révoquer plusieurs certificats à la fois
+- **Renouvellement en masse** : Renouveler plusieurs certificats
+- **Exportation en masse** : Télécharger les certificats sélectionnés en bundle
+- **Suppression en masse** : Supprimer définitivement les certificats sélectionnés
 
 #### CA
-- **Exportation en masse** — Télécharger les CA sélectionnées
-- **Suppression en masse** — Supprimer les CA sélectionnées (ne doivent pas avoir d'enfants)
+- **Exportation en masse** : Télécharger les CA sélectionnées
+- **Suppression en masse** : Supprimer les CA sélectionnées (ne doivent pas avoir d'enfants)
 
 #### CSR
-- **Signature en masse** — Signer plusieurs CSR avec une CA sélectionnée
-- **Suppression en masse** — Supprimer les CSR sélectionnées
+- **Signature en masse** : Signer plusieurs CSR avec une CA sélectionnée
+- **Suppression en masse** : Supprimer les CSR sélectionnées
 
 #### Modèles
-- **Exportation en masse** — Exporter au format JSON
-- **Suppression en masse** — Supprimer les modèles sélectionnés
+- **Exportation en masse** : Exporter au format JSON
+- **Suppression en masse** : Supprimer les modèles sélectionnés
 
 #### Utilisateurs
-- **Désactivation en masse** — Désactiver les comptes utilisateurs sélectionnés
-- **Suppression en masse** — Supprimer définitivement les utilisateurs sélectionnés
+- **Désactivation en masse** : Désactiver les comptes utilisateurs sélectionnés
+- **Suppression en masse** : Supprimer définitivement les utilisateurs sélectionnés
 
 > ⚠ Les opérations en masse sont irréversibles. Créez toujours une sauvegarde avant d'effectuer des suppressions ou révocations en masse.
 

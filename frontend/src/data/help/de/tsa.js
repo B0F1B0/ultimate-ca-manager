@@ -14,12 +14,12 @@ export default {
       {
         title: 'Konfiguration',
         items: [
-          { label: 'Signierende CA', text: 'Die CA, deren privater Schlüssel Zeitstempel-Token signiert — muss eine gültige, nicht abgelaufene CA sein' },
-          { label: 'Richtlinien-OID', text: 'Object Identifier für die TSA-Richtlinie (z.B. 1.2.3.4.1) — in jeder Zeitstempel-Antwort enthalten' },
+          { label: 'Signierende CA', text: 'Die CA, deren privater Schlüssel Zeitstempel-Token signiert, muss eine gültige, nicht abgelaufene CA sein' },
+          { label: 'Richtlinien-OID', text: 'Object Identifier für die TSA-Richtlinie (z.B. 1.2.3.4.1): in jeder Zeitstempel-Antwort enthalten' },
           { label: 'Aktivieren/Deaktivieren', text: 'Den TSA-Endpunkt ein- oder ausschalten, ohne die Konfiguration zu verlieren' },
-          { label: 'Dediziertes Zertifikat erforderlich', text: 'Opt-in: Zeitstempel nicht mit dem CA-Zertifikat selbst signieren — erfordert ein dediziertes End-Entity-Signaturzertifikat mit kritischer timeStamping-EKU (RFC 3161)' },
+          { label: 'Dediziertes Zertifikat erforderlich', text: 'Opt-in: Zeitstempel nicht mit dem CA-Zertifikat selbst signieren, erfordert ein dediziertes End-Entity-Signaturzertifikat mit kritischer timeStamping-EKU (RFC 3161)' },
                   { label: 'Signaturzertifikat (v2.217)', text: 'Signieren Sie Token mit einem dedizierten End-Entity-Zertifikat aus den ausgestellten Zertifikaten (timeStamping-EKU, Schlüssel bei UCM). Erneuerungen werden automatisch übernommen; ein abgelaufener oder widerrufener Signierer lässt Anfragen mit 503 fehlschlagen und fällt nie auf das CA-Zertifikat zurück' },
-          { label: 'Signaturzertifikat erzeugen (v2.218)', text: 'Ausstellung eines speziell zugeschnittenen RFC 3161-Signierers mit einem Klick: CA:FALSE, KeyUsage nur digitalSignature und eine kritische, exklusive timeStamping-EKU — genau die Form, die strenge Prüfprogramme (openssl ts -verify) verlangen. Wird von der konfigurierten TSA-CA ausgestellt und automatisch ausgewählt, wenn kein verwendbarer Signierer gesetzt ist. Das Zertifikat hat die Quelle "manual": Fügen Sie "manual" zu den Auto-Erneuerungsquellen hinzu oder erneuern Sie es selbst vor Ablauf' },
+          { label: 'Signaturzertifikat erzeugen (v2.218)', text: 'Ausstellung eines speziell zugeschnittenen RFC 3161-Signierers mit einem Klick: CA:FALSE, KeyUsage nur digitalSignature und eine kritische, exklusive timeStamping-EKU, genau die Form, die strenge Prüfprogramme (openssl ts -verify) verlangen. Wird von der konfigurierten TSA-CA ausgestellt und automatisch ausgewählt, wenn kein verwendbarer Signierer gesetzt ist. Das Zertifikat hat die Quelle "manual": Fügen Sie "manual" zu den Auto-Erneuerungsquellen hinzu oder erneuern Sie es selbst vor Ablauf' },
         ]
       },
       {
@@ -35,11 +35,11 @@ export default {
       'TSA-Zeitstempel werden bei der Code-Signierung verwendet, um sicherzustellen, dass Signaturen nach Zertifikatsablauf gültig bleiben',
       'Der TSA-Endpunkt akzeptiert HTTP POST mit Content-Type: application/timestamp-query',
       'Verwenden Sie SHA-256 oder stärkere Hash-Algorithmen beim Erstellen von Zeitstempel-Anfragen',
-      'Keine Authentifizierung erforderlich — der TSA-Endpunkt ist öffentlich zugänglich wie CRL/OCSP',
+      'Keine Authentifizierung erforderlich: der TSA-Endpunkt ist öffentlich zugänglich wie CRL/OCSP',
     ],
     warnings: [
       'Eine gültige signierende CA muss konfiguriert sein, bevor TSA aktiviert wird',
-      'Der TSA-Endpunkt ist ein öffentlicher Protokoll-Endpunkt — fügen Sie keine sensiblen Daten in Zeitstempel-Anfragen ein',
+      'Der TSA-Endpunkt ist ein öffentlicher Protokoll-Endpunkt: fügen Sie keine sensiblen Daten in Zeitstempel-Anfragen ein',
     ],
   },
   helpGuides: {
@@ -51,18 +51,18 @@ Der Zeitstempeldienst (TSA) implementiert **RFC 3161** zur Bereitstellung vertra
 
 ## Funktionsweise
 
-1. **Client erstellt eine Zeitstempel-Anfrage** — hasht eine Datei mit SHA-256/SHA-512 und erstellt ein \`TimeStampReq\` (ASN.1 DER-kodiert)
-2. **Client sendet Anfrage an TSA** — HTTP POST an den \`/tsa\`-Endpunkt mit \`Content-Type: application/timestamp-query\`
-3. **UCM signiert den Zeitstempel** — die konfigurierte CA signiert den Hash + aktuelle Uhrzeit in ein \`TimeStampResp\`
-4. **Client empfängt und speichert die Antwort** — die \`.tsr\`-Datei kann später beweisen, dass das Dokument zu diesem Zeitpunkt existierte
+1. **Client erstellt eine Zeitstempel-Anfrage**: hasht eine Datei mit SHA-256/SHA-512 und erstellt ein \`TimeStampReq\` (ASN.1 DER-kodiert)
+2. **Client sendet Anfrage an TSA**: HTTP POST an den \`/tsa\`-Endpunkt mit \`Content-Type: application/timestamp-query\`
+3. **UCM signiert den Zeitstempel**: die konfigurierte CA signiert den Hash + aktuelle Uhrzeit in ein \`TimeStampResp\`
+4. **Client empfängt und speichert die Antwort**: die \`.tsr\`-Datei kann später beweisen, dass das Dokument zu diesem Zeitpunkt existierte
 
 ## Konfiguration
 
 ### Einstellungen-Tab
 
-1. **TSA aktivieren** — Den TSA-Server ein- oder ausschalten
-2. **Signierende CA** — Auswählen, welche Zertifizierungsstelle Zeitstempel-Token signiert
-3. **Richtlinien-OID** — Object Identifier für die TSA-Richtlinie (z.B. \`1.2.3.4.1\`), in jeder Zeitstempel-Antwort enthalten
+1. **TSA aktivieren**: Den TSA-Server ein- oder ausschalten
+2. **Signierende CA**: Auswählen, welche Zertifizierungsstelle Zeitstempel-Token signiert
+3. **Richtlinien-OID**: Object Identifier für die TSA-Richtlinie (z.B. \`1.2.3.4.1\`), in jeder Zeitstempel-Antwort enthalten
 
 ### Signierende CA auswählen
 
@@ -70,7 +70,7 @@ Der private Schlüssel der signierenden CA wird zum Signieren jedes Zeitstempel-
 
 - Verwenden Sie eine **dedizierte Sub-CA** für Zeitstempel anstelle Ihrer Root-CA
 - Das CA-Zertifikat sollte die **id-kp-timeStamping** Extended Key Usage (OID 1.3.6.1.5.5.7.3.8) enthalten
-- Stellen Sie sicher, dass das CA-Zertifikat eine **ausreichende Gültigkeit** hat — Zeitstempel müssen über Jahre hinweg verifizierbar bleiben
+- Stellen Sie sicher, dass das CA-Zertifikat eine **ausreichende Gültigkeit** hat: Zeitstempel müssen über Jahre hinweg verifizierbar bleiben
 - Aktivieren Sie **Dediziertes Zeitstempelzertifikat erforderlich**, um dies beim Signieren zu erzwingen, statt sich auf Konvention zu verlassen
 
 ### Richtlinien-OID
@@ -84,9 +84,9 @@ Die Richtlinien-OID identifiziert die TSA-Richtlinie, unter der Zeitstempel ausg
 
 Der Informations-Tab zeigt:
 
-- **TSA-Endpunkt-URL** — Zum Kopieren bereite URL für die Client-Konfiguration
-- **Verwendungsbeispiele** — OpenSSL-Befehle zum Erstellen von Anfragen, Senden und Verifizieren von Antworten
-- **Statistiken** — Gesamte verarbeitete Zeitstempel-Anfragen (erfolgreich und fehlgeschlagen)
+- **TSA-Endpunkt-URL**: Zum Kopieren bereite URL für die Client-Konfiguration
+- **Verwendungsbeispiele**: OpenSSL-Befehle zum Erstellen von Anfragen, Senden und Verifizieren von Antworten
+- **Statistiken**: Gesamte verarbeitete Zeitstempel-Anfragen (erfolgreich und fehlgeschlagen)
 
 ## Verwendungsbeispiele
 
@@ -155,10 +155,10 @@ curl -s -H "Content-Type: application/timestamp-query" \\
 
 ## Sicherheitshinweise
 
-- Der TSA-Endpunkt ist **öffentlich** — keine Authentifizierung erforderlich (wie CRL/OCSP)
-- Jede Zeitstempel-Antwort wird mit dem CA-Schlüssel **signiert** — Clients verifizieren die Signatur, um die Authentizität sicherzustellen
+- Der TSA-Endpunkt ist **öffentlich**: keine Authentifizierung erforderlich (wie CRL/OCSP)
+- Jede Zeitstempel-Antwort wird mit dem CA-Schlüssel **signiert**: Clients verifizieren die Signatur, um die Authentizität sicherzustellen
 - Verwenden Sie **SHA-256 oder stärkere** Hash-Algorithmen beim Erstellen von Anfragen (SHA-1 wird akzeptiert, aber nicht empfohlen)
-- Die TSA sieht **nicht** das Originaldokument — nur der Hash wird übertragen
+- Die TSA sieht **nicht** das Originaldokument: nur der Hash wird übertragen
 - Erwägen Sie eine **Ratenbegrenzung**, wenn der TSA-Endpunkt dem Internet ausgesetzt ist
 
 > 💡 Zeitstempel sind für die Code-Signierung unverzichtbar: Sie stellen sicher, dass Ihre signierte Software auch nach Ablauf des Signierungszertifikats vertrauenswürdig bleibt.

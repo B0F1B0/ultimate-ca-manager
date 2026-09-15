@@ -7,7 +7,7 @@ export default {
       {
         title: 'Import',
         items: [
-          { label: 'Smart Import', text: 'Laden Sie eine beliebige Zertifikatsdatei hoch — UCM erkennt automatisch das Format (PEM, DER, P12, P7B)' },
+          { label: 'Smart Import', text: 'Laden Sie eine beliebige Zertifikatsdatei hoch, UCM erkennt automatisch das Format (PEM, DER, P12, P7B)' },
           { label: 'OPNsense-Sync', text: 'Verbinden Sie sich mit der OPNsense-Firewall und importieren Sie deren Zertifikate und CAs' },
         ]
       },
@@ -45,10 +45,10 @@ Importieren Sie Zertifikate aus externen Quellen und exportieren Sie Ihre PKI-Da
 Der Smart-Import-Assistent erkennt Dateitypen automatisch und verarbeitet sie:
 
 ### Unterstützte Formate
-- **PEM** — Einzelne oder gebündelte Zertifikate, CAs und Schlüssel
-- **DER** — Binäres Zertifikat oder Schlüssel
-- **PKCS#12 (P12/PFX)** — Zertifikat + Schlüssel + Kette (erfordert Passwort)
-- **PKCS#7 (P7B)** — Zertifikatskette ohne Schlüssel
+- **PEM**: Einzelne oder gebündelte Zertifikate, CAs und Schlüssel
+- **DER**: Binäres Zertifikat oder Schlüssel
+- **PKCS#12 (P12/PFX)**: Zertifikat + Schlüssel + Kette (erfordert Passwort)
+- **PKCS#7 (P7B)**: Zertifikatskette ohne Schlüssel
 
 ### Funktionsweise
 1. Klicken Sie auf **Importieren** oder ziehen Sie Dateien in den Ablagebereich
@@ -77,15 +77,15 @@ UCM importiert Zertifikate mit ihren privaten Schlüsseln (falls verfügbar) und
 ## Zertifikate exportieren
 
 Massenexport aller Zertifikate:
-- **PEM** — Einzelne PEM-Dateien
-- **P7B-Bündel** — Alle Zertifikate in einer einzelnen PKCS#7-Datei
-- **ZIP** — Alle Zertifikate als einzelne PEM-Dateien in einem ZIP-Archiv
+- **PEM**: Einzelne PEM-Dateien
+- **P7B-Bündel**: Alle Zertifikate in einer einzelnen PKCS#7-Datei
+- **ZIP**: Alle Zertifikate als einzelne PEM-Dateien in einem ZIP-Archiv
 
 ## CAs exportieren
 
 Massenexport aller Zertifizierungsstellen:
-- **PEM** — Zertifikatskette im PEM-Format
-- **Vollständige Kette** — Root → Intermediate → Sub-CA
+- **PEM**: Zertifikatskette im PEM-Format
+- **Vollständige Kette**: Root → Intermediate → Sub-CA
 
 ## Migration zwischen UCM-Instanzen
 

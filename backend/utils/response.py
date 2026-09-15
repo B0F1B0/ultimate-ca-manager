@@ -6,7 +6,7 @@ Error bodies are a **superset**: they carry the RFC 7807 (Problem Details)
 members *and* UCM's historical `error`/`message`/`code` keys. Existing clients
 keep reading `message`; new clients get a conformant `application/problem+json`
 document. Dropping the legacy keys would be a breaking change and is a separate,
-deliberate decision — not something this helper does implicitly.
+deliberate decision, not something this helper does implicitly.
 
 Protocol endpoints (ACME, EST) build their own problem documents with their own
 registered type URNs and must NOT go through here.
@@ -97,7 +97,7 @@ def build_problem(message, code=400, details=None, problem_type=None, title=None
 
 def error_response(message, code=400, details=None, problem_type=None, title=None):
     """
-    Standard error response — RFC 7807 problem details plus the legacy keys.
+    Standard error response. RFC 7807 problem details plus the legacy keys.
 
     Args:
         message: Error message
@@ -117,9 +117,9 @@ def error_response(message, code=400, details=None, problem_type=None, title=Non
     return response, code
 
 
-def created_response(data, message='Created successfully'):
+def created_response(data, message='Created successfully', meta=None):
     """Shortcut for 201 Created"""
-    return success_response(data=data, message=message, status=201)
+    return success_response(data=data, message=message, meta=meta, status=201)
 
 
 def no_content_response():

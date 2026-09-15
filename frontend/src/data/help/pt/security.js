@@ -36,7 +36,7 @@ export default {
         title: 'Autenticação mTLS',
         items: [
           { label: 'CA Confiável', text: 'Selecionar a CA que emite e valida os certificados de cliente mTLS para login' },
-          { label: 'Exigir certificado de cliente', text: 'Opcionalmente tornar o mTLS obrigatório para a interface web — alterar configurações mTLS requer reinício do serviço' },
+          { label: 'Exigir certificado de cliente', text: 'Opcionalmente tornar o mTLS obrigatório para a interface web, alterar configurações mTLS requer reinício do serviço' },
         ]
       },
     ],
@@ -47,7 +47,7 @@ export default {
     warnings: [
       'Restringir a política de senha excessivamente pode frustrar os usuários',
       'Sempre garanta que pelo menos um administrador pode acessar o sistema antes de ativar restrições de IP',
-      'Configurações sensíveis à segurança (sessão, bloqueio, HSTS, URL pública, política de senha) requerem admin:settings — os campos ficam bloqueados para operators',
+      'Configurações sensíveis à segurança (sessão, bloqueio, HSTS, URL pública, política de senha) requerem admin:settings, os campos ficam bloqueados para operators',
     ],
   },
   helpGuides: {
@@ -61,27 +61,27 @@ Configuração de segurança de todo o sistema que afeta todas as contas de usu�
 
 Criptografe todas as chaves privadas de CAs e certificados armazenadas no banco de dados com AES-256, protegidas por um arquivo de chave mestra mantido fora do banco de dados.
 
-- **Status e contadores** — A seção mostra se a criptografia está ativada e quantas chaves estão atualmente **criptografadas** vs **não criptografadas**
-- **Ativar Criptografia** — Gera o arquivo de chave mestra e criptografa todas as chaves privadas armazenadas. Faça backup do arquivo de chave imediatamente: sem ele, as chaves criptografadas são perdidas permanentemente
-- **Desativar Criptografia** — Descriptografa todas as chaves privadas de volta ao armazenamento em texto claro (confirmação necessária)
+- **Status e contadores**: A seção mostra se a criptografia está ativada e quantas chaves estão atualmente **criptografadas** vs **não criptografadas**
+- **Ativar Criptografia**: Gera o arquivo de chave mestra e criptografa todas as chaves privadas armazenadas. Faça backup do arquivo de chave imediatamente: sem ele, as chaves criptografadas são perdidas permanentemente
+- **Desativar Criptografia**: Descriptografa todas as chaves privadas de volta ao armazenamento em texto claro (confirmação necessária)
 
 ### Aplicação na Inicialização
 
 Sem uma chave de criptografia configurada, o UCM registra um aviso na inicialização mas continua funcionando. Duas **variáveis de ambiente opcionais** transformam isso em falha imediata:
 
-- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` — recusa iniciar sem uma chave de criptografia de banco de dados explícita (caso contrário, os segredos de integração recorrem a uma chave derivada do id da máquina)
-- \`UCM_REQUIRE_KEY_ENCRYPTION\` — recusa iniciar a menos que a criptografia de chaves privadas esteja ativada
+- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\`: recusa iniciar sem uma chave de criptografia de banco de dados explícita (caso contrário, os segredos de integração recorrem a uma chave derivada do id da máquina)
+- \`UCM_REQUIRE_KEY_ENCRYPTION\`: recusa iniciar a menos que a criptografia de chaves privadas esteja ativada
 
 Ambas aceitam \`1\`/\`true\`/\`yes\`/\`on\`. Uma chave inválida é tratada como fatal em vez de recorrer silenciosamente ao texto claro.
 
 ## Política de Senha
 
 ### Requisitos de Complexidade
-- **Comprimento mínimo** — 8 a 32 caracteres
-- **Exigir maiúsculas** — Pelo menos uma letra maiúscula
-- **Exigir minúsculas** — Pelo menos uma letra minúscula
-- **Exigir números** — Pelo menos um dígito
-- **Exigir caracteres especiais** — Pelo menos um símbolo
+- **Comprimento mínimo**: 8 a 32 caracteres
+- **Exigir maiúsculas**: Pelo menos uma letra maiúscula
+- **Exigir minúsculas**: Pelo menos uma letra minúscula
+- **Exigir números**: Pelo menos um dígito
+- **Exigir caracteres especiais**: Pelo menos um símbolo
 
 ### Expiração de Senha
 Forçar usuários a alterar suas senhas após um número definido de dias. Defina como 0 para desativar.
@@ -121,8 +121,8 @@ Bloquear IPs ou faixas CIDR específicas. Todos os outros IPs são permitidos.
 Exigir que todos os usuários ativem 2FA. Usuários que não configuraram 2FA serão solicitados no próximo login.
 
 ### Métodos Suportados
-- **TOTP** — Senhas únicas baseadas em tempo (aplicativos autenticadores)
-- **WebAuthn** — Chaves de segurança de hardware e biometria
+- **TOTP**: Senhas únicas baseadas em tempo (aplicativos autenticadores)
+- **WebAuthn**: Chaves de segurança de hardware e biometria
 
 > 💡 Aplique 2FA para contas de administrador no mínimo. Considere aplicar para todos os usuários em ambientes sensíveis à segurança.
 
@@ -130,13 +130,13 @@ Exigir que todos os usuários ativem 2FA. Usuários que não configuraram 2FA se
 
 Permita que usuários façam login com um certificado de cliente em vez de senha:
 
-- **CA Confiável** — Selecione a CA que emite e valida os certificados de cliente mTLS
-- **Exigir certificado de cliente** — Opcionalmente torne o mTLS obrigatório para a interface web
+- **CA Confiável**: Selecione a CA que emite e valida os certificados de cliente mTLS
+- **Exigir certificado de cliente**: Opcionalmente torne o mTLS obrigatório para a interface web
 - Alterar configurações mTLS requer reinício do serviço
 
 ## Permissões Necessárias
 
-Configurações sensíveis à segurança — sessão, bloqueio, HSTS, URL pública e política de senha — requerem a permissão **admin:settings**. Para operators (apenas write:settings), esses campos aparecem bloqueados; o restante do cartão continua salvando normalmente.
+Configurações sensíveis à segurança: sessão, bloqueio, HSTS, URL pública e política de senha, requerem a permissão **admin:settings**. Para operators (apenas write:settings), esses campos aparecem bloqueados; o restante do cartão continua salvando normalmente.
 `
   }
 }

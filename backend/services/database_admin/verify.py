@@ -671,7 +671,7 @@ def check_sequences(engine) -> Dict[str, Any]:
                 raise VerificationError(
                     f"Sequence behind the data on '{table_name}.{column_name}': "
                     f"the column already holds values up to {int(max_value)} "
-                    f"while the sequence would hand out {next_value} next — "
+                    f"while the sequence would hand out {next_value} next: "
                     "the first insert on the target would violate the primary key"
                 )
 
@@ -753,7 +753,7 @@ def check_schema(engine) -> Dict[str, Any]:
         if missing_columns:
             details.append(f"missing column(s): {_bounded(missing_columns)}")
         raise VerificationError(
-            "Target schema is incomplete — " + '; '.join(details)
+            "Target schema is incomplete: " + '; '.join(details)
         )
 
     return {

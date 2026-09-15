@@ -98,10 +98,10 @@ Offline mode prevents a CA from signing anything (CSRs, certificates, intermedia
 
 1. Open the CA detail panel
 2. Click **Take Offline**
-3. Confirm, then enter and confirm an **offline password** (12+ chars, mixed case, digit, symbol — same policy as user passwords)
+3. Confirm, then enter and confirm an **offline password** (12+ chars, mixed case, digit, symbol: same policy as user passwords)
 4. Choose a mode:
-   - **Keep in UCM** — key stays in the database, re-wrapped under your password (plus the master key on top). Restore = enter password.
-   - **Download file** — key is exported as a password-encrypted PKCS#8 PEM and **deleted from UCM**. Restore = re-upload file + password. The downloaded file is the only copy — store it safely.
+   - **Keep in UCM**: key stays in the database, re-wrapped under your password (plus the master key on top). Restore = enter password.
+   - **Download file**: key is exported as a password-encrypted PKCS#8 PEM and **deleted from UCM**. Restore = re-upload file + password. The downloaded file is the only copy: store it safely.
 
 The CA list shows an **Offline** badge while offline. Existing CRLs continue to be served via CDP; new CRLs cannot be signed until restore.
 
@@ -113,7 +113,7 @@ The CA list shows an **Offline** badge while offline. Existing CRLs continue to 
 4. If the CA was exported to file, also select the previously downloaded `.key.pem` file
 5. The CA returns to its previous status and resumes signing
 
-⚠️ Lose the password (or the file in file-exported mode) and the CA is unrecoverable — there is no master override.
+⚠️ Lose the password (or the file in file-exported mode) and the CA is unrecoverable: there is no master override.
 
 ---
 
@@ -189,9 +189,9 @@ Templates define default settings for certificates.
 
 UCM supports external identity providers for authentication:
 
-- **LDAP / Active Directory** — Bind-based authentication with group-to-role mapping
-- **OAuth2** — Google, GitHub, Azure AD, or any OpenID Connect provider
-- **SAML 2.0** — Enterprise identity providers (Okta, Azure AD, ADFS)
+- **LDAP / Active Directory**: Bind-based authentication with group-to-role mapping
+- **OAuth2**: Google, GitHub, Azure AD, or any OpenID Connect provider
+- **SAML 2.0**: Enterprise identity providers (Okta, Azure AD, ADFS)
 
 Configure SSO in **Settings** → **SSO** tab (admin only). Each provider type supports automatic role mapping based on group membership.
 
@@ -268,7 +268,7 @@ Scan your network for certificates:
 1. Go to **Operations > Discovery**
 2. Create a **Scan Profile** with target hosts/networks, ports, and schedule
 3. Run a scan manually or let it run on schedule
-4. Review discovered certificates — status, expiry, issuer, SAN
+4. Review discovered certificates: status, expiry, issuer, SAN
 5. Import discovered certificates into UCM or flag them for tracking
 
 ### Quick Scan
@@ -281,11 +281,11 @@ For one-off checks, use the **Quick Scan** button to scan a single host or range
 
 The **Tools** section provides utilities for working with certificates:
 
-- **SSL Checker** — Test SSL/TLS configuration of any server (public or internal)
-- **CSR Decoder** — Paste a CSR to inspect subject, SANs, key type, and extensions
-- **Certificate Decoder** — Paste a PEM certificate to view all fields
-- **Key Matcher** — Verify that a certificate and private key match
-- **Format Converter** — Convert between PEM, DER, and PKCS#12 formats
+- **SSL Checker**: Test SSL/TLS configuration of any server (public or internal)
+- **CSR Decoder**: Paste a CSR to inspect subject, SANs, key type, and extensions
+- **Certificate Decoder**: Paste a PEM certificate to view all fields
+- **Key Matcher**: Verify that a certificate and private key match
+- **Format Converter**: Convert between PEM, DER, and PKCS#12 formats
 
 ---
 
@@ -296,20 +296,20 @@ The **Reports** page provides on-demand and scheduled reporting for your PKI env
 ### Reports Overview
 
 The reports page shows:
-- **Stat cards** — Quick counts for certificates, CAs, expiring soon, and revoked
-- **Report list** — All available report types with generate/download actions
-- **Schedule status** — Which reports are scheduled and their next run time
+- **Stat cards**: Quick counts for certificates, CAs, expiring soon, and revoked
+- **Report list**: All available report types with generate/download actions
+- **Schedule status**: Which reports are scheduled and their next run time
 
 ### Generating On-Demand Reports
 
 1. Go to **Reports** page
 2. Select a report type from the list:
-   - **Expiring Certificates** — Certificates expiring within a configurable number of days
-   - **Revoked Certificates** — All revoked certificates with reason and date
-   - **CA Hierarchy** — Certificate Authority tree with issued certificate counts
-   - **Audit Summary** — Recent audit log activity grouped by action type
-   - **Compliance Status** — Policy compliance overview across all certificates
-   - **Certificate Inventory** — Full inventory of all certificates with status and metadata
+   - **Expiring Certificates**: Certificates expiring within a configurable number of days
+   - **Revoked Certificates**: All revoked certificates with reason and date
+   - **CA Hierarchy**: Certificate Authority tree with issued certificate counts
+   - **Audit Summary**: Recent audit log activity grouped by action type
+   - **Compliance Status**: Policy compliance overview across all certificates
+   - **Certificate Inventory**: Full inventory of all certificates with status and metadata
 3. Click **Generate** to create the report
 4. Choose output format: **CSV**, **JSON**, or **PDF**
 
@@ -331,12 +331,12 @@ The executive PDF report provides a comprehensive, downloadable document for man
 
 ### Understanding Report Data
 
-- **Expiring Certificates** — Use the `days` parameter to control the look-ahead window (default: 30 days)
-- **Revoked Certificates** — Includes revocation reason (key compromise, CA compromise, affiliation changed, etc.)
-- **CA Hierarchy** — Shows parent-child relationships and certificate counts per CA
-- **Audit Summary** — Groups actions by type (create, revoke, delete, login, etc.) with counts
-- **Compliance Status** — Shows pass/fail per policy with affected certificate details
-- **Certificate Inventory** — Full list with serial number, CN, issuer, validity dates, and status
+- **Expiring Certificates**: Use the `days` parameter to control the look-ahead window (default: 30 days)
+- **Revoked Certificates**: Includes revocation reason (key compromise, CA compromise, affiliation changed, etc.)
+- **CA Hierarchy**: Shows parent-child relationships and certificate counts per CA
+- **Audit Summary**: Groups actions by type (create, revoke, delete, login, etc.) with counts
+- **Compliance Status**: Shows pass/fail per policy with affected certificate details
+- **Certificate Inventory**: Full list with serial number, CN, issuer, validity dates, and status
 
 ---
 

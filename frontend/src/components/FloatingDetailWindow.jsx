@@ -93,6 +93,9 @@ export function FloatingDetailWindow({ windowInfo }) {
   const [lintOpen, setLintOpen] = useState(false)
   const [keyRecoveryOpen, setKeyRecoveryOpen] = useState(false)
   const [revokeOpen, setRevokeOpen] = useState(false)  // reason dialog (#334)
+  // The operator asked to delete a still-valid certificate and accepted to
+  // revoke it first; the deletion resumes once the revocation is through.
+  const [deleteAfterRevoke, setDeleteAfterRevoke] = useState(false)
 
   const config = ENTITY_CONFIG[windowInfo.type]
 
@@ -155,6 +158,15 @@ export function FloatingDetailWindow({ windowInfo }) {
         await certificatesService.revoke(windowInfo.entityId, reason)
         showSuccess(t('certificates.revoked', 'Certificate revoked'))
       }
+      if (deleteAfterRevoke) {
+        setDeleteAfterRevoke(false)
+        try {
+          await config.service().delete(windowInfo.entityId)
+          showSuccess(t('common.deleted'))
+        } catch (err) {
+          showError(err.message || t('common.deleteFailed'))
+        }
+      }
       window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: windowInfo.type } }))
       closeWindow(windowInfo.id)
     } catch (err) {
@@ -197,6 +209,23 @@ export function FloatingDetailWindow({ windowInfo }) {
     // The guard sits here as well as on the button: a surface that offers the
     // action anyway still cannot reach a route that would refuse it.
     if (!canDelete(resource)) return
+    // A certificate still trusted by relying parties has to be revoked first,
+    // or it leaves UCM while staying valid everywhere else. Say so here rather
+    // than let the route refuse afterwards, and offer to do both.
+    const certKinds = ['certificate', 'user_certificate']
+    const status = data?.revoked ? 'revoked' : data?.status
+    if (certKinds.includes(windowInfo.type) && data
+        && status !== 'revoked' && status !== 'expired') {
+      const revokeFirst = await showConfirm(t('certificates.deleteNeedsRevoke'), {
+        title: t('common.deleteCertificate'),
+        confirmText: t('certificates.revokeThenDelete'),
+        variant: 'danger'
+      })
+      if (!revokeFirst) return
+      setDeleteAfterRevoke(true)
+      setRevokeOpen(true)
+      return
+    }
     const confirmed = await showConfirm(
       t('common.confirmDeleteMessage', 'Are you sure you want to delete this item? This action cannot be undone.'),
       {
@@ -256,7 +285,7 @@ export function FloatingDetailWindow({ windowInfo }) {
   const handleRenewCsr = async () => {
     try {
       await casService.renewCsr(windowInfo.entityId)
-      showSuccess(t('cas.csrDownloadStarted', 'CSR generated — download started'))
+      showSuccess(t('cas.csrDownloadStarted', 'CSR generated: download started'))
       window.dispatchEvent(new CustomEvent('ucm:data-changed', { detail: { type: 'ca' } }))
       await handleDownloadCsr()
       closeWindow(windowInfo.id)
@@ -366,7 +395,7 @@ export function FloatingDetailWindow({ windowInfo }) {
       <RevokeCertificateModal
         allowHold={!isCA}
         open={revokeOpen}
-        onClose={() => setRevokeOpen(false)}
+        onClose={() => { setRevokeOpen(false); setDeleteAfterRevoke(false) }}
         onConfirm={handleRevokeConfirm}
         certificate={data}
         title={isCA ? t('cas.revoke', 'Revoke CA') : undefined}

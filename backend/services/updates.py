@@ -412,7 +412,7 @@ def install_update(package_path, *, to_version=None, initiated_by='admin'):
     if trigger_file.exists():
         # One operation at a time: a second trigger while the watcher is (or
         # should be) working would interleave manifests and results.
-        raise Exception("An update operation is already pending — retry after it completes")
+        raise Exception("An update operation is already pending: retry after it completes")
 
     try:
         import json as _json
@@ -661,7 +661,7 @@ def _notify_update_available(result):
     if not _cfg_set(_NOTIFIED_VERSION_KEY, latest):
         logger.warning(
             "Update notification emitted but the deduplication marker could "
-            "not be persisted — the next check may notify again"
+            "not be persisted, the next check may notify again"
         )
         return False
     logger.info(
@@ -727,7 +727,7 @@ def _auto_install(result):
         details=(
             f"Unattended update from {result['current_version']} to {latest} "
             f"(SHA256 verified): install triggered at "
-            f"{datetime.now().strftime('%H:%M')} — performed by the update "
+            f"{datetime.now().strftime('%H:%M')}, performed by the update "
             f"watcher on restart"
         ),
         success=True,

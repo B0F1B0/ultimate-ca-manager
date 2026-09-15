@@ -278,7 +278,7 @@ def _template_key_purposes(template_ext, allow_sensitive_ekus=False):
                 or oid in (_ANY_EKU_OID, _SMARTCARD_LOGON_OID)
             ):
                 logger.warning(
-                    "sign_csr: dropped template EKU %s — never issued to "
+                    "sign_csr: dropped template EKU %s, never issued to "
                     "protocol enrollees", oid.dotted_string,
                 )
                 continue
@@ -342,7 +342,7 @@ def _filter_csr_ekus(eku_oids, cert_type, allow_sensitive_ekus, renewal_of=None)
         }
         if extra:
             logger.info(
-                "sign_csr: renewal at par — keeping prior EKU(s) %s beyond "
+                "sign_csr: renewal at par, keeping prior EKU(s) %s beyond "
                 "the %r profile",
                 sorted(o.dotted_string for o in extra), cert_type,
             )
@@ -770,7 +770,7 @@ class CSROperationsMixin:
                 )
                 if dropped_oids:
                     logger.warning(
-                        "sign_csr: dropped EKU(s) %s from CSR — not permitted "
+                        "sign_csr: dropped EKU(s) %s from CSR, not permitted "
                         "for certificate type %r (the resolved certificate "
                         "type, not the CSR, decides leaf key purposes)",
                         [oid.dotted_string for oid in dropped_oids], cert_type,

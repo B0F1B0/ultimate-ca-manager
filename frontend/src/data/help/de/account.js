@@ -58,9 +58,9 @@ Verwalten Sie Ihr persönliches Profil, Sicherheitseinstellungen und API-Schlüs
 
 ## Profil
 
-- **Vollständiger Name** — Ihr Anzeigename in UCM
-- **E-Mail** — Wird für Benachrichtigungen, Passwortwiederherstellung und ACME-Registrierung verwendet
-- **Kontoinformationen** — Erstellungsdatum, letzter Anmeldezeitpunkt, Gesamtanzahl der Anmeldungen
+- **Vollständiger Name**: Ihr Anzeigename in UCM
+- **E-Mail**: Wird für Benachrichtigungen, Passwortwiederherstellung und ACME-Registrierung verwendet
+- **Kontoinformationen**: Erstellungsdatum, letzter Anmeldezeitpunkt, Gesamtanzahl der Anmeldungen
 
 ## Sicherheit
 
@@ -73,7 +73,7 @@ Fügen Sie ein zeitbasiertes Einmalpasswort mit einer beliebigen Authenticator-A
 1. Klicken Sie auf **2FA aktivieren**
 2. Scannen Sie den QR-Code mit Ihrer Authenticator-App (Google Authenticator, Authy, 1Password, usw.)
 3. Geben Sie den 6-stelligen Code zur Bestätigung ein
-4. Speichern Sie die **Wiederherstellungscodes** — sie werden nur einmal angezeigt
+4. Speichern Sie die **Wiederherstellungscodes**: sie werden nur einmal angezeigt
 
 > ⚠ Wenn Sie den Zugang zu Ihrem Authenticator und den Wiederherstellungscodes verlieren, muss ein Administrator Ihre 2FA deaktivieren.
 
@@ -102,7 +102,7 @@ Verwalten Sie Client-Zertifikate für die gegenseitige TLS-Authentifizierung:
 2. Geben Sie einen **Namen** ein (beschreibend, z.B. „CI/CD-Pipeline")
 3. Setzen Sie optional ein **Ablaufdatum**
 4. Klicken Sie auf **Erstellen**
-5. Kopieren Sie den Schlüssel sofort — er wird nur einmal angezeigt
+5. Kopieren Sie den Schlüssel sofort: er wird nur einmal angezeigt
 
 ### API-Schlüssel verwenden
 Fügen Sie den Schlüssel im \`X-API-Key\`-Header ein:

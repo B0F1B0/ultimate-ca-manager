@@ -9,7 +9,7 @@ reuse and did not.
 
 ``POST /api/v2/certificates/bulk/revoke`` therefore flipped three columns,
 answered ``1 certificates revoked``, and left the certificate valid to every
-relying party — reachable from the operations page in two clicks.
+relying party, reachable from the operations page in two clicks.
 """
 import json
 
@@ -166,7 +166,7 @@ class TestTheSingleRouteKeepsItsWording:
 
         assert body['meta'] == {'msca_local_only': True}
         assert body['message'] == (
-            'Certificate revoked in UCM only — no Microsoft CA admin channel '
+            'Certificate revoked in UCM only, no Microsoft CA admin channel '
             'is configured, so the Windows CA was not notified. Enable the '
             'WinRM admin channel on the connection, or revoke it on the CA.')
 

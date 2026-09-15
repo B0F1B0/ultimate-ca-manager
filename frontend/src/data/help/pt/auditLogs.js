@@ -29,7 +29,7 @@ export default {
       'As entradas de log incluem User Agent para identificar aplicações clientes',
     ],
     warnings: [
-      'A limpeza de logs é irreversível — dados exportados não podem ser reimportados',
+      'A limpeza de logs é irreversível: dados exportados não podem ser reimportados',
     ],
   },
   helpGuides: {
@@ -37,19 +37,19 @@ export default {
     content: `
 ## Visão Geral
 
-Trilha de auditoria completa de todas as operações no UCM. Cada ação — emissão de certificado, revogação, login de usuário, alteração de configuração — é registrada com detalhes sobre quem, o quê, quando e onde.
+Trilha de auditoria completa de todas as operações no UCM. Cada ação: emissão de certificado, revogação, login de usuário, alteração de configuração, é registrada com detalhes sobre quem, o quê, quando e onde.
 
 ## Detalhes da Entrada de Log
 
 Cada entrada de log registra:
-- **Data/Hora** — Quando a ação ocorreu
-- **Usuário** — Quem realizou a ação
-- **Ação** — O que foi feito (criar, atualizar, excluir, login, etc.)
-- **Recurso** — O que foi afetado (certificado, CA, usuário, etc.)
-- **Status** — Sucesso ou falha
-- **Endereço IP** — IP de origem da requisição
-- **User Agent** — Identificador da aplicação cliente
-- **Detalhes** — Contexto adicional (mensagens de erro, valores alterados)
+- **Data/Hora**: Quando a ação ocorreu
+- **Usuário**: Quem realizou a ação
+- **Ação**: O que foi feito (criar, atualizar, excluir, login, etc.)
+- **Recurso**: O que foi afetado (certificado, CA, usuário, etc.)
+- **Status**: Sucesso ou falha
+- **Endereço IP**: IP de origem da requisição
+- **User Agent**: Identificador da aplicação cliente
+- **Detalhes**: Contexto adicional (mensagens de erro, valores alterados)
 
 ## Filtragem
 
@@ -64,8 +64,8 @@ Filtrar por categoria de operação:
 Mostrar apenas ações realizadas por um usuário específico.
 
 ### Por Status
-- **Sucesso** — Operações concluídas com sucesso
-- **Falha** — Operações que falharam (falhas de autenticação, permissão negada, erros)
+- **Sucesso**: Operações concluídas com sucesso
+- **Falha**: Operações que falharam (falhas de autenticação, permissão negada, erros)
 
 ### Por Intervalo de Datas
 Defina datas **De** e **Até** para limitar a janela de tempo.
@@ -76,8 +76,8 @@ Pesquisa de texto livre em todos os campos de log.
 ## Exportação
 
 Exporte logs filtrados em:
-- **JSON** — Legível por máquina, inclui todos os campos
-- **CSV** — Compatível com planilhas, inclui campos principais
+- **JSON**: Legível por máquina, inclui todos os campos
+- **CSV**: Compatível com planilhas, inclui campos principais
 
 As exportações incluem apenas os resultados filtrados atualmente.
 

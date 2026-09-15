@@ -11,19 +11,19 @@ export default {
           { label: 'Manuell regenerieren', text: 'CRL-Regenerierung sofort erzwingen' },
           { label: 'CRL herunterladen', text: 'Die CRL-Datei im DER- oder PEM-Format herunterladen' },
           { label: 'CDP-URL', text: 'CRL Distribution Point-URL zum Einbetten in Zertifikate' },
-          { label: 'Gültigkeit', text: 'CRL-Gültigkeit pro CA von 1 Tag bis zu 5 Jahren (90d/180d/1y/3y/5y für Offline-CAs, die nicht planmäßig neu signieren können). Ab einem Jahr erscheint eine Warnung — vertrauende Parteien können veraltete Widerrufsdaten für das gesamte Zeitfenster behalten' },
-          { label: 'Externe CRL', text: 'CAs ohne Schlüssel bzw. Offline-CAs können keine CRL selbst signieren — laden Sie aus der CA-Detailansicht eine neben dem Offline-Schlüssel erzeugte CRL hoch; sie wird validiert (Signatur, Aussteller, Monotonie) und unter derselben CDP-URL ausgeliefert (v2.215)' },
+          { label: 'Gültigkeit', text: 'CRL-Gültigkeit pro CA von 1 Tag bis zu 5 Jahren (90d/180d/1y/3y/5y für Offline-CAs, die nicht planmäßig neu signieren können). Ab einem Jahr erscheint eine Warnung, vertrauende Parteien können veraltete Widerrufsdaten für das gesamte Zeitfenster behalten' },
+          { label: 'Externe CRL', text: 'CAs ohne Schlüssel bzw. Offline-CAs können keine CRL selbst signieren, laden Sie aus der CA-Detailansicht eine neben dem Offline-Schlüssel erzeugte CRL hoch; sie wird validiert (Signatur, Aussteller, Monotonie) und unter derselben CDP-URL ausgeliefert (v2.215)' },
         ]
       },
       {
         title: 'OCSP-Dienst',
         items: [
           { label: 'Status', text: 'Zeigt an, ob der OCSP-Responder für jede CA aktiv ist' },
-          { label: 'AIA-URL', text: 'Authority Information Access-URLs — OCSP-Responder- und CA-Aussteller-Zertifikat-Download-Endpunkte, die in ausgestellte Zertifikate eingebettet werden' },
+          { label: 'AIA-URL', text: 'Authority Information Access-URLs, OCSP-Responder- und CA-Aussteller-Zertifikat-Download-Endpunkte, die in ausgestellte Zertifikate eingebettet werden' },
           { label: 'Cache', text: 'Antwort-Cache mit automatischer täglicher Bereinigung abgelaufener Einträge' },
           { label: 'Gesamtabfragen', text: 'Anzahl der verarbeiteten OCSP-Anfragen' },
-          { label: 'Delegierter Responder', text: 'Antworten mit einem dedizierten OCSPSigning-Zertifikat anstelle des CA-Schlüssels signieren — weisen Sie eines pro CA über das Detailpanel zu' },
-          { label: 'Responder-Auto-Erneuerung', text: 'Eine tägliche Aufgabe stellt das delegierte Responder-Zertifikat vor Ablauf neu aus (gleiches Schlüsselpaar, gleichwertig erneuert) und bindet es neu — standardmäßig aktiviert' },
+          { label: 'Delegierter Responder', text: 'Antworten mit einem dedizierten OCSPSigning-Zertifikat anstelle des CA-Schlüssels signieren, weisen Sie eines pro CA über das Detailpanel zu' },
+          { label: 'Responder-Auto-Erneuerung', text: 'Eine tägliche Aufgabe stellt das delegierte Responder-Zertifikat vor Ablauf neu aus (gleiches Schlüsselpaar, gleichwertig erneuert) und bindet es neu, standardmäßig aktiviert' },
         ]
       },
     ],
@@ -47,9 +47,9 @@ Eine CRL ist eine signierte Liste widerrufener Zertifikatsseriennummern, die von
 
 ### CRL pro CA
 Jede CA hat ihre eigene CRL. Die CRL-Liste zeigt alle Ihre CAs mit:
-- **Widerrufene Anzahl** — Anzahl der Zertifikate in der CRL
-- **Zuletzt regeneriert** — Wann die CRL zuletzt neu erstellt wurde
-- **Auto-Regenerierung** — Ob automatische CRL-Updates aktiviert sind
+- **Widerrufene Anzahl**: Anzahl der Zertifikate in der CRL
+- **Zuletzt regeneriert**: Wann die CRL zuletzt neu erstellt wurde
+- **Auto-Regenerierung**: Ob automatische CRL-Updates aktiviert sind
 
 ### CRL regenerieren
 Klicken Sie auf **Regenerieren**, um die CRL einer CA sofort neu zu erstellen. Dies ist nützlich nach dem Widerruf von Zertifikaten.
@@ -61,7 +61,7 @@ Aktivieren Sie die Auto-Regenerierung, um die CRL automatisch nach jedem Zertifi
 Der CRL-Zeitplan (pro CA) legt fest, wie lange jede veröffentlichte CRL gültig bleibt. Die Optionen reichen von **1 Tag bis 5 Jahren**: 1d, 2d, 3d, 7d, 14d, 30d, 90d, 180d, 1y, 3y, 5y.
 
 - **Online-CAs** sollten eine kurze Gültigkeit (Tage) beibehalten, damit vertrauende Parteien Widerrufe schnell übernehmen
-- **Offline-CAs** (typischerweise eine Root, die CRLs nicht planmäßig neu signieren kann) sind der vorgesehene Anwendungsfall für die langen Optionen — 90d bis 5y
+- **Offline-CAs** (typischerweise eine Root, die CRLs nicht planmäßig neu signieren kann) sind der vorgesehene Anwendungsfall für die langen Optionen: 90d bis 5y
 - Ab einem Jahr wird eine Warnung angezeigt: Vertrauende Parteien können veraltete Widerrufsdaten für das gesamte Gültigkeitsfenster behalten
 
 ### CRL Distribution Point (CDP)
@@ -71,7 +71,7 @@ Die CDP-URL wird in Zertifikate eingebettet, damit Clients wissen, wo sie die CR
 http://ihr-server:8080/cdp/{ca_refid}.crl
 \`\`\`
 
-> 💡 **Automatisch aktiviert**: Wenn Sie eine neue CA erstellen, wird CDP automatisch aktiviert, wenn eine Protokoll-Basis-URL oder ein HTTP-Protokollserver konfiguriert ist. Die CDP-URL wird automatisch generiert — keine manuellen Schritte erforderlich.
+> 💡 **Automatisch aktiviert**: Wenn Sie eine neue CA erstellen, wird CDP automatisch aktiviert, wenn eine Protokoll-Basis-URL oder ein HTTP-Protokollserver konfiguriert ist. Die CDP-URL wird automatisch generiert, keine manuellen Schritte erforderlich.
 
 > ⚠️ **Wichtig**: URLs werden automatisch mit dem HTTP-Protokollport und dem Server-FQDN generiert. Wenn Sie über \`localhost\` auf UCM zugreifen, kann die URL nicht generiert werden. Konfigurieren Sie zuerst Ihren **FQDN** oder die **Protokoll-Basis-URL** unter Einstellungen → Allgemein.
 
@@ -85,32 +85,32 @@ OCSP bietet Echtzeit-Zertifikatsstatusprüfung. Anstatt eine gesamte CRL herunte
 
 ### OCSP-Status
 Der OCSP-Bereich zeigt:
-- **Responder-Status** — Aktiv oder inaktiv pro CA
-- **Gesamtabfragen** — Anzahl der verarbeiteten OCSP-Anfragen
-- **Cache** — Antwort-Cache mit automatischer täglicher Bereinigung abgelaufener Einträge
+- **Responder-Status**: Aktiv oder inaktiv pro CA
+- **Gesamtabfragen**: Anzahl der verarbeiteten OCSP-Anfragen
+- **Cache**: Antwort-Cache mit automatischer täglicher Bereinigung abgelaufener Einträge
 
 ### OCSP-Cache
 
 UCM speichert OCSP-Antworten für die Leistung im Cache. Der Cache wird:
-- **Automatisch bereinigt** — Abgelaufene Antworten werden täglich vom Scheduler gelöscht
-- **Bei Widerruf ungültig gemacht** — Wenn ein Zertifikat widerrufen wird, wird die zwischengespeicherte OCSP-Antwort sofort gelöscht
-- **Bei Sperre-Aufhebung ungültig gemacht** — Wenn eine Zertifikatssperre aufgehoben wird, wird der OCSP-Cache aktualisiert
+- **Automatisch bereinigt**: Abgelaufene Antworten werden täglich vom Scheduler gelöscht
+- **Bei Widerruf ungültig gemacht**: Wenn ein Zertifikat widerrufen wird, wird die zwischengespeicherte OCSP-Antwort sofort gelöscht
+- **Bei Sperre-Aufhebung ungültig gemacht**: Wenn eine Zertifikatssperre aufgehoben wird, wird der OCSP-Cache aktualisiert
 
 ### Delegierter OCSP-Responder
 
-Standardmäßig werden OCSP-Antworten mit dem CA-Schlüssel selbst signiert. Ein **delegierter Responder** verwendet stattdessen ein dediziertes Zertifikat mit der **OCSPSigning**-EKU — weisen Sie eines pro CA über das Detailpanel der CA zu (nur Zertifikate mit OCSPSigning-EKU und privatem Schlüssel sind wählbar).
+Standardmäßig werden OCSP-Antworten mit dem CA-Schlüssel selbst signiert. Ein **delegierter Responder** verwendet stattdessen ein dediziertes Zertifikat mit der **OCSPSigning**-EKU: weisen Sie eines pro CA über das Detailpanel der CA zu (nur Zertifikate mit OCSPSigning-EKU und privatem Schlüssel sind wählbar).
 
-**Automatische Erneuerung**: Eine tägliche Aufgabe stellt das Responder-Zertifikat vor Ablauf neu aus — gleiches Schlüsselpaar und gleiche Erweiterungen, gleichwertig erneuert — und bindet die Responder-Konfiguration der CA an das neue Zertifikat. Kurzlebige OCSP-Signaturzertifikate (z. B. ein 90-Tage-Template) rotieren ohne manuellen Eingriff. Standardmäßig aktiviert; kann deaktiviert und das Erneuerungsfenster über die Konfiguration angepasst werden.
+**Automatische Erneuerung**: Eine tägliche Aufgabe stellt das Responder-Zertifikat vor Ablauf neu aus, gleiches Schlüsselpaar und gleiche Erweiterungen, gleichwertig erneuert, und bindet die Responder-Konfiguration der CA an das neue Zertifikat. Kurzlebige OCSP-Signaturzertifikate (z. B. ein 90-Tage-Template) rotieren ohne manuellen Eingriff. Standardmäßig aktiviert; kann deaktiviert und das Erneuerungsfenster über die Konfiguration angepasst werden.
 
 ### AIA-URLs
 Die Authority Information Access (AIA)-Erweiterung wird in Zertifikate eingebettet, um Clients mitzuteilen, wo sie finden:
 
-**OCSP-Responder** — Echtzeit-Widerrufsprüfung:
+**OCSP-Responder**: Echtzeit-Widerrufsprüfung:
 \`\`\`
 http://ihr-server:8080/ocsp
 \`\`\`
 
-**CA-Aussteller** (RFC 5280 §4.2.2.1) — Zertifikat der ausstellenden CA für den Kettenaufbau herunterladen:
+**CA-Aussteller** (RFC 5280 §4.2.2.1): Zertifikat der ausstellenden CA für den Kettenaufbau herunterladen:
 \`\`\`
 http://ihr-server:8080/ca/{ca_refid}.cer   (DER-Format)
 http://ihr-server:8080/ca/{ca_refid}.pem   (PEM-Format)
@@ -118,7 +118,7 @@ http://ihr-server:8080/ca/{ca_refid}.pem   (PEM-Format)
 
 Aktivieren Sie CA-Aussteller pro CA im Bereich **AIA CA-Aussteller** des Detailpanels. Die URL wird automatisch mit dem HTTP-Protokollserver und dem konfigurierten FQDN generiert.
 
-> ⚠️ **Voraussetzung**: Protokoll-URLs (CDP, OCSP, AIA) erfordern einen gültigen **FQDN** oder eine konfigurierte **Protokoll-Basis-URL** unter Einstellungen → Allgemein. Wenn Sie über \`localhost\` auf UCM zugreifen, schlägt die Aktivierung dieser Funktionen fehl — legen Sie zuerst den FQDN fest.
+> ⚠️ **Voraussetzung**: Protokoll-URLs (CDP, OCSP, AIA) erfordern einen gültigen **FQDN** oder eine konfigurierte **Protokoll-Basis-URL** unter Einstellungen → Allgemein. Wenn Sie über \`localhost\` auf UCM zugreifen, schlägt die Aktivierung dieser Funktionen fehl, legen Sie zuerst den FQDN fest.
 
 ### OCSP vs CRL
 

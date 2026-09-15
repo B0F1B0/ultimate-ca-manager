@@ -7,7 +7,7 @@ export default {
       {
         title: 'Importation',
         items: [
-          { label: 'Importation intelligente', text: 'Téléversez n\'importe quel fichier de certificat — UCM détecte automatiquement le format (PEM, DER, P12, P7B)' },
+          { label: 'Importation intelligente', text: 'Téléversez n\'importe quel fichier de certificat, UCM détecte automatiquement le format (PEM, DER, P12, P7B)' },
           { label: 'Synchronisation OPNsense', text: 'Connectez-vous au pare-feu OPNsense et importez ses certificats et CA' },
         ]
       },
@@ -45,10 +45,10 @@ Importez des certificats depuis des sources externes et exportez vos données PK
 L'assistant d'importation intelligente détecte automatiquement les types de fichiers et les traite :
 
 ### Formats pris en charge
-- **PEM** — Certificats, CA et clés simples ou groupés
-- **DER** — Certificat ou clé binaire
-- **PKCS#12 (P12/PFX)** — Certificat + clé + chaîne (nécessite un mot de passe)
-- **PKCS#7 (P7B)** — Chaîne de certificats sans clés
+- **PEM** : Certificats, CA et clés simples ou groupés
+- **DER** : Certificat ou clé binaire
+- **PKCS#12 (P12/PFX)** : Certificat + clé + chaîne (nécessite un mot de passe)
+- **PKCS#7 (P7B)** : Chaîne de certificats sans clés
 
 ### Comment ça fonctionne
 1. Cliquez sur **Importer** ou glissez des fichiers sur la zone de dépôt
@@ -77,15 +77,15 @@ UCM importe les certificats avec leurs clés privées (si disponibles) et prése
 ## Exporter les certificats
 
 Exportation en masse de tous les certificats :
-- **PEM** — Fichiers PEM individuels
-- **Bundle P7B** — Tous les certificats dans un seul fichier PKCS#7
-- **ZIP** — Tous les certificats en fichiers PEM individuels dans une archive ZIP
+- **PEM** : Fichiers PEM individuels
+- **Bundle P7B** : Tous les certificats dans un seul fichier PKCS#7
+- **ZIP** : Tous les certificats en fichiers PEM individuels dans une archive ZIP
 
 ## Exporter les CA
 
 Exportation en masse de toutes les autorités de certification :
-- **PEM** — Chaîne de certificats au format PEM
-- **Chaîne complète** — Racine → Intermédiaire → Sous-CA
+- **PEM** : Chaîne de certificats au format PEM
+- **Chaîne complète** : Racine → Intermédiaire → Sous-CA
 
 ## Migration entre instances UCM
 

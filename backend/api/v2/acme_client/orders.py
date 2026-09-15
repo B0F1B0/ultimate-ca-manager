@@ -302,7 +302,7 @@ def request_certificate():
                 # (that's what made manual DNS-01 fail, #140) — leave the order
                 # pending so the user adds the record and clicks "Verify" when
                 # ready (the verify endpoint self-checks DNS before submitting).
-                logger.info(f'Order {order.id}: manual DNS provider — awaiting user verification')
+                logger.info(f'Order {order.id}: manual DNS provider, awaiting user verification')
             else:
                 # Automated provider: run the DNS self-check → verify → poll →
                 # finalize flow in a BACKGROUND thread (DNS propagation + CA
@@ -676,7 +676,7 @@ def _auto_poll_and_finalize(client, order) -> dict:
         else:
             logger.warning(
                 f'DNS self-check timed out after {timeout}s; TXT not visible for '
-                f'{check["missing"]} — submitting anyway (CA may still validate)')
+                f'{check["missing"]}, submitting anyway (CA may still validate)')
 
         # 2. Submit challenges for validation
         for domain in challenges:

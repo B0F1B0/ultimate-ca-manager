@@ -19,7 +19,7 @@ export default {
         title: 'Grupos',
         items: [
           { label: 'Criar Grupo', text: 'Definir um grupo e atribuir membros' },
-          { label: 'Permissões de Grupo', text: 'Um grupo concede um conjunto de permissões — cada membro as recebe além de sua própria função' },
+          { label: 'Permissões de Grupo', text: 'Um grupo concede um conjunto de permissões, cada membro as recebe além de sua própria função' },
           { label: 'Gerenciamento de Membros', text: 'Adicionar ou remover usuários dos grupos' },
         ]
       },
@@ -29,7 +29,7 @@ export default {
       'Usuários desativados não podem fazer login, mas seus dados são preservados',
     ],
     warnings: [
-      'Excluir um usuário é permanente — considere desativar em vez disso',
+      'Excluir um usuário é permanente: considere desativar em vez disso',
     ],
   },
   helpGuides: {
@@ -50,8 +50,8 @@ Gerencie contas de usuário, grupos e atribuições de funções. Os usuários s
 6. Clique em **Criar**
 
 ### Status do Usuário
-- **Ativo** — Pode fazer login e realizar ações
-- **Desativado** — Não pode fazer login, dados são preservados
+- **Ativo**: Pode fazer login e realizar ações
+- **Desativado**: Não pode fazer login, dados são preservados
 
 Alterne o status de um usuário sem excluir sua conta.
 
@@ -82,10 +82,10 @@ As permissões efetivas de um usuário são a **união** de:
 ## Funções
 
 ### Funções do Sistema
-- **Admin** — Acesso total a todos os recursos
-- **Operador** — Pode gerenciar certificados, CAs, CSRs, mas não configurações do sistema
-- **Auditor** — Acesso somente leitura a todos os dados operacionais para conformidade e auditoria
-- **Visualizador** — Acesso somente leitura a certificados, CAs e modelos
+- **Admin**: Acesso total a todos os recursos
+- **Operador**: Pode gerenciar certificados, CAs, CSRs, mas não configurações do sistema
+- **Auditor**: Acesso somente leitura a todos os dados operacionais para conformidade e auditoria
+- **Visualizador**: Acesso somente leitura a certificados, CAs e modelos
 
 ### Funções Personalizadas
 Crie funções com permissões granulares na página **RBAC**.
@@ -95,8 +95,8 @@ Crie funções com permissões granulares na página **RBAC**.
 ## Origem de autenticação
 
 A coluna **Origem** indica a proveniência de cada utilizador:
-- **Local** — criado e gerido no UCM (palavra-passe local)
-- **LDAP / OAuth2 / SAML** — provisionado automaticamente no primeiro início de sessão SSO; o nome do fornecedor de origem aparece no selo (ex.: \`LDAP · Corporate AD\`).
+- **Local**: criado e gerido no UCM (palavra-passe local)
+- **LDAP / OAuth2 / SAML**: provisionado automaticamente no primeiro início de sessão SSO; o nome do fornecedor de origem aparece no selo (ex.: \`LDAP · Corporate AD\`).
 
 Desde a v2.133, os papéis alterados manualmente no UCM para utilizadores SSO são **preservados** entre sessões, exceto se **«Sincronizar papel em cada início de sessão»** estiver ativo no fornecedor (ver **Definições → SSO**).
 `

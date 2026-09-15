@@ -28,17 +28,17 @@ export default {
         content: 'Une fois un fournisseur HSM configuré, vous pouvez épingler la clé privée d\'une CA à ce HSM dès sa création :',
         items: [
           { label: 'Bascule Stockage de clé', text: 'Sur le formulaire de création de CA, choisir Local (chiffré en DB) ou HSM. Sélectionner le fournisseur + label de clé' },
-          { label: 'Chemin de signature', text: 'Chaque émission, signature de CRL et signature OCSP de cette CA passe par le HSM — la clé ne sort jamais' },
+          { label: 'Chemin de signature', text: 'Chaque émission, signature de CRL et signature OCSP de cette CA passe par le HSM, la clé ne sort jamais' },
           { label: 'Restrictions d\'export', text: 'L\'export PKCS#12, JKS et clé seule est désactivé pour les CA HSM (seul le certificat public / la chaîne peut être exporté)' },
           { label: 'CRL & OCSP', text: 'Les deux fonctionnent de manière transparente avec les CA HSM (signés via HSM)' },
-          { label: 'Migration', text: 'Les CA locales existantes ne peuvent pas être déplacées vers un HSM après création — choisir à la création' },
+          { label: 'Migration', text: 'Les CA locales existantes ne peuvent pas être déplacées vers un HSM après création, choisir à la création' },
         ]
       },
 
     ],
     tips: [
       'Utilisez SoftHSM pour les tests avant de déployer avec un HSM physique',
-      'Les clés générées sur un HSM ne quittent jamais le matériel — elles ne peuvent pas être exportées',
+      'Les clés générées sur un HSM ne quittent jamais le matériel : elles ne peuvent pas être exportées',
       'Testez la connexion avant d\'utiliser un fournisseur HSM pour la signature de CA',
       'Pour les CA racines à longue durée de vie en production, préférez le stockage de clé adossé à HSM',
     ],
@@ -63,41 +63,41 @@ L'interface HSM standard de l'industrie. Appareils pris en charge :
 - **SoftHSM** (logiciel, pour les tests)
 - Tout appareil compatible PKCS#11
 
-> 💡 **Docker** : SoftHSM est pré-installé dans l'image Docker. Au premier démarrage, un jeton par défaut est auto-initialisé et enregistré comme fournisseur \`SoftHSM-Default\` — prêt à l'emploi immédiatement.
+> 💡 **Docker** : SoftHSM est pré-installé dans l'image Docker. Au premier démarrage, un jeton par défaut est auto-initialisé et enregistré comme fournisseur \`SoftHSM-Default\` : prêt à l'emploi immédiatement.
 
 Configuration :
-- **Chemin de la bibliothèque** — Chemin vers la bibliothèque partagée PKCS#11 (.so/.dll)
-- **Slot** — Numéro de slot HSM
-- **PIN** — PIN utilisateur pour l'authentification
+- **Chemin de la bibliothèque** : Chemin vers la bibliothèque partagée PKCS#11 (.so/.dll)
+- **Slot** : Numéro de slot HSM
+- **PIN** : PIN utilisateur pour l'authentification
 
 ### AWS CloudHSM
 HSM basé sur le cloud Amazon Web Services :
-- **ID du cluster** — Identifiant du cluster CloudHSM
-- **Région** — Région AWS
-- **Identifiants** — Clé d'accès et secret AWS
+- **ID du cluster** : Identifiant du cluster CloudHSM
+- **Région** : Région AWS
+- **Identifiants** : Clé d'accès et secret AWS
 
 ### Azure Key Vault
 Stockage de clés géré Microsoft Azure :
-- **URL du coffre** — Point de terminaison Azure Key Vault
-- **ID du locataire** — Locataire Azure AD
-- **ID client/Secret** — Identifiants du principal de service
+- **URL du coffre** : Point de terminaison Azure Key Vault
+- **ID du locataire** : Locataire Azure AD
+- **ID client/Secret** : Identifiants du principal de service
 
 ### Google Cloud KMS
 Service de gestion des clés Google Cloud :
-- **Projet** — ID du projet GCP
-- **Emplacement** — Emplacement de l'anneau de clés KMS
-- **Anneau de clés** — Nom de l'anneau de clés
-- **Identifiants** — Clé JSON du compte de service
+- **Projet** : ID du projet GCP
+- **Emplacement** : Emplacement de l'anneau de clés KMS
+- **Anneau de clés** : Nom de l'anneau de clés
+- **Identifiants** : Clé JSON du compte de service
 
 ### OpenBao / Vault Transit
-Moteur de secrets Transit OpenBao ou HashiCorp Vault. Les clés sont gérées à distance via l'API Transit — aucune bibliothèque PKCS#11 requise.
+Moteur de secrets Transit OpenBao ou HashiCorp Vault. Les clés sont gérées à distance via l'API Transit : aucune bibliothèque PKCS#11 requise.
 
 Configuration :
-- **URL** — Adresse du serveur (ex. \`https://openbao.example.com:8200\`)
-- **Token** — Jeton d'authentification
-- **Chemin de montage** — Point de montage du moteur Transit (par défaut : \`transit\`)
-- **Espace de noms** — Espace de noms optionnel pour les configurations multi-locataires
-- **Ignorer la vérification TLS** — Ignorer la vérification du certificat TLS (pour les certificats auto-signés)
+- **URL** : Adresse du serveur (ex. \`https://openbao.example.com:8200\`)
+- **Token** : Jeton d'authentification
+- **Chemin de montage** : Point de montage du moteur Transit (par défaut : \`transit\`)
+- **Espace de noms** : Espace de noms optionnel pour les configurations multi-locataires
+- **Ignorer la vérification TLS** : Ignorer la vérification du certificat TLS (pour les certificats auto-signés)
 
 Types de clés pris en charge :
 - RSA 2048, 3072, 4096
@@ -122,9 +122,9 @@ Testez toujours la connexion après avoir créé ou modifié un fournisseur. UCM
 
 ### Statut du fournisseur
 Chaque fournisseur affiche un indicateur de statut de connexion :
-- **Connecté** — Le HSM est accessible et authentifié
-- **Déconnecté** — Impossible de joindre le HSM
-- **Erreur** — Problème d'authentification ou de configuration
+- **Connecté** : Le HSM est accessible et authentifié
+- **Déconnecté** : Impossible de joindre le HSM
+- **Erreur** : Problème d'authentification ou de configuration
 
 ## Gestion des clés
 

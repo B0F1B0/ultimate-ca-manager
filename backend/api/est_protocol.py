@@ -429,7 +429,7 @@ def _trusted_client_cert():
     if verify != 'SUCCESS':
         if presented:
             logger.warning(
-                "EST: SSL_CLIENT_VERIFY=%r — refusing client cert",
+                "EST: SSL_CLIENT_VERIFY=%r, refusing client cert",
                 verify or '<missing>',
             )
         else:

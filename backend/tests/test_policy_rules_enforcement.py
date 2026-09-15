@@ -64,33 +64,35 @@ class TestEnforceRulesHelper:
 
     def test_key_type_labels_are_normalised(self):
         pol = self._pol({'allowed_key_types': ['EC-P256', 'rsa:4096']})
-        v, _ = PolicyEvaluationService.enforce_rules([pol], key_type='secp256r1')
+        v, _, _ = PolicyEvaluationService.enforce_rules([pol], key_type='secp256r1')
         assert v == []
-        v, _ = PolicyEvaluationService.enforce_rules([pol], key_type='4096')
+        v, _, _ = PolicyEvaluationService.enforce_rules([pol], key_type='4096')
         assert v == []
-        v, _ = PolicyEvaluationService.enforce_rules([pol], key_type='2048')
+        v, _, _ = PolicyEvaluationService.enforce_rules([pol], key_type='2048')
         assert len(v) == 1 and 'RSA-2048' in v[0] and 'EC-P256' in v[0]
 
     def test_dns_cap_and_validity_cap(self):
         pol = self._pol({'san_restrictions': {'max_dns_names': 2}, 'max_validity_days': 30})
-        v, days = PolicyEvaluationService.enforce_rules([pol], dns_name_count=3, validity_days=90)
+        v, days, _ = PolicyEvaluationService.enforce_rules([pol], dns_name_count=3, validity_days=90)
         assert len(v) == 1 and '3 DNS names exceed the 2' in v[0]
         assert days == 30
-        v, days = PolicyEvaluationService.enforce_rules([pol], dns_name_count=2, validity_days=10)
+        v, days, _ = PolicyEvaluationService.enforce_rules([pol], dns_name_count=2, validity_days=10)
         assert v == [] and days == 10
 
     def test_unset_or_zero_rules_do_nothing(self):
         pol = self._pol({'allowed_key_types': [], 'san_restrictions': {'max_dns_names': 0},
                          'max_validity_days': 0})
-        v, days = PolicyEvaluationService.enforce_rules([pol], key_type='2048', dns_name_count=99,
-                                                        validity_days=3000)
+        v, days, _ = PolicyEvaluationService.enforce_rules(
+            [pol], key_type='2048', dns_name_count=99, validity_days=3000)
         assert v == [] and days == 3000
 
     def test_most_restrictive_validity_wins(self):
         a = self._pol({'max_validity_days': 60}, 'a')
         b = self._pol({'max_validity_days': 20}, 'b')
-        _, days = PolicyEvaluationService.enforce_rules([a, b], validity_days=90)
+        _, days, capped_by = PolicyEvaluationService.enforce_rules([a, b], validity_days=90)
         assert days == 20
+        # The caller names this policy in the notice it returns.
+        assert capped_by == 'b'
 
 
 class TestDirectIssuance:

@@ -227,7 +227,7 @@ class OvhDnsProvider(BaseDnsProvider):
         zones_ok, zones = self._request('GET', '/domain/zone')
         if zones_ok and isinstance(zones, list):
             return True, f"Connected successfully. Found {len(zones)} zone(s)."
-        return True, "Connected successfully. (Consumer key is zone-scoped — zone list not enumerable, this is fine.)"
+        return True, "Connected successfully. (Consumer key is zone-scoped: zone list not enumerable, this is fine.)"
     
     @classmethod
     def get_credential_schema(cls):

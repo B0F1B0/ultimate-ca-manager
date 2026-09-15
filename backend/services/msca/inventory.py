@@ -87,7 +87,7 @@ class MicrosoftCAInventoryMixin:
                 # genuinely distinct cert — a silent skip is undiagnosable.
                 logger.info(
                     "MSCA inventory: skipping RequestId %s (serial %s, CN %r) "
-                    "— serial already known in UCM", req_id, serial, cn,
+                    ", serial already known in UCM", req_id, serial, cn,
                 )
                 skipped += 1
                 continue

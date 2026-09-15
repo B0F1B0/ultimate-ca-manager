@@ -1,6 +1,6 @@
 # HSM Docker Deployment Guide
 
-UCM includes SoftHSM2 in its Docker image. HSM features work out of the box — no extra configuration required.
+UCM includes SoftHSM2 in its Docker image. HSM features work out of the box, no extra configuration required.
 
 ## Quick Start
 
@@ -10,7 +10,7 @@ docker compose -f docker-compose.hsm.yml up -d
 
 On first start, a default SoftHSM token (`UCM-Default`) is automatically initialized. The PIN is printed in the container logs.
 
-**Auto-registration:** UCM automatically creates an `SoftHSM-Default` provider in the database when it detects the Docker entrypoint initialized a token (`HSM_DEFAULT_PIN` env var). The provider appears immediately in the HSM page — no manual setup needed.
+**Auto-registration:** UCM automatically creates an `SoftHSM-Default` provider in the database when it detects the Docker entrypoint initialized a token (`HSM_DEFAULT_PIN` env var). The provider appears immediately in the HSM page, no manual setup needed.
 
 ## Legacy PKCS#11 key normalization (upgrade)
 
@@ -21,9 +21,9 @@ On upgrade, UCM maintains compatibility for PKCS#11 providers created by older c
 
 Normalization runs at three levels:
 
-1. **Migration 057** — automatically rewrites legacy JSON fields in all `pkcs11` rows in `hsm_providers`.
-2. **Startup repair** — if the `SoftHSM-Default` row already exists, UCM normalizes its configuration at startup as well.
-3. **Runtime fallback** — `PKCS11Provider` accepts legacy aliases on read (before validation).
+1. **Migration 057**: automatically rewrites legacy JSON fields in all `pkcs11` rows in `hsm_providers`.
+2. **Startup repair**: if the `SoftHSM-Default` row already exists, UCM normalizes its configuration at startup as well.
+3. **Runtime fallback**: `PKCS11Provider` accepts legacy aliases on read (before validation).
 
 **Expected outcome:** after upgrade, the `SoftHSM-Default` provider should no longer fail a connection test (no `module_path is required` error) and the UI should show `module_path` / `user_pin`.
 
@@ -46,7 +46,7 @@ docker run -d --name ucm -p 8443:8443 \
 | `HSM_AUTO_INIT` | `true` | Auto-create a default SoftHSM token on first start |
 | `HSM_PIN` | *(random)* | PIN for the auto-initialized token |
 | `HSM_SO_PIN` | *(random)* | SO PIN for the auto-initialized token |
-| `UCM_ALLOW_RUNTIME_PIP` | *(unset)* | Set to `1` to enable the in-app "Install dependencies" button (HSM page). Disabled by default since v2.142 — see below. |
+| `UCM_ALLOW_RUNTIME_PIP` | *(unset)* | Set to `1` to enable the in-app "Install dependencies" button (HSM page). Disabled by default since v2.142, see below. |
 
 ## Runtime PKCS#11 dependency installer
 
@@ -62,7 +62,7 @@ HTTP/1.1 403 Forbidden
 
 This closes a remote-code-installation surface in default deployments. Two ways to install missing PKCS#11 packages:
 
-**Recommended — bake into the image / system package**
+**Recommended: bake into the image / system package**
 ```dockerfile
 # Dockerfile derivative
 FROM neyslim/ultimate-ca-manager:2.142
@@ -78,7 +78,7 @@ sudo dnf install python3-PyKCS11          # Fedora/RHEL
 sudo systemctl restart ucm
 ```
 
-**Opt-in — runtime pip install from the UI**
+**Opt-in: runtime pip install from the UI**
 ```yaml
 # docker-compose.yml
 services:
@@ -93,7 +93,7 @@ services:
 UCM_ALLOW_RUNTIME_PIP=1
 ```
 
-Then click **Install dependencies** on the HSM page. The opt-in is per-deployment — UCM never enables it implicitly.
+Then click **Install dependencies** on the HSM page. The opt-in is per-deployment. UCM never enables it implicitly.
 
 ## Manual Token Management
 
@@ -129,9 +129,9 @@ Then configure the provider in the UCM web UI with the vendor library path.
 
 Configure cloud HSM providers via the UCM web UI (Settings → HSM):
 
-- **AWS CloudHSM** — uses PKCS#11 with the CloudHSM client library
-- **Azure Key Vault** — requires `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
-- **Google Cloud KMS** — requires GCP service account credentials
+- **AWS CloudHSM**: uses PKCS#11 with the CloudHSM client library
+- **Azure Key Vault**: requires `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`
+- **Google Cloud KMS**: requires GCP service account credentials
 
 ## Backup & Restore
 

@@ -230,5 +230,5 @@ def renew_ca_csr(ca_id):
 
     return success_response(
         data=ca_dict,
-        message='CSR generated — download and submit it to the external CA'
+        message='CSR generated: download and submit it to the external CA'
     )

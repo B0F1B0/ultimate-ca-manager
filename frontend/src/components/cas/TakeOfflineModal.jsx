@@ -80,7 +80,7 @@ export function TakeOfflineModal({ open, onClose, ca, onSuccess }) {
   }
 
   const title = useMemo(
-    () => `${t('cas.takeOffline')} — ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
+    () => `${t('cas.takeOffline')}: ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
     [t, ca]
   )
 

@@ -15,7 +15,7 @@ export default {
       {
         title: 'Acciones masivas',
         items: [
-          { label: 'Certificados', text: 'Revocar, renovar, eliminar o exportar — filtrar por estado y CA emisora' },
+          { label: 'Certificados', text: 'Revocar, renovar, eliminar o exportar, filtrar por estado y CA emisora' },
           { label: 'CAs', text: 'Eliminar o exportar autoridades de certificación' },
           { label: 'CSRs', text: 'Firmar con una CA o eliminar solicitudes pendientes' },
           { label: 'Plantillas', text: 'Eliminar plantillas de certificado' },
@@ -30,7 +30,7 @@ export default {
       'Previsualice los cambios antes de confirmar las operaciones masivas',
     ],
     warnings: [
-      'La eliminación masiva es irreversible — siempre cree una copia de seguridad primero',
+      'La eliminación masiva es irreversible: siempre cree una copia de seguridad primero',
       'La revocación masiva publicará CRLs actualizadas para todas las CAs afectadas',
     ],
   },
@@ -43,11 +43,11 @@ Operaciones masivas y gestión de datos. Realice acciones por lotes en múltiple
 
 ## Pestaña Importar/Exportar
 
-Igual que la página de Importar/Exportar — asistente de importación inteligente y funcionalidad de exportación masiva.
+Igual que la página de Importar/Exportar: asistente de importación inteligente y funcionalidad de exportación masiva.
 
 ## Pestaña OPNsense
 
-Igual que la integración OPNsense de Importar/Exportar — conectar, explorar e importar desde OPNsense.
+Igual que la integración OPNsense de Importar/Exportar: conectar, explorar e importar desde OPNsense.
 
 ## Acciones masivas
 
@@ -63,26 +63,26 @@ Realice operaciones por lotes en múltiples recursos a la vez.
 ### Acciones disponibles por recurso
 
 #### Certificados
-- **Revocación masiva** — Revocar múltiples certificados a la vez
-- **Renovación masiva** — Renovar múltiples certificados
-- **Exportación masiva** — Descargar los certificados seleccionados como un paquete
-- **Eliminación masiva** — Eliminar permanentemente los certificados seleccionados
+- **Revocación masiva**: Revocar múltiples certificados a la vez
+- **Renovación masiva**: Renovar múltiples certificados
+- **Exportación masiva**: Descargar los certificados seleccionados como un paquete
+- **Eliminación masiva**: Eliminar permanentemente los certificados seleccionados
 
 #### CAs
-- **Exportación masiva** — Descargar las CAs seleccionadas
-- **Eliminación masiva** — Eliminar las CAs seleccionadas (no deben tener hijos)
+- **Exportación masiva**: Descargar las CAs seleccionadas
+- **Eliminación masiva**: Eliminar las CAs seleccionadas (no deben tener hijos)
 
 #### CSRs
-- **Firma masiva** — Firmar múltiples CSRs con una CA seleccionada
-- **Eliminación masiva** — Eliminar los CSRs seleccionados
+- **Firma masiva**: Firmar múltiples CSRs con una CA seleccionada
+- **Eliminación masiva**: Eliminar los CSRs seleccionados
 
 #### Plantillas
-- **Exportación masiva** — Exportar como JSON
-- **Eliminación masiva** — Eliminar las plantillas seleccionadas
+- **Exportación masiva**: Exportar como JSON
+- **Eliminación masiva**: Eliminar las plantillas seleccionadas
 
 #### Usuarios
-- **Desactivación masiva** — Desactivar las cuentas de usuario seleccionadas
-- **Eliminación masiva** — Eliminar permanentemente los usuarios seleccionados
+- **Desactivación masiva**: Desactivar las cuentas de usuario seleccionadas
+- **Eliminación masiva**: Eliminar permanentemente los usuarios seleccionados
 
 > ⚠ Las operaciones masivas son irreversibles. Siempre cree una copia de seguridad antes de realizar eliminaciones o revocaciones masivas.
 

@@ -46,7 +46,7 @@ def _upgrade_sqlite(conn):
         "SELECT sql FROM sqlite_master WHERE name = 'acme_client_accounts'"
     ).fetchone()
     if not row:
-        logger.info('[077] acme_client_accounts missing — nothing to do (SQLite)')
+        logger.info('[077] acme_client_accounts missing: nothing to do (SQLite)')
         return
 
     if _sqlite_directory_url_is_unique(conn):
@@ -87,7 +87,7 @@ def _upgrade_pg(conn):
     insp = inspect(conn)
     if 'acme_client_accounts' not in insp.get_table_names():
         logger.info(
-            '[077] acme_client_accounts missing — nothing to do (PostgreSQL)'
+            '[077] acme_client_accounts missing: nothing to do (PostgreSQL)'
         )
         return
     uniques = {

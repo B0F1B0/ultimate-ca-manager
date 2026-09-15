@@ -1402,7 +1402,7 @@ Public endpoints for downloading CA certificates (RFC 5280 §4.2.2.1). No authen
 GET /ca/{ca_refid}.cer
 ```
 
-**Response**: `application/pkix-cert` — DER-encoded X.509 certificate
+**Response**: `application/pkix-cert`: DER-encoded X.509 certificate
 
 Also accepts legacy numeric CA ID: `GET /ca/{ca_id}.cer`
 
@@ -1416,7 +1416,7 @@ openssl x509 -in ca.cer -inform DER -text -noout
 GET /ca/{ca_refid}.pem
 ```
 
-**Response**: `application/x-pem-file` — PEM-encoded X.509 certificate
+**Response**: `application/x-pem-file`: PEM-encoded X.509 certificate
 
 ```bash
 curl http://your-server:8080/ca/550e8400-e29b-41d4-a716-446655440000.pem -o ca.pem

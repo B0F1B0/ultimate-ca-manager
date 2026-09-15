@@ -7,8 +7,8 @@ export default {
       {
         title: 'Modes d\'émission',
         items: [
-          { label: 'Mode signature', text: 'Collez une clé publique SSH existante pour la signer. La clé privée reste sur la machine de l\'utilisateur — UCM ne la voit jamais.' },
-          { label: 'Mode génération', text: 'UCM génère une nouvelle paire de clés et signe le certificat. Téléchargez la clé privée immédiatement — elle ne pourra pas être récupérée ultérieurement.' },
+          { label: 'Mode signature', text: 'Collez une clé publique SSH existante pour la signer. La clé privée reste sur la machine de l\'utilisateur, UCM ne la voit jamais.' },
+          { label: 'Mode génération', text: 'UCM génère une nouvelle paire de clés et signe le certificat. Téléchargez la clé privée immédiatement, elle ne pourra pas être récupérée ultérieurement.' },
         ]
       },
       {
@@ -38,12 +38,12 @@ export default {
     ],
     tips: [
       'Utilisez des certificats éphémères (8h–24h) pour l\'accès utilisateur afin de minimiser l\'impact d\'une compromission de clé.',
-      'Le mode signature est préférable — la clé privée de l\'utilisateur ne quitte jamais sa machine.',
+      'Le mode signature est préférable : la clé privée de l\'utilisateur ne quitte jamais sa machine.',
       'Les Key ID doivent être descriptifs (ex. : « jdoe-prod-2025 ») pour faciliter l\'audit des journaux.',
       'Pour les certificats d\'hôte, le principal doit correspondre au nom d\'hôte utilisé par les clients pour se connecter.',
     ],
     warnings: [
-      'En mode génération, téléchargez la clé privée immédiatement — elle n\'est pas stockée et ne peut pas être récupérée.',
+      'En mode génération, téléchargez la clé privée immédiatement : elle n\'est pas stockée et ne peut pas être récupérée.',
       'La révocation d\'un certificat ne fonctionne que si les serveurs sont configurés pour vérifier le fichier KRL de la CA.',
     ],
   },
@@ -80,14 +80,14 @@ ssh -i ~/.ssh/id_work user@server
 ### Mode génération
 UCM génère à la fois la paire de clés et le certificat. Utilisez ce mode lorsque vous devez provisionner des identifiants de manière centralisée.
 
-> ⚠ **Téléchargez la clé privée immédiatement** — elle n'est pas stockée dans UCM et ne peut pas être récupérée.
+> ⚠ **Téléchargez la clé privée immédiatement** : elle n'est pas stockée dans UCM et ne peut pas être récupérée.
 
 **Procédure :**
 1. Sélectionnez une CA et remplissez les détails du certificat
 2. Choisissez le mode « Générer »
 3. Cliquez sur **Émettre**
 4. Téléchargez les trois fichiers :
-   - Clé privée (\`keyid\`) — **Conservez-la en lieu sûr !**
+   - Clé privée (\`keyid\`) : **Conservez-la en lieu sûr !**
    - Certificat (\`keyid-cert.pub\`)
    - Clé publique (\`keyid.pub\`)
 
@@ -104,7 +104,7 @@ Les principals définissent **qui** (certificats utilisateur) ou **quoi** (certi
 - **Certificats utilisateur** : liste des noms d'utilisateur sous lesquels le titulaire peut se connecter (ex. : \`deploy\`, \`admin\`)
 - **Certificats d'hôte** : liste des noms d'hôte ou IP par lesquels le serveur est connu (ex. : \`web01.example.com\`, \`10.0.1.5\`)
 
-> 💡 Si aucun principal n'est spécifié, le certificat fonctionne pour n'importe quel principal — ce qui est généralement trop permissif.
+> 💡 Si aucun principal n'est spécifié, le certificat fonctionne pour n'importe quel principal : ce qui est généralement trop permissif.
 
 ### Validité
 

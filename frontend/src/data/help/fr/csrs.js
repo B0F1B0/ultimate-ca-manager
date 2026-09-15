@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'Les CSR préservent la clé privée du demandeur — elle ne quitte jamais son système',
+      'Les CSR préservent la clé privée du demandeur : elle ne quitte jamais son système',
       'Vous pouvez ajouter une clé privée à une CSR après la signature si nécessaire pour l\'exportation PKCS#12',
       'Un certificat importé pour une CSR générée dans UCM complète cette CSR : l\'enregistrement conserve sa clé privée, le certificat s\'exporte donc avec elle',
       'Utilisez le mode Microsoft CA pour signer les CSR via AD CS lorsque vous êtes connecté à une PKI Windows',
-      'À la signature, utilisez « EKU supplémentaires » pour ajouter Microsoft RDP, smartcard logon, IPsec ou tout OID — l\'EKU existante du CSR est reconstruite avec le jeu fusionné',
+      'À la signature, utilisez « EKU supplémentaires » pour ajouter Microsoft RDP, smartcard logon, IPsec ou tout OID : l\'EKU existante du CSR est reconstruite avec le jeu fusionné',
     ],
   },
   helpGuides: {
@@ -58,7 +58,7 @@ UCM peut générer une CSR et une paire de clés directement :
 
 La CSR et la clé privée sont créées et stockées dans UCM. La CSR apparaît dans l'onglet En attente prête à être signée.
 
-> 💡 C'est pratique lorsque vous souhaitez qu'UCM gère l'ensemble du cycle de vie — CSR, signature et stockage des clés.
+> 💡 C'est pratique lorsque vous souhaitez qu'UCM gère l'ensemble du cycle de vie. CSR, signature et stockage des clés.
 
 ## Téléverser une CSR
 
@@ -70,10 +70,10 @@ La CSR et la clé privée sont créées et stockées dans UCM. La CSR apparaît 
 ## Examiner une CSR
 
 Cliquez sur une CSR pour voir :
-- **Sujet** — CN, O, OU, C, etc.
-- **SAN** — Noms DNS, adresses IP, e-mails
-- **Info clé** — Algorithme, taille, empreinte de la clé publique
-- **Signature** — Algorithme et validité
+- **Sujet** : CN, O, OU, C, etc.
+- **SAN** : Noms DNS, adresses IP, e-mails
+- **Info clé** : Algorithme, taille, empreinte de la clé publique
+- **Signature** : Algorithme et validité
 
 ## Signer une CSR
 

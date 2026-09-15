@@ -160,7 +160,7 @@ if (-not ($fodInstalled -or $wingetInstalled -or $sshdSvc)) {{
                 Write-Host "  No WSUS policy detected (UseWUServer != 1)."
             }}
             Write-Host ""
-            Write-Host "Resolution options (ask your Windows / AD team — do NOT bypass policy yourself):" -ForegroundColor Cyan
+            Write-Host "Resolution options (ask your Windows / AD team, do NOT bypass policy yourself):" -ForegroundColor Cyan
             Write-Host "  1. Ask the WSUS admin to approve the OpenSSH FoD package, OR enable the policy"
             Write-Host "     'Specify settings for optional component installation and component repair'"
             Write-Host "     with 'Download repair content ... directly from Windows Update' enabled"
@@ -513,7 +513,7 @@ if (-not ($fodInstalled -or $wingetInstalled -or $sshdSvc)) {{
                 Write-Host "  No WSUS policy detected (UseWUServer != 1)."
             }}
             Write-Host ""
-            Write-Host "Resolution options (ask your Windows / AD team — do NOT bypass policy yourself):" -ForegroundColor Cyan
+            Write-Host "Resolution options (ask your Windows / AD team, do NOT bypass policy yourself):" -ForegroundColor Cyan
             Write-Host "  1. Ask the WSUS admin to approve the OpenSSH FoD package, OR enable the policy"
             Write-Host "     'Specify settings for optional component installation and component repair'"
             Write-Host "     with 'Download repair content ... directly from Windows Update' enabled"

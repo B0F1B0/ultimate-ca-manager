@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'CSR 保留了请求者的私钥——私钥不会离开其系统',
+      'CSR 保留了请求者的私钥:, 私钥不会离开其系统',
       '签署后可按需向 CSR 添加私钥以进行 PKCS#12 导出',
       '为在 UCM 中生成的 CSR 导入证书会完成该 CSR：记录保留其私钥，因此证书可连同私钥一起导出',
       '使用 Microsoft CA 模式可在连接到 Windows PKI 时通过 AD CS 签署 CSR',
-      '签署时使用"额外 EKU"添加 Microsoft RDP、智能卡登录、IPsec 或任何 OID — CSR 现有的 EKU 将以合并集重建',
+      '签署时使用"额外 EKU"添加 Microsoft RDP、智能卡登录、IPsec 或任何 OID: CSR 现有的 EKU 将以合并集重建',
     ],
   },
   helpGuides: {
@@ -70,10 +70,10 @@ CSR 和私钥将在 UCM 中创建和存储。CSR 出现在待处理选项卡中�
 ## 审查 CSR
 
 点击 CSR 查看：
-- **主题** — CN、O、OU、C 等
-- **SAN** — DNS 名称、IP 地址、电子邮件
-- **密钥信息** — 算法、大小、公钥指纹
-- **签名** — 算法和有效性
+- **主题**: CN、O、OU、C 等
+- **SAN**: DNS 名称、IP 地址、电子邮件
+- **密钥信息**: 算法、大小、公钥指纹
+- **签名**: 算法和有效性
 
 ## 签署 CSR
 

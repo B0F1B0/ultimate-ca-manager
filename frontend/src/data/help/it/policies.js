@@ -57,40 +57,40 @@ Regole applicate quando i certificati vengono revocati. Possono richiedere l'app
 
 ### Validità massima
 Durata massima del certificato in giorni. Valori comuni:
-- **90 giorni** — Automazione a breve durata (stile ACME)
-- **397 giorni** — Baseline CA/Browser Forum per TLS pubblico
-- **730 giorni** — PKI interna/privata
-- **365 giorni** — Firma del codice
+- **90 giorni**: Automazione a breve durata (stile ACME)
+- **397 giorni**: Baseline CA/Browser Forum per TLS pubblico
+- **730 giorni**: PKI interna/privata
+- **365 giorni**: Firma del codice
 
 ### Tipi di chiave consentiti
 Limita gli algoritmi e le dimensioni delle chiavi utilizzabili:
-- **RSA-2048** — Minimo per la fiducia pubblica
-- **RSA-4096** — Sicurezza superiore, certificati più grandi
-- **EC-P256** — Moderno, veloce, raccomandato
-- **EC-P384** — Curva ellittica a sicurezza superiore
-- **EC-P521** — Sicurezza massima (raramente necessario)
+- **RSA-2048**: Minimo per la fiducia pubblica
+- **RSA-4096**: Sicurezza superiore, certificati più grandi
+- **EC-P256**: Moderno, veloce, raccomandato
+- **EC-P384**: Curva ellittica a sicurezza superiore
+- **EC-P521**: Sicurezza massima (raramente necessario)
 
 ### Restrizioni SAN
-- **Massimo nomi DNS** — Limita il numero di Subject Alternative Names
-- **Pattern DNS** — Limita a pattern di dominio specifici (es. \`*.company.com\`)
+- **Massimo nomi DNS**: Limita il numero di Subject Alternative Names
+- **Pattern DNS**: Limita a pattern di dominio specifici (es. \`*.company.com\`)
 
 ## Flussi di approvazione
 
 Quando **Richiedi approvazione** è abilitato, l'emissione del certificato viene sospesa fino a quando il numero richiesto di approvatori del gruppo assegnato non ha approvato la richiesta.
 
 ### Configurazione
-- **Gruppo di approvazione** — Seleziona un gruppo di utenti responsabile delle approvazioni
-- **Approvatori minimi** — Numero di approvazioni richieste (es. 2 su 3 membri del gruppo)
-- **Notifiche** — Avvisa gli amministratori quando le politiche vengono violate
+- **Gruppo di approvazione**: Seleziona un gruppo di utenti responsabile delle approvazioni
+- **Approvatori minimi**: Numero di approvazioni richieste (es. 2 su 3 membri del gruppo)
+- **Notifiche**: Avvisa gli amministratori quando le politiche vengono violate
 
 > 💡 Usa i flussi di approvazione per certificati di alto valore come la firma del codice e i certificati con carattere jolly.
 
 ## Sistema di priorità
 
 Le politiche vengono valutate in ordine di priorità. Numeri più bassi hanno precedenza più alta:
-- **1–10** — Politiche di sicurezza critiche (firma codice, wildcard)
-- **10–20** — Conformità standard (TLS pubblico, PKI interna)
-- **20+** — Impostazioni predefinite permissive
+- **1–10**: Politiche di sicurezza critiche (firma codice, wildcard)
+- **10–20**: Conformità standard (TLS pubblico, PKI interna)
+- **20+**: Impostazioni predefinite permissive
 
 Quando più politiche corrispondono a una richiesta di certificato, la politica con la priorità più alta (numero più basso) prevale.
 
@@ -105,11 +105,11 @@ La politica si applica solo ai certificati emessi dalla CA selezionata. Usa per 
 ## Politiche predefinite
 
 UCM include 5 politiche predefinite che riflettono le best practice PKI del mondo reale:
-- **Firma del codice** (priorità 5) — Chiavi robuste, approvazione richiesta
-- **Certificati wildcard** (priorità 8) — Approvazione richiesta, max 10 SAN
-- **TLS server web** (priorità 10) — Conforme al CA/B Forum, max 397 giorni
-- **Automazione a breve durata** (priorità 15) — Stile ACME 90 giorni
-- **PKI interna** (priorità 20) — 730 giorni, regole flessibili
+- **Firma del codice** (priorità 5): Chiavi robuste, approvazione richiesta
+- **Certificati wildcard** (priorità 8): Approvazione richiesta, max 10 SAN
+- **TLS server web** (priorità 10): Conforme al CA/B Forum, max 397 giorni
+- **Automazione a breve durata** (priorità 15): Stile ACME 90 giorni
+- **PKI interna** (priorità 20): 730 giorni, regole flessibili
 
 > 💡 Personalizza o disabilita le politiche predefinite per adattarle ai requisiti della tua organizzazione.
 `

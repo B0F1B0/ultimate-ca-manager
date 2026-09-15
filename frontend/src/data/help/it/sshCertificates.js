@@ -7,8 +7,8 @@ export default {
       {
         title: 'Modalità di emissione',
         items: [
-          { label: 'Modalità firma', text: 'Incolla una chiave pubblica SSH esistente per firmarla. La chiave privata resta sulla macchina dell\'utente — UCM non la vede mai.' },
-          { label: 'Modalità generazione', text: 'UCM genera una nuova coppia di chiavi e firma il certificato. Scarica la chiave privata immediatamente — non potrà essere recuperata in seguito.' },
+          { label: 'Modalità firma', text: 'Incolla una chiave pubblica SSH esistente per firmarla. La chiave privata resta sulla macchina dell\'utente, UCM non la vede mai.' },
+          { label: 'Modalità generazione', text: 'UCM genera una nuova coppia di chiavi e firma il certificato. Scarica la chiave privata immediatamente, non potrà essere recuperata in seguito.' },
         ]
       },
       {
@@ -38,12 +38,12 @@ export default {
     ],
     tips: [
       'Usa certificati a breve scadenza (8h–24h) per l\'accesso utente, così da minimizzare l\'impatto di una chiave compromessa.',
-      'La modalità firma è preferibile — la chiave privata dell\'utente non lascia mai la sua macchina.',
+      'La modalità firma è preferibile: la chiave privata dell\'utente non lascia mai la sua macchina.',
       'I Key ID devono essere descrittivi (es.: «jdoe-prod-2025») per facilitare l\'analisi dei log.',
       'Per i certificati host, il principal deve corrispondere al nome host usato dai client per la connessione.',
     ],
     warnings: [
-      'In modalità generazione, scarica la chiave privata immediatamente — non viene conservata e non può essere recuperata.',
+      'In modalità generazione, scarica la chiave privata immediatamente: non viene conservata e non può essere recuperata.',
       'La revoca di un certificato funziona solo se i server sono configurati per verificare il file KRL della CA.',
     ],
   },
@@ -80,14 +80,14 @@ ssh -i ~/.ssh/id_work user@server
 ### Modalità generazione
 UCM genera sia la coppia di chiavi che il certificato. Usare questa modalità quando è necessario distribuire le credenziali in modo centralizzato.
 
-> ⚠ **Scarica la chiave privata immediatamente** — non viene conservata in UCM e non può essere recuperata.
+> ⚠ **Scarica la chiave privata immediatamente**: non viene conservata in UCM e non può essere recuperata.
 
 **Procedura:**
 1. Seleziona una CA e compila i dettagli del certificato
 2. Scegli la modalità «Generazione»
 3. Fai clic su **Emetti**
 4. Scarica i tre file:
-   - Chiave privata (\`keyid\`) — **Conservala al sicuro!**
+   - Chiave privata (\`keyid\`): **Conservala al sicuro!**
    - Certificato (\`keyid-cert.pub\`)
    - Chiave pubblica (\`keyid.pub\`)
 
@@ -104,7 +104,7 @@ I principals definiscono **chi** (certificati utente) o **cosa** (certificati ho
 - **Certificati utente**: elenco dei nomi utente con cui il titolare può accedere (es.: \`deploy\`, \`admin\`)
 - **Certificati host**: elenco dei nomi host o IP con cui il server è conosciuto (es.: \`web01.example.com\`, \`10.0.1.5\`)
 
-> 💡 Se non vengono specificati principals, il certificato è valido per qualsiasi principal — il che è generalmente troppo permissivo.
+> 💡 Se non vengono specificati principals, il certificato è valido per qualsiasi principal: il che è generalmente troppo permissivo.
 
 ### Validità
 

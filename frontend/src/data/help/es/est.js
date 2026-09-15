@@ -14,7 +14,7 @@ export default {
       {
         title: 'Autenticación',
         items: [
-          { label: 'mTLS (Mutual TLS)', text: 'El cliente presenta un certificado durante el handshake TLS — método de autenticación más seguro' },
+          { label: 'mTLS (Mutual TLS)', text: 'El cliente presenta un certificado durante el handshake TLS, método de autenticación más seguro' },
           { label: 'HTTP Basic Auth', text: 'Alternativa con usuario/contraseña cuando mTLS no está disponible' },
           { label: 'Certificado presentado', text: 'Para /simpleenroll y /serverkeygen sobre mTLS, un certificado firmado por la CA de EST debe ser uno que esta aún conserve: los certificados revocados, sustituidos o eliminados se rechazan (RFC 7030 §3.3.2); un certificado de otra autoridad en la que confía la capa TLS sigue aceptándose' },
         ]
@@ -31,13 +31,13 @@ export default {
       },
     ],
     tips: [
-      'EST es el reemplazo moderno de SCEP — prefiera EST para nuevas implementaciones',
-      'Use autenticación mTLS para la máxima seguridad — Basic Auth es una alternativa',
+      'EST es el reemplazo moderno de SCEP: prefiera EST para nuevas implementaciones',
+      'Use autenticación mTLS para la máxima seguridad. Basic Auth es una alternativa',
       'El endpoint /simplereenroll requiere que el cliente presente su certificado actual vía mTLS',
       'Copie las URLs de los endpoints desde la pestaña Información para configurar sus clientes EST',
     ],
     warnings: [
-      'EST requiere HTTPS — el cliente debe confiar en el certificado del servidor UCM o en la CA',
+      'EST requiere HTTPS: el cliente debe confiar en el certificado del servidor UCM o en la CA',
       'La autenticación mTLS requiere una configuración adecuada de terminación TLS (el proxy inverso debe reenviar los certificados del cliente)',
     ],
   },
@@ -52,10 +52,10 @@ Enrollment over Secure Transport (EST) está definido en **RFC 7030** y proporci
 
 ### Pestaña de Configuración
 
-1. **Activar EST** — Activar o desactivar el protocolo EST
-2. **CA firmante** — Seleccionar qué Autoridad de Certificación firma los certificados inscritos vía EST
-3. **Autenticación** — Configurar credenciales de HTTP Basic Auth (usuario y contraseña)
-4. **Validez del certificado** — Período de validez predeterminado para certificados emitidos por EST (en días)
+1. **Activar EST**: Activar o desactivar el protocolo EST
+2. **CA firmante**: Seleccionar qué Autoridad de Certificación firma los certificados inscritos vía EST
+3. **Autenticación**: Configurar credenciales de HTTP Basic Auth (usuario y contraseña)
+4. **Validez del certificado**: Período de validez predeterminado para certificados emitidos por EST (en días)
 
 ### Guardar configuración
 
@@ -65,21 +65,21 @@ Haga clic en **Guardar** para aplicar los cambios. Los endpoints EST estarán di
 
 EST soporta dos métodos de autenticación:
 
-### Mutual TLS (mTLS) — Recomendado
+### Mutual TLS (mTLS): Recomendado
 
 El cliente presenta un certificado durante el handshake TLS. UCM valida el certificado y autentica al cliente automáticamente.
 
-- **Método más seguro** — identidad criptográfica del cliente
-- **Requerido para** \`/simplereenroll\` — el cliente debe presentar su certificado actual
-- **Certificado presentado** — para \`/simpleenroll\` y \`/serverkeygen\`, un certificado firmado por la CA de EST debe ser uno que esta aún conserve: los certificados revocados, sustituidos o eliminados se rechazan (RFC 7030 §3.3.2); un certificado de otra autoridad de confianza sigue aceptándose
+- **Método más seguro**: identidad criptográfica del cliente
+- **Requerido para** \`/simplereenroll\`: el cliente debe presentar su certificado actual
+- **Certificado presentado**: para \`/simpleenroll\` y \`/serverkeygen\`, un certificado firmado por la CA de EST debe ser uno que esta aún conserve: los certificados revocados, sustituidos o eliminados se rechazan (RFC 7030 §3.3.2); un certificado de otra autoridad de confianza sigue aceptándose
 - **Depende de** la configuración adecuada de terminación TLS (el proxy inverso debe pasar \`SSL_CLIENT_CERT\` a UCM)
 
-### HTTP Basic Auth — Alternativa
+### HTTP Basic Auth. Alternativa
 
 Autenticación con usuario y contraseña sobre HTTPS. Se configura en la Configuración de EST.
 
-- **Más fácil de configurar** — no se necesita certificado de cliente
-- **Menos seguro** — las credenciales se transmiten por solicitud (protegido por HTTPS)
+- **Más fácil de configurar**: no se necesita certificado de cliente
+- **Menos seguro**: las credenciales se transmiten por solicitud (protegido por HTTPS)
 - **Usar cuando** la infraestructura mTLS no está disponible
 
 ## Endpoints EST
@@ -89,7 +89,7 @@ Todos los endpoints están bajo \`/.well-known/est/\`:
 ### GET /cacerts
 Obtener la cadena de certificados de la CA. **No requiere autenticación.**
 
-Use esto para establecer confianza — los clientes obtienen el certificado de CA antes de la inscripción.
+Use esto para establecer confianza: los clientes obtienen el certificado de CA antes de la inscripción.
 
 \`\`\`bash
 curl -k https://your-server:8443/.well-known/est/cacerts | \\
@@ -110,7 +110,7 @@ curl -k --user est-user:est-password \\
 \`\`\`
 
 ### POST /simplereenroll
-Renovar un certificado existente. **Requiere mTLS** — el cliente debe presentar el certificado que se está renovando.
+Renovar un certificado existente. **Requiere mTLS**: el cliente debe presentar el certificado que se está renovando.
 
 \`\`\`bash
 curl -k --cert client.pem --key client.key \\
@@ -128,9 +128,9 @@ El servidor genera un par de claves y devuelve el certificado junto con la clave
 ## Pestaña de Información
 
 La pestaña de Información muestra:
-- **URLs de endpoints** — URLs listas para copiar y pegar para cada operación EST
-- **Estadísticas de inscripción** — Número de inscripciones, reinscripciones y errores
-- **Última actividad** — Operaciones EST más recientes de los registros de auditoría
+- **URLs de endpoints**: URLs listas para copiar y pegar para cada operación EST
+- **Estadísticas de inscripción**: Número de inscripciones, reinscripciones y errores
+- **Última actividad**: Operaciones EST más recientes de los registros de auditoría
 
 ## Ejemplos de integración
 

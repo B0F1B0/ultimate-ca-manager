@@ -29,7 +29,7 @@ export default {
       'Los registros incluyen el User Agent para identificar las aplicaciones cliente',
     ],
     warnings: [
-      'La limpieza de registros es irreversible — los datos exportados no pueden ser reimportados',
+      'La limpieza de registros es irreversible: los datos exportados no pueden ser reimportados',
     ],
   },
   helpGuides: {
@@ -37,19 +37,19 @@ export default {
     content: `
 ## Descripción general
 
-Pista de auditoría completa de todas las operaciones en UCM. Cada acción — emisión de certificados, revocación, inicio de sesión de usuario, cambio de configuración — se registra con detalles sobre quién, qué, cuándo y dónde.
+Pista de auditoría completa de todas las operaciones en UCM. Cada acción: emisión de certificados, revocación, inicio de sesión de usuario, cambio de configuración, se registra con detalles sobre quién, qué, cuándo y dónde.
 
 ## Detalles del registro
 
 Cada entrada de registro incluye:
-- **Marca de tiempo** — Cuándo ocurrió la acción
-- **Usuario** — Quién realizó la acción
-- **Acción** — Qué se hizo (crear, actualizar, eliminar, inicio de sesión, etc.)
-- **Recurso** — Qué fue afectado (certificado, CA, usuario, etc.)
-- **Estado** — Éxito o fallo
-- **Dirección IP** — IP de origen de la solicitud
-- **User Agent** — Identificador de la aplicación cliente
-- **Detalles** — Contexto adicional (mensajes de error, valores modificados)
+- **Marca de tiempo**: Cuándo ocurrió la acción
+- **Usuario**: Quién realizó la acción
+- **Acción**: Qué se hizo (crear, actualizar, eliminar, inicio de sesión, etc.)
+- **Recurso**: Qué fue afectado (certificado, CA, usuario, etc.)
+- **Estado**: Éxito o fallo
+- **Dirección IP**: IP de origen de la solicitud
+- **User Agent**: Identificador de la aplicación cliente
+- **Detalles**: Contexto adicional (mensajes de error, valores modificados)
 
 ## Filtrado
 
@@ -64,8 +64,8 @@ Filtra por categoría de operación:
 Muestra solo las acciones realizadas por un usuario específico.
 
 ### Por estado
-- **Éxito** — Operaciones completadas correctamente
-- **Fallido** — Operaciones que fallaron (fallos de autenticación, permiso denegado, errores)
+- **Éxito**: Operaciones completadas correctamente
+- **Fallido**: Operaciones que fallaron (fallos de autenticación, permiso denegado, errores)
 
 ### Por rango de fechas
 Establece las fechas **Desde** y **Hasta** para acotar la ventana de tiempo.
@@ -76,8 +76,8 @@ Búsqueda de texto libre en todos los campos del registro.
 ## Exportar
 
 Exporta los registros filtrados en:
-- **JSON** — Legible por máquinas, incluye todos los campos
-- **CSV** — Compatible con hojas de cálculo, incluye los campos principales
+- **JSON**: Legible por máquinas, incluye todos los campos
+- **CSV**: Compatible con hojas de cálculo, incluye los campos principales
 
 Las exportaciones incluyen solo los resultados filtrados actualmente.
 

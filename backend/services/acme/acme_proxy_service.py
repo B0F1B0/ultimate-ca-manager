@@ -1589,7 +1589,7 @@ class AcmeProxyService:
                     # filtered egress DNS) while the CA still sees it. Warn, keep the
                     # TXT record in place, and submit upstream — the CA is authoritative.
                     logger.warning(
-                        "[ACME Proxy BG] DNS TXT not visible locally after %ss for %s (%s) — "
+                        "[ACME Proxy BG] DNS TXT not visible locally after %ss for %s (%s), "
                         "submitting upstream anyway",
                         timeout, domain, full_record_name,
                     )

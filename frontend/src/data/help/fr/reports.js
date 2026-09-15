@@ -49,7 +49,7 @@ Générez, téléchargez et programmez des rapports de conformité PKI. Les rapp
 Liste complète de tous les certificats gérés par UCM. Inclut le sujet, l'émetteur, le numéro de série, les dates de validité, le type de clé et le statut actuel. À utiliser pour les audits de conformité et la documentation d'infrastructure.
 
 ### Certificats expirants
-Certificats expirant dans une fenêtre temporelle spécifiée (par défaut : 30 jours). Critique pour éviter les pannes — consultez ce rapport régulièrement ou programmez-le pour une livraison quotidienne.
+Certificats expirant dans une fenêtre temporelle spécifiée (par défaut : 30 jours). Critique pour éviter les pannes, consultez ce rapport régulièrement ou programmez-le pour une livraison quotidienne.
 
 ### Hiérarchie des CA
 Structure de l'autorité de certification montrant les relations parent-enfant, les comptages de certificats par CA et le statut des CA. Utile pour comprendre votre topologie PKI.
@@ -66,18 +66,18 @@ Cliquez sur **Télécharger PDF** en haut à droite pour générer un rapport ex
 
 ### Contenu
 Le rapport PDF comprend 9 sections :
-1. **Page de couverture** — Métriques clés, jauge de risque et conclusions principales
-2. **Table des matières** — Navigation rapide
-3. **Résumé exécutif** — Santé globale de la PKI, distribution des certificats et niveau de risque
-4. **Évaluation des risques** — Conclusions critiques, certificats expirants, algorithmes faibles
-5. **Inventaire des certificats** — Répartition par statut, type de clé et CA émettrice
-6. **Analyse de conformité** — Distribution des scores, répartition des notes, scores par catégorie
-7. **Cycle de vie des certificats** — Chronologie d'expiration et taux d'automatisation
-8. **Infrastructure CA** — Détails des CA racines et intermédiaires, hiérarchie
-9. **Recommandations** — Actions concrètes basées sur l'état actuel de la PKI
+1. **Page de couverture** : Métriques clés, jauge de risque et conclusions principales
+2. **Table des matières** : Navigation rapide
+3. **Résumé exécutif** : Santé globale de la PKI, distribution des certificats et niveau de risque
+4. **Évaluation des risques** : Conclusions critiques, certificats expirants, algorithmes faibles
+5. **Inventaire des certificats** : Répartition par statut, type de clé et CA émettrice
+6. **Analyse de conformité** : Distribution des scores, répartition des notes, scores par catégorie
+7. **Cycle de vie des certificats** : Chronologie d'expiration et taux d'automatisation
+8. **Infrastructure CA** : Détails des CA racines et intermédiaires, hiérarchie
+9. **Recommandations** : Actions concrètes basées sur l'état actuel de la PKI
 
 ### Graphiques et visuels
-Le rapport inclut des éléments visuels : barre de jauge de risque, distribution des statuts, répartition des notes de conformité et chronologie d'expiration — conçus pour les parties prenantes non techniques.
+Le rapport inclut des éléments visuels : barre de jauge de risque, distribution des statuts, répartition des notes de conformité et chronologie d'expiration, conçus pour les parties prenantes non techniques.
 
 > 💡 Le rapport PDF est généré à partir des données en direct. Téléchargez-le avant les réunions pour l'instantané le plus récent.
 
@@ -91,8 +91,8 @@ Le rapport inclut des éléments visuels : barre de jauge de risque, distributio
 ## Télécharger des rapports
 
 Chaque ligne de rapport a des boutons de téléchargement :
-- **CSV** — Format tableur pour Excel, Google Sheets ou LibreOffice
-- **JSON** — Données structurées pour l'automatisation et l'intégration
+- **CSV** : Format tableur pour Excel, Google Sheets ou LibreOffice
+- **JSON** : Données structurées pour l'automatisation et l'intégration
 
 > 💡 Les rapports CSV sont plus faciles pour les parties prenantes non techniques. JSON est mieux adapté pour les scripts et les intégrations API.
 
@@ -117,11 +117,11 @@ Avant d'activer les programmations, utilisez le bouton ✈️ sur n'importe quel
 
 ## Permissions
 
-- **read:reports** — Générer et télécharger des rapports
-- **read:audit + export:audit** — Télécharger le rapport PDF exécutif
-- **write:settings** — Configurer les programmations de rapports
+- **read:reports** : Générer et télécharger des rapports
+- **read:audit + export:audit** : Télécharger le rapport PDF exécutif
+- **write:settings** : Configurer les programmations de rapports
 
-> 💡 Programmez le rapport d'expiration en premier — c'est le plus précieux opérationnellement et aide à prévenir les pannes liées aux certificats.
+> 💡 Programmez le rapport d'expiration en premier : c'est le plus précieux opérationnellement et aide à prévenir les pannes liées aux certificats.
 `
   }
 }

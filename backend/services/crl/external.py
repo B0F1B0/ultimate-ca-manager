@@ -79,18 +79,18 @@ class ExternalCRLMixin:
 
         if not ca.crt:
             raise ExternalCRLConflict(
-                "CA is awaiting its certificate — cannot validate a CRL without it"
+                "CA is awaiting its certificate: cannot validate a CRL without it"
             )
         if ca.has_private_key and not ca.offline:
             raise ExternalCRLConflict(
-                "CA holds its private key and signs its own CRLs — "
+                "CA holds its private key and signs its own CRLs: "
                 "external CRL upload is only for key-less or offline CAs"
             )
 
         try:
             crl = _load_crl(raw)
         except Exception:
-            raise ValueError("Invalid CRL file — expected PEM or DER")
+            raise ValueError("Invalid CRL file: expected PEM or DER")
 
         ca_cert_pem = base64.b64decode(ca.crt)
         ca_cert = x509.load_pem_x509_certificate(ca_cert_pem, default_backend())
@@ -112,7 +112,7 @@ class ExternalCRLMixin:
         try:
             crl.extensions.get_extension_for_class(x509.DeltaCRLIndicator)
             raise ValueError(
-                "Delta CRLs are not supported for external upload — upload the complete CRL"
+                "Delta CRLs are not supported for external upload: upload the complete CRL"
             )
         except x509.ExtensionNotFound:
             pass
@@ -121,7 +121,7 @@ class ExternalCRLMixin:
         next_update = _naive_utc(crl.next_update_utc)
         if not next_update:
             raise ValueError(
-                "CRL has no nextUpdate — conforming CRL issuers must include it (RFC 5280 §5.1.2.5)"
+                "CRL has no nextUpdate: conforming CRL issuers must include it (RFC 5280 §5.1.2.5)"
             )
 
         number = _crl_number(crl)
@@ -138,7 +138,7 @@ class ExternalCRLMixin:
                 if number < latest.crl_number:
                     raise ExternalCRLConflict(
                         f"CRL number {number} is lower than the currently served "
-                        f"CRL number {latest.crl_number} — numbers must increase monotonically"
+                        f"CRL number {latest.crl_number}: numbers must increase monotonically"
                     )
                 if number == latest.crl_number and this_update == latest.this_update:
                     raise ExternalCRLConflict("This CRL is already being served")

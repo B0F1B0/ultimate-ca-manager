@@ -31,7 +31,7 @@ export function ResponsiveDataTable({
   multiSelect = false,
   selectedIds,          // Set<number|string>
   onSelectionChange,    // (Set) => void
-  bulkActions,          // ReactNode — shown when items selected
+  bulkActions,          // ReactNode: shown when items selected
   
   // Row actions (dropdown menu)
   rowActions, // (row) => [{ label, icon, onClick, variant }]

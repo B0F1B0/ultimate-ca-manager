@@ -48,7 +48,7 @@ def _upgrade_sqlite(conn):
         if dupes:
             for hsm_key_id, count in dupes:
                 logger.error(
-                    f"[035] HSM key {hsm_key_id} bound to {count} CAs — manual cleanup required"
+                    f"[035] HSM key {hsm_key_id} bound to {count} CAs: manual cleanup required"
                 )
             raise RuntimeError(
                 "Migration 035 aborted: duplicate hsm_key_id in certificate_authorities. "
@@ -112,7 +112,7 @@ def _upgrade_pg(conn):
         if dupes:
             for row in dupes:
                 logger.error(
-                    f"[035] HSM key {row[0]} bound to {row[1]} CAs — manual cleanup required"
+                    f"[035] HSM key {row[0]} bound to {row[1]} CAs: manual cleanup required"
                 )
             raise RuntimeError(
                 "Migration 035 aborted: duplicate hsm_key_id in certificate_authorities. "

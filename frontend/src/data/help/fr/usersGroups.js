@@ -19,7 +19,7 @@ export default {
         title: 'Groupes',
         items: [
           { label: 'Créer un groupe', text: 'Définir un groupe et assigner des membres' },
-          { label: 'Permissions de groupe', text: 'Un groupe accorde un ensemble de permissions — chaque membre les reçoit en plus de son propre rôle' },
+          { label: 'Permissions de groupe', text: 'Un groupe accorde un ensemble de permissions, chaque membre les reçoit en plus de son propre rôle' },
           { label: 'Gestion des membres', text: 'Ajouter ou retirer des utilisateurs des groupes' },
         ]
       },
@@ -29,7 +29,7 @@ export default {
       'Les utilisateurs désactivés ne peuvent pas se connecter mais leurs données sont préservées',
     ],
     warnings: [
-      'La suppression d\'un utilisateur est permanente — envisagez la désactivation à la place',
+      'La suppression d\'un utilisateur est permanente : envisagez la désactivation à la place',
     ],
   },
   helpGuides: {
@@ -50,8 +50,8 @@ Gérez les comptes utilisateurs, les groupes et les attributions de rôles. Les 
 6. Cliquez sur **Créer**
 
 ### Statut de l'utilisateur
-- **Actif** — Peut se connecter et effectuer des actions
-- **Désactivé** — Ne peut pas se connecter, les données sont préservées
+- **Actif** : Peut se connecter et effectuer des actions
+- **Désactivé** : Ne peut pas se connecter, les données sont préservées
 
 Basculez le statut d'un utilisateur sans supprimer son compte.
 
@@ -82,10 +82,10 @@ Les permissions effectives d'un utilisateur sont l'**union** de :
 ## Rôles
 
 ### Rôles système
-- **Admin** — Accès complet à toutes les fonctionnalités
-- **Opérateur** — Peut gérer les certificats, CA, CSR mais pas les paramètres système
-- **Auditeur** — Accès en lecture seule à toutes les données opérationnelles pour la conformité et l'audit
-- **Lecteur** — Accès en lecture seule aux certificats, CA et modèles
+- **Admin** : Accès complet à toutes les fonctionnalités
+- **Opérateur** : Peut gérer les certificats, CA, CSR mais pas les paramètres système
+- **Auditeur** : Accès en lecture seule à toutes les données opérationnelles pour la conformité et l'audit
+- **Lecteur** : Accès en lecture seule aux certificats, CA et modèles
 
 ### Rôles personnalisés
 Créez des rôles avec des permissions granulaires sur la page **RBAC**.
@@ -95,8 +95,8 @@ Créez des rôles avec des permissions granulaires sur la page **RBAC**.
 ## Source d'authentification
 
 La colonne **Source** indique d'où provient chaque utilisateur :
-- **Local** — créé et géré dans UCM (mot de passe local)
-- **LDAP / OAuth2 / SAML** — provisionné automatiquement lors d'une connexion SSO ; le nom du fournisseur d'origine apparaît sur le badge (ex. \`LDAP · Corporate AD\`).
+- **Local** : créé et géré dans UCM (mot de passe local)
+- **LDAP / OAuth2 / SAML** : provisionné automatiquement lors d'une connexion SSO ; le nom du fournisseur d'origine apparaît sur le badge (ex. \`LDAP · Corporate AD\`).
 
 Depuis la v2.133, les rôles modifiés manuellement dans UCM sur des utilisateurs SSO sont **conservés** entre deux connexions, sauf si **« Synchroniser le rôle à chaque connexion »** est activé sur le fournisseur (voir page **Paramètres → SSO**).
 `

@@ -7,8 +7,8 @@ export default {
       {
         title: 'Ciclo de Vida da Solicitação',
         items: [
-          { label: 'Pendente', text: 'Aguardando revisão — o certificado ainda não pode ser emitido' },
-          { label: 'Aprovada', text: 'Todas as aprovações necessárias foram recebidas — o certificado pode ser emitido' },
+          { label: 'Pendente', text: 'Aguardando revisão, o certificado ainda não pode ser emitido' },
+          { label: 'Aprovada', text: 'Todas as aprovações necessárias foram recebidas, o certificado pode ser emitido' },
           { label: 'Rejeitada', text: 'Qualquer rejeição interrompe imediatamente a solicitação' },
           { label: 'Expirada', text: 'Não decidida em sete dias; encerrada como expirada e nunca contada como pendente' },
         ]
@@ -34,7 +34,7 @@ export default {
       },
     ],
     tips: [
-      'Qualquer rejeição única interrompe imediatamente a aprovação — isso é intencional por segurança.',
+      'Qualquer rejeição única interrompe imediatamente a aprovação: isso é intencional por segurança.',
       'Enquanto uma renovação aguarda aprovação, o agendador deixa o certificado a essa decisão, desde que ela possa ocorrer antes de o certificado expirar.',
       'Os comentários de aprovação são registrados na trilha de auditoria para conformidade.',
     ],
@@ -44,7 +44,7 @@ export default {
     content: `
 ## Visão Geral
 
-A página de Aprovações mostra todas as solicitações de certificado que requerem aprovação manual antes da emissão. Os fluxos de aprovação são configurados em **Políticas** — quando uma política tem "Exigir Aprovação" ativado, qualquer solicitação de certificado correspondente cria uma solicitação de aprovação aqui.
+A página de Aprovações mostra todas as solicitações de certificado que requerem aprovação manual antes da emissão. Os fluxos de aprovação são configurados em **Políticas**: quando uma política tem "Exigir Aprovação" ativado, qualquer solicitação de certificado correspondente cria uma solicitação de aprovação aqui.
 
 ## Ciclo de Vida da Solicitação
 
@@ -89,10 +89,10 @@ Uma solicitação aguarda **sete dias** por uma decisão. Passado esse prazo, é
 
 1. Clique em uma solicitação pendente para ver seus detalhes
 2. Clique em **Rejeitar**
-3. Insira um **motivo de rejeição** (obrigatório) — isso é registrado para conformidade de auditoria
+3. Insira um **motivo de rejeição** (obrigatório): isso é registrado para conformidade de auditoria
 4. A solicitação é imediatamente interrompida
 
-> ⚠ Qualquer rejeição única interrompe toda a solicitação. Isso é intencional — se qualquer revisor identificar um problema, a emissão não deve prosseguir.
+> ⚠ Qualquer rejeição única interrompe toda a solicitação. Isso é intencional: se qualquer revisor identificar um problema, a emissão não deve prosseguir.
 
 ## Histórico de Aprovação
 
@@ -106,15 +106,15 @@ Este histórico é imutável e faz parte da trilha de auditoria.
 ## Filtragem
 
 Use a barra de filtro de status no topo para mostrar:
-- **Pendente** — Solicitações aguardando sua revisão
-- **Aprovada** — Solicitações aprovadas recentemente
-- **Rejeitada** — Solicitações rejeitadas com motivos
-- **Total** — Todas as solicitações independente do status
+- **Pendente**: Solicitações aguardando sua revisão
+- **Aprovada**: Solicitações aprovadas recentemente
+- **Rejeitada**: Solicitações rejeitadas com motivos
+- **Total**: Todas as solicitações independente do status
 
 ## Permissões
 
-- **read:approvals** — Visualizar solicitações de aprovação
-- **write:approvals** — Aprovar ou rejeitar solicitações
+- **read:approvals**: Visualizar solicitações de aprovação
+- **write:approvals**: Aprovar ou rejeitar solicitações
 
 > 💡 Configure notificações por e-mail nas políticas para que os aprovadores sejam alertados quando novas solicitações chegarem.
 `

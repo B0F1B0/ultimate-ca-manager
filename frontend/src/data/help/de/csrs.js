@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'CSRs bewahren den privaten Schlüssel des Antragstellers — er verlässt nie dessen System',
+      'CSRs bewahren den privaten Schlüssel des Antragstellers: er verlässt nie dessen System',
       'Sie können nach dem Signieren einen privaten Schlüssel zu einem CSR hinzufügen, wenn er für den PKCS#12-Export benötigt wird',
       'Ein für einen in UCM generierten CSR importiertes Zertifikat vervollständigt diesen CSR: Der Eintrag behält seinen privaten Schlüssel, sodass das Zertifikat zusammen mit ihm exportiert wird',
       'Verwenden Sie den Microsoft CA-Modus, um CSRs über AD CS zu signieren, wenn eine Verbindung zu einer Windows-PKI besteht',
-      'Beim Signieren über "Extra EKUs" Microsoft RDP, Smartcard-Logon, IPsec oder beliebige OIDs hinzufügen — die vorhandene EKU des CSR wird mit der zusammengeführten Menge neu aufgebaut',
+      'Beim Signieren über "Extra EKUs" Microsoft RDP, Smartcard-Logon, IPsec oder beliebige OIDs hinzufügen: die vorhandene EKU des CSR wird mit der zusammengeführten Menge neu aufgebaut',
     ],
   },
   helpGuides: {
@@ -58,7 +58,7 @@ UCM kann einen CSR und ein Schlüsselpaar direkt generieren:
 
 CSR und privater Schlüssel werden erstellt und in UCM gespeichert. Der CSR erscheint im Tab „Ausstehend" bereit zum Signieren.
 
-> 💡 Dies ist praktisch, wenn UCM den gesamten Lebenszyklus verwalten soll — CSR, Signierung und Schlüsselspeicherung.
+> 💡 Dies ist praktisch, wenn UCM den gesamten Lebenszyklus verwalten soll. CSR, Signierung und Schlüsselspeicherung.
 
 ## CSR hochladen
 
@@ -70,10 +70,10 @@ CSR und privater Schlüssel werden erstellt und in UCM gespeichert. Der CSR ersc
 ## CSR prüfen
 
 Klicken Sie auf einen CSR, um zu sehen:
-- **Betreff** — CN, O, OU, C, usw.
-- **SANs** — DNS-Namen, IP-Adressen, E-Mails
-- **Schlüsselinfo** — Algorithmus, Größe, öffentlicher Schlüssel-Fingerabdruck
-- **Signatur** — Algorithmus und Gültigkeit
+- **Betreff**: CN, O, OU, C, usw.
+- **SANs**: DNS-Namen, IP-Adressen, E-Mails
+- **Schlüsselinfo**: Algorithmus, Größe, öffentlicher Schlüssel-Fingerabdruck
+- **Signatur**: Algorithmus und Gültigkeit
 
 ## CSR signieren
 

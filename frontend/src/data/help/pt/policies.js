@@ -57,40 +57,40 @@ Regras aplicadas quando certificados são revogados. Podem exigir aprovação an
 
 ### Validade Máxima
 Tempo máximo de vida do certificado em dias. Valores comuns:
-- **90 dias** — Automação de curta duração (estilo ACME)
-- **397 dias** — Baseline CA/Browser Forum para TLS público
-- **730 dias** — PKI interna/privada
-- **365 dias** — Assinatura de código
+- **90 dias**: Automação de curta duração (estilo ACME)
+- **397 dias**: Baseline CA/Browser Forum para TLS público
+- **730 dias**: PKI interna/privada
+- **365 dias**: Assinatura de código
 
 ### Tipos de Chave Permitidos
 Restringir quais algoritmos e tamanhos de chave podem ser usados:
-- **RSA-2048** — Mínimo para confiança pública
-- **RSA-4096** — Segurança superior, certificados maiores
-- **EC-P256** — Moderno, rápido, recomendado
-- **EC-P384** — Curva elíptica de segurança superior
-- **EC-P521** — Segurança máxima (raramente necessário)
+- **RSA-2048**: Mínimo para confiança pública
+- **RSA-4096**: Segurança superior, certificados maiores
+- **EC-P256**: Moderno, rápido, recomendado
+- **EC-P384**: Curva elíptica de segurança superior
+- **EC-P521**: Segurança máxima (raramente necessário)
 
 ### Restrições de SAN
-- **Máx. Nomes DNS** — Limitar o número de Nomes Alternativos do Sujeito
-- **Padrão DNS** — Restringir a padrões de domínio específicos (ex.: \`*.empresa.com\`)
+- **Máx. Nomes DNS**: Limitar o número de Nomes Alternativos do Sujeito
+- **Padrão DNS**: Restringir a padrões de domínio específicos (ex.: \`*.empresa.com\`)
 
 ## Fluxos de Aprovação
 
 Quando **Exigir Aprovação** está ativado, a emissão do certificado é pausada até que o número necessário de aprovadores do grupo atribuído tenha aprovado a solicitação.
 
 ### Configuração
-- **Grupo de Aprovação** — Selecionar um grupo de usuários responsável por aprovações
-- **Mín. Aprovadores** — Número de aprovações necessárias (ex.: 2 de 3 membros do grupo)
-- **Notificações** — Alertar administradores quando políticas são violadas
+- **Grupo de Aprovação**: Selecionar um grupo de usuários responsável por aprovações
+- **Mín. Aprovadores**: Número de aprovações necessárias (ex.: 2 de 3 membros do grupo)
+- **Notificações**: Alertar administradores quando políticas são violadas
 
 > 💡 Use fluxos de aprovação para certificados de alto valor como assinatura de código e certificados curinga.
 
 ## Sistema de Prioridade
 
 As políticas são avaliadas em ordem de prioridade. Números menores têm maior precedência:
-- **1–10** — Políticas de segurança críticas (assinatura de código, curinga)
-- **10–20** — Conformidade padrão (TLS público, PKI interna)
-- **20+** — Padrões permissivos
+- **1–10**: Políticas de segurança críticas (assinatura de código, curinga)
+- **10–20**: Conformidade padrão (TLS público, PKI interna)
+- **20+**: Padrões permissivos
 
 Quando múltiplas políticas correspondem a uma solicitação de certificado, a política de maior prioridade (menor número) prevalece.
 
@@ -105,11 +105,11 @@ A política se aplica apenas a certificados emitidos pela CA selecionada. Use pa
 ## Políticas Padrão
 
 O UCM vem com 5 políticas integradas que refletem as melhores práticas PKI do mundo real:
-- **Assinatura de Código** (prioridade 5) — Chaves fortes, aprovação necessária
-- **Certificados Curinga** (prioridade 8) — Aprovação necessária, máx. 10 SANs
-- **TLS para Servidor Web** (prioridade 10) — Conforme CA/B Forum, máx. 397 dias
-- **Automação de Curta Duração** (prioridade 15) — 90 dias estilo ACME
-- **PKI Interna** (prioridade 20) — 730 dias, regras relaxadas
+- **Assinatura de Código** (prioridade 5): Chaves fortes, aprovação necessária
+- **Certificados Curinga** (prioridade 8): Aprovação necessária, máx. 10 SANs
+- **TLS para Servidor Web** (prioridade 10): Conforme CA/B Forum, máx. 397 dias
+- **Automação de Curta Duração** (prioridade 15): 90 dias estilo ACME
+- **PKI Interna** (prioridade 20): 730 dias, regras relaxadas
 
 > 💡 Personalize ou desative políticas padrão para corresponder aos requisitos da sua organização.
 `

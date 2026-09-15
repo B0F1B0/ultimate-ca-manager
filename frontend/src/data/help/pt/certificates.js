@@ -6,11 +6,11 @@ export default {
     sections: [
       {
         title: "Análise de conformidade",
-        content: "A ação « Analisar » no detalhe de um certificado passa-o por linters de padrões e mostra os resultados. Apenas informativo — nunca bloqueia a emissão.",
+        content: "A ação « Analisar » no detalhe de um certificado passa-o por linters de padrões e mostra os resultados. Apenas informativo, nunca bloqueia a emissão.",
         items: [
           { label: "Perfis", text: "RFC 5280 (sempre relevante) e CA/Browser Forum Baseline Requirements (certificados TLS de servidor)" },
           { label: "Severidades", text: "Os resultados são classificados: fatal, error, warning, notice, info" },
-          { label: "Motor", text: "Alimentado por pkilint (e zlint quando o seu binário está presente) — dependência opcional do servidor" },
+          { label: "Motor", text: "Alimentado por pkilint (e zlint quando o seu binário está presente): dependência opcional do servidor" },
           { label: "PKI interna", text: "As regras do CA/Browser Forum visam certificados públicos; espere resultados não aplicáveis numa PKI interna" },
         ]
       },
@@ -30,10 +30,10 @@ export default {
         items: [
           { label: 'Emitir', text: 'Criar um novo certificado assinado por uma das suas CAs' },
           { label: 'Importar', text: 'Importar um certificado existente (PEM, DER ou PKCS#12)' },
-          { label: 'Renovar', text: 'No lugar desde a v2.214: mesmos id/refid, novo número de série e nova validade — o número de série substituído permanece na CRL até a expiração antiga. Um certificado revogado não pode ser renovado' },
+          { label: 'Renovar', text: 'No lugar desde a v2.214: mesmos id/refid, novo número de série e nova validade, o número de série substituído permanece na CRL até a expiração antiga. Um certificado revogado não pode ser renovado' },
           { label: 'Renomear', text: 'Definir um nome de exibição independente do CN (por padrão o CN, ou o primeiro nome DNS dos SANs para certificados sem CN)' },
-          { label: 'Revogar', text: 'Marcar como revogado com um motivo — aparecerá na CRL' },
-          { label: 'Remover Suspensão', text: 'Remover suspensão de um certificado revogado com motivo "Suspensão de Certificado" — restaura para status válido' },
+          { label: 'Revogar', text: 'Marcar como revogado com um motivo, aparecerá na CRL' },
+          { label: 'Remover Suspensão', text: 'Remover suspensão de um certificado revogado com motivo "Suspensão de Certificado", restaura para status válido' },
           { label: 'Revogar e Substituir', text: 'Revogar e emitir imediatamente um substituto' },
           { label: 'Exportar', text: 'Baixar em formato PEM, DER, PKCS#12 ou JKS' },
           { label: 'Modo de compatibilidade PKCS#12 (v2.222)', text: 'Os diálogos de exportação oferecem um perfil 3DES/SHA-1 para os importadores que rejeitam o arquivo AES-256 por defeito como senha incorreta: Android 15 e anteriores, macOS 14 e anteriores, Windows Server 2016 e anteriores, Java antigo. Desativado por defeito, protege menos o ficheiro' },
@@ -47,7 +47,7 @@ export default {
           { label: 'Catálogo', text: '18 EKUs conhecidos (Microsoft RDP 1.3.6.1.4.1.311.54.1.2, smartcard logon, document signing, IPsec, Kerberos PKINIT, etc.)' },
           { label: 'OID livre', text: 'Qualquer OID pontuado bem formado correspondendo a ^[0-2](?:\\.(?:0|[1-9]\\d*)){1,15}$' },
           { label: 'Limite', text: 'Até 16 OIDs no total por certificado' },
-          { label: 'Fusão, nunca substituição', text: 'Os EKUs padrão do tipo (ex. serverAuth) permanecem fixos — os extras são adicionados por cima' },
+          { label: 'Fusão, nunca substituição', text: 'Os EKUs padrão do tipo (ex. serverAuth) permanecem fixos, os extras são adicionados por cima' },
           { label: 'Rejeitado', text: 'anyExtendedKeyUsage (2.5.29.37.0) é explicitamente proibido' },
         ]
       },
@@ -62,11 +62,11 @@ export default {
       },
       {
         title: 'Implantação (v2.215)',
-        content: 'Envie este certificado para hosts remotos via SSH/SFTP — somente admin, os alvos são gerenciados em Configurações › Implantação.',
+        content: 'Envie este certificado para hosts remotos via SSH/SFTP, somente admin, os alvos são gerenciados em Configurações › Implantação.',
         items: [
           { label: 'Anexar alvo', text: 'A partir da visão de detalhe do certificado: escolha um alvo de implantação e defina caminhos de destino absolutos para o certificado, a chave privada e/ou a cadeia completa (pelo menos um)' },
           { label: 'Mesmo host', text: 'Para implantar no próprio host UCM, use um alvo SFTP em 127.0.0.1 com uma conta SSH dedicada; o serviço isolado não pode gravar fora do diretório de dados' },
-          { label: 'Automático', text: 'Na emissão e na renovação, os arquivos vinculados são reenviados e o comando de recarga do alvo é executado — as entregas são enfileiradas com tentativas de repetição' },
+          { label: 'Automático', text: 'Na emissão e na renovação, os arquivos vinculados são reenviados e o comando de recarga do alvo é executado, as entregas são enfileiradas com tentativas de repetição' },
           { label: 'Arquivos', text: 'Gravados de forma atômica exatamente nos caminhos configurados (o diretório pai deve existir): chave 0600, certificado/cadeia 0644' },
           { label: 'Implantar agora', text: 'Envio manual a partir da visão de detalhe, com o status da entrega e o último erro exibidos por alvo' },
         ]
@@ -75,13 +75,13 @@ export default {
     ],
     tips: [
       'Marque com estrela ⭐ certificados importantes para adicioná-los à sua lista de favoritos',
-      'Use filtros para encontrar rapidamente certificados por status, CA ou texto de pesquisa — sua seleção é preservada ao recarregar',
-      'A renovação mantém o mesmo registro (id, refid, data de criação) — chaves mantidas pelo UCM são regeneradas, certificados inscritos via protocolo (SCEP/EST/ACME) mantêm sua chave do lado do cliente',
+      'Use filtros para encontrar rapidamente certificados por status, CA ou texto de pesquisa: sua seleção é preservada ao recarregar',
+      'A renovação mantém o mesmo registro (id, refid, data de criação): chaves mantidas pelo UCM são regeneradas, certificados inscritos via protocolo (SCEP/EST/ACME) mantêm sua chave do lado do cliente',
       'Precisa de um EKU não padrão (Microsoft RDP, smartcard logon, document signing)? Adicione via "EKU extras" em vez de editar templates',
     ],
     warnings: [
-      'A revogação é geralmente permanente — exceto "Suspensão de Certificado" que pode ser removida',
-      'Um certificado válido e não revogado não pode ser excluído (409) — revogue-o primeiro para que a revogação chegue à CRL/OCSP; as revogações sobrevivem à exclusão',
+      'A revogação é geralmente permanente: exceto "Suspensão de Certificado" que pode ser removida',
+      'Um certificado válido e não revogado não pode ser excluído (409): revogue-o primeiro para que a revogação chegue à CRL/OCSP; as revogações sobrevivem à exclusão',
     ],
   },
   helpGuides: {
@@ -93,12 +93,12 @@ Gerenciamento central de todos os certificados X.509. Emita novos certificados, 
 
 ## Status do Certificado
 
-- **Válido** — Dentro do período de validade e não revogado
-- **Expirando** — Expirará dentro de 30 dias (configurável)
-- **Expirado** — Passou da data "Não Depois"
-- **Revogado** — Explicitamente revogado, publicado na CRL
-- **Órfão** — A CA emissora não existe mais no UCM
-- **Arquivado** — Substituído por uma renovação ou reinscrição que manteve o registro antigo para histórico (SCEP, EST, WSTEP, ACME, respondedor OCSP)
+- **Válido**: Dentro do período de validade e não revogado
+- **Expirando**: Expirará dentro de 30 dias (configurável)
+- **Expirado**: Passou da data "Não Depois"
+- **Revogado**: Explicitamente revogado, publicado na CRL
+- **Órfão**: A CA emissora não existe mais no UCM
+- **Arquivado**: Substituído por uma renovação ou reinscrição que manteve o registro antigo para histórico (SCEP, EST, WSTEP, ACME, respondedor OCSP)
 
 ## Emitindo um Certificado
 
@@ -117,22 +117,22 @@ Modelos pré-preenchem Key Usage, Extended Key Usage, padrões de sujeito e vali
 ## Importando Certificados
 
 Formatos suportados:
-- **PEM** — Certificados únicos ou em pacote
-- **DER** — Formato binário
-- **PKCS#12 (P12/PFX)** — Certificado + chave + cadeia (senha obrigatória)
-- **PKCS#7 (P7B)** — Cadeia de certificados sem chaves
+- **PEM**: Certificados únicos ou em pacote
+- **DER**: Formato binário
+- **PKCS#12 (P12/PFX)**: Certificado + chave + cadeia (senha obrigatória)
+- **PKCS#7 (P7B)**: Cadeia de certificados sem chaves
 
 ## Renovando um Certificado
 
 Desde a v2.214, a renovação atualiza o certificado **no lugar**:
-- Mesmo registro: **id, refid e data de criação nunca mudam** — as integrações mantêm suas referências
+- Mesmo registro: **id, refid e data de criação nunca mudam**: as integrações mantêm suas referências
 - Mesmos Sujeito e SANs; novo número de série e novo período de validade
 - Certificados cuja chave o UCM detém têm sua **chave regenerada**; certificados inscritos via protocolo (SCEP/EST/ACME) são reassinados com sua chave pública existente
 - O **número de série substituído continua publicado na CRL** (motivo \`superseded\`) e responde \`revoked\` via OCSP até a expiração original do certificado antigo
 - \`renewed_at\` / \`renewed_times\` registram o histórico de renovações
-- Um certificado revogado não pode ser renovado (409) — emita um novo em vez disso
+- Um certificado revogado não pode ser renovado (409): emita um novo em vez disso
 
-**Exclusão**: um certificado válido e não revogado não pode ser excluído (409) — revogue-o primeiro para que as partes confiantes vejam a mudança. As revogações são persistidas independentemente do registro do certificado e sobrevivem à exclusão.
+**Exclusão**: um certificado válido e não revogado não pode ser excluído (409): revogue-o primeiro para que as partes confiantes vejam a mudança. As revogações são persistidas independentemente do registro do certificado e sobrevivem à exclusão.
 
 ## Revogando um Certificado
 
@@ -142,7 +142,7 @@ Desde a v2.214, a renovação atualiza o certificado **no lugar**:
 
 Certificados revogados são publicados na CRL na próxima regeneração.
 
-> ⚠ A revogação é geralmente permanente — exceto **Suspensão de Certificado** que pode ser removida.
+> ⚠ A revogação é geralmente permanente: exceto **Suspensão de Certificado** que pode ser removida.
 
 ### Remover Suspensão
 
@@ -161,10 +161,10 @@ Combina revogação com reemissão imediata. O novo certificado herda o mesmo Su
 ## Exportando Certificados
 
 Formatos de exportação:
-- **PEM** — Apenas o certificado
-- **PEM + Cadeia** — Certificado com cadeia completa do emissor
-- **DER** — Formato binário
-- **PKCS#12** — Certificado + chave + cadeia, protegido por senha
+- **PEM**: Apenas o certificado
+- **PEM + Cadeia**: Certificado com cadeia completa do emissor
+- **DER**: Formato binário
+- **PKCS#12**: Certificado + chave + cadeia, protegido por senha
 
 ## Favoritos
 
@@ -176,20 +176,20 @@ Selecione dois certificados e clique em **Comparar** para ver uma comparação l
 
 ## Filtragem e Pesquisa
 
-- **Filtro de status** — Válido, Expirando, Expirado, Revogado, Órfão, Arquivado
-- **Filtro de CA** — Mostrar certificados de uma CA específica
-- **Filtro de origem** — Filtrar pela forma como o certificado entrou no UCM (emitido, importado, ACME, SCEP, etc.)
-- **Filtro de modelo** — Encontrar certificados **modificados a partir do modelo**: emitidos a partir de um modelo, mas com o tipo de chave, a validade ou o digest explicitamente sobrescritos no momento da solicitação. Os campos divergentes são listados nos detalhes do certificado; o registro é congelado na emissão
-- **Pesquisa de texto** — Pesquisar por CN, número de série ou SAN
-- **Ordenação** — Por nome, data de expiração, data de criação, status
+- **Filtro de status**: Válido, Expirando, Expirado, Revogado, Órfão, Arquivado
+- **Filtro de CA**: Mostrar certificados de uma CA específica
+- **Filtro de origem**: Filtrar pela forma como o certificado entrou no UCM (emitido, importado, ACME, SCEP, etc.)
+- **Filtro de modelo**: Encontrar certificados **modificados a partir do modelo**: emitidos a partir de um modelo, mas com o tipo de chave, a validade ou o digest explicitamente sobrescritos no momento da solicitação. Os campos divergentes são listados nos detalhes do certificado; o registro é congelado na emissão
+- **Pesquisa de texto**: Pesquisar por CN, número de série ou SAN
+- **Ordenação**: Por nome, data de expiração, data de criação, status
 ## Análise de conformidade
 
 A ação **Analisar** (detalhe do certificado) verifica a conformidade com os padrões X.509. Apenas informativo.
 
-- **RFC 5280** — perfil X.509 do IETF, sempre relevante
-- **CA/Browser Forum** — Baseline Requirements para certificados TLS públicos (ruído esperado em PKI interna)
+- **RFC 5280**: perfil X.509 do IETF, sempre relevante
+- **CA/Browser Forum**: Baseline Requirements para certificados TLS públicos (ruído esperado em PKI interna)
 - Severidades: fatal / error / warning / notice / info
-- Motor: pkilint (+ zlint quando presente) — dependência opcional do servidor, degradação graciosa se ausente
+- Motor: pkilint (+ zlint quando presente): dependência opcional do servidor, degradação graciosa se ausente
 
 `
   }

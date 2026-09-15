@@ -29,7 +29,7 @@ export default {
       'Protokolleinträge enthalten den User Agent zur Identifizierung von Client-Anwendungen',
     ],
     warnings: [
-      'Protokollbereinigung ist unwiderruflich — exportierte Daten können nicht wieder importiert werden',
+      'Protokollbereinigung ist unwiderruflich: exportierte Daten können nicht wieder importiert werden',
     ],
   },
   helpGuides: {
@@ -37,19 +37,19 @@ export default {
     content: `
 ## Übersicht
 
-Vollständiger Audit-Trail aller Vorgänge in UCM. Jede Aktion — Zertifikatsausstellung, Widerruf, Benutzeranmeldung, Einstellungsänderung — wird mit Details darüber protokolliert, wer, was, wann und wo.
+Vollständiger Audit-Trail aller Vorgänge in UCM. Jede Aktion. Zertifikatsausstellung, Widerruf, Benutzeranmeldung, Einstellungsänderung: wird mit Details darüber protokolliert, wer, was, wann und wo.
 
 ## Protokolleintrag-Details
 
 Jeder Protokolleintrag erfasst:
-- **Zeitstempel** — Wann die Aktion stattfand
-- **Benutzer** — Wer die Aktion ausgeführt hat
-- **Aktion** — Was getan wurde (Erstellen, Aktualisieren, Löschen, Anmelden, usw.)
-- **Ressource** — Was betroffen war (Zertifikat, CA, Benutzer, usw.)
-- **Status** — Erfolg oder Fehlschlag
-- **IP-Adresse** — Quell-IP der Anfrage
-- **User Agent** — Kennung der Client-Anwendung
-- **Details** — Zusätzlicher Kontext (Fehlermeldungen, geänderte Werte)
+- **Zeitstempel**: Wann die Aktion stattfand
+- **Benutzer**: Wer die Aktion ausgeführt hat
+- **Aktion**: Was getan wurde (Erstellen, Aktualisieren, Löschen, Anmelden, usw.)
+- **Ressource**: Was betroffen war (Zertifikat, CA, Benutzer, usw.)
+- **Status**: Erfolg oder Fehlschlag
+- **IP-Adresse**: Quell-IP der Anfrage
+- **User Agent**: Kennung der Client-Anwendung
+- **Details**: Zusätzlicher Kontext (Fehlermeldungen, geänderte Werte)
 
 ## Filterung
 
@@ -64,8 +64,8 @@ Nach Vorgangskategorie filtern:
 Nur Aktionen eines bestimmten Benutzers anzeigen.
 
 ### Nach Status
-- **Erfolg** — Vorgänge, die erfolgreich abgeschlossen wurden
-- **Fehlgeschlagen** — Vorgänge, die fehlschlugen (Authentifizierungsfehler, Zugriff verweigert, Fehler)
+- **Erfolg**: Vorgänge, die erfolgreich abgeschlossen wurden
+- **Fehlgeschlagen**: Vorgänge, die fehlschlugen (Authentifizierungsfehler, Zugriff verweigert, Fehler)
 
 ### Nach Datumsbereich
 Legen Sie **Von**- und **Bis**-Daten fest, um den Zeitraum einzugrenzen.
@@ -76,8 +76,8 @@ Freitextsuche über alle Protokollfelder.
 ## Export
 
 Gefilterte Protokolle exportieren in:
-- **JSON** — Maschinenlesbar, enthält alle Felder
-- **CSV** — Tabellenkalkulationskompatibel, enthält die wichtigsten Felder
+- **JSON**: Maschinenlesbar, enthält alle Felder
+- **CSV**: Tabellenkalkulationskompatibel, enthält die wichtigsten Felder
 
 Exporte enthalten nur die aktuell gefilterten Ergebnisse.
 

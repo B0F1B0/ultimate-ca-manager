@@ -14,7 +14,7 @@ export default {
       {
         title: 'Authentifizierung',
         items: [
-          { label: 'mTLS (Mutual TLS)', text: 'Client präsentiert ein Zertifikat beim TLS-Handshake — stärkste Authentifizierungsmethode' },
+          { label: 'mTLS (Mutual TLS)', text: 'Client präsentiert ein Zertifikat beim TLS-Handshake, stärkste Authentifizierungsmethode' },
           { label: 'HTTP Basic Auth', text: 'Benutzername/Passwort-Fallback, wenn mTLS nicht verfügbar ist' },
           { label: 'Präsentiertes Zertifikat', text: 'Für /simpleenroll und /serverkeygen über mTLS muss ein von der EST-CA signiertes Zertifikat eines sein, das sie noch hält: widerrufene, ersetzte oder gelöschte Zertifikate werden abgelehnt (RFC 7030 §3.3.2); ein Zertifikat einer anderen Stelle, der die TLS-Schicht vertraut, wird weiterhin akzeptiert' },
         ]
@@ -31,13 +31,13 @@ export default {
       },
     ],
     tips: [
-      'EST ist der moderne Ersatz für SCEP — bevorzugen Sie EST für neue Implementierungen',
-      'Verwenden Sie mTLS-Authentifizierung für höchste Sicherheit — Basic Auth ist ein Fallback',
+      'EST ist der moderne Ersatz für SCEP: bevorzugen Sie EST für neue Implementierungen',
+      'Verwenden Sie mTLS-Authentifizierung für höchste Sicherheit. Basic Auth ist ein Fallback',
       'Der /simplereenroll-Endpunkt erfordert, dass der Client sein aktuelles Zertifikat über mTLS präsentiert',
       'Kopieren Sie Endpunkt-URLs vom Informations-Tab, um Ihre EST-Clients zu konfigurieren',
     ],
     warnings: [
-      'EST erfordert HTTPS — der Client muss dem UCM-Serverzertifikat oder der CA vertrauen',
+      'EST erfordert HTTPS: der Client muss dem UCM-Serverzertifikat oder der CA vertrauen',
       'mTLS-Authentifizierung erfordert eine korrekte TLS-Terminierungskonfiguration (Reverse Proxy muss Client-Zertifikate weiterleiten)',
     ],
   },
@@ -52,10 +52,10 @@ Enrollment over Secure Transport (EST) ist in **RFC 7030** definiert und bietet 
 
 ### Einstellungen-Tab
 
-1. **EST aktivieren** — Das EST-Protokoll ein- oder ausschalten
-2. **Signierende CA** — Auswählen, welche Zertifizierungsstelle EST-registrierte Zertifikate signiert
-3. **Authentifizierung** — HTTP-Basic-Auth-Anmeldeinformationen konfigurieren (Benutzername und Passwort)
-4. **Zertifikatsgültigkeit** — Standard-Gültigkeitsdauer für EST-ausgestellte Zertifikate (in Tagen)
+1. **EST aktivieren**: Das EST-Protokoll ein- oder ausschalten
+2. **Signierende CA**: Auswählen, welche Zertifizierungsstelle EST-registrierte Zertifikate signiert
+3. **Authentifizierung**: HTTP-Basic-Auth-Anmeldeinformationen konfigurieren (Benutzername und Passwort)
+4. **Zertifikatsgültigkeit**: Standard-Gültigkeitsdauer für EST-ausgestellte Zertifikate (in Tagen)
 
 ### Konfiguration speichern
 
@@ -65,21 +65,21 @@ Klicken Sie auf **Speichern**, um Änderungen anzuwenden. Die EST-Endpunkte werd
 
 EST unterstützt zwei Authentifizierungsmethoden:
 
-### Mutual TLS (mTLS) — Empfohlen
+### Mutual TLS (mTLS): Empfohlen
 
 Der Client präsentiert ein Zertifikat beim TLS-Handshake. UCM validiert das Zertifikat und authentifiziert den Client automatisch.
 
-- **Stärkste Methode** — kryptografische Client-Identität
-- **Erforderlich für** \`/simplereenroll\` — der Client muss sein aktuelles Zertifikat präsentieren
-- **Präsentiertes Zertifikat** — für \`/simpleenroll\` und \`/serverkeygen\` muss ein von der EST-CA signiertes Zertifikat eines sein, das sie noch hält: widerrufene, ersetzte oder gelöschte Zertifikate werden abgelehnt (RFC 7030 §3.3.2); ein Zertifikat einer anderen vertrauenswürdigen Stelle wird weiterhin akzeptiert
+- **Stärkste Methode**: kryptografische Client-Identität
+- **Erforderlich für** \`/simplereenroll\`: der Client muss sein aktuelles Zertifikat präsentieren
+- **Präsentiertes Zertifikat**: für \`/simpleenroll\` und \`/serverkeygen\` muss ein von der EST-CA signiertes Zertifikat eines sein, das sie noch hält: widerrufene, ersetzte oder gelöschte Zertifikate werden abgelehnt (RFC 7030 §3.3.2); ein Zertifikat einer anderen vertrauenswürdigen Stelle wird weiterhin akzeptiert
 - **Abhängig von** korrekter TLS-Terminierungskonfiguration (Reverse Proxy muss \`SSL_CLIENT_CERT\` an UCM weiterleiten)
 
-### HTTP Basic Auth — Fallback
+### HTTP Basic Auth. Fallback
 
 Benutzername- und Passwort-Authentifizierung über HTTPS. Wird in den EST-Einstellungen konfiguriert.
 
-- **Einfacher einzurichten** — kein Client-Zertifikat erforderlich
-- **Weniger sicher** — Anmeldeinformationen werden pro Anfrage übertragen (durch HTTPS geschützt)
+- **Einfacher einzurichten**: kein Client-Zertifikat erforderlich
+- **Weniger sicher**: Anmeldeinformationen werden pro Anfrage übertragen (durch HTTPS geschützt)
 - **Verwenden, wenn** die mTLS-Infrastruktur nicht verfügbar ist
 
 ## EST-Endpunkte
@@ -89,7 +89,7 @@ Alle Endpunkte befinden sich unter \`/.well-known/est/\`:
 ### GET /cacerts
 CA-Zertifikatskette abrufen. **Keine Authentifizierung erforderlich.**
 
-Verwenden Sie dies zum Aufbau des Vertrauens — Clients rufen das CA-Zertifikat vor der Registrierung ab.
+Verwenden Sie dies zum Aufbau des Vertrauens. Clients rufen das CA-Zertifikat vor der Registrierung ab.
 
 \`\`\`bash
 curl -k https://ihr-server:8443/.well-known/est/cacerts | \\
@@ -110,7 +110,7 @@ curl -k --user est-benutzer:est-passwort \\
 \`\`\`
 
 ### POST /simplereenroll
-Ein bestehendes Zertifikat erneuern. **Erfordert mTLS** — der Client muss das zu erneuernde Zertifikat präsentieren.
+Ein bestehendes Zertifikat erneuern. **Erfordert mTLS**: der Client muss das zu erneuernde Zertifikat präsentieren.
 
 \`\`\`bash
 curl -k --cert client.pem --key client.key \\
@@ -128,9 +128,9 @@ Server generiert ein Schlüsselpaar und gibt das Zertifikat zusammen mit dem pri
 ## Informations-Tab
 
 Der Informations-Tab zeigt:
-- **Endpunkt-URLs** — Zum Kopieren bereite URLs für jede EST-Operation
-- **Registrierungsstatistiken** — Anzahl der Registrierungen, Erneuerungen und Fehler
-- **Letzte Aktivität** — Neueste EST-Vorgänge aus den Audit-Protokollen
+- **Endpunkt-URLs**: Zum Kopieren bereite URLs für jede EST-Operation
+- **Registrierungsstatistiken**: Anzahl der Registrierungen, Erneuerungen und Fehler
+- **Letzte Aktivität**: Neueste EST-Vorgänge aus den Audit-Protokollen
 
 ## Integrationsbeispiele
 

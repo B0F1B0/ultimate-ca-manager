@@ -10,21 +10,21 @@ export default {
         items: [
           { label: "Fenêtre suggérée", text: "Renvoie une fenêtre début/fin centrée avant l'expiration, pour étaler les renouvellements" },
           { label: "Révocation", text: "Un certificat révoqué renvoie une fenêtre dans le passé → les clients conformes renouvellent immédiatement" },
-          { label: "Sans authentification", text: "renewalInfo est un simple GET — ni compte ni JWS requis (RFC 9773)" },
+          { label: "Sans authentification", text: "renewalInfo est un simple GET, ni compte ni JWS requis (RFC 9773)" },
         ]
       },
       {
         title: 'Client ACME',
         items: [
-          { label: 'Client', text: 'Demander des certificats depuis tout CA ACME — Let\'s Encrypt, ZeroSSL, Buypass, HARICA ou personnalisé' },
+          { label: 'Client', text: 'Demander des certificats depuis tout CA ACME, Let\'s Encrypt, ZeroSSL, Buypass, HARICA ou personnalisé' },
           { label: 'Onglet des orders (v2.219)', text: 'Les orders du client ont leur propre onglet « Let\'s Encrypt orders » dans la barre latérale, avec compteur visibles/total et filtre de statut, à l\'image de la vue Local orders' },
-          { label: 'Comptes CA externes', text: 'Un ou plusieurs comptes par CA — plusieurs comptes peuvent partager la même URL de répertoire (ex. deux comptes Let\'s Encrypt pour une séparation administrative) ; une URL de répertoire vide vaut Let\'s Encrypt Production' },
+          { label: 'Comptes CA externes', text: 'Un ou plusieurs comptes par CA, plusieurs comptes peuvent partager la même URL de répertoire (ex. deux comptes Let\'s Encrypt pour une séparation administrative) ; une URL de répertoire vide vaut Let\'s Encrypt Production' },
           { label: 'Serveur personnalisé', text: 'Définir une URL de répertoire ACME personnalisée pour utiliser tout CA conforme RFC 8555' },
           { label: 'EAB', text: 'Prise en charge de la liaison de compte externe pour les CA nécessitant une pré-inscription (ZeroSSL, HARICA, etc.)' },
           { label: 'Types de clés', text: 'RSA-2048, RSA-4096, ECDSA P-256, ECDSA P-384 pour les clés de certificat' },
           { label: 'Clés de compte', text: 'Algorithmes ES256 (P-256), ES384 (P-384) ou RS256 pour les clés de compte ACME' },
           { label: 'Fournisseurs DNS', text: 'Configurer les fournisseurs de défi DNS-01 (Cloudflare, Route53, Tencent DNSPod, etc.)' },
-          { label: 'Custom Command', text: 'Type de fournisseur DNS exécutant des commandes locales configurées par l\'admin pour créer/supprimer les TXT — détails de l\'enregistrement passés via les variables d\'environnement DOMAIN, RECORD_NAME, RECORD_VALUE, TTL, ACTION. Chemin binaire absolu requis, sans shell, timeout configurable' },
+          { label: 'Custom Command', text: 'Type de fournisseur DNS exécutant des commandes locales configurées par l\'admin pour créer/supprimer les TXT, détails de l\'enregistrement passés via les variables d\'environnement DOMAIN, RECORD_NAME, RECORD_VALUE, TTL, ACTION. Chemin binaire absolu requis, sans shell, timeout configurable' },
           { label: 'Domaines', text: 'Associer des domaines aux fournisseurs DNS pour la validation automatique' },
         ]
       },
@@ -60,9 +60,9 @@ export default {
           { label: 'Émettre', text: 'Générer une nouvelle paire kid + clé HMAC depuis ACME → EAB Credentials' },
           { label: 'Distribuer', text: 'Transmettre le kid + HMAC au client (cert-manager, certbot, acme.sh)' },
           { label: 'Lier', text: 'Le client signe un JWS avec la clé MAC sur newAccount pour lier son compte ACME' },
-          { label: 'Rotation / Révocation', text: 'Révoquer un kid à tout moment — les comptes existants continuent, les nouvelles liaisons sont refusées' },
+          { label: 'Rotation / Révocation', text: 'Révoquer un kid à tout moment, les comptes existants continuent, les nouvelles liaisons sont refusées' },
           { label: 'Audit', text: 'Émission, rotation et révocation sont auditées sous l\'opérateur qui les a effectuées' },
-          { label: 'Restrictions de domaines', text: 'Limiter un identifiant aux domaines qu\'il peut demander : * (tous), *.example.com (tous les sous-domaines), ou une liste explicite — une liste vide bloque entièrement l\'émission. Appliqué sur new-order/new-authz, serveur et proxy ; pertinent seulement quand l\'EAB est exigé' },
+          { label: 'Restrictions de domaines', text: 'Limiter un identifiant aux domaines qu\'il peut demander : * (tous), *.example.com (tous les sous-domaines), ou une liste explicite, une liste vide bloque entièrement l\'émission. Appliqué sur new-order/new-authz, serveur et proxy ; pertinent seulement quand l\'EAB est exigé' },
         ]
       },
       {
@@ -71,15 +71,15 @@ export default {
           { label: 'Override par compte', text: 'Surcharge des résolveurs système lors de la validation des TXT _acme-challenge' },
           { label: 'Split-horizon', text: 'Utile lorsque votre serveur autoritaire est interne mais la vue publique est cachée ailleurs' },
           { label: 'Enregistrements obsolètes', text: 'Évite la mise en cache des résolveurs publics pendant les renouvellements rapides' },
-          { label: 'Entrées host:port', text: 'Les résolveurs n\'écoutant pas sur le port 53 sont acceptés (par ex. un BIND en loopback seul ou dnsmasq sur un port alternatif) — séparés par des virgules, les IP simples fonctionnent toujours' },
+          { label: 'Entrées host:port', text: 'Les résolveurs n\'écoutant pas sur le port 53 sont acceptés (par ex. un BIND en loopback seul ou dnsmasq sur un port alternatif) : séparés par des virgules, les IP simples fonctionnent toujours' },
         ]
       },
       {
         title: 'ACME sur IP internes / privées',
-        content: 'La validation HTTP-01 et TLS-ALPN-01 fonctionne nativement pour les cibles RFC1918, loopback, .lan / .local / .corp — le mode de déploiement principal de UCM.',
+        content: 'La validation HTTP-01 et TLS-ALPN-01 fonctionne nativement pour les cibles RFC1918, loopback, .lan / .local / .corp, le mode de déploiement principal de UCM.',
         items: [
           { label: 'Bascule', text: 'Settings → SystemConfig → acme.allow_private_ips (par défaut : true)' },
-          { label: 'Bascule', text: 'Onglet Let\'s Encrypt → Autoriser un CA ACME sur loopback — pour un CA colocalisé sur 127.0.0.1 (par défaut : désactivé)' },
+          { label: 'Bascule', text: 'Onglet Let\'s Encrypt → Autoriser un CA ACME sur loopback, pour un CA colocalisé sur 127.0.0.1 (par défaut : désactivé)' },
           { label: 'Toujours bloqué', text: 'Les IP de métadonnées cloud (169.254.169.254, fd00:ec2::254, etc.) sont bloquées inconditionnellement' },
         ]
       },
@@ -87,9 +87,9 @@ export default {
         title: 'Résolution multi-CA',
         content: 'Lorsqu\'un client ACME demande un certificat, UCM résout la CA de signature dans cet ordre :',
         items: [
-          '1. Mappage de domaine local — correspondance exacte du domaine, puis domaine parent',
-          '2. Mappage de domaine DNS — vérifie la CA émettrice configurée pour le fournisseur DNS',
-          '3. Valeur par défaut globale — la CA définie dans la configuration du serveur ACME',
+          '1. Mappage de domaine local : correspondance exacte du domaine, puis domaine parent',
+          '2. Mappage de domaine DNS : vérifie la CA émettrice configurée pour le fournisseur DNS',
+          '3. Valeur par défaut globale : la CA définie dans la configuration du serveur ACME',
           '4. Première CA disponible avec une clé privée',
         ]
       },
@@ -98,21 +98,21 @@ export default {
         content: 'Le serveur ACME local peut émettre des certificats pour des adresses IPv4 et IPv6, pas seulement des noms DNS. Utilisez le type d\'identifiant « ip » dans la commande.',
         items: [
           { label: 'Identifiant', text: 'Commande avec { "type": "ip", "value": "192.0.2.10" } (IPv4) ou un littéral IPv6 comme 2001:db8::1' },
-          { label: 'Défis', text: 'Seuls HTTP-01 et TLS-ALPN-01 sont proposés — DNS-01 est interdit pour les identifiants IP selon RFC 8738' },
+          { label: 'Défis', text: 'Seuls HTTP-01 et TLS-ALPN-01 sont proposés, DNS-01 est interdit pour les identifiants IP selon RFC 8738' },
           { label: 'SNI TLS-ALPN-01', text: 'La validation utilise la forme reverse-DNS (in-addr.arpa / ip6.arpa) comme nom d\'hôte SNI' },
           { label: 'SAN émis', text: 'Le certificat porte un SAN iPAddress ; les commandes mixtes DNS + IP sont prises en charge' },
-          { label: 'IP internes', text: 'Les adresses RFC1918 et loopback se valident nativement — le mode de déploiement principal de UCM' },
+          { label: 'IP internes', text: 'Les adresses RFC1918 et loopback se valident nativement, le mode de déploiement principal de UCM' },
         ]
       },
       {
         title: 'Validation DNS persistante (dns-persist-01)',
-        content: 'Le serveur ACME local peut valider des domaines via un enregistrement TXT persistant lié au compte ACME (draft-ietf-acme-dns-persist) — renouvellement sans écriture DNS. Opt-in, désactivé par défaut.',
+        content: 'Le serveur ACME local peut valider des domaines via un enregistrement TXT persistant lié au compte ACME (draft-ietf-acme-dns-persist) : renouvellement sans écriture DNS. Opt-in, désactivé par défaut.',
         items: [
-          { label: 'Enregistrement', text: 'Créez _validation-persist.<domaine> TXT "<domaine-émetteur>; accounturi=<URL du compte>" — l\'objet challenge annonce les deux valeurs attendues' },
+          { label: 'Enregistrement', text: 'Créez _validation-persist.<domaine> TXT "<domaine-émetteur>; accounturi=<URL du compte>", l\'objet challenge annonce les deux valeurs attendues' },
           { label: 'Activation', text: 'ACME → Configuration → Validation DNS persistante (dns-persist-01)' },
           { label: 'Wildcard / sous-domaines', text: 'Ajoutez policy=wildcard pour autoriser aussi les certificats wildcard et les sous-domaines du nom validé' },
           { label: 'persistUntil', text: 'persistUntil=<timestamp unix> optionnel : bloque les nouvelles validations après cette date' },
-          { label: 'Sécurité', text: 'L\'enregistrement donne au compte la capacité d\'émission tant qu\'il existe — supprimez le TXT pour la révoquer' },
+          { label: 'Sécurité', text: 'L\'enregistrement donne au compte la capacité d\'émission tant qu\'il existe, supprimez le TXT pour la révoquer' },
         ]
       }
     ],
@@ -130,7 +130,7 @@ export default {
       'Utilisez l\'URL du proxy avec certbot : certbot certonly --server https://votre-serveur:port/acme/proxy/directory',
     ],
     warnings: [
-      'La validation de domaine est requise — votre serveur doit être accessible ou le DNS configuré',
+      'La validation de domaine est requise : votre serveur doit être accessible ou le DNS configuré',
       'Changer le type de clé du compte nécessite de ré-enregistrer votre compte ACME',
     ],
   },
@@ -141,18 +141,18 @@ export default {
 
 UCM prend en charge ACME (Automated Certificate Management Environment) en deux modes :
 
-- **Client ACME** — Obtenir des certificats depuis tout CA conforme RFC 8555 (Let's Encrypt, ZeroSSL, Buypass, HARICA ou personnalisé)
-- **Serveur ACME local** — Serveur ACME intégré pour l'automatisation PKI interne avec support multi-CA
+- **Client ACME** : Obtenir des certificats depuis tout CA conforme RFC 8555 (Let's Encrypt, ZeroSSL, Buypass, HARICA ou personnalisé)
+- **Serveur ACME local** : Serveur ACME intégré pour l'automatisation PKI interne avec support multi-CA
 
 ## Client ACME
 
 ### Paramètres du client
 Gérez la configuration de votre client ACME :
-- **Environnement** — Staging (test) ou Production (certificats réels)
-- **E-mail de contact** — Requis pour l'enregistrement du compte
-- **Renouvellement automatique** — Renouveler automatiquement les certificats avant l'expiration
-- **Type de clé de certificat** — RSA-2048, RSA-4096, ECDSA P-256 ou ECDSA P-384
-- **Algorithme de clé de compte** — ES256, ES384 ou RS256 pour la signature du compte ACME
+- **Environnement** : Staging (test) ou Production (certificats réels)
+- **E-mail de contact** : Requis pour l'enregistrement du compte
+- **Renouvellement automatique** : Renouveler automatiquement les certificats avant l'expiration
+- **Type de clé de certificat** : RSA-2048, RSA-4096, ECDSA P-256 ou ECDSA P-384
+- **Algorithme de clé de compte** : ES256, ES384 ou RS256 pour la signature du compte ACME
 
 ### Serveur ACME personnalisé
 Utilisez tout CA conforme RFC 8555, pas seulement Let's Encrypt :
@@ -170,11 +170,11 @@ Définissez l'URL du répertoire de votre CA dans **Paramètres** → **Serveur 
 ### Comptes CA externes
 Gérez tous les comptes externes avec lesquels UCM s'enregistre :
 
-- **Plusieurs comptes par CA autorisés** — plusieurs comptes peuvent partager la même URL de répertoire (ex. deux comptes Let's Encrypt avec des e-mails de contact différents pour la séparation administrative, utile avec dns-persist-01). La ligne du compte, pas l'URL, sert d'identité.
-- **URL de répertoire vide** — vaut par défaut Let's Encrypt Production.
-- **Compte par défaut** — utilisé quand une demande ne sélectionne aucun compte ; les recherches par URL renvoient le compte par défaut.
-- **Import** — importez la clé privée d'un compte existant à la création : les enveloppes PKCS#8, SEC1/X9.62 (\`BEGIN EC PRIVATE KEY\`) et PKCS#1 (\`BEGIN RSA PRIVATE KEY\`) sont acceptées ; l'algorithme est déduit automatiquement.
-- **Point de terminaison proxy dédié** — chaque compte peut exposer \`/acme/proxy/<slug>/directory\` avec son propre slug.
+- **Plusieurs comptes par CA autorisés** : plusieurs comptes peuvent partager la même URL de répertoire (ex. deux comptes Let's Encrypt avec des e-mails de contact différents pour la séparation administrative, utile avec dns-persist-01). La ligne du compte, pas l'URL, sert d'identité.
+- **URL de répertoire vide** : vaut par défaut Let's Encrypt Production.
+- **Compte par défaut** : utilisé quand une demande ne sélectionne aucun compte ; les recherches par URL renvoient le compte par défaut.
+- **Import** : importez la clé privée d'un compte existant à la création : les enveloppes PKCS#8, SEC1/X9.62 (\`BEGIN EC PRIVATE KEY\`) et PKCS#1 (\`BEGIN RSA PRIVATE KEY\`) sont acceptées ; l'algorithme est déduit automatiquement.
+- **Point de terminaison proxy dédié** : chaque compte peut exposer \`/acme/proxy/<slug>/directory\` avec son propre slug.
 
 ### Liaison de compte externe (EAB)
 Certains CA nécessitent des identifiants EAB pour lier votre compte ACME à un compte existant chez le CA :
@@ -194,14 +194,14 @@ Certains CA nécessitent des identifiants EAB pour lier votre compte ACME à un 
 | **ECDSA P-256** | 256 bits | ≈ RSA-3072 | Beaucoup plus rapide |
 | **ECDSA P-384** | 384 bits | ≈ RSA-7680 | Plus rapide |
 
-Les clés ECDSA sont recommandées pour les déploiements modernes — plus petites, plus rapides et tout aussi sécurisées.
+Les clés ECDSA sont recommandées pour les déploiements modernes : plus petites, plus rapides et tout aussi sécurisées.
 
 ### Source de la clé
 Lors d'une demande de certificat, choisissez d'où vient la clé privée :
 
-- **Générer une nouvelle clé** *(défaut)* — UCM crée une paire de clés à chaque ordre
-- **Réutiliser la clé au renouvellement** — conserve la même clé privée d'un renouvellement à l'autre (nécessaire pour DANE/TLSA et le key pinning) ; la première émission génère la clé, les renouvellements la rechargent
-- **Fournir un CSR externe** — collez un CSR PEM généré ailleurs ; UCM le soumet au finalize et la clé privée n'entre jamais dans UCM. Les domaines du CSR doivent correspondre exactement aux identifiants de l'ordre
+- **Générer une nouvelle clé** *(défaut)* : UCM crée une paire de clés à chaque ordre
+- **Réutiliser la clé au renouvellement** : conserve la même clé privée d'un renouvellement à l'autre (nécessaire pour DANE/TLSA et le key pinning) ; la première émission génère la clé, les renouvellements la rechargent
+- **Fournir un CSR externe** : collez un CSR PEM généré ailleurs ; UCM le soumet au finalize et la clé privée n'entre jamais dans UCM. Les domaines du CSR doivent correspondre exactement aux identifiants de l'ordre
 
 ### Preflight (test à blanc)
 **Lancer le preflight** sur le formulaire de demande valide toute la requête contre le répertoire **staging** de Let's Encrypt, sans consommer les limites de production :
@@ -211,7 +211,7 @@ Lors d'une demande de certificat, choisissez d'où vient la clé privée :
 - **Validation seule** vérifie configuration et connectivité sans créer d'ordre
 - Peut vérifier la propagation DNS des TXT une fois les enregistrements ajoutés
 
-> 💡 Les CA personnalisées n'ont pas d'endpoint staging — le preflight ne valide alors que la configuration et la connectivité.
+> 💡 Les CA personnalisées n'ont pas d'endpoint staging : le preflight ne valide alors que la configuration et la connectivité.
 
 ### Fournisseurs DNS
 Configurez les fournisseurs de défi DNS-01 pour la validation de domaine. Les fournisseurs pris en charge incluent :
@@ -229,16 +229,16 @@ Chaque fournisseur nécessite des identifiants API spécifiques au service DNS.
 #### Fournisseur Custom Command
 Pour les services DNS sans pilote natif, le fournisseur **Custom Command** exécute des commandes locales configurées par l'admin pour créer/supprimer les enregistrements TXT. Les détails de l'enregistrement sont passés en variables d'environnement :
 
-- \`DOMAIN\` — domaine de base en cours de validation
-- \`RECORD_NAME\` — nom complet de l'enregistrement TXT (\`_acme-challenge.example.com\`)
-- \`RECORD_VALUE\` — contenu du TXT (digest du défi)
-- \`TTL\` — TTL de l'enregistrement en secondes
-- \`ACTION\` — \`create\` ou \`delete\`
+- \`DOMAIN\` : domaine de base en cours de validation
+- \`RECORD_NAME\` : nom complet de l'enregistrement TXT (\`_acme-challenge.example.com\`)
+- \`RECORD_VALUE\` : contenu du TXT (digest du défi)
+- \`TTL\` : TTL de l'enregistrement en secondes
+- \`ACTION\` : \`create\` ou \`delete\`
 
 La commande exige un **chemin binaire absolu**, s'exécute sans shell (ni pipes ni expansion) et est tuée après un timeout configurable (5–300 s, 60 par défaut). Utilisez un petit script wrapper pour relier n'importe quel outillage DNS externe.
 
 ### Résolveurs DNS personnalisés
-Surchargez optionnellement les résolveurs utilisés pour vérifier les enregistrements TXT \`_acme-challenge\` (utile pour le DNS split-horizon ou pour éviter la mise en cache des résolveurs publics). Les entrées sont séparées par des virgules et acceptent des IP simples ou \`host:port\` — par ex. un BIND en loopback seul ou une instance dnsmasq sur un port alternatif.
+Surchargez optionnellement les résolveurs utilisés pour vérifier les enregistrements TXT \`_acme-challenge\` (utile pour le DNS split-horizon ou pour éviter la mise en cache des résolveurs publics). Les entrées sont séparées par des virgules et acceptent des IP simples ou \`host:port\` : par ex. un BIND en loopback seul ou une instance dnsmasq sur un port alternatif.
 
 ### Domaines
 Associez vos domaines aux fournisseurs DNS. Lors de la demande d'un certificat pour un domaine, UCM utilise le fournisseur associé pour créer les enregistrements de défi DNS-01.
@@ -275,8 +275,8 @@ Chaque compte CA externe peut exposer son propre endpoint proxy ACME :
 1. Ouvrez **Comptes CA externes** (même onglet Let's Encrypt)
 2. Modifiez ou créez un compte CA
 3. Activez **Exposer via le proxy ACME**
-4. Définissez un **Chemin proxy (slug)** unique — ex. \`actalis-production\`, \`letsencrypt-staging\`
-5. Enregistrez — l'URL apparaît dans la section proxy et sur la fiche du compte
+4. Définissez un **Chemin proxy (slug)** unique : ex. \`actalis-production\`, \`letsencrypt-staging\`
+5. Enregistrez : l'URL apparaît dans la section proxy et sur la fiche du compte
 
 Les clients utilisent :
 \`\`\`
@@ -299,7 +299,7 @@ Slugs réservés (interdits) : \`directory\`, \`new-order\`, \`challenge\`, \`ac
 ### Purge des certificats remplacés
 Chaque renouvellement via le proxy importe un nouveau certificat dans l'inventaire, si bien que les certificats remplacés s'accumulent avec le temps. La bascule **Purger les certificats remplacés** (réglages proxy) nettoie automatiquement : quand un ordre proxy se finalise, les certificats précédemment importés par des ordres proxy pour **exactement le même ensemble de domaines** sont supprimés.
 
-- **Les certificats révoqués sont toujours conservés** — la trace de révocation reste intacte
+- **Les certificats révoqués sont toujours conservés** : la trace de révocation reste intacte
 - Les certificats non émis via le proxy ne sont jamais touchés
 - Désactivé par défaut
 
@@ -328,7 +328,7 @@ certbot certonly \\
   -d subdomain.example.com
 \`\`\`
 
-> 💡 Les identifiants EAB proxy sont distincts de l'EAB client — ils authentifient UCM auprès du CA en amont, pas vos clients auprès de UCM.
+> 💡 Les identifiants EAB proxy sont distincts de l'EAB client : ils authentifient UCM auprès du CA en amont, pas vos clients auprès de UCM.
 
 > ⚠ Prérequis : le domaine (ou un domaine parent couvrant les sous-domaines) doit être configuré dans ACME Domains avec un fournisseur DNS. Le proxy ne gère que dns-01.
 
@@ -339,9 +339,9 @@ certbot certonly \\
 ## Serveur ACME local
 
 ### Configuration
-- **Activer/Désactiver** — Basculer le serveur ACME intégré
-- **CA par défaut** — Sélectionner quelle CA signe les certificats par défaut
-- **Conditions d'utilisation** — URL optionnelle des conditions pour les clients
+- **Activer/Désactiver** : Basculer le serveur ACME intégré
+- **CA par défaut** : Sélectionner quelle CA signe les certificats par défaut
+- **Conditions d'utilisation** : URL optionnelle des conditions pour les clients
 
 ### URL du répertoire ACME
 \`\`\`
@@ -361,21 +361,21 @@ Associez des domaines internes à des CA spécifiques. Cela permet à différent
 
 ### Ordre de résolution des CA
 Lorsqu'un client ACME demande un certificat, UCM détermine la CA de signature dans cet ordre :
-1. **Mappage de domaine local** — Correspondance exacte, puis correspondance de domaine parent
-2. **Mappage de domaine DNS** — La CA configurée pour le fournisseur DNS
-3. **Valeur par défaut globale** — La CA définie dans la configuration du serveur ACME
-4. **Première disponible** — Toute CA avec une clé privée
+1. **Mappage de domaine local** : Correspondance exacte, puis correspondance de domaine parent
+2. **Mappage de domaine DNS** : La CA configurée pour le fournisseur DNS
+3. **Valeur par défaut globale** : La CA définie dans la configuration du serveur ACME
+4. **Première disponible** : Toute CA avec une clé privée
 
 ### Identifiants EAB (côté serveur)
 Quand UCM est le serveur ACME (ou le proxy), vous pouvez exiger le **External Account Binding** : les clients doivent présenter un kid + une clé HMAC pré-émis pour enregistrer un compte. Émettez et révoquez les identifiants depuis **ACME → EAB Credentials**.
 
 Chaque identifiant peut être restreint aux **domaines pour lesquels il peut demander des certificats** :
-- \`*\` — tout domaine (valeur par défaut pour les identifiants nouveaux et préexistants)
-- \`*.example.com\` — le domaine et tous ses sous-domaines
+- \`*\` : tout domaine (valeur par défaut pour les identifiants nouveaux et préexistants)
+- \`*.example.com\` : le domaine et tous ses sous-domaines
 - Une liste explicite de domaines
 - Une **liste vide bloque entièrement l'émission** pour cet identifiant
 
-Les restrictions sont appliquées sur new-order et new-authz, à la fois sur le serveur ACME intégré et sur le proxy. Elles n'ont de sens que quand l'**EAB est exigé** — sinon les clients peuvent simplement s'enregistrer sans identifiant.
+Les restrictions sont appliquées sur new-order et new-authz, à la fois sur le serveur ACME intégré et sur le proxy. Elles n'ont de sens que quand l'**EAB est exigé** : sinon les clients peuvent simplement s'enregistrer sans identifiant.
 
 ### Comptes
 Voir les comptes clients ACME enregistrés :
@@ -414,11 +414,11 @@ Les commandes mixtes DNS + IP sont également prises en charge.
 ### Certificat émis
 Le certificat signé contient une entrée SubjectAltName **iPAddress** pour chaque IP validée.
 
-> 💡 Les adresses internes (RFC1918, loopback) se valident nativement — le mode de déploiement principal de UCM. Les IP de métadonnées cloud restent bloquées.
+> 💡 Les adresses internes (RFC1918, loopback) se valident nativement : le mode de déploiement principal de UCM. Les IP de métadonnées cloud restent bloquées.
 
 ## Validation DNS persistante (dns-persist-01)
 
-Le serveur ACME local prend en charge **dns-persist-01** (draft-ietf-acme-dns-persist) : validation via un enregistrement TXT **persistant** lié au compte ACME — les renouvellements ne nécessitent aucune écriture DNS.
+Le serveur ACME local prend en charge **dns-persist-01** (draft-ietf-acme-dns-persist) : validation via un enregistrement TXT **persistant** lié au compte ACME, les renouvellements ne nécessitent aucune écriture DNS.
 
 ### Mise en place
 1. Activez-le dans **ACME → Configuration → Validation DNS persistante** (désactivé par défaut).
@@ -429,15 +429,15 @@ _validation-persist.app.example.com. IN TXT "ca.example.com; accounturi=https://
 L'objet challenge annonce les valeurs attendues \`accounturi\` et \`issuer-domain-names\`.
 
 ### Options
-- \`policy=wildcard\` — autorise aussi les certificats wildcard et les sous-domaines du nom validé (un enregistrement sur un domaine parent couvre ses enfants)
-- \`persistUntil=<timestamp-unix>\` — bloque les nouvelles validations après cette date
+- \`policy=wildcard\` : autorise aussi les certificats wildcard et les sous-domaines du nom validé (un enregistrement sur un domaine parent couvre ses enfants)
+- \`persistUntil=<timestamp-unix>\` : bloque les nouvelles validations après cette date
 
-> ⚠️ L'enregistrement donne la capacité d'émission à la clé du compte ACME tant qu'il existe — supprimez le TXT pour la révoquer.
+> ⚠️ L'enregistrement donne la capacité d'émission à la clé du compte ACME tant qu'il existe : supprimez le TXT pour la révoquer.
 
 ## Utiliser certbot
 
 \`\`\`
-# Enregistrer un compte (Let's Encrypt — par défaut)
+# Enregistrer un compte (Let's Encrypt : par défaut)
 certbot register --agree-tos --email admin@exemple.com
 
 # Enregistrer avec un CA ACME personnalisé + EAB

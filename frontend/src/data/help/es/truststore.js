@@ -39,19 +39,19 @@ El almacén de confianza administra los certificados CA de confianza utilizados 
 
 ## Categorías de certificados
 
-- **CA raíz** — Anclas de confianza autofirmadas
-- **Intermedia** — CAs firmadas por una raíz u otras intermedias
-- **Autenticación de cliente** — Certificados para autenticación de cliente mTLS
-- **Firma de código** — Certificados para verificación de firma de código
-- **Personalizado** — Certificados categorizados manualmente
+- **CA raíz**: Anclas de confianza autofirmadas
+- **Intermedia**: CAs firmadas por una raíz u otras intermedias
+- **Autenticación de cliente**: Certificados para autenticación de cliente mTLS
+- **Firma de código**: Certificados para verificación de firma de código
+- **Personalizado**: Certificados categorizados manualmente
 
 ## Importar certificados
 
 ### Desde archivo
 Suba archivos de certificado en estos formatos:
-- **PEM** — Codificado en Base64 (individual o agrupado)
-- **DER** — Formato binario
-- **PKCS#7 (P7B)** — Cadena de certificados
+- **PEM**: Codificado en Base64 (individual o agrupado)
+- **DER**: Formato binario
+- **PKCS#7 (P7B)**: Cadena de certificados
 
 ### Desde URL
 Obtener un certificado de un endpoint HTTPS remoto. UCM descarga e importa la cadena de certificados del servidor.
@@ -66,10 +66,10 @@ Importe todas las CAs de confianza del almacén de confianza del sistema operati
 
 ## Administrar entradas
 
-- **Filtrar por propósito** — Reduzca la lista por categoría de certificado
-- **Buscar** — Encuentre certificados por nombre del sujeto
-- **Exportar** — Descargue certificados individuales en formato PEM
-- **Eliminar** — Elimine un certificado del almacén de confianza
+- **Filtrar por propósito**: Reduzca la lista por categoría de certificado
+- **Buscar**: Encuentre certificados por nombre del sujeto
+- **Exportar**: Descargue certificados individuales en formato PEM
+- **Eliminar**: Elimine un certificado del almacén de confianza
 
 ## Casos de uso
 

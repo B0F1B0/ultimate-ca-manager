@@ -1,6 +1,7 @@
 /**
  * CSRs (Certificate Signing Requests) Page - With Pending/History Tabs
  */
+import { showNotices } from '../lib/notices'
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
@@ -224,6 +225,7 @@ export default function CSRsPage() {
           return
         }
         showSuccess(t('messages.success.other.signed'))
+        showNotices(signed, showWarning)
         // A CA signed from an external request holds no key (#348)
         if ((signed?.data || signed)?.certificate_only) showWarning(t('cas.certificateOnlyBanner'))
         closeModal('sign')

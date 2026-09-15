@@ -7,8 +7,8 @@ export default {
       {
         title: 'Anfragelebenszyklus',
         items: [
-          { label: 'Ausstehend', text: 'Wartet auf Prüfung — Zertifikat kann noch nicht ausgestellt werden' },
-          { label: 'Genehmigt', text: 'Alle erforderlichen Genehmigungen erhalten — Zertifikat kann ausgestellt werden' },
+          { label: 'Ausstehend', text: 'Wartet auf Prüfung, Zertifikat kann noch nicht ausgestellt werden' },
+          { label: 'Genehmigt', text: 'Alle erforderlichen Genehmigungen erhalten, Zertifikat kann ausgestellt werden' },
           { label: 'Abgelehnt', text: 'Jede Ablehnung stoppt die Anfrage sofort' },
           { label: 'Abgelaufen', text: 'Nicht innerhalb von sieben Tagen entschieden; als abgelaufen geschlossen und nie als ausstehend gezählt' },
         ]
@@ -34,7 +34,7 @@ export default {
       },
     ],
     tips: [
-      'Jede einzelne Ablehnung stoppt die Genehmigung sofort — dies ist aus Sicherheitsgründen beabsichtigt.',
+      'Jede einzelne Ablehnung stoppt die Genehmigung sofort: dies ist aus Sicherheitsgründen beabsichtigt.',
       'Während eine Erneuerung auf Genehmigung wartet, überlässt der Planer das Zertifikat dieser Entscheidung, solange sie vor dem Ablauf des Zertifikats fallen kann.',
       'Genehmigungskommentare werden im Audit-Trail für die Compliance protokolliert.',
     ],
@@ -44,7 +44,7 @@ export default {
     content: `
 ## Übersicht
 
-Die Genehmigungsseite zeigt alle Zertifikatsanfragen, die vor der Ausstellung eine manuelle Genehmigung erfordern. Genehmigungsworkflows werden in **Richtlinien** konfiguriert — wenn bei einer Richtlinie „Genehmigung erforderlich" aktiviert ist, erstellt jede übereinstimmende Zertifikatsanfrage hier eine Genehmigungsanfrage.
+Die Genehmigungsseite zeigt alle Zertifikatsanfragen, die vor der Ausstellung eine manuelle Genehmigung erfordern. Genehmigungsworkflows werden in **Richtlinien** konfiguriert: wenn bei einer Richtlinie „Genehmigung erforderlich" aktiviert ist, erstellt jede übereinstimmende Zertifikatsanfrage hier eine Genehmigungsanfrage.
 
 ## Anfragelebenszyklus
 
@@ -89,10 +89,10 @@ Eine Anfrage wartet **sieben Tage** auf eine Entscheidung. Danach wird sie als a
 
 1. Klicken Sie auf eine ausstehende Anfrage, um ihre Details anzuzeigen
 2. Klicken Sie auf **Ablehnen**
-3. Geben Sie einen **Ablehnungsgrund** ein (erforderlich) — dieser wird für die Audit-Compliance protokolliert
+3. Geben Sie einen **Ablehnungsgrund** ein (erforderlich): dieser wird für die Audit-Compliance protokolliert
 4. Die Anfrage wird sofort gestoppt
 
-> ⚠ Jede einzelne Ablehnung stoppt die gesamte Anfrage. Dies ist beabsichtigt — wenn ein Prüfer ein Problem feststellt, sollte die Ausstellung nicht fortgesetzt werden.
+> ⚠ Jede einzelne Ablehnung stoppt die gesamte Anfrage. Dies ist beabsichtigt: wenn ein Prüfer ein Problem feststellt, sollte die Ausstellung nicht fortgesetzt werden.
 
 ## Genehmigungsverlauf
 
@@ -106,15 +106,15 @@ Dieser Verlauf ist unveränderlich und Teil des Audit-Trails.
 ## Filterung
 
 Verwenden Sie die Statusfilterleiste oben, um anzuzeigen:
-- **Ausstehend** — Anfragen, die auf Ihre Prüfung warten
-- **Genehmigt** — Kürzlich genehmigte Anfragen
-- **Abgelehnt** — Abgelehnte Anfragen mit Gründen
-- **Gesamt** — Alle Anfragen unabhängig vom Status
+- **Ausstehend**: Anfragen, die auf Ihre Prüfung warten
+- **Genehmigt**: Kürzlich genehmigte Anfragen
+- **Abgelehnt**: Abgelehnte Anfragen mit Gründen
+- **Gesamt**: Alle Anfragen unabhängig vom Status
 
 ## Berechtigungen
 
-- **read:approvals** — Genehmigungsanfragen anzeigen
-- **write:approvals** — Anfragen genehmigen oder ablehnen
+- **read:approvals**: Genehmigungsanfragen anzeigen
+- **write:approvals**: Anfragen genehmigen oder ablehnen
 
 > 💡 Richten Sie E-Mail-Benachrichtigungen in Richtlinien ein, damit Genehmiger benachrichtigt werden, wenn neue Anfragen eingehen.
 `

@@ -107,7 +107,7 @@ export function EkuMultiSelect({
             <span
               key={oid}
               className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-md bg-bg-tertiary border border-border text-text-secondary"
-              title={`${labelFor(oid)} (${oid}) — ${t('certificates.eku.defaultLocked')}`}
+              title={`${labelFor(oid)} (${oid}): ${t('certificates.eku.defaultLocked')}`}
             >
               <Lock size={12} weight="fill" />
               <span>{labelFor(oid)}</span>

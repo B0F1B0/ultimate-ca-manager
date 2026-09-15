@@ -22,7 +22,7 @@ export default {
     tips: [
       'Ziehen Sie Widgets per Drag-and-Drop, um Ihr Dashboard-Layout anzupassen',
       'Klicken Sie auf das Augen-Symbol in der Kopfzeile, um einzelne Widgets ein-/auszublenden',
-      'Das Dashboard aktualisiert sich in Echtzeit über WebSocket — kein manuelles Aktualisieren nötig',
+      'Das Dashboard aktualisiert sich in Echtzeit über WebSocket: kein manuelles Aktualisieren nötig',
       'Das Layout wird pro Benutzer gespeichert und bleibt über Sitzungen hinweg erhalten',
     ],
   },
@@ -37,20 +37,20 @@ Das Dashboard ist Ihre zentrale Überwachungszentrale. Es zeigt Echtzeit-Metrike
 
 ### Statistik-Karte
 Zeigt vier wichtige Zähler an:
-- **Gesamte CAs** — Root- und Intermediate-Zertifizierungsstellen
-- **Aktive Zertifikate** — Gültige, nicht widerrufene Zertifikate
-- **Ausstehende CSRs** — Zertifikatsignierungsanfragen, die auf Genehmigung warten
-- **Bald ablaufend** — Zertifikate, die innerhalb von 30 Tagen ablaufen
+- **Gesamte CAs**: Root- und Intermediate-Zertifizierungsstellen
+- **Aktive Zertifikate**: Gültige, nicht widerrufene Zertifikate
+- **Ausstehende CSRs**: Zertifikatsignierungsanfragen, die auf Genehmigung warten
+- **Bald ablaufend**: Zertifikate, die innerhalb von 30 Tagen ablaufen
 
 ### Zertifikatstrend
 Ein Liniendiagramm, das die Zertifikatsausstellung über die Zeit zeigt. Bewegen Sie den Mauszeiger über Datenpunkte, um genaue Zahlen zu sehen.
 
 ### Statusverteilung
 Kreisdiagramm mit der Aufschlüsselung der Zertifikatszustände:
-- **Gültig** — Innerhalb des Gültigkeitszeitraums und nicht widerrufen
-- **Ablaufend** — Läuft innerhalb von 30 Tagen ab
-- **Abgelaufen** — Nach dem „Nicht nach"-Datum
-- **Widerrufen** — Explizit widerrufen
+- **Gültig**: Innerhalb des Gültigkeitszeitraums und nicht widerrufen
+- **Ablaufend**: Läuft innerhalb von 30 Tagen ab
+- **Abgelaufen**: Nach dem „Nicht nach"-Datum
+- **Widerrufen**: Explizit widerrufen
 
 ### Nächster Ablauf
 Listet die Zertifikate auf, die am ehesten ablaufen. Klicken Sie auf ein Zertifikat, um zu seinen Details zu navigieren. Konfigurieren Sie den Schwellenwert unter **Einstellungen → Allgemein**.
@@ -86,7 +86,7 @@ Klicken Sie auf das **Augen-Symbol** in der Seitenkopfzeile, um die Sichtbarkeit
 Ihre Layout-Konfiguration wird pro Benutzer im Browser gespeichert. Sie bleibt über Sitzungen und Geräte mit demselben Browserprofil erhalten.
 
 ## Echtzeit-Aktualisierungen
-Das Dashboard empfängt Live-Updates über WebSocket. Kein manuelles Aktualisieren nötig — neue Zertifikate, Statusänderungen und Aktivitätseinträge erscheinen automatisch.
+Das Dashboard empfängt Live-Updates über WebSocket. Kein manuelles Aktualisieren nötig: neue Zertifikate, Statusänderungen und Aktivitätseinträge erscheinen automatisch.
 
 > 💡 Wenn die WebSocket-Verbindung unterbrochen ist, erscheint ein gelber Indikator in der Seitenleiste. Die Daten werden bei Wiederverbindung aktualisiert.
 `

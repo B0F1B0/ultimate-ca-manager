@@ -29,7 +29,7 @@ export default {
       'Les entrées de journal incluent le User Agent pour identifier les applications clientes',
     ],
     warnings: [
-      'Le nettoyage des journaux est irréversible — les données exportées ne peuvent pas être réimportées',
+      'Le nettoyage des journaux est irréversible : les données exportées ne peuvent pas être réimportées',
     ],
   },
   helpGuides: {
@@ -37,19 +37,19 @@ export default {
     content: `
 ## Vue d'ensemble
 
-Piste d'audit complète de toutes les opérations dans UCM. Chaque action — émission de certificat, révocation, connexion utilisateur, modification de paramètre — est enregistrée avec des détails sur qui, quoi, quand et d'où.
+Piste d'audit complète de toutes les opérations dans UCM. Chaque action : émission de certificat, révocation, connexion utilisateur, modification de paramètre, est enregistrée avec des détails sur qui, quoi, quand et d'où.
 
 ## Détails des entrées de journal
 
 Chaque entrée de journal enregistre :
-- **Horodatage** — Quand l'action a eu lieu
-- **Utilisateur** — Qui a effectué l'action
-- **Action** — Ce qui a été fait (créer, mettre à jour, supprimer, connexion, etc.)
-- **Ressource** — Ce qui a été affecté (certificat, CA, utilisateur, etc.)
-- **Statut** — Succès ou échec
-- **Adresse IP** — IP source de la requête
-- **User Agent** — Identifiant de l'application cliente
-- **Détails** — Contexte supplémentaire (messages d'erreur, valeurs modifiées)
+- **Horodatage** : Quand l'action a eu lieu
+- **Utilisateur** : Qui a effectué l'action
+- **Action** : Ce qui a été fait (créer, mettre à jour, supprimer, connexion, etc.)
+- **Ressource** : Ce qui a été affecté (certificat, CA, utilisateur, etc.)
+- **Statut** : Succès ou échec
+- **Adresse IP** : IP source de la requête
+- **User Agent** : Identifiant de l'application cliente
+- **Détails** : Contexte supplémentaire (messages d'erreur, valeurs modifiées)
 
 ## Filtrage
 
@@ -64,8 +64,8 @@ Filtrer par catégorie d'opération :
 Afficher uniquement les actions effectuées par un utilisateur spécifique.
 
 ### Par statut
-- **Succès** — Opérations terminées avec succès
-- **Échec** — Opérations ayant échoué (échecs d'authentification, permission refusée, erreurs)
+- **Succès** : Opérations terminées avec succès
+- **Échec** : Opérations ayant échoué (échecs d'authentification, permission refusée, erreurs)
 
 ### Par plage de dates
 Définissez des dates **De** et **À** pour restreindre la fenêtre temporelle.
@@ -76,8 +76,8 @@ Recherche textuelle libre dans tous les champs du journal.
 ## Exportation
 
 Exportez les journaux filtrés en :
-- **JSON** — Lisible par machine, inclut tous les champs
-- **CSV** — Compatible avec les tableurs, inclut les champs clés
+- **JSON** : Lisible par machine, inclut tous les champs
+- **CSV** : Compatible avec les tableurs, inclut les champs clés
 
 Les exportations incluent uniquement les résultats actuellement filtrés.
 

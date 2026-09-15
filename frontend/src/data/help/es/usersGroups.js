@@ -19,7 +19,7 @@ export default {
         title: 'Grupos',
         items: [
           { label: 'Crear grupo', text: 'Definir un grupo y asignar miembros' },
-          { label: 'Permisos de grupo', text: 'Un grupo otorga un conjunto de permisos — cada miembro los recibe además de su propio rol' },
+          { label: 'Permisos de grupo', text: 'Un grupo otorga un conjunto de permisos, cada miembro los recibe además de su propio rol' },
           { label: 'Gestión de miembros', text: 'Agregar o eliminar usuarios de los grupos' },
         ]
       },
@@ -29,7 +29,7 @@ export default {
       'Los usuarios desactivados no pueden iniciar sesión pero sus datos se conservan',
     ],
     warnings: [
-      'Eliminar un usuario es permanente — considere desactivarlo en su lugar',
+      'Eliminar un usuario es permanente: considere desactivarlo en su lugar',
     ],
   },
   helpGuides: {
@@ -50,8 +50,8 @@ Administre cuentas de usuario, grupos y asignaciones de roles. Los usuarios se a
 6. Haga clic en **Crear**
 
 ### Estado del usuario
-- **Activo** — Puede iniciar sesión y realizar acciones
-- **Desactivado** — No puede iniciar sesión, los datos se conservan
+- **Activo**: Puede iniciar sesión y realizar acciones
+- **Desactivado**: No puede iniciar sesión, los datos se conservan
 
 Alterne el estado de un usuario sin eliminar su cuenta.
 
@@ -82,10 +82,10 @@ Los permisos efectivos de un usuario son la **unión** de:
 ## Roles
 
 ### Roles del sistema
-- **Admin** — Acceso completo a todas las funciones
-- **Operator** — Puede gestionar certificados, CAs, CSRs pero no la configuración del sistema
-- **Auditor** — Acceso de solo lectura a todos los datos operativos para cumplimiento y auditoría
-- **Viewer** — Acceso de solo lectura a certificados, CAs y plantillas
+- **Admin**: Acceso completo a todas las funciones
+- **Operator**: Puede gestionar certificados, CAs, CSRs pero no la configuración del sistema
+- **Auditor**: Acceso de solo lectura a todos los datos operativos para cumplimiento y auditoría
+- **Viewer**: Acceso de solo lectura a certificados, CAs y plantillas
 
 ### Roles personalizados
 Cree roles con permisos granulares en la página **RBAC**.
@@ -95,8 +95,8 @@ Cree roles con permisos granulares en la página **RBAC**.
 ## Origen de autenticación
 
 La columna **Origen** indica de dónde proviene cada usuario:
-- **Local** — creado y gestionado en UCM (contraseña local)
-- **LDAP / OAuth2 / SAML** — provisionado automáticamente en el primer inicio de sesión SSO; el nombre del proveedor de origen aparece en la insignia (p. ej. \`LDAP · Corporate AD\`).
+- **Local**: creado y gestionado en UCM (contraseña local)
+- **LDAP / OAuth2 / SAML**: provisionado automáticamente en el primer inicio de sesión SSO; el nombre del proveedor de origen aparece en la insignia (p. ej. \`LDAP · Corporate AD\`).
 
 Desde v2.133, los roles modificados manualmente en UCM para usuarios SSO se **conservan** entre inicios de sesión, salvo que **«Sincronizar rol en cada inicio de sesión»** esté activado en el proveedor (ver **Configuración → SSO**).
 `

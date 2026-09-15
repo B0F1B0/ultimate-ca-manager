@@ -24,7 +24,7 @@ export default {
       },
     ],
     tips: [
-      'Siga el principio de mínimo privilegio — otorgue solo los permisos necesarios',
+      'Siga el principio de mínimo privilegio: otorgue solo los permisos necesarios',
       'Los roles del sistema no se pueden modificar ni eliminar',
       'Active/desactive categorías completas para configurar roles rápidamente',
     ],
@@ -40,10 +40,10 @@ RBAC proporciona una gestión de permisos granular. Defina roles personalizados 
 
 Cuatro roles integrados que no se pueden modificar ni eliminar:
 
-- **Admin** — Acceso completo a todo
-- **Operator** — Gestiona certificados, CA, CSR y plantillas. Sin acceso a configuración del sistema, usuarios ni RBAC
-- **Auditor** — Acceso de solo lectura a todos los datos operativos (certificados, CA, ACME, SCEP, HSM, registros de auditoría, políticas, grupos) pero no a configuración ni gestión de usuarios
-- **Viewer** — Acceso básico de solo lectura a certificados, CA, CSR, plantillas y almacén de confianza
+- **Admin**: Acceso completo a todo
+- **Operator**: Gestiona certificados, CA, CSR y plantillas. Sin acceso a configuración del sistema, usuarios ni RBAC
+- **Auditor**: Acceso de solo lectura a todos los datos operativos (certificados, CA, ACME, SCEP, HSM, registros de auditoría, políticas, grupos) pero no a configuración ni gestión de usuarios
+- **Viewer**: Acceso básico de solo lectura a certificados, CA, CSR, plantillas y almacén de confianza
 
 ## Roles personalizados
 
@@ -55,24 +55,24 @@ Cuatro roles integrados que no se pueden modificar ni eliminar:
 
 ### Matriz de permisos
 Los permisos están organizados por categoría:
-- **CA** — Crear, leer, actualizar, eliminar, importar, exportar
-- **Certificados** — Emitir, leer, revocar, renovar, eliminar, exportar (solo el certificado — véase Claves privadas)
-- **Claves privadas** — Exportación directa de la clave privada (\`read:private_keys\`), solo administradores: ningún rol integrado salvo Admin la posee. Los roles sin ella pasan por la Recuperación de claves
-- **CSR** — Crear, leer, firmar, eliminar
-- **Plantillas** — Crear, leer, actualizar, eliminar
-- **Usuarios** — Crear, leer, actualizar, eliminar
-- **Grupos** — Crear, leer, actualizar, eliminar
-- **Configuración** — Leer, actualizar
-- **Auditoría** — Leer, exportar, limpiar
-- **ACME** — Configurar, gestionar cuentas
-- **SCEP** — Configurar, aprobar solicitudes
-- **Almacén de confianza** — Gestionar certificados de confianza
-- **HSM** — Gestionar proveedores y claves
-- **SSH** — Gestionar CA SSH y certificados SSH
-- **Políticas** — Ver políticas de certificados
-- **Aprobaciones** — Ver y decidir solicitudes de aprobación
-- **Recuperación de claves** — Solicitar recuperaciones y ver solicitudes (la aprobación es solo para administradores)
-- **Respaldo** — Crear, restaurar
+- **CA**: Crear, leer, actualizar, eliminar, importar, exportar
+- **Certificados**: Emitir, leer, revocar, renovar, eliminar, exportar (solo el certificado: véase Claves privadas)
+- **Claves privadas**: Exportación directa de la clave privada (\`read:private_keys\`), solo administradores: ningún rol integrado salvo Admin la posee. Los roles sin ella pasan por la Recuperación de claves
+- **CSR**: Crear, leer, firmar, eliminar
+- **Plantillas**: Crear, leer, actualizar, eliminar
+- **Usuarios**: Crear, leer, actualizar, eliminar
+- **Grupos**: Crear, leer, actualizar, eliminar
+- **Configuración**: Leer, actualizar
+- **Auditoría**: Leer, exportar, limpiar
+- **ACME**: Configurar, gestionar cuentas
+- **SCEP**: Configurar, aprobar solicitudes
+- **Almacén de confianza**: Gestionar certificados de confianza
+- **HSM**: Gestionar proveedores y claves
+- **SSH**: Gestionar CA SSH y certificados SSH
+- **Políticas**: Ver políticas de certificados
+- **Aprobaciones**: Ver y decidir solicitudes de aprobación
+- **Recuperación de claves**: Solicitar recuperaciones y ver solicitudes (la aprobación es solo para administradores)
+- **Respaldo**: Crear, restaurar
 
 ### Alternar categorías
 Haga clic en el encabezado de una categoría para activar/desactivar todos los permisos de esa categoría de una vez.
@@ -83,8 +83,8 @@ Una insignia de porcentaje muestra cuánto del conjunto total de permisos cubre 
 ## Asignación de roles
 
 Los roles se asignan:
-- **Directamente** — En la página de Usuarios, edite un usuario y seleccione un rol
-- **Mediante grupos** — Un grupo otorga un conjunto de permisos; cada miembro lo recibe además de su propio rol
+- **Directamente**: En la página de Usuarios, edite un usuario y seleccione un rol
+- **Mediante grupos**: Un grupo otorga un conjunto de permisos; cada miembro lo recibe además de su propio rol
 
 ## Permisos efectivos
 

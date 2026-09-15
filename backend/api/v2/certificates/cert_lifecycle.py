@@ -144,7 +144,7 @@ def _revoke_msca_on_ca(cert, reason):
         return success_response(
             data=cert_dict,
             message=(
-                'Certificate revoked in UCM only — no Microsoft CA admin channel '
+                'Certificate revoked in UCM only, no Microsoft CA admin channel '
                 'is configured, so the Windows CA was not notified. Enable the '
                 'WinRM admin channel on the connection, or revoke it on the CA.'
             ),

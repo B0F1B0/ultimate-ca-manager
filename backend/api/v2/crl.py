@@ -251,7 +251,7 @@ def regenerate_delta_crl(ca_id):
         elif 'private key' in msg:
             return error_response('CA does not have a private key', 400)
         elif 'base CRL' in msg:
-            return error_response('No base CRL exists — generate a full CRL first', 400)
+            return error_response('No base CRL exists: generate a full CRL first', 400)
         return error_response('Delta CRL generation failed', 400)
     except Exception as e:
         logger.error(f'Failed to generate delta CRL: {e}')
@@ -325,7 +325,7 @@ def configure_crl(ca_id):
             db.session.rollback()
             return error_response(
                 'publish_interval_hours cannot exceed the CRL validity '
-                f'({effective_validity} days) — the validity margin is the grace period',
+                f'({effective_validity} days): the validity margin is the grace period',
                 400)
 
         ok, err = safe_commit(logger, 'Failed to update CRL schedule')

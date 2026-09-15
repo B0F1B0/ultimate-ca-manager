@@ -50,7 +50,7 @@ export default function LetsEncryptTab({
   const enabledProxyAccounts = caAccounts.filter(a => a.proxy_enabled && a.proxy_slug)
   const proxyAccountOptions = caAccounts.map(a => ({
     value: String(a.id),
-    label: `${a.label}${a.is_default ? ` (${t('common.default')})` : ''}${a.is_registered ? '' : ` — ${t('acme.notRegistered')}`}`,
+    label: `${a.label}${a.is_default ? ` (${t('common.default')})` : ''}${a.is_registered ? '' : `: ${t('acme.notRegistered')}`}`,
   }))
 
   return (

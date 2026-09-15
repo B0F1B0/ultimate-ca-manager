@@ -188,7 +188,7 @@ def _load_mtls_config():
         _remember_mtls_mode(required)
 
         mode = "REQUIRED" if cert_reqs == 2 else "OPTIONAL"
-        print(f"mTLS: {mode} — trusted CA: {ca_name}", file=sys.stderr)
+        print(f"mTLS: {mode}, trusted CA: {ca_name}", file=sys.stderr)
 
     except Exception as e:
         print(f"mTLS: config load failed: {e}", file=sys.stderr)

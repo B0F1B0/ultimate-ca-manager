@@ -25,10 +25,10 @@ export default {
       {
         title: 'Autoenrollment Windows',
         items: [
-          { label: 'Consenti autoenrollment', text: 'Pubblicizza il modello come autoEnroll=true nella Certificate Enrollment Policy, così i client GPO/Kerberos lo richiedono automaticamente al logon. Disattivato per impostazione predefinita — l\'enrollment manuale resta possibile senza questo flag' },
-          { label: 'Costruisci soggetto da Active Directory', text: 'Deriva soggetto e SAN dall\'oggetto AD del richiedente (tramite l\'AD Connector) invece di richiedere che sia il client a fornirli — per l\'autoenrollment GPO non presidiato' },
+          { label: 'Consenti autoenrollment', text: 'Pubblicizza il modello come autoEnroll=true nella Certificate Enrollment Policy, così i client GPO/Kerberos lo richiedono automaticamente al logon. Disattivato per impostazione predefinita, l\'enrollment manuale resta possibile senza questo flag' },
+          { label: 'Costruisci soggetto da Active Directory', text: 'Deriva soggetto e SAN dall\'oggetto AD del richiedente (tramite l\'AD Connector) invece di richiedere che sia il client a fornirli, per l\'autoenrollment GPO non presidiato' },
           { label: 'Limita l\'enrollment a un gruppo AD', text: 'Solo i membri del gruppo AD configurato (inclusa l\'appartenenza annidata) possono fare enrollment tramite l\'endpoint Kerberos. Vuoto = qualsiasi principal autenticato. Non applicato sull\'endpoint Username/Password' },
-          { label: 'Campi soggetto bloccati', text: 'Forza i valori C/ST/L/O/OU su ogni certificato emesso via WSTEP, sovrascrivendo il CSR o la derivazione AD per quei campi. CN e SAN non sono mai interessati — lascia un campo vuoto per mantenerlo dinamico' },
+          { label: 'Campi soggetto bloccati', text: 'Forza i valori C/ST/L/O/OU su ogni certificato emesso via WSTEP, sovrascrivendo il CSR o la derivazione AD per quei campi. CN e SAN non sono mai interessati, lascia un campo vuoto per mantenerlo dinamico' },
         ]
       },
     ],
@@ -49,13 +49,13 @@ I modelli definiscono profili certificato riutilizzabili. Invece di configurare 
 
 ### Modelli End-Entity
 Per certificati server, certificati client, firma del codice e protezione email. Questi modelli tipicamente impostano:
-- **Key Usage** — Digital Signature, Key Encipherment
-- **Extended Key Usage** — Server Auth, Client Auth, Code Signing, Email Protection
+- **Key Usage**: Digital Signature, Key Encipherment
+- **Extended Key Usage**: Server Auth, Client Auth, Code Signing, Email Protection
 
 ### Modelli CA
 Per la creazione di CA intermedie. Questi impostano:
-- **Key Usage** — Certificate Sign, CRL Sign
-- **Basic Constraints** — CA:TRUE, lunghezza del percorso opzionale
+- **Key Usage**: Certificate Sign, CRL Sign
+- **Basic Constraints**: CA:TRUE, lunghezza del percorso opzionale
 
 ## Creazione di un modello
 
@@ -79,17 +79,17 @@ Quando emetti un certificato o firmi un CSR, seleziona un modello dal menu a ten
 
 I modelli includono tre flag opt-in usati dai protocolli di autoenrollment Windows (XCEP/WSTEP, configurati in **Impostazioni → Autoenrollment Windows**):
 
-- **Consenti autoenrollment** — Pubblicizza il modello come \`autoEnroll=true\` nella Certificate Enrollment Policy, così i client autenticati GPO/Kerberos lo richiedono automaticamente al logon senza alcuna azione dell'utente. Disattivato per impostazione predefinita — come nel vero ADCS, un modello può comunque essere richiesto manualmente (MMC «Richiedi nuovo certificato», \`certreq\`) senza questo flag, perché Enroll e Autoenroll sono permessi separati.
-- **Costruisci soggetto da Active Directory** — Per l'autoenrollment GPO non presidiato: deriva soggetto e SAN del certificato dall'oggetto AD del richiedente (tramite l'AD Connector) invece di richiedere che sia il client a fornirli.
-- **Limita l'enrollment a un gruppo AD** — Solo i principal appartenenti al gruppo Active Directory configurato (inclusa l'appartenenza annidata) possono fare enrollment con questo modello tramite l'endpoint autenticato Kerberos. Inserisci un nome di gruppo o un DN completo; lascia vuoto per consentire qualsiasi principal autenticato, come nel comportamento predefinito del vero ADCS. Non applicato sull'endpoint Username/Password, che non ha un'identità per richiesta da verificare.
+- **Consenti autoenrollment**: Pubblicizza il modello come \`autoEnroll=true\` nella Certificate Enrollment Policy, così i client autenticati GPO/Kerberos lo richiedono automaticamente al logon senza alcuna azione dell'utente. Disattivato per impostazione predefinita: come nel vero ADCS, un modello può comunque essere richiesto manualmente (MMC «Richiedi nuovo certificato», \`certreq\`) senza questo flag, perché Enroll e Autoenroll sono permessi separati.
+- **Costruisci soggetto da Active Directory**: Per l'autoenrollment GPO non presidiato: deriva soggetto e SAN del certificato dall'oggetto AD del richiedente (tramite l'AD Connector) invece di richiedere che sia il client a fornirli.
+- **Limita l'enrollment a un gruppo AD**: Solo i principal appartenenti al gruppo Active Directory configurato (inclusa l'appartenenza annidata) possono fare enrollment con questo modello tramite l'endpoint autenticato Kerberos. Inserisci un nome di gruppo o un DN completo; lascia vuoto per consentire qualsiasi principal autenticato, come nel comportamento predefinito del vero ADCS. Non applicato sull'endpoint Username/Password, che non ha un'identità per richiesta da verificare.
 
 I modelli con questi flag mostrano i badge **AD**, **Auto** e **ACL** nell'elenco dei modelli.
 
 ## Campi soggetto bloccati
 
-Un modello può **bloccare** i campi organizzativi del soggetto — **C, ST, L, O, OU** — per i certificati emessi via WSTEP. Un valore bloccato viene forzato su ogni certificato emesso, sovrascrivendo qualunque valore fornito dal CSR del client o dalla derivazione Active Directory per quel campo.
+Un modello può **bloccare** i campi organizzativi del soggetto: **C, ST, L, O, OU**: per i certificati emessi via WSTEP. Un valore bloccato viene forzato su ogni certificato emesso, sovrascrivendo qualunque valore fornito dal CSR del client o dalla derivazione Active Directory per quel campo.
 
-- **Common Name e Subject Alternative Name non sono mai interessati** — restano dinamici per ogni richiedente
+- **Common Name e Subject Alternative Name non sono mai interessati**: restano dinamici per ogni richiedente
 - Lascia un campo vuoto per mantenerlo dinamico
 - I modelli con campi bloccati mostrano un badge **Pinned** e i valori bloccati appaiono nel pannello di dettaglio del modello
 
@@ -106,8 +106,8 @@ Esporta i modelli come JSON per condividerli tra istanze UCM.
 
 ### Importa
 Importa da:
-- **File JSON** — Carica un file JSON del modello
-- **Incolla JSON** — Incolla il JSON direttamente nell'area di testo
+- **File JSON**: Carica un file JSON del modello
+- **Incolla JSON**: Incolla il JSON direttamente nell'area di testo
 
 ## Esempi comuni di modelli
 

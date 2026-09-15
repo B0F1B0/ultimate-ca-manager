@@ -2,7 +2,7 @@ export default {
   helpContent: {
     title: 'SSH-Zertifizierungsstellen',
     subtitle: 'SSH-CAs für Benutzer- und Host-Authentifizierung verwalten',
-    overview: 'Erstellen und verwalten Sie SSH-Zertifizierungsstellen gemäß den OpenSSH-Standards. SSH-CAs machen die Verteilung einzelner öffentlicher Schlüssel überflüssig — stattdessen vertrauen Server und Benutzer der CA, und die CA signiert Zertifikate, die Zugang gewähren.',
+    overview: 'Erstellen und verwalten Sie SSH-Zertifizierungsstellen gemäß den OpenSSH-Standards. SSH-CAs machen die Verteilung einzelner öffentlicher Schlüssel überflüssig, stattdessen vertrauen Server und Benutzer der CA, und die CA signiert Zertifikate, die Zugang gewähren.',
     sections: [
       {
         title: 'CA-Typen',
@@ -24,7 +24,7 @@ export default {
         items: [
           { label: 'Linux/macOS-Setup-Skript', text: 'Laden Sie ein POSIX-Shell-Skript (.sh) herunter, das sshd automatisch konfiguriert, dieser CA zu vertrauen. Schnellinstallation: curl -fsSL <url> | bash' },
           { label: 'Windows-Setup-Skript', text: 'Laden Sie ein PowerShell-Skript (.ps1) herunter, das den Windows OpenSSH Server konfiguriert (schreibt den öffentlichen CA-Schlüssel nach %ProgramData%\\ssh, härtet die ACLs, fügt TrustedUserCAKeys / HostCertificate zur sshd_config hinzu, validiert mit sshd -T, startet sshd neu). Schnellinstallation: iwr <url> | iex' },
-          { label: 'Diagnoseblock', text: 'Schlägt Add-WindowsCapability fehl (WSUS / domänenverbunden), gibt das Skript einen beschrifteten Block aus, der den Richtlinienzustand und drei Abhilfewege erklärt — es ändert die WSUS-/WU-Richtlinie nie selbst' },
+          { label: 'Diagnoseblock', text: 'Schlägt Add-WindowsCapability fehl (WSUS / domänenverbunden), gibt das Skript einen beschrifteten Block aus, der den Richtlinienzustand und drei Abhilfewege erklärt, es ändert die WSUS-/WU-Richtlinie nie selbst' },
           { label: 'Dry-run', text: 'Beide Skripte unterstützen ein -DryRun / --dry-run Flag, um Änderungen in der Vorschau anzuzeigen, ohne sie anzuwenden' },
           { label: 'Manuelle Einrichtung', text: 'Kopieren Sie den öffentlichen CA-Schlüssel und fügen Sie TrustedUserCAKeys (User CA) oder HostCertificate (Host CA) in sshd_config hinzu' },
         ]
@@ -39,19 +39,19 @@ export default {
       {
         title: 'TTL-Formate',
         items: [
-          { label: 'Dauern mit Suffix', text: 'Standard-TTL und Max-TTL akzeptieren 24h, 7d, 365d — Suffixe s, m, h, d, w, y' },
+          { label: 'Dauern mit Suffix', text: 'Standard-TTL und Max-TTL akzeptieren 24h, 7d, 365d, Suffixe s, m, h, d, w, y' },
           { label: 'Reine Zahlen', text: 'Eine einfache Zahl wird als Sekunden interpretiert (z. B. 3600 = 1 Stunde)' },
           { label: 'Validierung', text: 'Fehlerhafte Werte werden mit einer Fehlermeldung abgelehnt, die die akzeptierten Formate nennt' },
         ]
       },
     ],
     tips: [
-      'Verwenden Sie getrennte CAs für Benutzer- und Host-Zertifikate — mischen Sie diese niemals.',
+      'Verwenden Sie getrennte CAs für Benutzer- und Host-Zertifikate: mischen Sie diese niemals.',
       'Ed25519 wird wegen Geschwindigkeit und Sicherheit für neue Bereitstellungen empfohlen.',
-      'Laden Sie das Setup-Skript für eine einfache Serverkonfiguration herunter — es übernimmt Sicherung und Validierung automatisch.',
+      'Laden Sie das Setup-Skript für eine einfache Serverkonfiguration herunter: es übernimmt Sicherung und Validierung automatisch.',
     ],
     warnings: [
-      'Das Löschen einer CA widerruft keine von ihr signierten Zertifikate — widerrufen Sie diese zuerst oder aktualisieren Sie das Server-Vertrauen.',
+      'Das Löschen einer CA widerruft keine von ihr signierten Zertifikate: widerrufen Sie diese zuerst oder aktualisieren Sie das Server-Vertrauen.',
       'Wenn der private Schlüssel der CA kompromittiert wird, müssen alle von ihr signierten Zertifikate als nicht vertrauenswürdig betrachtet werden.',
     ],
   },
@@ -62,7 +62,7 @@ export default {
 
 SSH-Zertifizierungsstellen (CAs) bilden das Fundament der zertifikatsbasierten SSH-Authentifizierung. Anstatt einzelne öffentliche Schlüssel an jeden Server zu verteilen, erstellen Sie eine CA und konfigurieren Server so, dass sie ihr vertrauen. Jedes von der CA signierte Zertifikat wird dann automatisch akzeptiert.
 
-UCM unterstützt das OpenSSH-Zertifikatsformat (RFC 4253 + OpenSSH-Erweiterungen), das nativ von OpenSSH 5.4+ verstanden wird — keine zusätzliche Software auf Servern oder Clients erforderlich.
+UCM unterstützt das OpenSSH-Zertifikatsformat (RFC 4253 + OpenSSH-Erweiterungen), das nativ von OpenSSH 5.4+ verstanden wird: keine zusätzliche Software auf Servern oder Clients erforderlich.
 
 ## CA-Typen
 
@@ -76,7 +76,7 @@ TrustedUserCAKeys /etc/ssh/user_ca.pub
 \`\`\`
 
 ### Host CA
-Eine Host CA signiert Zertifikate, die **Server gegenüber Clients** authentifizieren. Wenn ein Client einer Host CA vertraut, kann er überprüfen, ob der Server, mit dem er sich verbindet, legitim ist — TOFU-Warnungen (Trust On First Use) werden damit eliminiert.
+Eine Host CA signiert Zertifikate, die **Server gegenüber Clients** authentifizieren. Wenn ein Client einer Host CA vertraut, kann er überprüfen, ob der Server, mit dem er sich verbindet, legitim ist. TOFU-Warnungen (Trust On First Use) werden damit eliminiert.
 
 **Client-Konfiguration:**
 \`\`\`
@@ -90,9 +90,9 @@ Eine Host CA signiert Zertifikate, die **Server gegenüber Clients** authentifiz
 2. Geben Sie einen aussagekräftigen Namen ein (z. B. „Produktions-User-CA")
 3. Wählen Sie den CA-Typ: **User** oder **Host**
 4. Wählen Sie den Schlüsselalgorithmus:
-   - **Ed25519** — Empfohlen. Schnell, kleine Schlüssel, moderne Sicherheit.
-   - **ECDSA P-256/P-384** — Gute Kompatibilität und Sicherheit.
-   - **RSA 2048/4096** — Breiteste Kompatibilität, größere Schlüssel.
+   - **Ed25519**: Empfohlen. Schnell, kleine Schlüssel, moderne Sicherheit.
+   - **ECDSA P-256/P-384**: Gute Kompatibilität und Sicherheit.
+   - **RSA 2048/4096**: Breiteste Kompatibilität, größere Schlüssel.
 5. Legen Sie optional die maximale Gültigkeit und Standarderweiterungen fest
 6. Klicken Sie auf **Erstellen**
 
@@ -100,8 +100,8 @@ Eine Host CA signiert Zertifikate, die **Server gegenüber Clients** authentifiz
 
 Die Felder **Standard-TTL** und **Max-TTL** akzeptieren gut lesbare Dauern:
 
-- Werte mit Suffix — \`24h\`, \`7d\`, \`365d\` (akzeptierte Suffixe: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
-- Reine Zahlen — werden als **Sekunden** interpretiert (z. B. \`3600\` = 1 Stunde)
+- Werte mit Suffix: \`24h\`, \`7d\`, \`365d\` (akzeptierte Suffixe: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
+- Reine Zahlen: werden als **Sekunden** interpretiert (z. B. \`3600\` = 1 Stunde)
 
 Fehlerhafte Werte werden mit einer Fehlermeldung abgelehnt, die die akzeptierten Formate nennt.
 

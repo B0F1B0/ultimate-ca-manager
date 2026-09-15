@@ -36,7 +36,7 @@ export default {
         title: 'Autenticazione mTLS',
         items: [
           { label: 'CA fidata', text: 'Seleziona la CA che emette e valida i certificati client di accesso mTLS' },
-          { label: 'Richiedi certificato client', text: 'Facoltativamente rendi l\'mTLS obbligatorio per l\'interfaccia web — la modifica delle impostazioni mTLS richiede un riavvio del servizio' },
+          { label: 'Richiedi certificato client', text: 'Facoltativamente rendi l\'mTLS obbligatorio per l\'interfaccia web, la modifica delle impostazioni mTLS richiede un riavvio del servizio' },
         ]
       },
     ],
@@ -47,7 +47,7 @@ export default {
     warnings: [
       'Una politica password troppo restrittiva può frustrare gli utenti',
       'Assicurati sempre che almeno un amministratore possa accedere al sistema prima di abilitare le restrizioni IP',
-      'Le impostazioni sensibili alla sicurezza (sessione, blocco, HSTS, URL pubblico, politica password) richiedono admin:settings — i campi sono bloccati per gli operatori',
+      'Le impostazioni sensibili alla sicurezza (sessione, blocco, HSTS, URL pubblico, politica password) richiedono admin:settings, i campi sono bloccati per gli operatori',
     ],
   },
   helpGuides: {
@@ -61,27 +61,27 @@ Configurazione di sicurezza a livello di sistema che interessa tutti gli account
 
 Cifra tutte le chiavi private di CA e certificati memorizzate nel database con AES-256, protette da un file di chiave master conservato fuori dal database.
 
-- **Stato e contatori** — La sezione mostra se la cifratura è abilitata e quante chiavi sono attualmente **cifrate** rispetto a quelle **non cifrate**
-- **Abilita cifratura** — Genera il file della chiave master e cifra tutte le chiavi private memorizzate. Esegui subito il backup del file della chiave: senza di esso, le chiavi cifrate sono perse in modo permanente
-- **Disabilita cifratura** — Decifra tutte le chiavi private riportandole alla memorizzazione in chiaro (conferma richiesta)
+- **Stato e contatori**: La sezione mostra se la cifratura è abilitata e quante chiavi sono attualmente **cifrate** rispetto a quelle **non cifrate**
+- **Abilita cifratura**: Genera il file della chiave master e cifra tutte le chiavi private memorizzate. Esegui subito il backup del file della chiave: senza di esso, le chiavi cifrate sono perse in modo permanente
+- **Disabilita cifratura**: Decifra tutte le chiavi private riportandole alla memorizzazione in chiaro (conferma richiesta)
 
 ### Controllo all'avvio
 
 Senza una chiave di cifratura configurata, UCM registra un avviso all'avvio ma continua a funzionare. Due **variabili d'ambiente opt-in** lo trasformano in un errore bloccante:
 
-- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` — rifiuta l'avvio senza una chiave di cifratura del database esplicita (altrimenti i segreti delle integrazioni ricadono su una chiave derivata dal machine id)
-- \`UCM_REQUIRE_KEY_ENCRYPTION\` — rifiuta l'avvio se la cifratura delle chiavi private non è abilitata
+- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\`: rifiuta l'avvio senza una chiave di cifratura del database esplicita (altrimenti i segreti delle integrazioni ricadono su una chiave derivata dal machine id)
+- \`UCM_REQUIRE_KEY_ENCRYPTION\`: rifiuta l'avvio se la cifratura delle chiavi private non è abilitata
 
 Entrambe accettano \`1\`/\`true\`/\`yes\`/\`on\`. Una chiave non valida è considerata un errore fatale invece di ricadere silenziosamente sul testo in chiaro.
 
 ## Politica password
 
 ### Requisiti di complessità
-- **Lunghezza minima** — Da 8 a 32 caratteri
-- **Richiedi maiuscole** — Almeno una lettera maiuscola
-- **Richiedi minuscole** — Almeno una lettera minuscola
-- **Richiedi numeri** — Almeno una cifra
-- **Richiedi caratteri speciali** — Almeno un simbolo
+- **Lunghezza minima**: Da 8 a 32 caratteri
+- **Richiedi maiuscole**: Almeno una lettera maiuscola
+- **Richiedi minuscole**: Almeno una lettera minuscola
+- **Richiedi numeri**: Almeno una cifra
+- **Richiedi caratteri speciali**: Almeno un simbolo
 
 ### Scadenza password
 Forza gli utenti a cambiare la password dopo un numero stabilito di giorni. Imposta a 0 per disabilitare.
@@ -121,8 +121,8 @@ Blocca IP o intervalli CIDR specifici. Tutti gli altri IP sono consentiti.
 Richiedi a tutti gli utenti di abilitare il 2FA. Gli utenti che non hanno configurato il 2FA riceveranno una richiesta al prossimo accesso.
 
 ### Metodi supportati
-- **TOTP** — Password monouso basate sul tempo (app di autenticazione)
-- **WebAuthn** — Chiavi di sicurezza hardware e biometria
+- **TOTP**: Password monouso basate sul tempo (app di autenticazione)
+- **WebAuthn**: Chiavi di sicurezza hardware e biometria
 
 > 💡 Imponi il 2FA almeno per gli account amministratore. Considera di imporlo per tutti gli utenti in ambienti sensibili alla sicurezza.
 
@@ -130,13 +130,13 @@ Richiedi a tutti gli utenti di abilitare il 2FA. Gli utenti che non hanno config
 
 Consenti agli utenti di accedere con un certificato client invece di una password:
 
-- **CA fidata** — Seleziona la CA che emette e valida i certificati client mTLS
-- **Richiedi certificato client** — Facoltativamente rendi l'mTLS obbligatorio per l'interfaccia web
+- **CA fidata**: Seleziona la CA che emette e valida i certificati client mTLS
+- **Richiedi certificato client**: Facoltativamente rendi l'mTLS obbligatorio per l'interfaccia web
 - La modifica delle impostazioni mTLS richiede un riavvio del servizio
 
 ## Permessi richiesti
 
-Le impostazioni sensibili alla sicurezza — sessione, blocco, HSTS, URL pubblico e politica password — richiedono il permesso **admin:settings**. Per gli operatori (solo write:settings), questi campi vengono mostrati bloccati; il resto della scheda si salva normalmente.
+Le impostazioni sensibili alla sicurezza: sessione, blocco, HSTS, URL pubblico e politica password, richiedono il permesso **admin:settings**. Per gli operatori (solo write:settings), questi campi vengono mostrati bloccati; il resto della scheda si salva normalmente.
 `
   }
 }

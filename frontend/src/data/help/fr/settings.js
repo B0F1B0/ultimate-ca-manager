@@ -17,10 +17,10 @@ export default {
         title: "Vhost ACME public",
         content: "Paramètres › Général : nom d'hôte et port publics pour les URL du directory ACME derrière un reverse proxy.",
         items: [
-          { label: "Admin", text: "admin.ucm.example.com — GUI et API (mTLS selon politique)" },
-          { label: "ACME", text: "acme.ucm.example.com — /acme/* et /acme/proxy/* (sans mTLS client)" },
-          { label: "TLS wildcard", text: "Nom concret (ex. acme.ucm.example.com). Un SAN *.ucm.example.com sur le certificat couvre le TLS admin et ACME — ne pas saisir *.ucm.example.com comme vhost" },
-          { label: "Avant enregistrement", text: "DNS et TLS opérationnels pour le vhost ACME — les clients basculent les URL du directory immédiatement" },
+          { label: "Admin", text: "admin.ucm.example.com, GUI et API (mTLS selon politique)" },
+          { label: "ACME", text: "acme.ucm.example.com, /acme/* et /acme/proxy/* (sans mTLS client)" },
+          { label: "TLS wildcard", text: "Nom concret (ex. acme.ucm.example.com). Un SAN *.ucm.example.com sur le certificat couvre le TLS admin et ACME, ne pas saisir *.ucm.example.com comme vhost" },
+          { label: "Avant enregistrement", text: "DNS et TLS opérationnels pour le vhost ACME, les clients basculent les URL du directory immédiatement" },
           { label: "ID certificat TLS", text: "Métadonnée du certificat déployé sur le vhost ACME (ex. wildcard)" },
         ]
       },
@@ -55,11 +55,11 @@ export default {
         title: "Mises à jour automatiques (v2.215)",
         content: "Paramètres › Mises à jour : vérification quotidienne en arrière-plan des nouvelles versions, et installation sans surveillance optionnelle.",
         items: [
-          { label: "Canal", text: "« Versions stables » ne suit que les releases finales ; « Versions candidates » n'accepte en plus que les versions rcN — jamais les alpha/bêta" },
+          { label: "Canal", text: "« Versions stables » ne suit que les releases finales ; « Versions candidates » n'accepte en plus que les versions rcN, jamais les alpha/bêta" },
           { label: "Notification", text: "Une version nouvellement disponible déclenche l'événement webhook/e-mail system.update_available, une fois par version" },
-          { label: "Installation auto", text: "Désactivée par défaut. Une fois activée, UCM télécharge, vérifie et installe la mise à jour à l'heure choisie, puis redémarre — installations DEB/RPM uniquement" },
+          { label: "Installation auto", text: "Désactivée par défaut. Une fois activée, UCM télécharge, vérifie et installe la mise à jour à l'heure choisie, puis redémarre, installations DEB/RPM uniquement" },
           { label: "Somme de contrôle", text: "Une installation sans surveillance exige le SHA256 publié de la release pour vérification ; une installation manuelle vérifie aussi dès qu'une somme de contrôle est publiée" },
-          { label: "Docker", text: "Les conteneurs ne peuvent pas se mettre à jour eux-mêmes — la vérification et la notification fonctionnent toujours ; récupérez la nouvelle image pour mettre à jour" },
+          { label: "Docker", text: "Les conteneurs ne peuvent pas se mettre à jour eux-mêmes, la vérification et la notification fonctionnent toujours ; récupérez la nouvelle image pour mettre à jour" },
           { label: 'Popup post-mise à jour', text: 'Optionnel (v2.217) : affiche une fois les notes de version après l\'installation d\'une mise à jour, par utilisateur. Désactivé par défaut' },
         ]
       },
@@ -96,9 +96,9 @@ export default {
         title: 'Hooks de déploiement (v2.215)',
         content: "Paramètres › Déploiement (réservé aux admins) : hôtes distants vers lesquels UCM pousse les certificats en SFTP, puis exécute une commande de rechargement fixe en SSH.",
         items: [
-          { label: 'Cible', text: "Hôte, port, utilisateur SSH. UCM génère une clé ed25519 (installez la clé publique affichée sur la cible) ou accepte une clé privée importée — stockée chiffrée" },
+          { label: 'Cible', text: "Hôte, port, utilisateur SSH. UCM génère une clé ed25519 (installez la clé publique affichée sur la cible) ou accepte une clé privée importée, stockée chiffrée" },
           { label: "Clé d'hôte", text: "Épinglée à la première connexion réussie (trust-on-first-use) ; tout changement ultérieur fait échouer la connexion. Changer l'hôte ré-épingle la clé" },
-          { label: 'Commande de rechargement', text: "Une commande fixe, définie par l'admin, exécutée après un envoi réussi (par ex. systemctl reload nginx) — exit 0 = succès, pas de templating" },
+          { label: 'Commande de rechargement', text: "Une commande fixe, définie par l'admin, exécutée après un envoi réussi (par ex. systemctl reload nginx) : exit 0 = succès, pas de templating" },
           { label: 'Liaisons', text: "Les certificats sont attachés aux cibles depuis le panneau de détails du certificat, avec des chemins de destination par fichier" },
           { label: 'Livraison', text: "Les envois s'exécutent de façon asynchrone via une file durable avec réessais et backoff ; statut par livraison, « Déployer maintenant » et réessai manuels, piste d'audit complète" },
           { label: 'Moindre privilège', text: "Utilisez un compte SSH dédié sur chaque cible : accès en écriture aux chemins des certificats et permission de recharger le service, rien de plus" },
@@ -150,11 +150,11 @@ export default {
       'Testez les paramètres SMTP avant de vous fier aux notifications par e-mail',
       'Personnalisez le modèle d\'e-mail avec votre marque à l\'aide de l\'éditeur HTML/Texte intégré',
       'Programmez des sauvegardes automatiques pour les environnements de production',
-      'Le basculement SQLite ↔ PostgreSQL est bidirectionnel — l\'UI exécute des contrôles de sûreté (driver chargé, cible joignable, cible vide) avant migration',
+      'Le basculement SQLite ↔ PostgreSQL est bidirectionnel : l\'UI exécute des contrôles de sûreté (driver chargé, cible joignable, cible vide) avant migration',
     ],
     warnings: [
       'Le changement du certificat HTTPS nécessite un redémarrage du service',
-      'La modification des paramètres de sécurité peut verrouiller les utilisateurs — vérifiez l\'accès avant d\'enregistrer',
+      'La modification des paramètres de sécurité peut verrouiller les utilisateurs : vérifiez l\'accès avant d\'enregistrer',
     ],
   },
   helpGuides: {
@@ -166,36 +166,36 @@ Configuration à l'échelle du système organisée en onglets. Les modifications
 
 ## Général
 
-- **Nom de l'instance** — Affiché dans le titre du navigateur et les e-mails
-- **Nom d'hôte** — Le nom de domaine pleinement qualifié du serveur
-- **Validité par défaut** — Période de validité par défaut des certificats en jours
-- **Seuil d'alerte d'expiration** — Jours avant l'expiration pour déclencher des avertissements
-- **Vhost ACME public** — Nom d'hôte concret dans les URL du directory ACME (ex. \`acme.ucm.example.com\`, pas \`*.ucm.example.com\`). Un **SAN de certificat TLS** wildcard \`*.ucm.example.com\` couvre à la fois \`admin.ucm.example.com\` et \`acme.ucm.example.com\`. Configurez le DNS et le TLS du vhost ACME **avant** d'enregistrer : les clients qui relisent le directory basculent immédiatement d'URL.
+- **Nom de l'instance** : Affiché dans le titre du navigateur et les e-mails
+- **Nom d'hôte** : Le nom de domaine pleinement qualifié du serveur
+- **Validité par défaut** : Période de validité par défaut des certificats en jours
+- **Seuil d'alerte d'expiration** : Jours avant l'expiration pour déclencher des avertissements
+- **Vhost ACME public** : Nom d'hôte concret dans les URL du directory ACME (ex. \`acme.ucm.example.com\`, pas \`*.ucm.example.com\`). Un **SAN de certificat TLS** wildcard \`*.ucm.example.com\` couvre à la fois \`admin.ucm.example.com\` et \`acme.ucm.example.com\`. Configurez le DNS et le TLS du vhost ACME **avant** d'enregistrer : les clients qui relisent le directory basculent immédiatement d'URL.
 
 ## Apparence
 
-- **Thème** — Clair, Sombre ou Système (suit la préférence du système d'exploitation)
-- **Couleur d'accentuation** — Couleur principale utilisée pour les boutons, liens et mises en évidence
-- **Forcer le mode bureau** — Désactiver la disposition mobile responsive
-- **Comportement de la barre latérale** — Repliée ou étendue par défaut
+- **Thème** : Clair, Sombre ou Système (suit la préférence du système d'exploitation)
+- **Couleur d'accentuation** : Couleur principale utilisée pour les boutons, liens et mises en évidence
+- **Forcer le mode bureau** : Désactiver la disposition mobile responsive
+- **Comportement de la barre latérale** : Repliée ou étendue par défaut
 
 ## E-mail (SMTP)
 
 Configurez SMTP pour les notifications par e-mail (alertes d'expiration, invitations d'utilisateurs) :
 - **Hôte SMTP** et **Port**
 - **Nom d'utilisateur** et **Mot de passe**
-- **Chiffrement** — Aucun, STARTTLS ou SSL/TLS
-- **Adresse d'expédition** — Adresse e-mail de l'expéditeur
-- **Type de contenu** — HTML, texte brut ou les deux
-- **Destinataires des alertes** — Ajoutez plusieurs destinataires en utilisant le champ de tags
+- **Chiffrement** : Aucun, STARTTLS ou SSL/TLS
+- **Adresse d'expédition** : Adresse e-mail de l'expéditeur
+- **Type de contenu** : HTML, texte brut ou les deux
+- **Destinataires des alertes** : Ajoutez plusieurs destinataires en utilisant le champ de tags
 
 Cliquez sur **Tester** pour envoyer un e-mail de test et vérifier la configuration.
 
 ### Éditeur de modèle d'e-mail
 
 Cliquez sur **Modifier le modèle** pour ouvrir l'éditeur de modèle en panneau divisé dans une fenêtre flottante :
-- **Onglet HTML** — Modifiez le modèle d'e-mail HTML avec aperçu en direct à droite
-- **Onglet Texte brut** — Modifiez la version texte brut pour les clients e-mail qui ne prennent pas en charge HTML
+- **Onglet HTML** : Modifiez le modèle d'e-mail HTML avec aperçu en direct à droite
+- **Onglet Texte brut** : Modifiez la version texte brut pour les clients e-mail qui ne prennent pas en charge HTML
 - Variables disponibles : \`{{title}}\`, \`{{content}}\`, \`{{datetime}}\`, \`{{instance_url}}\`, \`{{logo}}\`, \`{{title_color}}\`
 - Cliquez sur **Rétablir les valeurs par défaut** pour restaurer le modèle UCM intégré
 - La fenêtre est redimensionnable et déplaçable pour un édition confortable
@@ -232,7 +232,7 @@ Exiger que tous les utilisateurs activent l'authentification à deux facteurs.
 ### Chiffrement des clés privées
 Chiffrez toutes les clés privées stockées en base de données avec AES-256, protégées par un fichier de clé maîtresse. La section affiche l'état du chiffrement et les compteurs de clés **chiffrées / non chiffrées**. Deux variables d'environnement opt-in rendent l'absence de clé fatale au démarrage : \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` (chiffrement des secrets d'intégration) et \`UCM_REQUIRE_KEY_ENCRYPTION\` (chiffrement des clés privées).
 
-> 💡 Les paramètres sensibles (session, verrouillage, HSTS, URL publique, politique de mot de passe) exigent la permission **admin:settings** — les champs sont verrouillés pour les opérateurs.
+> 💡 Les paramètres sensibles (session, verrouillage, HSTS, URL publique, politique de mot de passe) exigent la permission **admin:settings** : les champs sont verrouillés pour les opérateurs.
 
 > ⚠ Testez les restrictions IP soigneusement avant de les appliquer. Des règles incorrectes peuvent verrouiller tous les utilisateurs.
 
@@ -275,16 +275,16 @@ Téléversez un fichier de sauvegarde pour restaurer UCM à un état précédent
 
 ## Audit
 
-- **Rétention des journaux** — Nettoyage automatique des anciens journaux après N jours
-- **Transfert syslog** — Envoyer les événements à un serveur syslog distant (UDP/TCP/TLS)
-- **Vérification d'intégrité** — Activer le chaînage de hachages pour la détection d'altération
+- **Rétention des journaux** : Nettoyage automatique des anciens journaux après N jours
+- **Transfert syslog** : Envoyer les événements à un serveur syslog distant (UDP/TCP/TLS)
+- **Vérification d'intégrité** : Activer le chaînage de hachages pour la détection d'altération
 
 ## Base de données
 
 UCM prend en charge deux backends de base de données :
 
-- **SQLite** (par défaut) — basé sur fichier, sans configuration, idéal pour un nœud unique
-- **PostgreSQL 13+** — recommandé pour la haute disponibilité, le multi-instance ou si vous opérez déjà un cluster PG géré
+- **SQLite** (par défaut) : basé sur fichier, sans configuration, idéal pour un nœud unique
+- **PostgreSQL 13+** : recommandé pour la haute disponibilité, le multi-instance ou si vous opérez déjà un cluster PG géré
 
 Le backend actif est sélectionné par la variable d'environnement \`DATABASE_URL\`. Si elle n'est pas définie, UCM utilise SQLite dans \`UCM_DATA_DIR/ucm.db\`.
 
@@ -294,10 +294,10 @@ Le backend actif est sélectionné par la variable d'environnement \`DATABASE_UR
 - Version de migration
 
 ### Tester la connexion
-Validez une \`DATABASE_URL\` (ex. \`postgresql://user:pass@host:5432/ucm\`) avant de basculer. Le test ouvre une vraie connexion et signale toute erreur. Les serveurs PostgreSQL antérieurs à la version 13 sont rejetés — UCM nécessite PostgreSQL 13 ou plus récent.
+Validez une \`DATABASE_URL\` (ex. \`postgresql://user:pass@host:5432/ucm\`) avant de basculer. Le test ouvre une vraie connexion et signale toute erreur. Les serveurs PostgreSQL antérieurs à la version 13 sont rejetés, UCM nécessite PostgreSQL 13 ou plus récent.
 
 ### Basculer le backend
-Persiste \`DATABASE_URL\` dans \`/etc/ucm/ucm.env\` (DEB/RPM) et redémarre UCM. **Aucune donnée n'est copiée** — utilisez **Migrer** d'abord si vous voulez conserver vos données existantes.
+Persiste \`DATABASE_URL\` dans \`/etc/ucm/ucm.env\` (DEB/RPM) et redémarre UCM. **Aucune donnée n'est copiée** : utilisez **Migrer** d'abord si vous voulez conserver vos données existantes.
 
 ### Migrer les données
 Copie toutes les lignes du backend actuel vers le backend cible. Fonctionne dans les deux sens (SQLite ↔ PostgreSQL) :
@@ -307,7 +307,7 @@ Copie toutes les lignes du backend actuel vers le backend cible. Fonctionne dans
 3. Les contraintes FK sont désactivées pendant le chargement
 4. Les colonnes source/cible sont intersectées (les colonnes héritées sont ignorées avec un avertissement)
 5. Les séquences PostgreSQL sont réinitialisées après le chargement
-6. Le service redémarre automatiquement (DEB/RPM) — sur Docker, définissez \`DATABASE_URL\` dans votre fichier compose et redémarrez le conteneur manuellement
+6. Le service redémarre automatiquement (DEB/RPM) : sur Docker, définissez \`DATABASE_URL\` dans votre fichier compose et redémarrez le conteneur manuellement
 
 **Contrôles de sécurité (échec rapide, source intacte) :**
 - La cible doit être vide. Si \`users\`, \`cas\` ou \`certificates\` contiennent déjà des lignes, la migration est refusée avec un HTTP 409 et un indice de nettoyage :
@@ -348,11 +348,11 @@ Configurez des webhooks HTTP pour notifier les systèmes externes lors d'événe
 
 Authentification sortante optionnelle (s'ajoute à la signature HMAC optionnelle) :
 
-- **Aucune** — Pas d'en-tête d'authentification (webhooks publics)
-- **Bearer** — Authorization: Bearer {token}
-- **Basic** — Authorization: Basic base64(utilisateur:motdepasse)
-- **Clé API** — En-tête personnalisé (p.ex. X-Api-Key: {token})
-- **Personnalisée** — Authorization: {schéma} {token} (p.ex. auth-key VALEUR)
+- **Aucune** : Pas d'en-tête d'authentification (webhooks publics)
+- **Bearer** : Authorization: Bearer {token}
+- **Basic** : Authorization: Basic base64(utilisateur:motdepasse)
+- **Clé API** : En-tête personnalisé (p.ex. X-Api-Key: {token})
+- **Personnalisée** : Authorization: {schéma} {token} (p.ex. auth-key VALEUR)
 
 Les tokens sont stockés chiffrés et jamais renvoyés dans l'UI.
 
@@ -394,9 +394,9 @@ Paramètres › Système expose les tâches d'arrière-plan.
 
 Les paramètres de renouvellement automatique pilotent le planificateur de renouvellement.
 
-- **Sources** — le planificateur renouvelle les certificats dont le serveur détient la clé privée : par défaut ceux émis depuis le formulaire ou une requête signée (« manual »), ainsi que les enrôlements SCEP, ACME et EST à clé générée par le serveur. Les appareils qui détiennent leur propre clé se renouvellent via leur protocole
-- **En attente d'approbation** — un certificat dont le renouvellement est en file d'approbation est laissé à cette décision, tant qu'elle peut intervenir avant l'expiration du certificat
-- **Renouvelé entre-temps** — un certificat qu'un opérateur a renouvelé pendant le lot n'est pas renouvelé une seconde fois ; un certificat supprimé pendant le lot est ignoré
+- **Sources** : le planificateur renouvelle les certificats dont le serveur détient la clé privée : par défaut ceux émis depuis le formulaire ou une requête signée (« manual »), ainsi que les enrôlements SCEP, ACME et EST à clé générée par le serveur. Les appareils qui détiennent leur propre clé se renouvellent via leur protocole
+- **En attente d'approbation** : un certificat dont le renouvellement est en file d'approbation est laissé à cette décision, tant qu'elle peut intervenir avant l'expiration du certificat
+- **Renouvelé entre-temps** : un certificat qu'un opérateur a renouvelé pendant le lot n'est pas renouvelé une seconde fois ; un certificat supprimé pendant le lot est ignoré
 
 ## Sauvegardes planifiées
 
@@ -411,17 +411,17 @@ Paramètres › Sauvegarde permet des sauvegardes automatiques.
 
 Connexion LDAP propre à UCM à Active Directory, indépendante de tout fournisseur LDAP configuré sous SSO. Celui-ci sert à se connecter à UCM ; celui-ci est utilisé pour les recherches AD liées aux certificats et fonctionne indépendamment du fait que le SSO soit configuré ou non.
 
-- **Objectif** — Résout un principal de machine ou d'utilisateur Kerberos vers son objet AD, afin qu'UCM puisse dériver un sujet/SAN de certificat comme le ferait une vraie AC Windows
-- **Serveur** — Nom d'hôte/IP et port d'un contrôleur de domaine
-- **LDAPS** — Activer pour utiliser LDAP sur SSL/TLS ; **Vérifier le certificat SSL** valide le certificat du DC (éventuellement par rapport à un bundle d'AC personnalisé lorsqu'il n'est pas approuvé publiquement)
-- **DN de base** et **DN de liaison / Mot de passe** — Identifiants du compte de service utilisés pour les recherches
-- **Tester la connexion** — Vérifier la connectivité et les identifiants avant d'enregistrer
+- **Objectif** : Résout un principal de machine ou d'utilisateur Kerberos vers son objet AD, afin qu'UCM puisse dériver un sujet/SAN de certificat comme le ferait une vraie AC Windows
+- **Serveur** : Nom d'hôte/IP et port d'un contrôleur de domaine
+- **LDAPS** : Activer pour utiliser LDAP sur SSL/TLS ; **Vérifier le certificat SSL** valide le certificat du DC (éventuellement par rapport à un bundle d'AC personnalisé lorsqu'il n'est pas approuvé publiquement)
+- **DN de base** et **DN de liaison / Mot de passe** : Identifiants du compte de service utilisés pour les recherches
+- **Tester la connexion** : Vérifier la connectivité et les identifiants avant d'enregistrer
 
 ### URL de stratégie d'inscription GPO
 
 Une fois configuré, enregistrez l'une des URL affichées comme serveur de stratégie d'inscription de certificats dans la stratégie de groupe (Stratégies de clé publique → Client des services de certificats – Stratégie d'inscription de certificats), avec Client des services de certificats – Inscription automatique :
-- **Kerberos** — Aucune invite d'identifiants ; nécessite un client joint au domaine et le type d'authentification de la GPO défini sur Kerberos
-- **Nom d'utilisateur/Mot de passe** — Demande des identifiants ; pour l'inscription interactive « Demander un nouveau certificat » uniquement
+- **Kerberos** : Aucune invite d'identifiants ; nécessite un client joint au domaine et le type d'authentification de la GPO défini sur Kerberos
+- **Nom d'utilisateur/Mot de passe** : Demande des identifiants ; pour l'inscription interactive « Demander un nouveau certificat » uniquement
 
 ## Auto-inscription Windows (XCEP/WSTEP)
 
@@ -433,29 +433,29 @@ L'onglet suit ce qui est configuré par rapport à ce qui manque encore, pour le
 
 ### Découverte de stratégie (XCEP)
 
-- **Autorité de certification** — L'AC dont les modèles sont annoncés et qui émet des certificats via cette configuration
-- **Validité (jours)** — Validité par défaut appliquée aux certificats émis via WSTEP
+- **Autorité de certification** : L'AC dont les modèles sont annoncés et qui émet des certificats via cette configuration
+- **Validité (jours)** : Validité par défaut appliquée aux certificats émis via WSTEP
 
 ### Kerberos / SPNEGO
 
 Lie les points de terminaison XCEP/WSTEP authentifiés par Kerberos utilisés pour l'auto-inscription GPO silencieuse, afin que les machines et les utilisateurs soient authentifiés par leur ticket Kerberos plutôt que par une invite d'identifiants :
-- **Nom de principal de service (SPN)** — p. ex. \`HTTP/ucm.exemple.fr@EXEMPLE.FR\`
-- **Keytab** — Généré avec \`ktpass\` ou \`ktutil\` sur le contrôleur de domaine pour le SPN ci-dessus
+- **Nom de principal de service (SPN)** : p. ex. \`HTTP/ucm.exemple.fr@EXEMPLE.FR\`
+- **Keytab** : Généré avec \`ktpass\` ou \`ktutil\` sur le contrôleur de domaine pour le SPN ci-dessus
 
-> ⚠ Kerberos nécessite le **backend \`gssapi\`** côté serveur (la bibliothèque Python \`gssapi\` plus les bibliothèques Kerberos système) — le paquet SPNEGO de base seul ne suffit pas. Sans lui, l'authentification Kerberos ne fonctionnera pas même si elle est activée ici, et la liaison Kerberos n'est pas annoncée ; un avertissement s'affiche sur l'onglet.
+> ⚠ Kerberos nécessite le **backend \`gssapi\`** côté serveur (la bibliothèque Python \`gssapi\` plus les bibliothèques Kerberos système) : le paquet SPNEGO de base seul ne suffit pas. Sans lui, l'authentification Kerberos ne fonctionnera pas même si elle est activée ici, et la liaison Kerberos n'est pas annoncée ; un avertissement s'affiche sur l'onglet.
 
 ### URL de stratégie d'inscription
 
-- **Nom d'utilisateur/Mot de passe** — Demande des identifiants ; pour l'inscription interactive « Demander un nouveau certificat », ne nécessite pas Active Directory
-- **Kerberos** — Aucune invite d'identifiants ; nécessite un client joint au domaine et une configuration GPO
+- **Nom d'utilisateur/Mot de passe** : Demande des identifiants ; pour l'inscription interactive « Demander un nouveau certificat », ne nécessite pas Active Directory
+- **Kerberos** : Aucune invite d'identifiants ; nécessite un client joint au domaine et une configuration GPO
 
 ### Liaison de renouvellement par certificat
 
-En plus de Nom d'utilisateur/Mot de passe et Kerberos, WSTEP prend en charge le **renouvellement par certificat client**, à l'image des vrais endpoints CES d'ADCS : la requête de renouvellement (RST) doit être signée en XML-DSig avec la clé privée d'un certificat **émis par UCM lui-même**. Le certificat présenté est comparé **octet par octet** au certificat stocké pour la CA configurée — le numéro de série ou le sujet seuls ne suffisent jamais. Cela permet aux clients Windows de renouveler sans surveillance avec leur certificat actuel, sans identifiants ni ticket Kerberos.
+En plus de Nom d'utilisateur/Mot de passe et Kerberos, WSTEP prend en charge le **renouvellement par certificat client**, à l'image des vrais endpoints CES d'ADCS : la requête de renouvellement (RST) doit être signée en XML-DSig avec la clé privée d'un certificat **émis par UCM lui-même**. Le certificat présenté est comparé **octet par octet** au certificat stocké pour la CA configurée, le numéro de série ou le sujet seuls ne suffisent jamais. Cela permet aux clients Windows de renouveler sans surveillance avec leur certificat actuel, sans identifiants ni ticket Kerberos.
 
 ### Extension de sécurité SID (KB5014754)
 
-Lors d'une **émission authentifiée par Kerberos**, UCM intègre le SID AD du demandeur dans l'extension de sécurité SID de Microsoft (\`szOID_NTDS_CA_SECURITY_EXT\`) du certificat émis. Les contrôleurs de domaine l'utilisent pour le **mappage fort de certificats** (KB5014754) — requis depuis l'application par AD du mappage fort pour l'authentification par certificat (connexion par carte à puce, PKINIT).
+Lors d'une **émission authentifiée par Kerberos**, UCM intègre le SID AD du demandeur dans l'extension de sécurité SID de Microsoft (\`szOID_NTDS_CA_SECURITY_EXT\`) du certificat émis. Les contrôleurs de domaine l'utilisent pour le **mappage fort de certificats** (KB5014754) : requis depuis l'application par AD du mappage fort pour l'authentification par certificat (connexion par carte à puce, PKINIT).
 
 ### Sujets dérivés d'AD
 

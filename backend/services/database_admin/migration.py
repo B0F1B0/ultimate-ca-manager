@@ -355,7 +355,7 @@ def bootstrap_auth_to_target(target_url: str) -> Tuple[bool, str, dict]:
             stats["refusal"] = "verification"
             return (
                 False,
-                "No user account reached the target — switch aborted to "
+                "No user account reached the target: switch aborted to "
                 "prevent lockout",
                 stats,
             )

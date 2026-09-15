@@ -9,7 +9,7 @@ export default {
         items: [
           { label: 'IDプロバイダー', text: 'IDPメタデータURLの設定またはXMLのアップロード' },
           { label: 'SPメタデータURL', text: 'UCMをサービスプロバイダーとして自動設定するためにIDPに提供するURL' },
-          { label: 'SP証明書', text: 'メタデータに含まれるUCM HTTPS証明書 — IDPに信頼される必要があり、信頼されない場合メタデータが拒否されます' },
+          { label: 'SP証明書', text: 'メタデータに含まれるUCM HTTPS証明書, IDPに信頼される必要があり、信頼されない場合メタデータが拒否されます' },
           { label: 'Entity ID', text: 'UCMサービスプロバイダーのエンティティ識別子' },
           { label: 'ACS URL', text: 'Assertion Consumer ServiceコールバックURL' },
           { label: '属性マッピング', text: 'IDP属性をUCMユーザーフィールドにマッピング' },
@@ -29,7 +29,7 @@ export default {
         title: 'ロールプロビジョニング (#81)',
         items: [
           { label: 'デフォルトロール', text: '初回SSOログイン時にユーザーが自動作成された場合に限り適用されます。その後UCMで行われたロール変更は保持されます。' },
-          { label: 'ロールマッピング', text: '外部グループ（Azure AD、Okta、LDAP）→ UCMロール（admin / operator / viewer）をマッピングします。ユーザー作成時、およびロール同期が有効な場合は毎回のログイン時に使用されます。複数のグループが一致した場合は最上位権限のロールが優先されます（admin > operator > auditor > viewer）— エントリの順序は関係ありません（#221）。' },
+          { label: 'ロールマッピング', text: '外部グループ（Azure AD、Okta、LDAP）→ UCMロール（admin / operator / viewer）をマッピングします。ユーザー作成時、およびロール同期が有効な場合は毎回のログイン時に使用されます。複数のグループが一致した場合は最上位権限のロールが優先されます（admin > operator > auditor > viewer）, エントリの順序は関係ありません（#221）。' },
           { label: 'ログインごとにロールを同期', text: 'オフ（デフォルト）：SSOがUCM管理のロールを上書きすることはありません。オン：毎回のログイン時にrole_mappingからロールが再同期されます。マッピングに一致しないユーザーは保存されたロールを維持します（default_roleが再適用されることはありません）。' },
           { label: 'ユーザー自動更新', text: 'ログインごとにメールとフルネームを更新します。ロールには触れません。' },
         ]
@@ -53,7 +53,7 @@ export default {
       'SAMLメタデータが受け入れられるには、UCM HTTPS証明書がIDPに信頼される必要があります',
     ],
     warnings: [
-      'SSOの設定ミスはすべてのユーザーをロックアウトする可能性があります — 常にローカル管理者を保持してください',
+      'SSOの設定ミスはすべてのユーザーをロックアウトする可能性があります: 常にローカル管理者を保持してください',
     ],
   },
   helpGuides: {
@@ -74,11 +74,11 @@ https://your-ucm-host:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 このURLはSAML 2.0準拠のXMLドキュメントを返します：
-- **Entity ID** — UCMのサービスプロバイダー識別子
-- **ACS URL** — Assertion Consumer Serviceエンドポイント（HTTP-POST）
-- **SLO URL** — Single Logout Serviceエンドポイント
-- **署名証明書** — 署名検証用のUCMのHTTPS証明書
-- **NameID形式** — 要求される名前識別子の形式
+- **Entity ID**: UCMのサービスプロバイダー識別子
+- **ACS URL**: Assertion Consumer Serviceエンドポイント（HTTP-POST）
+- **SLO URL**: Single Logout Serviceエンドポイント
+- **署名証明書**: 署名検証用のUCMのHTTPS証明書
+- **NameID形式**: 要求される名前識別子の形式
 
 このURLをIDPの「サービスプロバイダーの追加」または「SAMLアプリケーション」設定にコピーしてください。
 
@@ -88,7 +88,7 @@ https://your-ucm-host:8443/api/v2/sso/saml/metadata
 1. IDプロバイダーからIDPメタデータURLまたはXMLファイルを取得
 2. UCMで**設定 → SSO**に移動
 3. **プロバイダーを追加** → SAMLをクリック
-4. **IDPメタデータURL**を入力 — UCMがEntity ID、SSO/SLO URL、証明書を自動入力
+4. **IDPメタデータURL**を入力: UCMがEntity ID、SSO/SLO URL、証明書を自動入力
 5. またはIDPメタデータXMLを直接貼り付け
 6. **属性マッピング**を設定（ユーザー名、メール、グループ）
 7. **保存**して**有効化**をクリック

@@ -49,7 +49,7 @@ Erstellen, herunterladen und planen Sie PKI-Compliance-Berichte. Berichte bieten
 Vollständige Liste aller von UCM verwalteten Zertifikate. Enthält Betreff, Aussteller, Seriennummer, Gültigkeitsdaten, Schlüsseltyp und aktuellen Status. Verwenden Sie diesen für Compliance-Audits und Infrastrukturdokumentation.
 
 ### Ablaufende Zertifikate
-Zertifikate, die innerhalb eines bestimmten Zeitfensters ablaufen (Standard: 30 Tage). Kritisch zur Vermeidung von Ausfällen — überprüfen Sie diesen Bericht regelmäßig oder planen Sie ihn für die tägliche Zustellung.
+Zertifikate, die innerhalb eines bestimmten Zeitfensters ablaufen (Standard: 30 Tage). Kritisch zur Vermeidung von Ausfällen, überprüfen Sie diesen Bericht regelmäßig oder planen Sie ihn für die tägliche Zustellung.
 
 ### CA-Hierarchie
 Struktur der Zertifizierungsstellen mit Eltern-Kind-Beziehungen, Zertifikatsanzahl pro CA und CA-Status. Nützlich zum Verständnis Ihrer PKI-Topologie.
@@ -66,18 +66,18 @@ Klicken Sie oben rechts auf **PDF herunterladen**, um einen professionellen Mana
 
 ### Inhalt
 Der PDF-Bericht enthält 9 Abschnitte:
-1. **Deckblatt** — Schlüsselkennzahlen, Risikoanzeige und wichtige Erkenntnisse auf einen Blick
-2. **Inhaltsverzeichnis** — Schnelle Navigation
-3. **Zusammenfassung** — Gesamter PKI-Zustand, Zertifikatsverteilung und Risikostufe
-4. **Risikobewertung** — Kritische Befunde, ablaufende Zertifikate, schwache Algorithmen
-5. **Zertifikatsinventar** — Aufschlüsselung nach Status, Schlüsseltyp und ausstellender CA
-6. **Compliance-Analyse** — Bewertungsverteilung, Notenaufschlüsselung, Kategoriebewertungen
-7. **Zertifikatslebenszyklus** — Ablaufzeitachse und Automatisierungsrate
-8. **CA-Infrastruktur** — Root- und Intermediate-CA-Details, Hierarchie
-9. **Empfehlungen** — Handlungsempfehlungen basierend auf dem aktuellen PKI-Zustand
+1. **Deckblatt**: Schlüsselkennzahlen, Risikoanzeige und wichtige Erkenntnisse auf einen Blick
+2. **Inhaltsverzeichnis**: Schnelle Navigation
+3. **Zusammenfassung**: Gesamter PKI-Zustand, Zertifikatsverteilung und Risikostufe
+4. **Risikobewertung**: Kritische Befunde, ablaufende Zertifikate, schwache Algorithmen
+5. **Zertifikatsinventar**: Aufschlüsselung nach Status, Schlüsseltyp und ausstellender CA
+6. **Compliance-Analyse**: Bewertungsverteilung, Notenaufschlüsselung, Kategoriebewertungen
+7. **Zertifikatslebenszyklus**: Ablaufzeitachse und Automatisierungsrate
+8. **CA-Infrastruktur**: Root- und Intermediate-CA-Details, Hierarchie
+9. **Empfehlungen**: Handlungsempfehlungen basierend auf dem aktuellen PKI-Zustand
 
 ### Diagramme & Visualisierungen
-Der Bericht enthält visuelle Elemente: Risikoanzeige, Statusverteilung, Compliance-Notenaufschlüsselung und Ablaufzeitachse — konzipiert für nicht-technische Stakeholder.
+Der Bericht enthält visuelle Elemente: Risikoanzeige, Statusverteilung, Compliance-Notenaufschlüsselung und Ablaufzeitachse, konzipiert für nicht-technische Stakeholder.
 
 > 💡 Der PDF-Bericht wird aus Live-Daten generiert. Laden Sie ihn vor Meetings herunter, um den aktuellsten Stand zu erhalten.
 
@@ -91,8 +91,8 @@ Der Bericht enthält visuelle Elemente: Risikoanzeige, Statusverteilung, Complia
 ## Berichte herunterladen
 
 Jede Berichtszeile hat Download-Schaltflächen:
-- **CSV** — Tabellenformat für Excel, Google Sheets oder LibreOffice
-- **JSON** — Strukturierte Daten für Automatisierung und Integration
+- **CSV**: Tabellenformat für Excel, Google Sheets oder LibreOffice
+- **JSON**: Strukturierte Daten für Automatisierung und Integration
 
 > 💡 CSV-Berichte sind einfacher für nicht-technische Stakeholder. JSON eignet sich besser für Skripte und API-Integrationen.
 
@@ -117,11 +117,11 @@ Bevor Sie Zeitpläne aktivieren, verwenden Sie den ✈️-Button in jeder Berich
 
 ## Berechtigungen
 
-- **read:reports** — Berichte erstellen und herunterladen
-- **read:audit + export:audit** — PDF-Managementbericht herunterladen
-- **write:settings** — Berichtzeitpläne konfigurieren
+- **read:reports**: Berichte erstellen und herunterladen
+- **read:audit + export:audit**: PDF-Managementbericht herunterladen
+- **write:settings**: Berichtzeitpläne konfigurieren
 
-> 💡 Planen Sie den Ablaufbericht zuerst — er ist betrieblich am wertvollsten und hilft, zertifikatsbezogene Ausfälle zu vermeiden.
+> 💡 Planen Sie den Ablaufbericht zuerst: er ist betrieblich am wertvollsten und hilft, zertifikatsbezogene Ausfälle zu vermeiden.
 `
   }
 }

@@ -14,7 +14,7 @@ export default {
       {
         title: 'Autenticação',
         items: [
-          { label: 'mTLS (TLS Mútuo)', text: 'Cliente apresenta um certificado durante o handshake TLS — método de autenticação mais forte' },
+          { label: 'mTLS (TLS Mútuo)', text: 'Cliente apresenta um certificado durante o handshake TLS, método de autenticação mais forte' },
           { label: 'HTTP Basic Auth', text: 'Fallback com usuário/senha quando mTLS não está disponível' },
           { label: 'Certificado apresentado', text: 'Para /simpleenroll e /serverkeygen via mTLS, um certificado assinado pela CA do EST deve ser um que ela ainda detém: certificados revogados, substituídos ou excluídos são recusados (RFC 7030 §3.3.2); um certificado de outra autoridade em que a camada TLS confia continua sendo aceito' },
         ]
@@ -31,13 +31,13 @@ export default {
       },
     ],
     tips: [
-      'EST é o substituto moderno do SCEP — prefira EST para novas implantações',
-      'Use autenticação mTLS para maior segurança — Basic Auth é um fallback',
+      'EST é o substituto moderno do SCEP: prefira EST para novas implantações',
+      'Use autenticação mTLS para maior segurança. Basic Auth é um fallback',
       'O endpoint /simplereenroll requer que o cliente apresente seu certificado atual via mTLS',
       'Copie as URLs de endpoint da aba Informações para configurar seus clientes EST',
     ],
     warnings: [
-      'EST requer HTTPS — o cliente deve confiar no certificado do servidor UCM ou na CA',
+      'EST requer HTTPS: o cliente deve confiar no certificado do servidor UCM ou na CA',
       'A autenticação mTLS requer configuração adequada de terminação TLS (proxy reverso deve encaminhar certificados de cliente)',
     ],
   },
@@ -52,10 +52,10 @@ Enrollment over Secure Transport (EST) é definido na **RFC 7030** e fornece ins
 
 ### Aba Configurações
 
-1. **Ativar EST** — Alternar o protocolo EST
-2. **CA Assinante** — Selecionar qual Autoridade Certificadora assina certificados inscritos via EST
-3. **Autenticação** — Configurar credenciais HTTP Basic Auth (usuário e senha)
-4. **Validade do Certificado** — Período de validade padrão para certificados emitidos via EST (em dias)
+1. **Ativar EST**: Alternar o protocolo EST
+2. **CA Assinante**: Selecionar qual Autoridade Certificadora assina certificados inscritos via EST
+3. **Autenticação**: Configurar credenciais HTTP Basic Auth (usuário e senha)
+4. **Validade do Certificado**: Período de validade padrão para certificados emitidos via EST (em dias)
 
 ### Salvando Configuração
 
@@ -65,21 +65,21 @@ Clique em **Salvar** para aplicar as alterações. Os endpoints EST ficam dispon
 
 EST suporta dois métodos de autenticação:
 
-### TLS Mútuo (mTLS) — Recomendado
+### TLS Mútuo (mTLS): Recomendado
 
 O cliente apresenta um certificado durante o handshake TLS. O UCM valida o certificado e autentica o cliente automaticamente.
 
-- **Método mais forte** — identidade criptográfica do cliente
-- **Obrigatório para** \`/simplereenroll\` — o cliente deve apresentar seu certificado atual
-- **Certificado apresentado** — para \`/simpleenroll\` e \`/serverkeygen\`, um certificado assinado pela CA do EST deve ser um que ela ainda detém: certificados revogados, substituídos ou excluídos são recusados (RFC 7030 §3.3.2); um certificado de outra autoridade confiável continua sendo aceito
+- **Método mais forte**: identidade criptográfica do cliente
+- **Obrigatório para** \`/simplereenroll\`: o cliente deve apresentar seu certificado atual
+- **Certificado apresentado**: para \`/simpleenroll\` e \`/serverkeygen\`, um certificado assinado pela CA do EST deve ser um que ela ainda detém: certificados revogados, substituídos ou excluídos são recusados (RFC 7030 §3.3.2); um certificado de outra autoridade confiável continua sendo aceito
 - **Depende de** configuração adequada de terminação TLS (proxy reverso deve passar \`SSL_CLIENT_CERT\` para o UCM)
 
-### HTTP Basic Auth — Fallback
+### HTTP Basic Auth. Fallback
 
 Autenticação com usuário e senha via HTTPS. Configurada nas Configurações EST.
 
-- **Mais simples de configurar** — não precisa de certificado de cliente
-- **Menos seguro** — credenciais transmitidas por requisição (protegido por HTTPS)
+- **Mais simples de configurar**: não precisa de certificado de cliente
+- **Menos seguro**: credenciais transmitidas por requisição (protegido por HTTPS)
 - **Use quando** a infraestrutura mTLS não estiver disponível
 
 ## Endpoints EST
@@ -89,7 +89,7 @@ Todos os endpoints estão em \`/.well-known/est/\`:
 ### GET /cacerts
 Recuperar a cadeia de certificados da CA. **Sem autenticação necessária.**
 
-Use isto para inicializar a confiança — clientes buscam o certificado da CA antes da inscrição.
+Use isto para inicializar a confiança: clientes buscam o certificado da CA antes da inscrição.
 
 \`\`\`bash
 curl -k https://seu-servidor:8443/.well-known/est/cacerts | \\
@@ -110,7 +110,7 @@ curl -k --user usuario-est:senha-est \\
 \`\`\`
 
 ### POST /simplereenroll
-Renovar um certificado existente. **Requer mTLS** — o cliente deve apresentar o certificado sendo renovado.
+Renovar um certificado existente. **Requer mTLS**: o cliente deve apresentar o certificado sendo renovado.
 
 \`\`\`bash
 curl -k --cert cliente.pem --key cliente.key \\
@@ -128,9 +128,9 @@ Servidor gera um par de chaves e retorna o certificado junto com a chave privada
 ## Aba Informações
 
 A aba Informações exibe:
-- **URLs de Endpoint** — URLs prontas para copiar e colar para cada operação EST
-- **Estatísticas de Inscrição** — Número de inscrições, reinscrições e erros
-- **Última atividade** — Operações EST mais recentes dos logs de auditoria
+- **URLs de Endpoint**: URLs prontas para copiar e colar para cada operação EST
+- **Estatísticas de Inscrição**: Número de inscrições, reinscrições e erros
+- **Última atividade**: Operações EST mais recentes dos logs de auditoria
 
 ## Exemplos de Integração
 

@@ -202,7 +202,7 @@ def renew_certificate(order) -> tuple:
     email_cfg = SystemConfig.query.filter_by(key='acme.client.email').first()
     email = email_cfg.value if email_cfg else None
     if not email:
-        raise Exception("ACME client email not configured — cannot renew")
+        raise Exception("ACME client email not configured: cannot renew")
     
     # RFC 9773 §5: identify the certificate being replaced when the CA
     # advertises ARI. Failure to build a CertID must not block renewal.
@@ -307,7 +307,7 @@ def renew_certificate(order) -> tuple:
             # filtered egress DNS) even though the CA can. Warn and let the CA be
             # the authority — do NOT abort before submitting the challenge.
             logger.warning(
-                "DNS propagation not confirmed locally after %ss for: %s — "
+                "DNS propagation not confirmed locally after %ss for: %s, "
                 "submitting to the CA anyway",
                 timeout, ', '.join(check['missing']),
             )

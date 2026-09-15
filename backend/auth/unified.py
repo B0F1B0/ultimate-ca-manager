@@ -291,7 +291,7 @@ class AuthManager:
 
         db.session.add(api_key)
         if not commit_or_rollback(logger, "Failed to create api_key"):
-            raise RuntimeError("Failed to persist API key — see logs")
+            raise RuntimeError("Failed to persist API key, see logs")
 
         # Return key - ONLY TIME WE SHOW IT!
         return {

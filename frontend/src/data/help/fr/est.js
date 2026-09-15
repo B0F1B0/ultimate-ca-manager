@@ -14,7 +14,7 @@ export default {
       {
         title: 'Authentification',
         items: [
-          { label: 'mTLS (TLS mutuel)', text: 'Le client présente un certificat lors de la poignée de main TLS — méthode d\'authentification la plus forte' },
+          { label: 'mTLS (TLS mutuel)', text: 'Le client présente un certificat lors de la poignée de main TLS, méthode d\'authentification la plus forte' },
           { label: 'HTTP Basic Auth', text: 'Repli par nom d\'utilisateur/mot de passe lorsque mTLS n\'est pas disponible' },
           { label: 'Certificat présenté', text: 'Pour /simpleenroll et /serverkeygen en mTLS, un certificat signé par la CA EST doit être un certificat qu\'elle détient encore : les certificats révoqués, remplacés ou supprimés sont refusés (RFC 7030 §3.3.2) ; un certificat d\'une autre autorité à laquelle la couche TLS fait confiance reste accepté' },
         ]
@@ -31,13 +31,13 @@ export default {
       },
     ],
     tips: [
-      'EST est le remplacement moderne de SCEP — préférez EST pour les nouveaux déploiements',
-      'Utilisez l\'authentification mTLS pour la meilleure sécurité — Basic Auth est un repli',
+      'EST est le remplacement moderne de SCEP : préférez EST pour les nouveaux déploiements',
+      'Utilisez l\'authentification mTLS pour la meilleure sécurité : Basic Auth est un repli',
       'Le point de terminaison /simplereenroll nécessite que le client présente son certificat actuel via mTLS',
       'Copiez les URL des points de terminaison depuis l\'onglet Informations pour configurer vos clients EST',
     ],
     warnings: [
-      'EST nécessite HTTPS — le client doit faire confiance au certificat du serveur UCM ou à la CA',
+      'EST nécessite HTTPS : le client doit faire confiance au certificat du serveur UCM ou à la CA',
       'L\'authentification mTLS nécessite une configuration correcte de la terminaison TLS (le proxy inverse doit transmettre les certificats client)',
     ],
   },
@@ -52,10 +52,10 @@ L'inscription par transport sécurisé (EST) est définie dans le **RFC 7030** e
 
 ### Onglet Paramètres
 
-1. **Activer EST** — Basculer le protocole EST on ou off
-2. **CA de signature** — Sélectionner quelle autorité de certification signe les certificats inscrits via EST
-3. **Authentification** — Configurer les identifiants HTTP Basic Auth (nom d'utilisateur et mot de passe)
-4. **Validité du certificat** — Période de validité par défaut pour les certificats émis via EST (en jours)
+1. **Activer EST** : Basculer le protocole EST on ou off
+2. **CA de signature** : Sélectionner quelle autorité de certification signe les certificats inscrits via EST
+3. **Authentification** : Configurer les identifiants HTTP Basic Auth (nom d'utilisateur et mot de passe)
+4. **Validité du certificat** : Période de validité par défaut pour les certificats émis via EST (en jours)
 
 ### Enregistrer la configuration
 
@@ -65,21 +65,21 @@ Cliquez sur **Enregistrer** pour appliquer les modifications. Les points de term
 
 EST prend en charge deux méthodes d'authentification :
 
-### TLS mutuel (mTLS) — Recommandé
+### TLS mutuel (mTLS) : Recommandé
 
 Le client présente un certificat lors de la poignée de main TLS. UCM valide le certificat et authentifie le client automatiquement.
 
-- **Méthode la plus forte** — identité client cryptographique
-- **Requis pour** \`/simplereenroll\` — le client doit présenter son certificat actuel
-- **Certificat présenté** — pour \`/simpleenroll\` et \`/serverkeygen\`, un certificat signé par la CA EST doit être un certificat qu'elle détient encore : les certificats révoqués, remplacés ou supprimés sont refusés (RFC 7030 §3.3.2) ; un certificat d'une autre autorité de confiance reste accepté
+- **Méthode la plus forte** : identité client cryptographique
+- **Requis pour** \`/simplereenroll\` : le client doit présenter son certificat actuel
+- **Certificat présenté** : pour \`/simpleenroll\` et \`/serverkeygen\`, un certificat signé par la CA EST doit être un certificat qu'elle détient encore : les certificats révoqués, remplacés ou supprimés sont refusés (RFC 7030 §3.3.2) ; un certificat d'une autre autorité de confiance reste accepté
 - **Dépend de** la configuration correcte de la terminaison TLS (le proxy inverse doit transmettre \`SSL_CLIENT_CERT\` à UCM)
 
-### HTTP Basic Auth — Repli
+### HTTP Basic Auth. Repli
 
 Authentification par nom d'utilisateur et mot de passe via HTTPS. Configurée dans les paramètres EST.
 
-- **Plus simple à configurer** — aucun certificat client nécessaire
-- **Moins sécurisé** — identifiants transmis par requête (protégés par HTTPS)
+- **Plus simple à configurer** : aucun certificat client nécessaire
+- **Moins sécurisé** : identifiants transmis par requête (protégés par HTTPS)
 - **À utiliser quand** l'infrastructure mTLS n'est pas disponible
 
 ## Points de terminaison EST
@@ -89,7 +89,7 @@ Tous les points de terminaison sont sous \`/.well-known/est/\` :
 ### GET /cacerts
 Récupérer la chaîne de certificats CA. **Aucune authentification requise.**
 
-Utilisez ceci pour établir la confiance — les clients récupèrent le certificat CA avant l'inscription.
+Utilisez ceci pour établir la confiance : les clients récupèrent le certificat CA avant l'inscription.
 
 \`\`\`bash
 curl -k https://votre-serveur:8443/.well-known/est/cacerts | \\
@@ -110,7 +110,7 @@ curl -k --user est-user:est-password \\
 \`\`\`
 
 ### POST /simplereenroll
-Renouveler un certificat existant. **Nécessite mTLS** — le client doit présenter le certificat à renouveler.
+Renouveler un certificat existant. **Nécessite mTLS** : le client doit présenter le certificat à renouveler.
 
 \`\`\`bash
 curl -k --cert client.pem --key client.key \\
@@ -128,9 +128,9 @@ Le serveur génère une paire de clés et retourne le certificat accompagné de 
 ## Onglet Informations
 
 L'onglet Informations affiche :
-- **URL des points de terminaison** — URL prêtes à copier-coller pour chaque opération EST
-- **Statistiques d'inscription** — Nombre d'inscriptions, de ré-inscriptions et d'erreurs
-- **Dernière activité** — Opérations EST les plus récentes depuis les journaux d'audit
+- **URL des points de terminaison** : URL prêtes à copier-coller pour chaque opération EST
+- **Statistiques d'inscription** : Nombre d'inscriptions, de ré-inscriptions et d'erreurs
+- **Dernière activité** : Opérations EST les plus récentes depuis les journaux d'audit
 
 ## Exemples d'intégration
 

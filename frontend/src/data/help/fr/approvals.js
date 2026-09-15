@@ -7,8 +7,8 @@ export default {
       {
         title: 'Cycle de vie des demandes',
         items: [
-          { label: 'En attente', text: 'En attente d\'examen — le certificat ne peut pas encore être émis' },
-          { label: 'Approuvée', text: 'Toutes les approbations requises ont été reçues — le certificat peut être émis' },
+          { label: 'En attente', text: 'En attente d\'examen, le certificat ne peut pas encore être émis' },
+          { label: 'Approuvée', text: 'Toutes les approbations requises ont été reçues, le certificat peut être émis' },
           { label: 'Rejetée', text: 'Tout rejet arrête immédiatement la demande' },
           { label: 'Expirée', text: 'Non décidée sous sept jours ; clôturée comme expirée et jamais comptée comme en attente' },
         ]
@@ -34,7 +34,7 @@ export default {
       },
     ],
     tips: [
-      'Tout rejet unique arrête immédiatement l\'approbation — c\'est intentionnel pour la sécurité.',
+      'Tout rejet unique arrête immédiatement l\'approbation : c\'est intentionnel pour la sécurité.',
       'Tant qu\'un renouvellement attend une approbation, le planificateur laisse le certificat à cette décision, tant qu\'elle peut intervenir avant l\'expiration du certificat.',
       'Les commentaires d\'approbation sont enregistrés dans la piste d\'audit pour la conformité.',
     ],
@@ -44,7 +44,7 @@ export default {
     content: `
 ## Vue d'ensemble
 
-La page des approbations affiche toutes les demandes de certificats qui nécessitent une approbation manuelle avant l'émission. Les flux d'approbation sont configurés dans les **politiques** — lorsqu'une politique a « Approbation requise » activé, toute demande de certificat correspondante crée une demande d'approbation ici.
+La page des approbations affiche toutes les demandes de certificats qui nécessitent une approbation manuelle avant l'émission. Les flux d'approbation sont configurés dans les **politiques** : lorsqu'une politique a « Approbation requise » activé, toute demande de certificat correspondante crée une demande d'approbation ici.
 
 ## Cycle de vie des demandes
 
@@ -92,10 +92,10 @@ Une demande attend **sept jours** une décision. Passé ce délai, elle est clô
 
 1. Cliquez sur une demande en attente pour voir ses détails
 2. Cliquez sur **Rejeter**
-3. Entrez un **motif de rejet** (requis) — cela est enregistré pour la conformité d'audit
+3. Entrez un **motif de rejet** (requis) : cela est enregistré pour la conformité d'audit
 4. La demande est immédiatement arrêtée
 
-> ⚠ Tout rejet unique arrête la demande entière. C'est intentionnel — si un examinateur identifie un problème, l'émission ne doit pas se poursuivre.
+> ⚠ Tout rejet unique arrête la demande entière. C'est intentionnel : si un examinateur identifie un problème, l'émission ne doit pas se poursuivre.
 
 ## Historique des approbations
 
@@ -109,15 +109,15 @@ Cet historique est immuable et fait partie de la piste d'audit.
 ## Filtrage
 
 Utilisez la barre de filtre de statut en haut pour afficher :
-- **En attente** — Demandes en attente de votre examen
-- **Approuvées** — Demandes récemment approuvées
-- **Rejetées** — Demandes rejetées avec motifs
-- **Total** — Toutes les demandes quel que soit le statut
+- **En attente** : Demandes en attente de votre examen
+- **Approuvées** : Demandes récemment approuvées
+- **Rejetées** : Demandes rejetées avec motifs
+- **Total** : Toutes les demandes quel que soit le statut
 
 ## Permissions
 
-- **read:approvals** — Voir les demandes d'approbation
-- **write:approvals** — Approuver ou rejeter les demandes
+- **read:approvals** : Voir les demandes d'approbation
+- **write:approvals** : Approuver ou rejeter les demandes
 
 > 💡 Configurez les notifications par e-mail dans les politiques pour alerter les approbateurs lorsque de nouvelles demandes arrivent.
 `

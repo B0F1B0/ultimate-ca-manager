@@ -373,13 +373,13 @@ def decrypt_scep_envelope(
     iv = asn1crypto.core.OctetString.load(params.dump()).native
 
     if alg_oid == "1.3.14.3.2.7":
-        logger.warning("SCEP client using DES encryption — rejected (insecure)")
-        raise ValueError("DES encryption is not supported — use AES or 3DES")
+        logger.warning("SCEP client using DES encryption: rejected (insecure)")
+        raise ValueError("DES encryption is not supported: use AES or 3DES")
 
     if alg_oid == "1.2.840.113549.3.7":
         if len(iv) != 8:
             raise ValueError("Invalid 3DES-CBC IV length")
-        logger.warning("SCEP client using 3DES encryption — deprecated, prefer AES")
+        logger.warning("SCEP client using 3DES encryption: deprecated, prefer AES")
         decryptor = Cipher(
             TripleDES(content_encryption_key), modes.CBC(iv)
         ).decryptor()

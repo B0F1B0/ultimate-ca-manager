@@ -7,8 +7,8 @@ export default {
       {
         title: 'Ausstellungsmodi',
         items: [
-          { label: 'Signaturmodus', text: 'Fügen Sie einen vorhandenen öffentlichen SSH-Schlüssel zum Signieren ein. Der private Schlüssel verbleibt auf dem Gerät des Benutzers — UCM sieht ihn nie.' },
-          { label: 'Generierungsmodus', text: 'UCM generiert ein neues Schlüsselpaar und signiert das Zertifikat. Laden Sie den privaten Schlüssel sofort herunter — er kann später nicht abgerufen werden.' },
+          { label: 'Signaturmodus', text: 'Fügen Sie einen vorhandenen öffentlichen SSH-Schlüssel zum Signieren ein. Der private Schlüssel verbleibt auf dem Gerät des Benutzers, UCM sieht ihn nie.' },
+          { label: 'Generierungsmodus', text: 'UCM generiert ein neues Schlüsselpaar und signiert das Zertifikat. Laden Sie den privaten Schlüssel sofort herunter, er kann später nicht abgerufen werden.' },
         ]
       },
       {
@@ -38,12 +38,12 @@ export default {
     ],
     tips: [
       'Verwenden Sie kurzlebige Zertifikate (8h–24h) für Benutzerzugang, um die Auswirkungen einer Schlüsselkompromittierung zu minimieren.',
-      'Der Signaturmodus ist vorzuziehen — der private Schlüssel des Benutzers verlässt nie dessen Gerät.',
+      'Der Signaturmodus ist vorzuziehen: der private Schlüssel des Benutzers verlässt nie dessen Gerät.',
       'Key IDs sollten aussagekräftig sein (z. B. „jdoe-prod-2025") für einfache Protokollauswertung.',
       'Bei Host-Zertifikaten muss der Principal mit dem Hostnamen übereinstimmen, den Clients zur Verbindung verwenden.',
     ],
     warnings: [
-      'Im Generierungsmodus laden Sie den privaten Schlüssel sofort herunter — er wird nicht gespeichert und kann nicht wiederhergestellt werden.',
+      'Im Generierungsmodus laden Sie den privaten Schlüssel sofort herunter: er wird nicht gespeichert und kann nicht wiederhergestellt werden.',
       'Der Widerruf eines Zertifikats funktioniert nur, wenn Server für die Prüfung der KRL-Datei der CA konfiguriert sind.',
     ],
   },
@@ -80,14 +80,14 @@ ssh -i ~/.ssh/id_work user@server
 ### Generierungsmodus
 UCM generiert sowohl das Schlüsselpaar als auch das Zertifikat. Verwenden Sie diesen Modus, wenn Sie Anmeldedaten zentral bereitstellen müssen.
 
-> ⚠ **Laden Sie den privaten Schlüssel sofort herunter** — er wird nicht in UCM gespeichert und kann nicht wiederhergestellt werden.
+> ⚠ **Laden Sie den privaten Schlüssel sofort herunter**: er wird nicht in UCM gespeichert und kann nicht wiederhergestellt werden.
 
 **Vorgehensweise:**
 1. Wählen Sie eine CA und füllen Sie die Zertifikatsdetails aus
 2. Wählen Sie den Modus „Generieren"
 3. Klicken Sie auf **Ausstellen**
 4. Laden Sie alle drei Dateien herunter:
-   - Privater Schlüssel (\`keyid\`) — **Sicher aufbewahren!**
+   - Privater Schlüssel (\`keyid\`): **Sicher aufbewahren!**
    - Zertifikat (\`keyid-cert.pub\`)
    - Öffentlicher Schlüssel (\`keyid.pub\`)
 
@@ -104,7 +104,7 @@ Principals definieren, **wer** (Benutzerzertifikate) oder **was** (Host-Zertifik
 - **Benutzerzertifikate**: Liste der Benutzernamen, unter denen sich der Inhaber anmelden darf (z. B. \`deploy\`, \`admin\`)
 - **Host-Zertifikate**: Liste der Hostnamen/IPs, unter denen der Server bekannt ist (z. B. \`web01.example.com\`, \`10.0.1.5\`)
 
-> 💡 Werden keine Principals angegeben, gilt das Zertifikat für jeden Principal — was in der Regel zu freizügig ist.
+> 💡 Werden keine Principals angegeben, gilt das Zertifikat für jeden Principal: was in der Regel zu freizügig ist.
 
 ### Gültigkeit
 

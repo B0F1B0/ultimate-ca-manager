@@ -394,7 +394,7 @@ def _classify_preflight_dns(hostname: str, ips: list[str], error: Optional[str])
             else:
                 public_ips.append(ip_str)
         if loopback_ips and not private_ips and not public_ips:
-            return 'warn', f"loopback ({', '.join(loopback_ips[:3])}) — /etc/hosts on this host"
+            return 'warn', f"loopback ({', '.join(loopback_ips[:3])}): /etc/hosts on this host"
         if private_ips and not public_ips:
             return 'warn', f"private ({', '.join(private_ips[:3])})"
         if loopback_ips or private_ips:
@@ -880,7 +880,7 @@ def run_preflight_checks() -> dict:
         except OSError as exc:
             entry = next(e for e in results if e['label'] == label)
             entry['tls'] = 'fail'
-            tls_detail = f'TLS :{port} — {exc}'
+            tls_detail = f'TLS :{port}: {exc}'
             if entry.get('detail'):
                 entry['detail'] = f"{entry['detail']} | {tls_detail}"
             else:
@@ -922,7 +922,7 @@ def run_preflight_checks() -> dict:
         except OSError as exc:
             entry = next(e for e in results if e['label'] == label)
             entry['tls'] = 'fail'
-            entry['detail'] = f'HTTP :{port} — {exc}'
+            entry['detail'] = f'HTTP :{port}: {exc}'
 
     admin_raw = _config_value('base_url')
     admin_parsed = parse_public_url(admin_raw, default_scheme='https')

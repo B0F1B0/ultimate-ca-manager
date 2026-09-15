@@ -101,9 +101,9 @@ def certificate_deletion_blockers(cert) -> Iterator[DeletionBlocker]:
         if not cert.valid_to or cert.valid_to >= utc_now():
             yield DeletionBlocker(
                 409,
-                'Cannot delete a valid certificate — revoke it first so the '
+                'Cannot delete a valid certificate: revoke it first so the '
                 'CRL and OCSP responder reflect the change.',
-                'Cannot delete a valid certificate — revoke it first',
+                'Cannot delete a valid certificate: revoke it first',
             )
 
 

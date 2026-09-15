@@ -191,7 +191,7 @@ def exchange_code_for_tokens(config, code: str, redirect_uri: str) -> dict:
 def refresh_access_token(config) -> dict:
     """Use the stored refresh_token to mint a new access_token."""
     if not config.smtp_oauth_refresh_token:
-        raise RuntimeError("No refresh_token stored — admin must Authorize first")
+        raise RuntimeError("No refresh_token stored: admin must Authorize first")
     if not (config.smtp_oauth_client_id and config.smtp_oauth_client_secret):
         raise ValueError("client_id and client_secret are required")
 

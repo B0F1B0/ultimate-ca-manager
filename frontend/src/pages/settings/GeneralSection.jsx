@@ -278,11 +278,11 @@ export default function GeneralSection({ settings, updateSetting, handleSave, sa
           <Select
             label={t('settings.dateFormat')}
             options={[
-              { value: 'short', label: `${t('settings.dateFormats.short')} — Jan 6, 2026` },
-              { value: 'long', label: `${t('settings.dateFormats.long')} — January 6, 2026` },
-              { value: 'iso', label: `${t('settings.dateFormats.iso')} — 2026-01-06` },
-              { value: 'eu', label: `${t('settings.dateFormats.eu')} — 06/01/2026` },
-              { value: 'us', label: `${t('settings.dateFormats.us')} — 01/06/2026` },
+              { value: 'short', label: `${t('settings.dateFormats.short')}, Jan 6, 2026` },
+              { value: 'long', label: `${t('settings.dateFormats.long')}, January 6, 2026` },
+              { value: 'iso', label: `${t('settings.dateFormats.iso')}, 2026-01-06` },
+              { value: 'eu', label: `${t('settings.dateFormats.eu')}, 06/01/2026` },
+              { value: 'us', label: `${t('settings.dateFormats.us')}, 01/06/2026` },
             ]}
             value={settings.date_format || 'short'}
             onChange={(val) => updateSetting('date_format', val)}

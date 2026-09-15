@@ -2,7 +2,7 @@ export default {
   helpContent: {
     title: 'SSH证书颁发机构',
     subtitle: '管理用于用户和主机认证的SSH CA',
-    overview: '按照OpenSSH标准创建和管理SSH证书颁发机构。SSH CA消除了分发单独公钥的需要——服务器和用户信任CA，由CA签发证书来授予访问权限。',
+    overview: '按照OpenSSH标准创建和管理SSH证书颁发机构。SSH CA消除了分发单独公钥的需要,, 服务器和用户信任CA，由CA签发证书来授予访问权限。',
     sections: [
       {
         title: 'CA类型',
@@ -24,7 +24,7 @@ export default {
         items: [
           { label: 'Linux/macOS配置脚本', text: '下载一个POSIX shell脚本（.sh），自动配置sshd以信任此CA。快速安装：curl -fsSL <url> | bash' },
           { label: 'Windows配置脚本', text: '下载一个PowerShell脚本（.ps1），配置Windows OpenSSH Server（将CA公钥写入%ProgramData%\\ssh、收紧ACL、在sshd_config中添加TrustedUserCAKeys / HostCertificate、用sshd -T验证、重启sshd）。快速安装：iwr <url> | iex' },
-          { label: '诊断信息块', text: '当Add-WindowsCapability失败时（WSUS / 已加入域），脚本会打印一个带标签的信息块，说明策略状态和三种补救路径——脚本本身绝不修改WSUS / WU策略' },
+          { label: '诊断信息块', text: '当Add-WindowsCapability失败时（WSUS / 已加入域），脚本会打印一个带标签的信息块，说明策略状态和三种补救路径,, 脚本本身绝不修改WSUS / WU策略' },
           { label: '试运行', text: '两个脚本都支持-DryRun / --dry-run参数，可在不应用更改的情况下预览' },
           { label: '手动配置', text: '复制CA公钥，在sshd_config中添加TrustedUserCAKeys（User CA）或HostCertificate（Host CA）。' },
         ]
@@ -39,19 +39,19 @@ export default {
       {
         title: 'TTL格式',
         items: [
-          { label: '带后缀的时长', text: '默认TTL和最大TTL接受24h、7d、365d——可用后缀为s、m、h、d、w、y' },
+          { label: '带后缀的时长', text: '默认TTL和最大TTL接受24h、7d、365d,, 可用后缀为s、m、h、d、w、y' },
           { label: '纯数字', text: '纯数字按秒解释（例如3600 = 1小时）' },
           { label: '验证', text: '格式错误的值会被拒绝，错误信息中会列出可接受的格式' },
         ]
       },
     ],
     tips: [
-      '用户证书和主机证书使用单独的CA——切勿混用。',
+      '用户证书和主机证书使用单独的CA:, 切勿混用。',
       '由于速度和安全性，Ed25519是新部署的推荐选择。',
-      '下载配置脚本可轻松配置服务器——它会自动处理备份和验证。',
+      '下载配置脚本可轻松配置服务器:, 它会自动处理备份和验证。',
     ],
     warnings: [
-      '删除CA不会吊销其签发的证书——请先吊销证书或更新服务器信任设置。',
+      '删除CA不会吊销其签发的证书:, 请先吊销证书或更新服务器信任设置。',
       '如果CA私钥被泄露，其签发的所有证书都必须视为不可信。',
     ],
   },
@@ -62,7 +62,7 @@ export default {
 
 SSH证书颁发机构（CA）是SSH证书认证的基础。无需将单独的公钥分发到每台服务器，只需创建一个CA并配置服务器信任它。CA签发的任何证书都会被自动接受。
 
-UCM支持OpenSSH证书格式（RFC 4253 + OpenSSH扩展），OpenSSH 5.4+原生支持——服务器和客户端无需安装额外软件。
+UCM支持OpenSSH证书格式（RFC 4253 + OpenSSH扩展），OpenSSH 5.4+原生支持:, 服务器和客户端无需安装额外软件。
 
 ## CA类型
 
@@ -76,7 +76,7 @@ TrustedUserCAKeys /etc/ssh/user_ca.pub
 \`\`\`
 
 ### Host CA
-Host CA签发用于**将服务器认证到客户端**的证书。当客户端信任Host CA时，可以验证所连接服务器的合法性——消除"Trust On First Use"（TOFU）警告。
+Host CA签发用于**将服务器认证到客户端**的证书。当客户端信任Host CA时，可以验证所连接服务器的合法性:, 消除"Trust On First Use"（TOFU）警告。
 
 **客户端配置：**
 \`\`\`
@@ -90,9 +90,9 @@ Host CA签发用于**将服务器认证到客户端**的证书。当客户端信
 2. 输入描述性名称（例如："Production User CA"）
 3. 选择CA类型：**User**或**Host**
 4. 选择密钥算法：
-   - **Ed25519** — 推荐。快速、密钥小巧、现代安全性。
-   - **ECDSA P-256/P-384** — 良好的兼容性和安全性。
-   - **RSA 2048/4096** — 最广泛的兼容性，密钥较大。
+   - **Ed25519**: 推荐。快速、密钥小巧、现代安全性。
+   - **ECDSA P-256/P-384**: 良好的兼容性和安全性。
+   - **RSA 2048/4096**: 最广泛的兼容性，密钥较大。
 5. 可选设置最大有效期和默认扩展
 6. 点击**创建**
 
@@ -100,8 +100,8 @@ Host CA签发用于**将服务器认证到客户端**的证书。当客户端信
 
 **默认TTL**和**最大TTL**字段接受人类可读的时长：
 
-- 带后缀的值 — \`24h\`、\`7d\`、\`365d\`（可用后缀：\`s\`、\`m\`、\`h\`、\`d\`、\`w\`、\`y\`）
-- 纯数字 — 按**秒**解释（例如\`3600\` = 1小时）
+- 带后缀的值: \`24h\`、\`7d\`、\`365d\`（可用后缀：\`s\`、\`m\`、\`h\`、\`d\`、\`w\`、\`y\`）
+- 纯数字: 按**秒**解释（例如\`3600\` = 1小时）
 
 格式错误的值会被拒绝，错误信息中会列出可接受的格式。
 

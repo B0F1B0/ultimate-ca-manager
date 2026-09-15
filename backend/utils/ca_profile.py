@@ -179,7 +179,7 @@ def validate_ca_certificate(cert: x509.Certificate) -> Optional[str]:
         )
         if not ku.value.key_cert_sign:
             raise ValueError(
-                "Certificate KeyUsage does not assert keyCertSign — not a valid CA cert"
+                "Certificate KeyUsage does not assert keyCertSign, not a valid CA cert"
             )
     except x509.ExtensionNotFound:
         return "Certificate has no KeyUsage extension (RFC 5280 §4.2.1.3 recommends keyCertSign)"

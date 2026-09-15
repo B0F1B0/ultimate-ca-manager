@@ -277,7 +277,7 @@ def unlink_user_sso(user_id):
     )
     msg = f'Account {user.username} converted to local'
     if needs_password:
-        msg += ' — set a password for this account'
+        msg += ', set a password for this account'
     return success_response(data=user.to_dict(), message=msg)
 
 

@@ -150,7 +150,7 @@ def export_ca(ca_id):
             if password:
                 logger.warning(
                     "Rejected CA export with password in query string "
-                    "(ca_id=%s) — client must POST with JSON body",
+                    "(ca_id=%s): client must POST with JSON body",
                     ca_id,
                 )
             return error_response(

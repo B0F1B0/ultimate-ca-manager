@@ -9,7 +9,7 @@
 
 **Ultimate Certificate Manager (UCM)** is a web-based Certificate Authority management platform with PKI protocol support (ACME, SCEP, EST, OCSP, CRL/CDP), Microsoft ADCS integration, multi-factor authentication, and certificate lifecycle management.
 
-> **UCM is a young and actively developed project.** Feedback, bug reports, and feature requests are very welcome! Feel free to [open an issue](https://github.com/NeySlim/ultimate-ca-manager/issues) — every report helps make UCM better.
+> **UCM is a young and actively developed project.** Feedback, bug reports, and feature requests are very welcome! Feel free to [open an issue](https://github.com/NeySlim/ultimate-ca-manager/issues): every report helps make UCM better.
 
 > See the [latest release notes](https://github.com/NeySlim/ultimate-ca-manager/releases/latest) and the full [CHANGELOG](CHANGELOG.md) for what's new.
 
@@ -20,7 +20,7 @@
 ## Features
 
 ### PKI Core
-- **CA Management** -- Root and intermediate CAs, hierarchy view, import/export, **intermediate CA revocation** (parent's CRL and OCSP, revoked-upstream status below it), **certificate-only CAs** (a CA signed from an external request, its private key imported later), **HSM-backed signing keys** (private key never leaves the HSM), **configurable RFC 5280 profile** (signature digest, Key Usage, EKU) with Let's Encrypt-style defaults, **externally-signed CAs** (UCM generates the key pair and a CA-type CSR, an offline/external root signs it — the private key never leaves UCM, with same-key CSR renewal), **RFC 5280 name constraints** set at creation (permitted and excluded DNS, IP-range and e-mail subtrees, enforced on every issuance path)
+- **CA Management** -- Root and intermediate CAs, hierarchy view, import/export, **intermediate CA revocation** (parent's CRL and OCSP, revoked-upstream status below it), **certificate-only CAs** (a CA signed from an external request, its private key imported later), **HSM-backed signing keys** (private key never leaves the HSM), **configurable RFC 5280 profile** (signature digest, Key Usage, EKU) with Let's Encrypt-style defaults, **externally-signed CAs** (UCM generates the key pair and a CA-type CSR, an offline/external root signs it: the private key never leaves UCM, with same-key CSR renewal), **RFC 5280 name constraints** set at creation (permitted and excluded DNS, IP-range and e-mail subtrees, enforced on every issuance path)
 - **Certificate Lifecycle** -- Issue, sign, revoke (with the RFC 5280 reason, from every revoke dialog and in bulk), renew (**in-place**: stable IDs across renewals, superseded serials stay on CRL/OCSP until their original expiry), rename (mutable display name, covers CN-less certificates), export (PEM, DER, PKCS#12 with a 3DES/SHA-1 compatibility mode for Android 15 and earlier, macOS 14 and earlier, older Windows and Java, JKS; the chain omits the self-signed root by default, with an **Include Root CA** option where a packaging or import target needs it), bulk operations, filter by status / issuer / source (ACME, SCEP, EST, AD CS, import…), including the records **archived** by a renewal or a re-enrolment and kept for history
 - **Conformance Linting** -- per-certificate checks against RFC 5280 and CA/Browser Forum Baseline Requirements via pkilint (and zlint when available), informative-only
 - **CSR Management** -- Create, import, sign Certificate Signing Requests with **custom Extra EKU OIDs** (RFC 5280 §4.2.1.12), **typed SAN validation** (DNS / IP / Email / URI / UPN), NIST P-256 / P-384 / P-521 curves, and an **external CA return path**: a certificate issued elsewhere for a CSR generated in UCM completes that CSR on import and keeps its private key
@@ -116,7 +116,7 @@ sudo systemctl enable --now ucm
 ```
 
 **Access:** `https://localhost:8443` or `https://your-server-fqdn:8443`
-**Default credentials:** `admin` / `changeme123` — you will be prompted to change on first login.
+**Default credentials:** `admin` / `changeme123`: you will be prompted to change on first login.
 
 See [Installation Guide](docs/installation/README.md) for all methods including Docker Compose and source install.
 
@@ -167,55 +167,55 @@ Docker: data at `/opt/ucm/data/` (mount as volume), config via environment varia
 
 ## Roadmap
 
-- [ ] **High Availability / Clustering** — Active-passive or active-active HA deployment
-- [ ] **Post-Quantum Cryptography** — ML-DSA, ML-KEM, SLH-DSA key types (NIST FIPS 203/204/205)
-- [ ] **CMP Protocol (RFC 4210)** — Certificate Management Protocol support
+- [ ] **High Availability / Clustering**: Active-passive or active-active HA deployment
+- [ ] **Post-Quantum Cryptography**: ML-DSA, ML-KEM, SLH-DSA key types (NIST FIPS 203/204/205)
+- [ ] **CMP Protocol (RFC 4210)**: Certificate Management Protocol support
 - [x] **Leaner packages and a quiet start**: the container image ships the built interface alone instead of the whole frontend tree and its build-time dependencies, close to 340 MB the server never reads; a package or an image built from a working copy no longer carries what that copy holds outside version control, the database, the sessions and the private keys among them; and the service no longer logs two errors at every start over a control socket it never uses *(v2.229)*
 - [x] **Issuance paths audited, approvals on every operator action**: an adversarial review of every path that signs a certificate tightened them all, the issuing CA's own validity window is checked before signing, the extensions copied from a request are limited to an allow-list so a requester can no longer smuggle a distribution point or a logon identity into its certificate, key usage is derived from the key algorithm, EST and SCEP re-enrolment require a certificate the CA still holds, enrolling a certificate for mTLS login is limited to one's own records, and auto-renewal covers the certificates whose private key the server actually holds; an issuance policy that requires approval now binds signing a stored request (alone or in bulk) and renewal, and a queued request is closed on its own when a direct action makes it moot, with a seven-day deadline that no longer leaves it counted as pending; a SCEP request approved by hand issues with its profile's template, and the records superseded by a renewal or a re-enrolment are visible as archived *(v2.228)*
 - [x] **Delegated OCSP responders that sign, certificate-only CAs, HSM signatures that verify**: a delegated OCSP responder now actually signs (every issuance path emits `id-pkix-ocsp-nocheck`, one rule for assignment, list and runtime), a CA created by signing an external CA request is flagged **certificate only** and can take its private key later, signatures made with HSM keys other than RSA-2048 and P-256 name the digest the provider used, imports re-target the right record among homonyms and refuse a foreign key, backups keep revocations and the offline state, and a CA under a revoked ancestor is shown as revoked upstream *(v2.227)*
 - [x] **Intermediate CA revocation**: an intermediate CA is revoked from its parent with the RFC 5280 reason codes, its serial is published on the parent's CRL and answered `revoked` by the parent's OCSP responder, the revoked CA and the CAs below it can no longer sign, and the OCSP responder now answers `good` for a valid sub-CA certificate instead of `unknown` *(v2.226)*
 - [x] **External CA return path for CSRs**: a certificate issued by a public or third-party CA for a CSR generated in UCM completes that CSR on import (Certificates page and Smart Import), matched on the key pair so the record keeps its private key and exports with it, the private key of a pending CSR can be downloaded under the `read:private_keys` permission, and a certificate issued from a generated CSR is named by its CN instead of "CSR for" *(v2.225)*
 - [x] **Reverse proxy fit and smartcard logon templates**: trusted proxies accept CIDR networks and gate every `X-Forwarded-*` header, the advertised admin and protocol ports can differ from the listen ports, the Helm chart wires the proxy settings and follows the release it ships with, the template editor builds Windows smartcard logon templates with a built-in one, and a reused ACME authorization records the challenge that was actually performed *(v2.224)*
-- [x] **ACME profile templates and key-algorithm-aware key usage** — an ACME certificate profile can bind a certificate template whose key usage and EKU govern the issued certificate, and every issuance path (issue form, approvals, ACME, EST, SCEP, WSTEP) now derives key usage from the key algorithm, so ECDSA and Ed25519 leaves no longer assert `keyEncipherment` *(v2.221)*
-- [x] **Security hardening, multi-endpoint SCEP, and access-control refinements** — an audit-driven hardening pass tightens issuance (per-path key-strength floor, CSR EKU capping, gated sub-CA minting), ACME (SAN types and subject bound to validated identifiers, SSRF guard on IP orders and cloud-metadata targets), and authorization (mTLS, API-key scoping, TSA, CSRF, SSH, OCSP, and direct private-key export gated behind an admin-only scope so Key Recovery's approval trail can't be bypassed); named SCEP profiles serve multiple enrollment endpoints, each with its own CA, template, challenge and approval policy; delegated OCSP responder certificates renew automatically; EAB credentials can be restricted to specific domains; and user groups can grant permissions from the UI *(v2.204)*
-- [x] **Compatibility restore & configurable strictness** — the 2.200 hardening no longer breaks existing deployments: TSA, SCEP, EST, CAA and name-constraints checks default to pre-2.200-compatible behaviour with renewals graced at par, and every strictness switch (CAA enforcement, SCEP signingTime/clock skew, CT SCT embedding/require, OCSP response validity, syslog framing, OIDC ID-token verification incl. issuer/JWKS) is now configurable from the UI; certificate templates now govern the issued KU/EKU, with a `custom` type, an OCSP Signing system template and `OCSPSigning` selectable in the editor *(v2.203)*
-- [x] **ACME certificate profiles, EST CA labels and RFC 7807 API errors** — clients can pick a named issuance profile advertised in the ACME directory; EST serves multiple CAs under path labels; API errors are now standard `application/problem+json` problem details while keeping the legacy keys for existing integrations *(v2.201)*
-- [x] **Protocol conformance sweep** — RFC-coverage audit and fixes across ACME client/server (state machine, subproblems, TLS-ALPN-01/IP identifiers, upstream revocation, ARI `replaces`), SCEP (GetCert/GetCRL, AES + PBKDF2 encryption), EST (server-side key generation §4.4), OCSP (multi-request, delegated responder validation), CAA (RFC 8657 account/method binding), TSA, CT pre-certificate flow with embedded SCTs, and OIDC id_token verification *(v2.200)*
-- [x] **ACME preferred certificate chain** — per-CA-account `preferred_chain` selects an RFC 8555 `Link: rel="alternate"` chain at download time (subject or issuer CN match, e.g. `ISRG Root X1`), in both the ACME client and proxy *(v2.193)*
-- [x] **Microsoft AD CS full lifecycle** — Renew/revoke AD CS-issued certificates through the connector, plus an optional WinRM admin channel: revocation propagated to the CA, one-way CRL revocation sync, CA inventory import with reconciliation, and a control panel to approve/deny pending requests with CA health; [guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Microsoft-CA-Integration) *(v2.192)*
-- [x] **Key Archival & Recovery** — Dual-control recovery of archived private keys: request → admin approve (four-eyes) → PKCS#12 download, fully audited; [guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Key-Recovery) *(v2.171)*
-- [x] **Custom external ACME CA for issuance** — a configured custom ACME directory URL plus EAB (Settings → ACME client) is now used by issuance and renewal instead of always hitting Let's Encrypt; account row carries the directory/EAB atomically *(v2.180)*
-- [x] **Multi-CA management with per-request selection** — issue from several external ACME CAs (Let's Encrypt, Actalis, ZeroSSL, Google Trust Services, HARICA…); each request picks its CA, the order is pinned to that account so renewals stay on the same authority; CRUD UI for CA accounts with per-account EAB and default selection *(v2.181)*
-- [x] **Multi-CA ACME proxy endpoints** — each external CA account can expose its own proxy path at `/acme/proxy/<slug>/directory` alongside the legacy default endpoint, with per-account upstream credentials *(v2.185)*
-- [x] **ACME external CSR, renewal key reuse & staging preflight** — finalize with an externally generated CSR (key never enters UCM), keep the same private key across renewals (DANE/TLSA), and dry-run requests against Let's Encrypt staging before touching production rate limits *(v2.184)*
-- [x] **Code Signing** — Issue and manage code-signing certificates for Authenticode, JAR and macOS via the `codeSigning` EKU plus platform key purposes (kernel-mode, lifetime, Apple Developer ID); [usage guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Code-Signing) *(v2.171)*
-- [x] **Helm chart** — Package UCM itself as a Helm chart for in-cluster deployment under `charts/ucm/` (single-instance, persistent `master.key`, SQLite or external PostgreSQL) *(v2.171)*
-- [x] **SAN database columns derived from final SAN list** — `san_email` / `san_dns` / `san_ip` / `san_uri` always match the X.509 extension, with backfill migration *(v2.140)*
-- [x] **On-disk certificate & CA files** — `.crt` / `.key` materialized to disk on every creation path *(v2.140)*
-- [x] **ACME External Account Binding (EAB, RFC 8555 §7.3.4)** — Issue/rotate/revoke `kid`+`hmac` pairs for cert-manager / certbot / acme.sh *(v2.139)*
-- [x] **ACME custom DNS resolvers + private-IP validation** — Split-horizon DNS, RFC1918/`.lan`/`.local` HTTP-01 & TLS-ALPN-01 *(v2.139)*
-- [x] **Kubernetes / cert-manager integration** — Reference manifests for ClusterIssuer (HTTP-01 + DNS-01 with EAB) *(v2.139)*
-- [x] **SMTP OAuth2 (XOAUTH2)** — Gmail, Outlook.com, Microsoft 365 modern auth *(v2.134)*
-- [x] **SSO `auth_source` tracking + role preservation** — Per-user origin, optional sync-on-login, UI never overwritten *(v2.133)*
-- [x] **HSM-backed Certificate Authorities** — Signing key generated/stored in HSM, never exportable *(v2.130)*
-- [x] **Native PostgreSQL backend** — Bidirectional migration UI with safety checks *(v2.127)*
-- [x] **PostgreSQL feature parity** — Database stats, optimize, integrity check, certificate activity chart all work natively on PostgreSQL *(v2.135)*
-- [x] **Custom Extra EKU OIDs** — Microsoft RDP, smartcard logon, document signing, IPsec, Kerberos PKINIT… (RFC 5280 §4.2.1.12) *(v2.128)*
-- [x] **Persisted UI filters** — Filter selections survive reloads on every list page *(v2.128)*
-- [x] **User preferences server-side** — Language/theme follow the user across browsers *(v2.128)*
-- [x] **Windows SSH CA setup script (`.ps1`)** — One-command trust setup for Windows OpenSSH Server *(v2.128/v2.134)*
-- [x] **SSH Certificates** — SSH CA management, host/user certificate signing, import, setup scripts *(v2.112)*
-- [x] **Security Audit** — Comprehensive security hardening: session fixation, export passwords, LDAP injection, LIKE escaping *(v2.112)*
-- [x] **Certificate Transparency (RFC 6962)** — CT log submission, SCT parsing, auto-submit on issuance *(v2.109)*
-- [x] **OCSP Delegated Responder (RFC 5019)** — Per-CA delegated responder assignment with EKU validation *(v2.109)*
-- [x] **Certificate Practice Statement (CPS)** — Per-CA CPS URI and Policy OID in CertificatePolicies extension *(v2.109)*
-- [x] **Multiple CDP/OCSP/AIA URLs** — Multiple distribution points and access descriptions per CA *(v2.109)*
-- [x] **RFC 3161 Timestamp Authority (TSA)** — Time stamping server with configurable policy, hash algorithms, and accuracy *(v2.109)*
-- [x] **In-App Help Translations** — 208 help files across 8 languages for all 26 sections *(v2.109)*
-- [x] **ACME Auto-Supersede** — Automatically revoke old certificates on ACME renewal *(v2.110)*
-- [x] **Universal Format Detection** — DER/PEM detection by content across all file uploads *(v2.110)*
-- [x] **PKCS7/PKCS12 Decode** — Certificate decoder supports P7B bundles and PKCS12 files *(v2.111)*
-- [x] **Delta CRL** — Incremental CRL updates for large deployments *(v2.75)*
+- [x] **ACME profile templates and key-algorithm-aware key usage**: an ACME certificate profile can bind a certificate template whose key usage and EKU govern the issued certificate, and every issuance path (issue form, approvals, ACME, EST, SCEP, WSTEP) now derives key usage from the key algorithm, so ECDSA and Ed25519 leaves no longer assert `keyEncipherment` *(v2.221)*
+- [x] **Security hardening, multi-endpoint SCEP, and access-control refinements**: an audit-driven hardening pass tightens issuance (per-path key-strength floor, CSR EKU capping, gated sub-CA minting), ACME (SAN types and subject bound to validated identifiers, SSRF guard on IP orders and cloud-metadata targets), and authorization (mTLS, API-key scoping, TSA, CSRF, SSH, OCSP, and direct private-key export gated behind an admin-only scope so Key Recovery's approval trail can't be bypassed); named SCEP profiles serve multiple enrollment endpoints, each with its own CA, template, challenge and approval policy; delegated OCSP responder certificates renew automatically; EAB credentials can be restricted to specific domains; and user groups can grant permissions from the UI *(v2.204)*
+- [x] **Compatibility restore & configurable strictness**: the 2.200 hardening no longer breaks existing deployments: TSA, SCEP, EST, CAA and name-constraints checks default to pre-2.200-compatible behaviour with renewals graced at par, and every strictness switch (CAA enforcement, SCEP signingTime/clock skew, CT SCT embedding/require, OCSP response validity, syslog framing, OIDC ID-token verification incl. issuer/JWKS) is now configurable from the UI; certificate templates now govern the issued KU/EKU, with a `custom` type, an OCSP Signing system template and `OCSPSigning` selectable in the editor *(v2.203)*
+- [x] **ACME certificate profiles, EST CA labels and RFC 7807 API errors**: clients can pick a named issuance profile advertised in the ACME directory; EST serves multiple CAs under path labels; API errors are now standard `application/problem+json` problem details while keeping the legacy keys for existing integrations *(v2.201)*
+- [x] **Protocol conformance sweep**: RFC-coverage audit and fixes across ACME client/server (state machine, subproblems, TLS-ALPN-01/IP identifiers, upstream revocation, ARI `replaces`), SCEP (GetCert/GetCRL, AES + PBKDF2 encryption), EST (server-side key generation §4.4), OCSP (multi-request, delegated responder validation), CAA (RFC 8657 account/method binding), TSA, CT pre-certificate flow with embedded SCTs, and OIDC id_token verification *(v2.200)*
+- [x] **ACME preferred certificate chain**: per-CA-account `preferred_chain` selects an RFC 8555 `Link: rel="alternate"` chain at download time (subject or issuer CN match, e.g. `ISRG Root X1`), in both the ACME client and proxy *(v2.193)*
+- [x] **Microsoft AD CS full lifecycle**: Renew/revoke AD CS-issued certificates through the connector, plus an optional WinRM admin channel: revocation propagated to the CA, one-way CRL revocation sync, CA inventory import with reconciliation, and a control panel to approve/deny pending requests with CA health; [guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Microsoft-CA-Integration) *(v2.192)*
+- [x] **Key Archival & Recovery**: Dual-control recovery of archived private keys: request → admin approve (four-eyes) → PKCS#12 download, fully audited; [guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Key-Recovery) *(v2.171)*
+- [x] **Custom external ACME CA for issuance**: a configured custom ACME directory URL plus EAB (Settings → ACME client) is now used by issuance and renewal instead of always hitting Let's Encrypt; account row carries the directory/EAB atomically *(v2.180)*
+- [x] **Multi-CA management with per-request selection**: issue from several external ACME CAs (Let's Encrypt, Actalis, ZeroSSL, Google Trust Services, HARICA…); each request picks its CA, the order is pinned to that account so renewals stay on the same authority; CRUD UI for CA accounts with per-account EAB and default selection *(v2.181)*
+- [x] **Multi-CA ACME proxy endpoints**: each external CA account can expose its own proxy path at `/acme/proxy/<slug>/directory` alongside the legacy default endpoint, with per-account upstream credentials *(v2.185)*
+- [x] **ACME external CSR, renewal key reuse & staging preflight**: finalize with an externally generated CSR (key never enters UCM), keep the same private key across renewals (DANE/TLSA), and dry-run requests against Let's Encrypt staging before touching production rate limits *(v2.184)*
+- [x] **Code Signing**: Issue and manage code-signing certificates for Authenticode, JAR and macOS via the `codeSigning` EKU plus platform key purposes (kernel-mode, lifetime, Apple Developer ID); [usage guide](https://github.com/NeySlim/ultimate-ca-manager/wiki/Code-Signing) *(v2.171)*
+- [x] **Helm chart**: Package UCM itself as a Helm chart for in-cluster deployment under `charts/ucm/` (single-instance, persistent `master.key`, SQLite or external PostgreSQL) *(v2.171)*
+- [x] **SAN database columns derived from final SAN list**: `san_email` / `san_dns` / `san_ip` / `san_uri` always match the X.509 extension, with backfill migration *(v2.140)*
+- [x] **On-disk certificate & CA files**: `.crt` / `.key` materialized to disk on every creation path *(v2.140)*
+- [x] **ACME External Account Binding (EAB, RFC 8555 §7.3.4)**: Issue/rotate/revoke `kid`+`hmac` pairs for cert-manager / certbot / acme.sh *(v2.139)*
+- [x] **ACME custom DNS resolvers + private-IP validation**: Split-horizon DNS, RFC1918/`.lan`/`.local` HTTP-01 & TLS-ALPN-01 *(v2.139)*
+- [x] **Kubernetes / cert-manager integration**: Reference manifests for ClusterIssuer (HTTP-01 + DNS-01 with EAB) *(v2.139)*
+- [x] **SMTP OAuth2 (XOAUTH2)**: Gmail, Outlook.com, Microsoft 365 modern auth *(v2.134)*
+- [x] **SSO `auth_source` tracking + role preservation**: Per-user origin, optional sync-on-login, UI never overwritten *(v2.133)*
+- [x] **HSM-backed Certificate Authorities**: Signing key generated/stored in HSM, never exportable *(v2.130)*
+- [x] **Native PostgreSQL backend**: Bidirectional migration UI with safety checks *(v2.127)*
+- [x] **PostgreSQL feature parity**: Database stats, optimize, integrity check, certificate activity chart all work natively on PostgreSQL *(v2.135)*
+- [x] **Custom Extra EKU OIDs**: Microsoft RDP, smartcard logon, document signing, IPsec, Kerberos PKINIT… (RFC 5280 §4.2.1.12) *(v2.128)*
+- [x] **Persisted UI filters**: Filter selections survive reloads on every list page *(v2.128)*
+- [x] **User preferences server-side**: Language/theme follow the user across browsers *(v2.128)*
+- [x] **Windows SSH CA setup script (`.ps1`)**: One-command trust setup for Windows OpenSSH Server *(v2.128/v2.134)*
+- [x] **SSH Certificates**: SSH CA management, host/user certificate signing, import, setup scripts *(v2.112)*
+- [x] **Security Audit**: Comprehensive security hardening: session fixation, export passwords, LDAP injection, LIKE escaping *(v2.112)*
+- [x] **Certificate Transparency (RFC 6962)**: CT log submission, SCT parsing, auto-submit on issuance *(v2.109)*
+- [x] **OCSP Delegated Responder (RFC 5019)**: Per-CA delegated responder assignment with EKU validation *(v2.109)*
+- [x] **Certificate Practice Statement (CPS)**: Per-CA CPS URI and Policy OID in CertificatePolicies extension *(v2.109)*
+- [x] **Multiple CDP/OCSP/AIA URLs**: Multiple distribution points and access descriptions per CA *(v2.109)*
+- [x] **RFC 3161 Timestamp Authority (TSA)**: Time stamping server with configurable policy, hash algorithms, and accuracy *(v2.109)*
+- [x] **In-App Help Translations**: 208 help files across 8 languages for all 26 sections *(v2.109)*
+- [x] **ACME Auto-Supersede**: Automatically revoke old certificates on ACME renewal *(v2.110)*
+- [x] **Universal Format Detection**: DER/PEM detection by content across all file uploads *(v2.110)*
+- [x] **PKCS7/PKCS12 Decode**: Certificate decoder supports P7B bundles and PKCS12 files *(v2.111)*
+- [x] **Delta CRL**: Incremental CRL updates for large deployments *(v2.75)*
 
 ## Contributing
 

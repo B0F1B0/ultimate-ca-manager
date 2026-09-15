@@ -41,7 +41,7 @@ def _require_paramiko():
         return paramiko
     except ImportError:
         raise DeploySSHError(
-            "paramiko is not installed — reinstall UCM dependencies (pip install -r requirements.txt)"
+            "paramiko is not installed: reinstall UCM dependencies (pip install -r requirements.txt)"
         )
 
 

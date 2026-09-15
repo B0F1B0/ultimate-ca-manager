@@ -24,7 +24,7 @@ export default {
       },
     ],
     tips: [
-      'Segui il principio del privilegio minimo — concedi solo i permessi necessari',
+      'Segui il principio del privilegio minimo: concedi solo i permessi necessari',
       'I ruoli di sistema non possono essere modificati o eliminati',
       'Attiva/disattiva intere categorie per una configurazione rapida dei ruoli',
     ],
@@ -40,10 +40,10 @@ RBAC fornisce una gestione granulare dei permessi. Definisci ruoli personalizzat
 
 Quattro ruoli integrati che non possono essere modificati o eliminati:
 
-- **Admin** — Accesso completo a tutto
-- **Operator** — Gestisce certificati, CA, CSR, template. Nessun accesso a impostazioni di sistema, utenti o RBAC
-- **Auditor** — Accesso in sola lettura a tutti i dati operativi (certificati, CA, ACME, SCEP, HSM, log di audit, politiche, gruppi) ma non a impostazioni o gestione utenti
-- **Viewer** — Accesso di base in sola lettura a certificati, CA, CSR, template e trust store
+- **Admin**: Accesso completo a tutto
+- **Operator**: Gestisce certificati, CA, CSR, template. Nessun accesso a impostazioni di sistema, utenti o RBAC
+- **Auditor**: Accesso in sola lettura a tutti i dati operativi (certificati, CA, ACME, SCEP, HSM, log di audit, politiche, gruppi) ma non a impostazioni o gestione utenti
+- **Viewer**: Accesso di base in sola lettura a certificati, CA, CSR, template e trust store
 
 ## Ruoli personalizzati
 
@@ -55,24 +55,24 @@ Quattro ruoli integrati che non possono essere modificati o eliminati:
 
 ### Matrice dei permessi
 I permessi sono organizzati per categoria:
-- **CA** — Creazione, lettura, aggiornamento, eliminazione, importazione, esportazione
-- **Certificati** — Emissione, lettura, revoca, rinnovo, esportazione, eliminazione (solo certificato — vedi Chiavi private)
-- **Chiavi private** — Esportazione diretta della chiave privata (\`read:private_keys\`), riservata agli admin: nessun ruolo predefinito la possiede tranne Admin. I ruoli che ne sono privi passano dal Recupero delle chiavi
-- **CSR** — Creazione, lettura, firma, eliminazione
-- **Template** — Creazione, lettura, aggiornamento, eliminazione
-- **Utenti** — Creazione, lettura, aggiornamento, eliminazione
-- **Gruppi** — Creazione, lettura, aggiornamento, eliminazione
-- **Impostazioni** — Lettura, aggiornamento
-- **Audit** — Lettura, esportazione, pulizia
-- **ACME** — Configurazione, gestione account
-- **SCEP** — Configurazione, approvazione richieste
-- **Trust Store** — Gestione certificati di fiducia
-- **HSM** — Gestione provider e chiavi
-- **SSH** — Gestione delle CA e dei certificati SSH
-- **Politiche** — Visualizzazione delle politiche dei certificati
-- **Approvazioni** — Visualizzazione e decisione delle richieste di approvazione
-- **Recupero delle chiavi** — Richiesta di recuperi e consultazione delle richieste (l'approvazione è riservata agli admin)
-- **Backup** — Creazione, ripristino
+- **CA**: Creazione, lettura, aggiornamento, eliminazione, importazione, esportazione
+- **Certificati**: Emissione, lettura, revoca, rinnovo, esportazione, eliminazione (solo certificato: vedi Chiavi private)
+- **Chiavi private**: Esportazione diretta della chiave privata (\`read:private_keys\`), riservata agli admin: nessun ruolo predefinito la possiede tranne Admin. I ruoli che ne sono privi passano dal Recupero delle chiavi
+- **CSR**: Creazione, lettura, firma, eliminazione
+- **Template**: Creazione, lettura, aggiornamento, eliminazione
+- **Utenti**: Creazione, lettura, aggiornamento, eliminazione
+- **Gruppi**: Creazione, lettura, aggiornamento, eliminazione
+- **Impostazioni**: Lettura, aggiornamento
+- **Audit**: Lettura, esportazione, pulizia
+- **ACME**: Configurazione, gestione account
+- **SCEP**: Configurazione, approvazione richieste
+- **Trust Store**: Gestione certificati di fiducia
+- **HSM**: Gestione provider e chiavi
+- **SSH**: Gestione delle CA e dei certificati SSH
+- **Politiche**: Visualizzazione delle politiche dei certificati
+- **Approvazioni**: Visualizzazione e decisione delle richieste di approvazione
+- **Recupero delle chiavi**: Richiesta di recuperi e consultazione delle richieste (l'approvazione è riservata agli admin)
+- **Backup**: Creazione, ripristino
 
 ### Attivazione per categoria
 Clicca sull'intestazione di una categoria per abilitare/disabilitare tutti i permessi in quella categoria contemporaneamente.
@@ -83,8 +83,8 @@ Un badge percentuale mostra quanta parte dell'insieme totale dei permessi copre 
 ## Assegnazione dei ruoli
 
 I ruoli vengono assegnati:
-- **Direttamente** — Nella pagina Utenti, modifica un utente e seleziona un ruolo
-- **Tramite gruppi** — Un gruppo concede un insieme di permessi; ogni membro lo riceve in aggiunta al proprio ruolo
+- **Direttamente**: Nella pagina Utenti, modifica un utente e seleziona un ruolo
+- **Tramite gruppi**: Un gruppo concede un insieme di permessi; ogni membro lo riceve in aggiunta al proprio ruolo
 
 ## Permessi effettivi
 

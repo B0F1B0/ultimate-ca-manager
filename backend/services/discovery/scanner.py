@@ -90,7 +90,7 @@ class ScannerMixin:
         if len(jobs) > _MAX_SCAN_JOBS:
             raise ValueError(
                 f"Scan expands to {len(jobs)} host/port probes "
-                f"(max {_MAX_SCAN_JOBS} per scan) — narrow the subnet or the port list"
+                f"(max {_MAX_SCAN_JOBS} per scan): narrow the subnet or the port list"
             )
 
         # Create scan run record

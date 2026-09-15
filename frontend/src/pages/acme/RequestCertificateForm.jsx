@@ -183,7 +183,7 @@ export default function RequestCertificateForm({
               value: String(a.id),
               label: a.label
                 + (a.environment && a.environment !== 'custom' ? ` (${a.environment})` : '')
-                + (a.is_default ? ` — ${t('common.default')}` : '')
+                + (a.is_default ? `: ${t('common.default')}` : '')
                 + (a.is_registered ? '' : ` · ${t('acme.notRegistered')}`)
             })),
             { value: '', label: t('acme.useEnvironmentDefault') }

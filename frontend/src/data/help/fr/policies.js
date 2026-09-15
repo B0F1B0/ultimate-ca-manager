@@ -57,40 +57,40 @@ Règles appliquées lors de la révocation de certificats. Peuvent exiger une ap
 
 ### Validité maximale
 Durée de vie maximale du certificat en jours. Valeurs courantes :
-- **90 jours** — Automatisation de courte durée (style ACME)
-- **397 jours** — Baseline CA/Browser Forum pour TLS public
-- **730 jours** — PKI interne/privée
-- **365 jours** — Signature de code
+- **90 jours** : Automatisation de courte durée (style ACME)
+- **397 jours** : Baseline CA/Browser Forum pour TLS public
+- **730 jours** : PKI interne/privée
+- **365 jours** : Signature de code
 
 ### Types de clés autorisés
 Restreindre les algorithmes et tailles de clés pouvant être utilisés :
-- **RSA-2048** — Minimum pour la confiance publique
-- **RSA-4096** — Sécurité plus élevée, certificats plus volumineux
-- **EC-P256** — Moderne, rapide, recommandé
-- **EC-P384** — Courbe elliptique à sécurité plus élevée
-- **EC-P521** — Sécurité maximale (rarement nécessaire)
+- **RSA-2048** : Minimum pour la confiance publique
+- **RSA-4096** : Sécurité plus élevée, certificats plus volumineux
+- **EC-P256** : Moderne, rapide, recommandé
+- **EC-P384** : Courbe elliptique à sécurité plus élevée
+- **EC-P521** : Sécurité maximale (rarement nécessaire)
 
 ### Restrictions SAN
-- **Noms DNS max** — Limiter le nombre de noms alternatifs du sujet
-- **Motif DNS** — Restreindre à des motifs de domaine spécifiques (par ex. \`*.entreprise.com\`)
+- **Noms DNS max** : Limiter le nombre de noms alternatifs du sujet
+- **Motif DNS** : Restreindre à des motifs de domaine spécifiques (par ex. \`*.entreprise.com\`)
 
 ## Flux d'approbation
 
 Lorsque **Approbation requise** est activé, l'émission de certificat est suspendue jusqu'à ce que le nombre requis d'approbateurs du groupe assigné aient approuvé la demande.
 
 ### Configuration
-- **Groupe d'approbation** — Sélectionner un groupe d'utilisateurs responsable des approbations
-- **Approbateurs min** — Nombre d'approbations requises (par ex. 2 sur 3 membres du groupe)
-- **Notifications** — Alerter les administrateurs lors de violations de politique
+- **Groupe d'approbation** : Sélectionner un groupe d'utilisateurs responsable des approbations
+- **Approbateurs min** : Nombre d'approbations requises (par ex. 2 sur 3 membres du groupe)
+- **Notifications** : Alerter les administrateurs lors de violations de politique
 
 > 💡 Utilisez les flux d'approbation pour les certificats de haute valeur comme la signature de code et les certificats génériques.
 
 ## Système de priorité
 
 Les politiques sont évaluées par ordre de priorité. Les nombres plus bas ont une priorité plus élevée :
-- **1-10** — Politiques de sécurité critiques (signature de code, génériques)
-- **10-20** — Conformité standard (TLS public, PKI interne)
-- **20+** — Valeurs par défaut permissives
+- **1-10** : Politiques de sécurité critiques (signature de code, génériques)
+- **10-20** : Conformité standard (TLS public, PKI interne)
+- **20+** : Valeurs par défaut permissives
 
 Lorsque plusieurs politiques correspondent à une demande de certificat, la politique de priorité la plus élevée (nombre le plus bas) l'emporte.
 
@@ -105,11 +105,11 @@ La politique s'applique uniquement aux certificats émis par la CA sélectionné
 ## Politiques par défaut
 
 UCM est livré avec 5 politiques intégrées reflétant les meilleures pratiques PKI du monde réel :
-- **Signature de code** (priorité 5) — Clés fortes, approbation requise
-- **Certificats génériques** (priorité 8) — Approbation requise, max 10 SAN
-- **TLS serveur web** (priorité 10) — Conforme CA/B Forum, max 397 jours
-- **Automatisation courte durée** (priorité 15) — 90 jours style ACME
-- **PKI interne** (priorité 20) — 730 jours, règles assouplies
+- **Signature de code** (priorité 5) : Clés fortes, approbation requise
+- **Certificats génériques** (priorité 8) : Approbation requise, max 10 SAN
+- **TLS serveur web** (priorité 10) : Conforme CA/B Forum, max 397 jours
+- **Automatisation courte durée** (priorité 15) : 90 jours style ACME
+- **PKI interne** (priorité 20) : 730 jours, règles assouplies
 
 > 💡 Personnalisez ou désactivez les politiques par défaut pour correspondre aux exigences de votre organisation.
 `

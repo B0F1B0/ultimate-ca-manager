@@ -88,17 +88,23 @@ class PolicyEvaluationService:
                       validity_days=None):
         """Apply the Rules of *policies* to a request (#335).
 
-        Returns ``(violations, validity_days)``: the human-readable reasons
-        the request must be refused (``allowed_key_types`` not matched,
-        ``san_restrictions.max_dns_names`` exceeded), and the validity capped
-        by the lowest ``max_validity_days`` among the policies. Parameters
-        left ``None`` are not checked. Key types compare in the template
-        label form (RSA-2048, EC-P256), whatever spelling the request used.
+        Returns ``(violations, validity_days, capped_by)``: the
+        human-readable reasons the request must be refused
+        (``allowed_key_types`` not matched, ``san_restrictions.max_dns_names``
+        exceeded), the validity capped by the lowest ``max_validity_days``
+        among the policies, and the name of the policy that set that cap, or
+        ``None`` when nothing was shortened. Parameters left ``None`` are not
+        checked. Key types compare in the template label form (RSA-2048,
+        EC-P256), whatever spelling the request used.
+
+        The caller names the capping policy in a notice: a validity silently
+        shortened is the one outcome the requester cannot see.
         """
         from services.template_service import _normalize_key_type_label
 
         violations = []
         effective_validity = validity_days
+        capped_by = None
         for policy in policies:
             rules = policy.get_rules() or {}
 
@@ -127,7 +133,8 @@ class PolicyEvaluationService:
                     and not isinstance(max_validity, bool) and max_validity > 0
                     and effective_validity > max_validity):
                 effective_validity = max_validity
-        return violations, effective_validity
+                capped_by = policy.name
+        return violations, effective_validity, capped_by
 
     @staticmethod
     def _matches_rules(policy: CertificatePolicy, cn: str = None, san_list: list = None) -> bool:

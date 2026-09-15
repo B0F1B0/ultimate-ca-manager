@@ -324,7 +324,7 @@ def export_user_certificate(cert_id):
             if password:
                 logger.warning(
                     "Rejected user-certificate export with password in query string "
-                    "(cert_id=%s) — client must POST with JSON body",
+                    "(cert_id=%s): client must POST with JSON body",
                     cert_id,
                 )
             return error_response(

@@ -14,10 +14,10 @@ export default {
       {
         title: 'Configuration',
         items: [
-          { label: 'CA de signature', text: 'La CA dont la clé privée signe les jetons d\'horodatage — doit être une CA valide et non expirée' },
-          { label: 'OID de politique', text: 'Identifiant d\'objet pour la politique TSA (par ex. 1.2.3.4.1) — inclus dans chaque réponse d\'horodatage' },
+          { label: 'CA de signature', text: 'La CA dont la clé privée signe les jetons d\'horodatage, doit être une CA valide et non expirée' },
+          { label: 'OID de politique', text: 'Identifiant d\'objet pour la politique TSA (par ex. 1.2.3.4.1) : inclus dans chaque réponse d\'horodatage' },
           { label: 'Activer/Désactiver', text: 'Basculer le point de terminaison TSA sans perdre la configuration' },
-          { label: 'Exiger un certificat dédié', text: 'Opt-in : refuser de signer les horodatages avec le certificat de la CA lui-même — exige un certificat de signature d\'entité finale dédié avec une EKU timeStamping critique (RFC 3161)' },
+          { label: 'Exiger un certificat dédié', text: 'Opt-in : refuser de signer les horodatages avec le certificat de la CA lui-même, exige un certificat de signature d\'entité finale dédié avec une EKU timeStamping critique (RFC 3161)' },
                   { label: 'Certificat de signature (v2.217)', text: 'Signez les jetons avec un certificat final dédié choisi parmi les certificats émis (EKU timeStamping, clé détenue par UCM). Les renouvellements sont suivis automatiquement ; un signeur expiré ou révoqué fait échouer les requêtes en 503, sans jamais retomber sur le certificat de la CA' },
                   { label: 'Générer un certificat de signature (v2.218)', text: 'Émission en un clic d\'un signeur RFC 3161 taillé pour cet usage : CA:FALSE, KeyUsage digitalSignature uniquement et une EKU timeStamping exclusive et critique, la forme qu\'exigent les vérificateurs stricts (openssl ts -verify). Émis depuis la CA TSA configurée et sélectionné automatiquement quand aucun signeur utilisable n\'est défini. Le certificat a la source "manual" : ajoutez "manual" aux sources du renouvellement automatique ou renouvelez-le vous-même avant son expiration' },
         ]
@@ -35,11 +35,11 @@ export default {
       'Les horodatages TSA sont utilisés dans la signature de code pour garantir que les signatures restent valides après l\'expiration du certificat',
       'Le point de terminaison TSA accepte les requêtes HTTP POST avec Content-Type: application/timestamp-query',
       'Utilisez SHA-256 ou des algorithmes de hachage plus forts lors de la création de requêtes d\'horodatage',
-      'Aucune authentification n\'est requise — le point de terminaison TSA est accessible publiquement comme CRL/OCSP',
+      'Aucune authentification n\'est requise : le point de terminaison TSA est accessible publiquement comme CRL/OCSP',
     ],
     warnings: [
       'Une CA de signature valide doit être configurée avant d\'activer TSA',
-      'Le point de terminaison TSA est un point de terminaison de protocole public — ne mettez pas de données sensibles dans les requêtes d\'horodatage',
+      'Le point de terminaison TSA est un point de terminaison de protocole public : ne mettez pas de données sensibles dans les requêtes d\'horodatage',
     ],
   },
   helpGuides: {
@@ -51,18 +51,18 @@ L'autorité d'horodatage (TSA) implémente le **RFC 3161** pour fournir des horo
 
 ## Comment ça fonctionne
 
-1. **Le client crée une requête d'horodatage** — hache un fichier avec SHA-256/SHA-512 et crée un \`TimeStampReq\` (encodé ASN.1 DER)
-2. **Le client envoie la requête au TSA** — HTTP POST vers le point de terminaison \`/tsa\` avec \`Content-Type: application/timestamp-query\`
-3. **UCM signe l'horodatage** — la CA configurée signe le hash + l'heure actuelle dans un \`TimeStampResp\`
-4. **Le client reçoit et stocke la réponse** — le fichier \`.tsr\` peut ensuite prouver que le document existait à ce moment
+1. **Le client crée une requête d'horodatage** : hache un fichier avec SHA-256/SHA-512 et crée un \`TimeStampReq\` (encodé ASN.1 DER)
+2. **Le client envoie la requête au TSA** : HTTP POST vers le point de terminaison \`/tsa\` avec \`Content-Type: application/timestamp-query\`
+3. **UCM signe l'horodatage** : la CA configurée signe le hash + l'heure actuelle dans un \`TimeStampResp\`
+4. **Le client reçoit et stocke la réponse** : le fichier \`.tsr\` peut ensuite prouver que le document existait à ce moment
 
 ## Configuration
 
 ### Onglet Paramètres
 
-1. **Activer TSA** — Basculer le serveur TSA on ou off
-2. **CA de signature** — Sélectionner quelle autorité de certification signe les jetons d'horodatage
-3. **OID de politique** — Identifiant d'objet pour la politique TSA (par ex. \`1.2.3.4.1\`), inclus dans chaque réponse d'horodatage
+1. **Activer TSA** : Basculer le serveur TSA on ou off
+2. **CA de signature** : Sélectionner quelle autorité de certification signe les jetons d'horodatage
+3. **OID de politique** : Identifiant d'objet pour la politique TSA (par ex. \`1.2.3.4.1\`), inclus dans chaque réponse d'horodatage
 
 ### Choisir une CA de signature
 
@@ -70,7 +70,7 @@ La clé privée de la CA de signature est utilisée pour signer chaque jeton d'h
 
 - Utilisez une **sous-CA dédiée** pour l'horodatage plutôt que votre CA racine
 - Le certificat de la CA devrait inclure l'utilisation étendue de la clé **id-kp-timeStamping** (OID 1.3.6.1.5.5.7.3.8)
-- Assurez-vous que le certificat de la CA a une **validité suffisante** — les horodatages doivent rester vérifiables pendant des années
+- Assurez-vous que le certificat de la CA a une **validité suffisante** : les horodatages doivent rester vérifiables pendant des années
 - Activez **Exiger un certificat dédié** pour l'imposer au moment de la signature plutôt que de s'en remettre à la convention
 
 ### OID de politique
@@ -84,9 +84,9 @@ L'OID de politique identifie la politique TSA sous laquelle les horodatages sont
 
 L'onglet Informations affiche :
 
-- **URL du point de terminaison TSA** — URL prête à copier-coller pour la configuration client
-- **Exemples d'utilisation** — Commandes OpenSSL pour créer des requêtes, les envoyer et vérifier les réponses
-- **Statistiques** — Total des requêtes d'horodatage traitées (réussies et échouées)
+- **URL du point de terminaison TSA** : URL prête à copier-coller pour la configuration client
+- **Exemples d'utilisation** : Commandes OpenSSL pour créer des requêtes, les envoyer et vérifier les réponses
+- **Statistiques** : Total des requêtes d'horodatage traitées (réussies et échouées)
 
 ## Exemples d'utilisation
 
@@ -155,10 +155,10 @@ curl -s -H "Content-Type: application/timestamp-query" \\
 
 ## Considérations de sécurité
 
-- Le point de terminaison TSA est **public** — aucune authentification n'est requise (comme CRL/OCSP)
-- Chaque réponse d'horodatage est **signée** par la clé de la CA — les clients vérifient la signature pour garantir l'authenticité
+- Le point de terminaison TSA est **public** : aucune authentification n'est requise (comme CRL/OCSP)
+- Chaque réponse d'horodatage est **signée** par la clé de la CA : les clients vérifient la signature pour garantir l'authenticité
 - Utilisez **SHA-256 ou plus fort** pour les algorithmes de hachage lors de la création de requêtes (SHA-1 est accepté mais déconseillé)
-- Le TSA ne **voit pas** le document original — seul le hash est transmis
+- Le TSA ne **voit pas** le document original : seul le hash est transmis
 - Envisagez la **limitation de débit** si le point de terminaison TSA est exposé à Internet
 
 > 💡 Les horodatages sont essentiels pour la signature de code : ils garantissent que votre logiciel signé reste de confiance même après l'expiration du certificat de signature.

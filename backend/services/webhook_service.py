@@ -164,7 +164,7 @@ def _build_auth_header(webhook) -> dict:
     if token and len(token.encode('utf-8')) > _MAX_AUTH_TOKEN_BYTES:
         logger.error(
             f"Webhook {getattr(webhook, 'id', '?')}: auth_token exceeds "
-            f"{_MAX_AUTH_TOKEN_BYTES}-byte cap — dropping auth header"
+            f"{_MAX_AUTH_TOKEN_BYTES}-byte cap: dropping auth header"
         )
         return {}
 
@@ -185,7 +185,7 @@ def _build_auth_header(webhook) -> dict:
             return {}
         if ':' in username:
             logger.error(
-                f"Webhook {getattr(webhook, 'id', '?')}: basic auth_username contains ':' — invalid"
+                f"Webhook {getattr(webhook, 'id', '?')}: basic auth_username contains ':', invalid"
             )
             return {}
         if not token:

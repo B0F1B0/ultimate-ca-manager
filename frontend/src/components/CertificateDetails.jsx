@@ -343,7 +343,7 @@ export function CertificateDetails({
               icon={Stack}
               label={t('certificates.template')}
               value={cert.template_overrides?.length
-                ? `${cert.template_name} — ${t('certificates.modifiedFromTemplate')}: ${cert.template_overrides.map(f => OVERRIDE_FIELD_LABEL_KEYS[f] ? t(OVERRIDE_FIELD_LABEL_KEYS[f]) : f).join(', ')}`
+                ? `${cert.template_name}: ${t('certificates.modifiedFromTemplate')}: ${cert.template_overrides.map(f => OVERRIDE_FIELD_LABEL_KEYS[f] ? t(OVERRIDE_FIELD_LABEL_KEYS[f]) : f).join(', ')}`
                 : cert.template_name}
             />
           )}
@@ -363,7 +363,7 @@ export function CertificateDetails({
             <Badge variant="teal" size="sm">{t('certificates.ctSctsCount', { count: cert.ct_scts.length })}</Badge>
             {cert.ct_scts.map((sct, i) => (
               <div key={i} className="text-2xs font-mono text-text-secondary">
-                {sct.log_url || 'unknown'}{sct.timestamp ? ` — ${sct.timestamp}` : ''}
+                {sct.log_url || 'unknown'}{sct.timestamp ? `: ${sct.timestamp}` : ''}
               </div>
             ))}
           </div>

@@ -25,7 +25,7 @@ export default {
       },
     ],
     tips: [
-      'Der SSL-Checker unterstützt benutzerdefinierte Ports — verwenden Sie ihn, um jeden TLS-Dienst zu prüfen',
+      'Der SSL-Checker unterstützt benutzerdefinierte Ports: verwenden Sie ihn, um jeden TLS-Dienst zu prüfen',
       'Der Schlüsselabgleich vergleicht Modulus-Hashes, um übereinstimmende Paare zu verifizieren',
       'Der Konverter bewahrt die vollständige Zertifikatskette beim Erstellen von PKCS#12',
     ],
@@ -76,7 +76,7 @@ Zeigt: Betreff, Aussteller, SANs, Gültigkeit, Seriennummer, Key Usage, Erweiter
 Überprüfen, ob Zertifikat, CSR und privater Schlüssel zusammengehören:
 
 1. Fügen Sie das **Zertifikat**-PEM ein
-2. Fügen Sie den **privaten Schlüssel**-PEM ein (optional verschlüsselt — Passwort angeben)
+2. Fügen Sie den **privaten Schlüssel**-PEM ein (optional verschlüsselt. Passwort angeben)
 3. Fügen Sie optional einen **CSR**-PEM ein
 4. Klicken Sie auf **Abgleichen**
 

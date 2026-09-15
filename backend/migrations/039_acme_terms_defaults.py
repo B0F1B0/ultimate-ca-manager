@@ -11,7 +11,7 @@ pg_compatible = True
 
 DEFAULT_TOS = {
     "title": "Terms of Service",
-    "body": "By using this ACME server, you agree to these terms.\n\n1. No abusive or unlawful use.\n2. Rate limits apply — excessive requests may be temporarily blocked.\n3. Accounts that violate these terms may be revoked."
+    "body": "By using this ACME server, you agree to these terms.\n\n1. No abusive or unlawful use.\n2. Rate limits apply: excessive requests may be temporarily blocked.\n3. Accounts that violate these terms may be revoked."
 }
 
 def _seed_sqlite(conn):

@@ -19,7 +19,7 @@ export default {
         title: 'Gruppen',
         items: [
           { label: 'Gruppe erstellen', text: 'Eine Gruppe definieren und Mitglieder zuweisen' },
-          { label: 'Gruppenberechtigungen', text: 'Eine Gruppe gewährt einen Satz von Berechtigungen — jedes Mitglied erhält sie zusätzlich zu seiner eigenen Rolle' },
+          { label: 'Gruppenberechtigungen', text: 'Eine Gruppe gewährt einen Satz von Berechtigungen, jedes Mitglied erhält sie zusätzlich zu seiner eigenen Rolle' },
           { label: 'Mitgliederverwaltung', text: 'Benutzer zu Gruppen hinzufügen oder daraus entfernen' },
         ]
       },
@@ -29,7 +29,7 @@ export default {
       'Deaktivierte Benutzer können sich nicht anmelden, aber ihre Daten bleiben erhalten',
     ],
     warnings: [
-      'Das Löschen eines Benutzers ist dauerhaft — erwägen Sie stattdessen die Deaktivierung',
+      'Das Löschen eines Benutzers ist dauerhaft: erwägen Sie stattdessen die Deaktivierung',
     ],
   },
   helpGuides: {
@@ -50,8 +50,8 @@ Verwalten Sie Benutzerkonten, Gruppen und Rollenzuweisungen. Benutzer authentifi
 6. Klicken Sie auf **Erstellen**
 
 ### Benutzerstatus
-- **Aktiv** — Kann sich anmelden und Aktionen durchführen
-- **Deaktiviert** — Kann sich nicht anmelden, Daten bleiben erhalten
+- **Aktiv**: Kann sich anmelden und Aktionen durchführen
+- **Deaktiviert**: Kann sich nicht anmelden, Daten bleiben erhalten
 
 Schalten Sie den Status eines Benutzers um, ohne sein Konto zu löschen.
 
@@ -82,10 +82,10 @@ Die effektiven Berechtigungen eines Benutzers sind die **Vereinigung** von:
 ## Rollen
 
 ### Systemrollen
-- **Admin** — Vollständiger Zugriff auf alle Funktionen
-- **Operator** — Kann Zertifikate, CAs, CSRs verwalten, aber keine Systemeinstellungen
-- **Auditor** — Nur-Lese-Zugriff auf alle Betriebsdaten für Compliance und Audit
-- **Viewer** — Nur-Lese-Zugriff auf Zertifikate, CAs und Templates
+- **Admin**: Vollständiger Zugriff auf alle Funktionen
+- **Operator**: Kann Zertifikate, CAs, CSRs verwalten, aber keine Systemeinstellungen
+- **Auditor**: Nur-Lese-Zugriff auf alle Betriebsdaten für Compliance und Audit
+- **Viewer**: Nur-Lese-Zugriff auf Zertifikate, CAs und Templates
 
 ### Benutzerdefinierte Rollen
 Erstellen Sie Rollen mit granularen Berechtigungen auf der **RBAC**-Seite.
@@ -95,8 +95,8 @@ Erstellen Sie Rollen mit granularen Berechtigungen auf der **RBAC**-Seite.
 ## Authentifizierungsquelle
 
 Die Spalte **Quelle** zeigt die Herkunft jedes Benutzers:
-- **Lokal** — in UCM erstellt und verwaltet (lokales Passwort)
-- **LDAP / OAuth2 / SAML** — automatisch beim ersten SSO-Login bereitgestellt; der Name des ursprünglichen Anbieters erscheint auf dem Badge (z. B. \`LDAP · Corporate AD\`).
+- **Lokal**: in UCM erstellt und verwaltet (lokales Passwort)
+- **LDAP / OAuth2 / SAML**: automatisch beim ersten SSO-Login bereitgestellt; der Name des ursprünglichen Anbieters erscheint auf dem Badge (z. B. \`LDAP · Corporate AD\`).
 
 Seit v2.133 bleiben manuell in UCM geänderte Rollen für SSO-Benutzer zwischen den Logins **erhalten**, sofern nicht **„Rolle bei jedem Login synchronisieren"** auf dem Anbieter aktiviert ist (siehe **Einstellungen → SSO**).
 `

@@ -28,17 +28,17 @@ export default {
         content: '配置好提供商后,您可以在创建时将 CA 的私钥固定到该 HSM:',
         items: [
           { label: 'Key Storage 开关', text: '在 CA 创建表单中,选择 Local(在 DB 中加密)或 HSM。选择提供商 + 密钥标签' },
-          { label: '签名路径', text: '该 CA 的每次签发、CRL 签名和 OCSP 签名都通过 HSM — 密钥永不离开' },
+          { label: '签名路径', text: '该 CA 的每次签发、CRL 签名和 OCSP 签名都通过 HSM, 密钥永不离开' },
           { label: '导出限制', text: 'HSM-CA 禁用 PKCS#12、JKS 和仅密钥导出(只能导出公共证书 / 链)' },
           { label: 'CRL 和 OCSP', text: '两者都与 HSM-CA 透明工作(通过 HSM 签名)' },
-          { label: '迁移', text: '现有本地 CA 在创建后无法移至 HSM — 在创建时选择' },
+          { label: '迁移', text: '现有本地 CA 在创建后无法移至 HSM, 在创建时选择' },
         ]
       },
 
     ],
     tips: [
       '在部署物理 HSM 前，使用 SoftHSM 进行测试',
-      '在 HSM 上生成的密钥永远不会离开硬件——无法导出',
+      '在 HSM 上生成的密钥永远不会离开硬件:, 无法导出',
       '在使用 HSM 提供商进行 CA 签名前先测试连接',
       '对于生产中长寿命的根 CA,首选 HSM 支持的密钥存储',
     ],
@@ -63,41 +63,41 @@ export default {
 - **SoftHSM**（基于软件，用于测试）
 - 任何兼容 PKCS#11 的设备
 
-> 💡 **Docker**：SoftHSM 已预装在 Docker 镜像中。首次启动时，会自动初始化默认令牌并注册为 \`SoftHSM-Default\` 提供商——开箱即用。
+> 💡 **Docker**：SoftHSM 已预装在 Docker 镜像中。首次启动时，会自动初始化默认令牌并注册为 \`SoftHSM-Default\` 提供商:, 开箱即用。
 
 配置：
-- **库路径** — PKCS#11 共享库路径（.so/.dll）
-- **插槽** — HSM 插槽号
-- **PIN** — 用户 PIN 用于认证
+- **库路径**: PKCS#11 共享库路径（.so/.dll）
+- **插槽**: HSM 插槽号
+- **PIN**: 用户 PIN 用于认证
 
 ### AWS CloudHSM
 Amazon Web Services 基于云的 HSM：
-- **集群 ID** — CloudHSM 集群标识符
-- **区域** — AWS 区域
-- **凭据** — AWS 访问密钥和密钥
+- **集群 ID**: CloudHSM 集群标识符
+- **区域**: AWS 区域
+- **凭据**: AWS 访问密钥和密钥
 
 ### Azure Key Vault
 Microsoft Azure 托管密钥存储：
-- **保管库 URL** — Azure Key Vault 端点
-- **租户 ID** — Azure AD 租户
-- **客户端 ID/密钥** — 服务主体凭据
+- **保管库 URL**: Azure Key Vault 端点
+- **租户 ID**: Azure AD 租户
+- **客户端 ID/密钥**: 服务主体凭据
 
 ### Google Cloud KMS
 Google Cloud 密钥管理服务：
-- **项目** — GCP 项目 ID
-- **位置** — KMS 密钥环位置
-- **密钥环** — 密钥环名称
-- **凭据** — 服务账户 JSON 密钥
+- **项目**: GCP 项目 ID
+- **位置**: KMS 密钥环位置
+- **密钥环**: 密钥环名称
+- **凭据**: 服务账户 JSON 密钥
 
 ### OpenBao / Vault Transit
-OpenBao 或 HashiCorp Vault Transit Secrets Engine。密钥通过 Transit API 远程管理 — 无需 PKCS#11 库。
+OpenBao 或 HashiCorp Vault Transit Secrets Engine。密钥通过 Transit API 远程管理: 无需 PKCS#11 库。
 
 配置：
-- **URL** — 服务器地址（例如 \`https://openbao.example.com:8200\`）
-- **令牌** — 认证令牌
-- **挂载路径** — Transit 引擎挂载点（默认：\`transit\`）
-- **命名空间** — 可选的多租户命名空间
-- **跳过 TLS 验证** — 跳过 TLS 证书验证（用于自签名证书）
+- **URL**: 服务器地址（例如 \`https://openbao.example.com:8200\`）
+- **令牌**: 认证令牌
+- **挂载路径**: Transit 引擎挂载点（默认：\`transit\`）
+- **命名空间**: 可选的多租户命名空间
+- **跳过 TLS 验证**: 跳过 TLS 证书验证（用于自签名证书）
 
 支持的密钥类型：
 - RSA 2048、3072、4096
@@ -120,9 +120,9 @@ OpenBao 或 HashiCorp Vault Transit Secrets Engine。密钥通过 Transit API �
 
 ### 提供商状态
 每个提供商显示连接状态指示器：
-- **已连接** — HSM 可达且已认证
-- **已断开** — 无法连接 HSM
-- **错误** — 认证或配置问题
+- **已连接**: HSM 可达且已认证
+- **已断开**: 无法连接 HSM
+- **错误**: 认证或配置问题
 
 ## 密钥管理
 

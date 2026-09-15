@@ -14,10 +14,10 @@ export default {
       {
         title: 'Configuração',
         items: [
-          { label: 'CA Assinante', text: 'A CA cuja chave privada assina tokens de carimbo de tempo — deve ser uma CA válida e não expirada' },
-          { label: 'OID da Política', text: 'Object Identifier para a política TSA (ex.: 1.2.3.4.1) — incluído em cada resposta de carimbo de tempo' },
+          { label: 'CA Assinante', text: 'A CA cuja chave privada assina tokens de carimbo de tempo, deve ser uma CA válida e não expirada' },
+          { label: 'OID da Política', text: 'Object Identifier para a política TSA (ex.: 1.2.3.4.1): incluído em cada resposta de carimbo de tempo' },
           { label: 'Ativar/Desativar', text: 'Alternar o endpoint TSA sem perder a configuração' },
-          { label: 'Exigir certificado dedicado', text: 'Opcional: recusa assinar carimbos de tempo com o próprio certificado da CA — requer um certificado de assinatura de entidade final dedicado com o EKU timeStamping crítico (RFC 3161)' },
+          { label: 'Exigir certificado dedicado', text: 'Opcional: recusa assinar carimbos de tempo com o próprio certificado da CA, requer um certificado de assinatura de entidade final dedicado com o EKU timeStamping crítico (RFC 3161)' },
                   { label: 'Certificado de assinatura (v2.217)', text: 'Assine os tokens com um certificado final dedicado escolhido entre os certificados emitidos (EKU timeStamping, chave detida pelo UCM). As renovações são seguidas automaticamente; um assinante expirado ou revogado faz falhar os pedidos com 503 e nunca recai no certificado da CA' },
                   { label: 'Gerar um certificado de assinatura (v2.218)', text: 'Emissão com um clique de um assinante RFC 3161 feito sob medida: CA:FALSE, KeyUsage apenas digitalSignature e um EKU timeStamping crítico e exclusivo, o formato que os verificadores estritos (openssl ts -verify) exigem. Emitido a partir da CA TSA configurada e selecionado automaticamente quando nenhum assinante utilizável está definido. O certificado tem origem "manual": adicione "manual" às origens de renovação automática ou renove-o você mesmo antes da expiração' },
         ]
@@ -35,11 +35,11 @@ export default {
       'Carimbos de tempo TSA são usados em assinatura de código para garantir que assinaturas permaneçam válidas após a expiração do certificado',
       'O endpoint TSA aceita HTTP POST com Content-Type: application/timestamp-query',
       'Use algoritmos de hash SHA-256 ou mais fortes ao criar requisições de carimbo de tempo',
-      'Nenhuma autenticação é necessária — o endpoint TSA é acessível publicamente como CRL/OCSP',
+      'Nenhuma autenticação é necessária: o endpoint TSA é acessível publicamente como CRL/OCSP',
     ],
     warnings: [
       'Uma CA assinante válida deve ser configurada antes de ativar o TSA',
-      'O endpoint TSA é um endpoint de protocolo público — não coloque dados sensíveis nas requisições de carimbo de tempo',
+      'O endpoint TSA é um endpoint de protocolo público: não coloque dados sensíveis nas requisições de carimbo de tempo',
     ],
   },
   helpGuides: {
@@ -51,18 +51,18 @@ Time Stamp Authority (TSA) implementa a **RFC 3161** para fornecer carimbos de t
 
 ## Como Funciona
 
-1. **Cliente cria uma requisição de carimbo de tempo** — faz hash de um arquivo com SHA-256/SHA-512 e cria um \`TimeStampReq\` (codificado em ASN.1 DER)
-2. **Cliente envia requisição para TSA** — HTTP POST para o endpoint \`/tsa\` com \`Content-Type: application/timestamp-query\`
-3. **UCM assina o carimbo de tempo** — a CA configurada assina o hash + hora atual em um \`TimeStampResp\`
-4. **Cliente recebe e armazena a resposta** — o arquivo \`.tsr\` pode posteriormente provar que o documento existia naquele momento
+1. **Cliente cria uma requisição de carimbo de tempo**: faz hash de um arquivo com SHA-256/SHA-512 e cria um \`TimeStampReq\` (codificado em ASN.1 DER)
+2. **Cliente envia requisição para TSA**: HTTP POST para o endpoint \`/tsa\` com \`Content-Type: application/timestamp-query\`
+3. **UCM assina o carimbo de tempo**: a CA configurada assina o hash + hora atual em um \`TimeStampResp\`
+4. **Cliente recebe e armazena a resposta**: o arquivo \`.tsr\` pode posteriormente provar que o documento existia naquele momento
 
 ## Configuração
 
 ### Aba Configurações
 
-1. **Ativar TSA** — Alternar o servidor TSA
-2. **CA Assinante** — Selecionar qual Autoridade Certificadora assina tokens de carimbo de tempo
-3. **OID da Política** — Object Identifier para a política TSA (ex.: \`1.2.3.4.1\`), incluído em cada resposta de carimbo de tempo
+1. **Ativar TSA**: Alternar o servidor TSA
+2. **CA Assinante**: Selecionar qual Autoridade Certificadora assina tokens de carimbo de tempo
+3. **OID da Política**: Object Identifier para a política TSA (ex.: \`1.2.3.4.1\`), incluído em cada resposta de carimbo de tempo
 
 ### Escolhendo uma CA Assinante
 
@@ -70,7 +70,7 @@ A chave privada da CA assinante é usada para assinar cada token de carimbo de t
 
 - Use uma **sub-CA dedicada** para carimbos de tempo em vez da sua CA raiz
 - O certificado da CA deve incluir o Extended Key Usage **id-kp-timeStamping** (OID 1.3.6.1.5.5.7.3.8)
-- Garanta que o certificado da CA tenha **validade suficiente** — carimbos de tempo devem permanecer verificáveis por anos
+- Garanta que o certificado da CA tenha **validade suficiente**: carimbos de tempo devem permanecer verificáveis por anos
 - Ative **Exigir um certificado de carimbo de tempo dedicado** para impor isso no momento da assinatura em vez de depender de convenção
 
 ### OID da Política
@@ -84,9 +84,9 @@ O OID da Política identifica a política TSA sob a qual os carimbos de tempo s�
 
 A aba Informações exibe:
 
-- **URL do Endpoint TSA** — URL pronta para copiar e colar para configuração do cliente
-- **Exemplos de Uso** — Comandos OpenSSL para criar requisições, enviá-las e verificar respostas
-- **Estatísticas** — Total de requisições de carimbo de tempo processadas (bem-sucedidas e com falha)
+- **URL do Endpoint TSA**: URL pronta para copiar e colar para configuração do cliente
+- **Exemplos de Uso**: Comandos OpenSSL para criar requisições, enviá-las e verificar respostas
+- **Estatísticas**: Total de requisições de carimbo de tempo processadas (bem-sucedidas e com falha)
 
 ## Exemplos de Uso
 
@@ -155,10 +155,10 @@ curl -s -H "Content-Type: application/timestamp-query" \\
 
 ## Considerações de Segurança
 
-- O endpoint TSA é **público** — nenhuma autenticação é necessária (mesmo que CRL/OCSP)
-- Cada resposta de carimbo de tempo é **assinada** pela chave da CA — clientes verificam a assinatura para garantir autenticidade
+- O endpoint TSA é **público**: nenhuma autenticação é necessária (mesmo que CRL/OCSP)
+- Cada resposta de carimbo de tempo é **assinada** pela chave da CA: clientes verificam a assinatura para garantir autenticidade
 - Use algoritmos de hash **SHA-256 ou mais fortes** ao criar requisições (SHA-1 é aceito mas desencorajado)
-- O TSA **não** vê o documento original — apenas o hash é transmitido
+- O TSA **não** vê o documento original: apenas o hash é transmitido
 - Considere **limitação de taxa** se o endpoint TSA estiver exposto na internet
 
 > 💡 Carimbos de tempo são essenciais para assinatura de código: eles garantem que seu software assinado permaneça confiável mesmo após o certificado de assinatura expirar.

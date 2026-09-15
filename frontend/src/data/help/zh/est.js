@@ -14,7 +14,7 @@ export default {
       {
         title: '认证方式',
         items: [
-          { label: 'mTLS（双向 TLS）', text: '客户端在 TLS 握手期间提供证书——最强的认证方式' },
+          { label: 'mTLS（双向 TLS）', text: '客户端在 TLS 握手期间提供证书,, 最强的认证方式' },
           { label: 'HTTP Basic Auth', text: '在 mTLS 不可用时的用户名/密码回退方式' },
           { label: '出示的证书', text: '对于通过 mTLS 访问的 /simpleenroll 和 /serverkeygen，由 EST CA 签发的证书必须是该 CA 仍持有的证书：已吊销、已被取代或已删除的证书会被拒绝（RFC 7030 §3.3.2）；由 TLS 层信任的其他颁发机构签发的证书仍会被接受' },
         ]
@@ -31,13 +31,13 @@ export default {
       },
     ],
     tips: [
-      'EST 是 SCEP 的现代替代方案——新部署请优先使用 EST',
-      '使用 mTLS 认证获得最高安全性——Basic Auth 是备用方案',
+      'EST 是 SCEP 的现代替代方案:, 新部署请优先使用 EST',
+      '使用 mTLS 认证获得最高安全性:, Basic Auth 是备用方案',
       '/simplereenroll 端点要求客户端通过 mTLS 提供当前证书',
       '从信息选项卡复制端点 URL 以配置您的 EST 客户端',
     ],
     warnings: [
-      'EST 需要 HTTPS——客户端必须信任 UCM 服务器证书或 CA',
+      'EST 需要 HTTPS:, 客户端必须信任 UCM 服务器证书或 CA',
       'mTLS 认证需要正确的 TLS 终止配置（反向代理必须转发客户端证书）',
     ],
   },
@@ -52,10 +52,10 @@ export default {
 
 ### 设置选项卡
 
-1. **启用 EST** — 开启或关闭 EST 协议
-2. **签名 CA** — 选择为 EST 注册的证书签名的证书颁发机构
-3. **认证** — 配置 HTTP Basic Auth 凭据（用户名和密码）
-4. **证书有效期** — EST 签发证书的默认有效期（天数）
+1. **启用 EST**: 开启或关闭 EST 协议
+2. **签名 CA**: 选择为 EST 注册的证书签名的证书颁发机构
+3. **认证**: 配置 HTTP Basic Auth 凭据（用户名和密码）
+4. **证书有效期**: EST 签发证书的默认有效期（天数）
 
 ### 保存配置
 
@@ -65,22 +65,22 @@ export default {
 
 EST 支持两种认证方式：
 
-### 双向 TLS（mTLS）——推荐
+### 双向 TLS（mTLS）:, 推荐
 
 客户端在 TLS 握手期间提供证书。UCM 验证证书并自动认证客户端。
 
-- **最强方式** — 加密的客户端身份
-- **必须用于** \`/simplereenroll\` — 客户端必须提供当前证书
-- **出示的证书** — 对于 \`/simpleenroll\` 和 \`/serverkeygen\`，由 EST CA 签发的证书必须是该 CA 仍持有的证书：已吊销、已被取代或已删除的证书会被拒绝（RFC 7030 §3.3.2）；其他受信任颁发机构签发的证书仍会被接受
+- **最强方式**: 加密的客户端身份
+- **必须用于** \`/simplereenroll\`: 客户端必须提供当前证书
+- **出示的证书**: 对于 \`/simpleenroll\` 和 \`/serverkeygen\`，由 EST CA 签发的证书必须是该 CA 仍持有的证书：已吊销、已被取代或已删除的证书会被拒绝（RFC 7030 §3.3.2）；其他受信任颁发机构签发的证书仍会被接受
 - **依赖于** 正确的 TLS 终止配置（反向代理必须将 \`SSL_CLIENT_CERT\` 传递给 UCM）
 
-### HTTP Basic Auth——备用
+### HTTP Basic Auth:, 备用
 
 通过 HTTPS 进行用户名和密码认证。在 EST 设置中配置。
 
-- **设置更简单** — 不需要客户端证书
-- **安全性较低** — 凭据在每次请求中传输（由 HTTPS 保护）
-- **使用场景** — mTLS 基础设施不可用时
+- **设置更简单**: 不需要客户端证书
+- **安全性较低**: 凭据在每次请求中传输（由 HTTPS 保护）
+- **使用场景**: mTLS 基础设施不可用时
 
 ## EST 端点
 
@@ -89,7 +89,7 @@ EST 支持两种认证方式：
 ### GET /cacerts
 获取 CA 证书链。**无需认证。**
 
-用于引导信任——客户端在注册前获取 CA 证书。
+用于引导信任:, 客户端在注册前获取 CA 证书。
 
 \`\`\`bash
 curl -k https://your-server:8443/.well-known/est/cacerts | \\
@@ -110,7 +110,7 @@ curl -k --user est-user:est-password \\
 \`\`\`
 
 ### POST /simplereenroll
-续期已有证书。**需要 mTLS** — 客户端必须提供正在续期的证书。
+续期已有证书。**需要 mTLS**: 客户端必须提供正在续期的证书。
 
 \`\`\`bash
 curl -k --cert client.pem --key client.key \\
@@ -128,9 +128,9 @@ curl -k --cert client.pem --key client.key \\
 ## 信息选项卡
 
 信息选项卡显示：
-- **端点 URL** — 可直接复制粘贴的各 EST 操作 URL
-- **注册统计** — 注册、重新注册和错误的数量
-- **最近活动** — 审计日志中最近的 EST 操作
+- **端点 URL**: 可直接复制粘贴的各 EST 操作 URL
+- **注册统计**: 注册、重新注册和错误的数量
+- **最近活动**: 审计日志中最近的 EST 操作
 
 ## 集成示例
 

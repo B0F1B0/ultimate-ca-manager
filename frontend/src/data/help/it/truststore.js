@@ -39,19 +39,19 @@ Il Trust Store gestisce i certificati CA fidati utilizzati per la validazione de
 
 ## Categorie di certificati
 
-- **Root CA** — Ancore di fiducia autofirmate
-- **Intermedio** — CA firmate da root o altri intermedi
-- **Client Auth** — Certificati per l'autenticazione client mTLS
-- **Code Signing** — Certificati per la verifica della firma del codice
-- **Personalizzato** — Certificati categorizzati manualmente
+- **Root CA**: Ancore di fiducia autofirmate
+- **Intermedio**: CA firmate da root o altri intermedi
+- **Client Auth**: Certificati per l'autenticazione client mTLS
+- **Code Signing**: Certificati per la verifica della firma del codice
+- **Personalizzato**: Certificati categorizzati manualmente
 
 ## Importazione dei certificati
 
 ### Da file
 Carica file certificato nei seguenti formati:
-- **PEM** — Codifica Base64 (singolo o raggruppato)
-- **DER** — Formato binario
-- **PKCS#7 (P7B)** — Catena di certificati
+- **PEM**: Codifica Base64 (singolo o raggruppato)
+- **DER**: Formato binario
+- **PKCS#7 (P7B)**: Catena di certificati
 
 ### Da URL
 Recupera un certificato da un endpoint HTTPS remoto. UCM scarica e importa la catena di certificati del server.
@@ -66,10 +66,10 @@ Importa tutte le CA fidate dal trust store del sistema operativo. Questo popola 
 
 ## Gestione delle voci
 
-- **Filtra per scopo** — Restringe l'elenco per categoria di certificato
-- **Cerca** — Trova certificati per nome soggetto
-- **Esporta** — Scarica singoli certificati in formato PEM
-- **Elimina** — Rimuovi un certificato dal trust store
+- **Filtra per scopo**: Restringe l'elenco per categoria di certificato
+- **Cerca**: Trova certificati per nome soggetto
+- **Esporta**: Scarica singoli certificati in formato PEM
+- **Elimina**: Rimuovi un certificato dal trust store
 
 ## Casi d'uso
 

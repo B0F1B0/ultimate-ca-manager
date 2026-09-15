@@ -36,7 +36,7 @@ export default {
         title: 'Autenticación mTLS',
         items: [
           { label: 'CA de confianza', text: 'Seleccione la CA que emite y valida los certificados de cliente para el inicio de sesión mTLS' },
-          { label: 'Requerir certificado de cliente', text: 'Opcionalmente, haga que mTLS sea obligatorio para la interfaz web — cambiar la configuración mTLS requiere un reinicio del servicio' },
+          { label: 'Requerir certificado de cliente', text: 'Opcionalmente, haga que mTLS sea obligatorio para la interfaz web, cambiar la configuración mTLS requiere un reinicio del servicio' },
         ]
       },
     ],
@@ -47,7 +47,7 @@ export default {
     warnings: [
       'Restringir demasiado la política de contraseñas puede frustrar a los usuarios',
       'Siempre asegúrese de que al menos un administrador pueda acceder al sistema antes de activar las restricciones de IP',
-      'Las configuraciones sensibles de seguridad (sesión, bloqueo, HSTS, URL pública, política de contraseñas) requieren admin:settings — los campos están bloqueados para los operadores',
+      'Las configuraciones sensibles de seguridad (sesión, bloqueo, HSTS, URL pública, política de contraseñas) requieren admin:settings, los campos están bloqueados para los operadores',
     ],
   },
   helpGuides: {
@@ -61,27 +61,27 @@ Configuración de seguridad a nivel de sistema que afecta a todas las cuentas de
 
 Cifre todas las claves privadas de CAs y certificados almacenadas en la base de datos con AES-256, protegidas por un archivo de clave maestra guardado fuera de la base de datos.
 
-- **Estado y contadores** — La sección muestra si el cifrado está activado y cuántas claves están actualmente **cifradas** frente a **sin cifrar**
-- **Activar cifrado** — Genera el archivo de clave maestra y cifra todas las claves privadas almacenadas. Haga una copia de seguridad del archivo de clave de inmediato: sin él, las claves cifradas se pierden de forma permanente
-- **Desactivar cifrado** — Descifra todas las claves privadas y vuelve al almacenamiento en texto plano (requiere confirmación)
+- **Estado y contadores**: La sección muestra si el cifrado está activado y cuántas claves están actualmente **cifradas** frente a **sin cifrar**
+- **Activar cifrado**: Genera el archivo de clave maestra y cifra todas las claves privadas almacenadas. Haga una copia de seguridad del archivo de clave de inmediato: sin él, las claves cifradas se pierden de forma permanente
+- **Desactivar cifrado**: Descifra todas las claves privadas y vuelve al almacenamiento en texto plano (requiere confirmación)
 
 ### Aplicación en el arranque
 
 Sin una clave de cifrado configurada, UCM registra una advertencia en el arranque pero sigue funcionando. Dos **variables de entorno opcionales** lo convierten en un fallo fatal:
 
-- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` — rechaza arrancar sin una clave de cifrado de base de datos explícita (de lo contrario, los secretos de integración recurren a una clave derivada del id de la máquina)
-- \`UCM_REQUIRE_KEY_ENCRYPTION\` — rechaza arrancar si el cifrado de claves privadas no está activado
+- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\`: rechaza arrancar sin una clave de cifrado de base de datos explícita (de lo contrario, los secretos de integración recurren a una clave derivada del id de la máquina)
+- \`UCM_REQUIRE_KEY_ENCRYPTION\`: rechaza arrancar si el cifrado de claves privadas no está activado
 
 Ambas aceptan \`1\`/\`true\`/\`yes\`/\`on\`. Una clave inválida se trata como fatal en lugar de recurrir silenciosamente al texto plano.
 
 ## Política de contraseñas
 
 ### Requisitos de complejidad
-- **Longitud mínima** — De 8 a 32 caracteres
-- **Requerir mayúsculas** — Al menos una letra mayúscula
-- **Requerir minúsculas** — Al menos una letra minúscula
-- **Requerir números** — Al menos un dígito
-- **Requerir caracteres especiales** — Al menos un símbolo
+- **Longitud mínima**: De 8 a 32 caracteres
+- **Requerir mayúsculas**: Al menos una letra mayúscula
+- **Requerir minúsculas**: Al menos una letra minúscula
+- **Requerir números**: Al menos un dígito
+- **Requerir caracteres especiales**: Al menos un símbolo
 
 ### Expiración de contraseñas
 Forzar a los usuarios a cambiar su contraseña después de un número determinado de días. Establezca en 0 para desactivar.
@@ -121,8 +121,8 @@ Bloquear IP o rangos CIDR específicos. Todas las demás IP se permiten.
 Requerir que todos los usuarios activen 2FA. Los usuarios que no hayan configurado 2FA recibirán un aviso en su próximo inicio de sesión.
 
 ### Métodos soportados
-- **TOTP** — Contraseñas de un solo uso basadas en tiempo (aplicaciones de autenticación)
-- **WebAuthn** — Llaves de seguridad de hardware y biometría
+- **TOTP**: Contraseñas de un solo uso basadas en tiempo (aplicaciones de autenticación)
+- **WebAuthn**: Llaves de seguridad de hardware y biometría
 
 > 💡 Aplique 2FA para las cuentas de administrador como mínimo. Considere aplicarla para todos los usuarios en entornos con alta exigencia de seguridad.
 
@@ -130,13 +130,13 @@ Requerir que todos los usuarios activen 2FA. Los usuarios que no hayan configura
 
 Permita a los usuarios iniciar sesión con un certificado de cliente en lugar de una contraseña:
 
-- **CA de confianza** — Seleccione la CA que emite y valida los certificados de cliente mTLS
-- **Requerir certificado de cliente** — Opcionalmente, haga que mTLS sea obligatorio para la interfaz web
+- **CA de confianza**: Seleccione la CA que emite y valida los certificados de cliente mTLS
+- **Requerir certificado de cliente**: Opcionalmente, haga que mTLS sea obligatorio para la interfaz web
 - Cambiar la configuración mTLS requiere un reinicio del servicio
 
 ## Permisos requeridos
 
-Las configuraciones sensibles de seguridad — sesión, bloqueo, HSTS, URL pública y política de contraseñas — requieren el permiso **admin:settings**. Para los operadores (solo write:settings), esos campos se muestran bloqueados; el resto de la tarjeta se guarda con normalidad.
+Las configuraciones sensibles de seguridad: sesión, bloqueo, HSTS, URL pública y política de contraseñas, requieren el permiso **admin:settings**. Para los operadores (solo write:settings), esos campos se muestran bloqueados; el resto de la tarjeta se guarda con normalidad.
 `
   }
 }

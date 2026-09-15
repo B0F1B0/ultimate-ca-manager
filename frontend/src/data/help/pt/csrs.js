@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'CSRs preservam a chave privada do solicitante — ela nunca sai do sistema dele',
+      'CSRs preservam a chave privada do solicitante: ela nunca sai do sistema dele',
       'Você pode adicionar uma chave privada a um CSR após a assinatura se necessário para exportação PKCS#12',
       'Um certificado importado para um CSR gerado no UCM completa esse CSR: o registo mantém a sua chave privada, pelo que o certificado é exportado com ela',
       'Use o modo Microsoft CA para assinar CSRs via AD CS quando conectado a uma PKI Windows',
-      'Ao assinar, use "EKU extras" para adicionar Microsoft RDP, smartcard logon, IPsec ou qualquer OID — o EKU existente do CSR é reconstruído com o conjunto fundido',
+      'Ao assinar, use "EKU extras" para adicionar Microsoft RDP, smartcard logon, IPsec ou qualquer OID: o EKU existente do CSR é reconstruído com o conjunto fundido',
     ],
   },
   helpGuides: {
@@ -58,7 +58,7 @@ O UCM pode gerar um CSR e par de chaves diretamente:
 
 O CSR e a chave privada são criados e armazenados no UCM. O CSR aparece na aba Pendentes pronto para assinatura.
 
-> 💡 Isso é conveniente quando você quer que o UCM gerencie todo o ciclo de vida — CSR, assinatura e armazenamento de chave.
+> 💡 Isso é conveniente quando você quer que o UCM gerencie todo o ciclo de vida. CSR, assinatura e armazenamento de chave.
 
 ## Enviando um CSR
 
@@ -70,10 +70,10 @@ O CSR e a chave privada são criados e armazenados no UCM. O CSR aparece na aba 
 ## Revisando um CSR
 
 Clique em um CSR para visualizar:
-- **Sujeito** — CN, O, OU, C, etc.
-- **SANs** — Nomes DNS, endereços IP, e-mails
-- **Info da Chave** — Algoritmo, tamanho, impressão digital da chave pública
-- **Assinatura** — Algoritmo e validade
+- **Sujeito**: CN, O, OU, C, etc.
+- **SANs**: Nomes DNS, endereços IP, e-mails
+- **Info da Chave**: Algoritmo, tamanho, impressão digital da chave pública
+- **Assinatura**: Algoritmo e validade
 
 ## Assinando um CSR
 

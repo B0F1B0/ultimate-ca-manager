@@ -39,19 +39,19 @@ O Armazenamento de Confiança gerencia certificados de CA confiáveis usados par
 
 ## Categorias de Certificados
 
-- **CA Raiz** — Âncoras de confiança autoassinadas
-- **Intermediário** — CAs assinadas por raiz ou outros intermediários
-- **Autenticação de Cliente** — Certificados para autenticação de cliente mTLS
-- **Assinatura de Código** — Certificados para verificação de assinatura de código
-- **Personalizado** — Certificados categorizados manualmente
+- **CA Raiz**: Âncoras de confiança autoassinadas
+- **Intermediário**: CAs assinadas por raiz ou outros intermediários
+- **Autenticação de Cliente**: Certificados para autenticação de cliente mTLS
+- **Assinatura de Código**: Certificados para verificação de assinatura de código
+- **Personalizado**: Certificados categorizados manualmente
 
 ## Importando Certificados
 
 ### De Arquivo
 Envie arquivos de certificado nestes formatos:
-- **PEM** — Codificado em Base64 (único ou em pacote)
-- **DER** — Formato binário
-- **PKCS#7 (P7B)** — Cadeia de certificados
+- **PEM**: Codificado em Base64 (único ou em pacote)
+- **DER**: Formato binário
+- **PKCS#7 (P7B)**: Cadeia de certificados
 
 ### De URL
 Busque um certificado de um endpoint HTTPS remoto. O UCM baixa e importa a cadeia de certificados do servidor.
@@ -66,10 +66,10 @@ Importe todas as CAs confiáveis do armazenamento de confiança do sistema opera
 
 ## Gerenciando Entradas
 
-- **Filtrar por finalidade** — Restringir a lista por categoria de certificado
-- **Pesquisar** — Encontrar certificados pelo nome do sujeito
-- **Exportar** — Baixar certificados individuais em formato PEM
-- **Excluir** — Remover um certificado do armazenamento de confiança
+- **Filtrar por finalidade**: Restringir a lista por categoria de certificado
+- **Pesquisar**: Encontrar certificados pelo nome do sujeito
+- **Exportar**: Baixar certificados individuais em formato PEM
+- **Excluir**: Remover um certificado do armazenamento de confiança
 
 ## Casos de Uso
 

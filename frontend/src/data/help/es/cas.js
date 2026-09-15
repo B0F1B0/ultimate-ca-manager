@@ -29,12 +29,12 @@ export default {
         title: 'CAs firmadas externamente (modo CSR, v2.214)',
         content: 'El tipo de creación «Firmada por CA externa (CSR)» cubre el patrón de raíz sin conexión: el par de claves vive en UCM, el certificado se firma en otro lugar. La clave privada nunca sale de UCM.',
         items: [
-          { label: 'Crear', text: 'UCM genera el par de claves (local o HSM) y un CSR de tipo CA — el CSR se descarga automáticamente' },
+          { label: 'Crear', text: 'UCM genera el par de claves (local o HSM) y un CSR de tipo CA, el CSR se descarga automáticamente' },
           { label: 'En espera de certificado', text: 'La CA pendiente no puede firmar, exportarse, ser padre ni ponerse sin conexión hasta que se instale su certificado' },
           { label: 'Subir certificado', text: 'Pegue o suba el certificado firmado externamente (PEM/DER). Su clave pública debe coincidir con la clave privada almacenada; se verifican las restricciones de CA' },
-          { label: 'Cadena', text: 'Se vincula automáticamente cuando el emisor es conocido por UCM — importe la raíz externa (solo el certificado) para una cadena completa' },
+          { label: 'Cadena', text: 'Se vincula automáticamente cuando el emisor es conocido por UCM, importe la raíz externa (solo el certificado) para una cadena completa' },
           { label: 'Renovar vía CSR', text: 'Reemite un CSR desde la misma clave (SKI estable); fírmelo externamente y suba el nuevo certificado' },
-          { label: 'Después de la renovación', text: 'El certificado sustituido sigue siendo válido hasta su notAfter — UCM muestra su número de serie tras la subida; revóquelo en la raíz externa si ya no debe ser de confianza' },
+          { label: 'Después de la renovación', text: 'El certificado sustituido sigue siendo válido hasta su notAfter, UCM muestra su número de serie tras la subida; revóquelo en la raíz externa si ya no debe ser de confianza' },
         ]
       },
       {
@@ -43,7 +43,7 @@ export default {
           { label: 'Almacenamiento de clave', text: 'Elija Local (cifrado en BD) o HSM al crear la CA' },
           { label: 'Generar clave nueva', text: 'Crea una clave de firma nueva en el proveedor HSM seleccionado' },
           { label: 'Usar clave existente', text: 'Vincula la CA a una clave de firma no utilizada ya presente en el HSM' },
-          { label: 'Sin exportación de clave privada', text: 'Las claves respaldadas por HSM nunca salen del HSM — PKCS#12, JKS y exportación de clave están deshabilitados' },
+          { label: 'Sin exportación de clave privada', text: 'Las claves respaldadas por HSM nunca salen del HSM, PKCS#12, JKS y exportación de clave están deshabilitados' },
           { label: 'Requisito previo', text: 'Configure y conecte un proveedor HSM en Gestión HSM primero' },
         ]
       },
@@ -60,13 +60,13 @@ export default {
       },
       {
         title: 'CRLs externas para CAs sin clave (v2.215)',
-        content: 'Una CA cuya clave UCM no puede usar (CA sin conexión, importación solo del certificado) no puede firmar su propia CRL — suba en su lugar una generada junto a la clave sin conexión.',
+        content: 'Una CA cuya clave UCM no puede usar (CA sin conexión, importación solo del certificado) no puede firmar su propia CRL, suba en su lugar una generada junto a la clave sin conexión.',
         items: [
           { label: 'Dónde', text: 'Panel de detalles de la CA › Lista de revocación (CRL): muestra el número de la CRL servida, la cantidad de entradas, thisUpdate/nextUpdate y una advertencia una vez pasado nextUpdate' },
           { label: 'Subida', text: 'Solo CRLs completas (no delta), en PEM o DER. La firma debe verificarse contra el certificado de la CA y el emisor debe coincidir con su sujeto' },
-          { label: 'Monotonía', text: 'Una subida más antigua que la CRL servida actualmente (número de CRL o thisUpdate) se rechaza — emítala con un número de CRL más alto' },
+          { label: 'Monotonía', text: 'Una subida más antigua que la CRL servida actualmente (número de CRL o thisUpdate) se rechaza, emítala con un número de CRL más alto' },
           { label: 'Publicación', text: 'La CRL subida se sirve en la ruta CDP existente de la CA, y OCSP responde «revocado» para los números de serie que lista' },
-          { label: 'Flujo de trabajo', text: 'Revoque en la raíz sin conexión, genere la CRL de la raíz en el entorno air-gap y súbala aquí — la clave de la raíz nunca pasa a estar en línea' },
+          { label: 'Flujo de trabajo', text: 'Revoque en la raíz sin conexión, genere la CRL de la raíz en el entorno air-gap y súbala aquí, la clave de la raíz nunca pasa a estar en línea' },
         ]
       },
     ],
@@ -77,9 +77,9 @@ export default {
       'La exportación PKCS#12 incluye la cadena completa y es ideal para respaldo',
     ],
     warnings: [
-      'Eliminar una CA NO revocará los certificados que haya emitido — revócalos primero',
+      'Eliminar una CA NO revocará los certificados que haya emitido: revócalos primero',
       'Las claves privadas se almacenan cifradas; perder la base de datos significa perder las claves',
-      'Las contraseñas del modo sin conexión NO son recuperables — guárdelas en su gestor de contraseñas / vault antes de confirmar',
+      'Las contraseñas del modo sin conexión NO son recuperables: guárdelas en su gestor de contraseñas / vault antes de confirmar',
     ],
   },
   helpGuides: {
@@ -131,38 +131,38 @@ Agrupa las CAs por su campo Organización (O). Útil para configuraciones multi-
 > ⚠ La validez de la CA intermedia no puede exceder la de su CA padre.
 
 ### Crear una CA firmada externamente (modo CSR, v2.214)
-Para el patrón de raíz sin conexión — la clave de la CA emisora vive en UCM, su certificado se firma en otro lugar:
+Para el patrón de raíz sin conexión: la clave de la CA emisora vive en UCM, su certificado se firma en otro lugar:
 1. Haz clic en **Crear** → tipo **Firmada por CA externa (CSR)**
-2. Completa el Sujeto y la configuración de clave (local o HSM) — la validez la decide el firmante externo
+2. Completa el Sujeto y la configuración de clave (local o HSM): la validez la decide el firmante externo
 3. Envía: UCM genera el par de claves y un CSR de tipo CA (se descarga automáticamente)
 4. Haz firmar el CSR por tu CA raíz externa/sin conexión
 5. De vuelta en la CA (insignia **En espera de certificado**), haz clic en **Subir certificado** y proporciona el certificado firmado (PEM o DER)
 
-UCM solo activa la CA si la clave pública del certificado coincide con la clave privada almacenada y se cumplen las restricciones de CA. La cadena se vincula automáticamente cuando el emisor es conocido por UCM — importa la raíz externa (solo el certificado) para una cadena completa. Hasta la activación, la CA pendiente no puede firmar, exportarse, ser CA padre ni ponerse sin conexión.
+UCM solo activa la CA si la clave pública del certificado coincide con la clave privada almacenada y se cumplen las restricciones de CA. La cadena se vincula automáticamente cuando el emisor es conocido por UCM: importa la raíz externa (solo el certificado) para una cadena completa. Hasta la activación, la CA pendiente no puede firmar, exportarse, ser CA padre ni ponerse sin conexión.
 
 Para renovar, usa **Renovar vía CSR**: se emite un nuevo CSR **desde la misma clave** (el SKI permanece estable), se firma externamente y se sube mediante el mismo flujo.
 
 ## Importar una CA
 
 Importa certificados CA existentes mediante:
-- **Archivo PEM** — Certificado en formato PEM
-- **Archivo DER** — Formato binario DER
-- **PKCS#12** — Paquete de certificado + clave privada (requiere contraseña)
+- **Archivo PEM**: Certificado en formato PEM
+- **Archivo DER**: Formato binario DER
+- **PKCS#12**: Paquete de certificado + clave privada (requiere contraseña)
 
 Al importar sin clave privada, la CA puede verificar certificados pero no puede firmar nuevos.
 
 ## Exportar una CA
 
 Formatos de exportación:
-- **PEM** — Certificado codificado en Base64
-- **DER** — Formato binario
-- **PKCS#12 (P12/PFX)** — Certificado + clave privada + cadena, protegido con contraseña
+- **PEM**: Certificado codificado en Base64
+- **DER**: Formato binario
+- **PKCS#12 (P12/PFX)**: Certificado + clave privada + cadena, protegido con contraseña
 
 > 💡 La exportación PKCS#12 incluye la cadena completa de certificados y es ideal para respaldo.
 
 ## Claves privadas
 
-Las CAs con un **icono de llave** (🔑) tienen una clave privada almacenada en UCM y pueden firmar certificados. Las CAs sin clave son solo de confianza — validan cadenas pero no pueden emitir.
+Las CAs con un **icono de llave** (🔑) tienen una clave privada almacenada en UCM y pueden firmar certificados. Las CAs sin clave son solo de confianza: validan cadenas pero no pueden emitir.
 
 ### Almacenamiento de claves
 Las claves privadas están cifradas en reposo en la base de datos de UCM. Para mayor seguridad, considera usar un proveedor HSM (ver la página HSM).
@@ -221,8 +221,8 @@ UCM puede almacenar la clave de firma de una CA en un módulo de seguridad de ha
 3. En **Almacenamiento de clave**, cambie de *Local* a **HSM**
 4. Elija el proveedor HSM
 5. Elija un modo de clave:
-   - **Generar clave nueva** — proporcione una etiqueta (letras/dígitos/_/-) y elija el algoritmo (RSA-2048/3072/4096 o EC-P256/P384/P521)
-   - **Usar clave existente** — elija una clave de firma no utilizada ya presente en el HSM
+   - **Generar clave nueva**: proporcione una etiqueta (letras/dígitos/_/-) y elija el algoritmo (RSA-2048/3072/4096 o EC-P256/P384/P521)
+   - **Usar clave existente**: elija una clave de firma no utilizada ya presente en el HSM
 6. Envíe. UCM crea el certificado de CA y lo vincula a la clave HSM.
 
 ### Limitaciones
@@ -232,28 +232,28 @@ UCM puede almacenar la clave de firma de una CA en un módulo de seguridad de ha
 
 ## Modo sin conexión
 
-Saca la clave de firma de una CA del uso en tiempo de ejecución sin eliminar la CA. El certificado, la cadena, la CRL y OCSP siguen funcionando — solo se bloquean las operaciones de firma (firmar CSR, emitir certificado, renovar CA).
+Saca la clave de firma de una CA del uso en tiempo de ejecución sin eliminar la CA. El certificado, la cadena, la CRL y OCSP siguen funcionando: solo se bloquean las operaciones de firma (firmar CSR, emitir certificado, renovar CA).
 
 Esta es la forma estándar de proteger una CA raíz entre ceremonias poco frecuentes, manteniendo en línea su ancla de confianza y su infraestructura de revocación.
 
 ### Dos modos
 
-**Protegida con contraseña** — la clave privada permanece en la base de datos UCM, envuelta (PKCS#8) bajo una contraseña que usted elige. Para volver a poner la CA en línea, haga clic en **Restaurar** y vuelva a introducir la contraseña. Rápido y conveniente; la seguridad depende de la fuerza de la contraseña y de que UCM no esté comprometido.
+**Protegida con contraseña**: la clave privada permanece en la base de datos UCM, envuelta (PKCS#8) bajo una contraseña que usted elige. Para volver a poner la CA en línea, haga clic en **Restaurar** y vuelva a introducir la contraseña. Rápido y conveniente; la seguridad depende de la fuerza de la contraseña y de que UCM no esté comprometido.
 
-**Exportada a archivo** — la clave privada se exporta como un archivo PEM cifrado con contraseña que se descarga una vez. Luego la clave se **elimina de la base de datos**. Para volver a poner la CA en línea, haga clic en **Restaurar**, suba el archivo e introduzca la contraseña. Es la opción más fuerte (auténtico air-gap) pero usted es plenamente responsable del archivo: si lo pierde, la clave es irrecuperable.
+**Exportada a archivo**: la clave privada se exporta como un archivo PEM cifrado con contraseña que se descarga una vez. Luego la clave se **elimina de la base de datos**. Para volver a poner la CA en línea, haga clic en **Restaurar**, suba el archivo e introduzca la contraseña. Es la opción más fuerte (auténtico air-gap) pero usted es plenamente responsable del archivo: si lo pierde, la clave es irrecuperable.
 
 ### Reglas de contraseña
 La contraseña sigue la política de complejidad estándar de UCM: longitud mínima, mezcla de clases de caracteres, sin secuencias triviales. Las mismas reglas que para las contraseñas de usuario.
 
-### Paso a paso — Poner sin conexión
+### Paso a paso. Poner sin conexión
 1. Abra el panel de detalles de la CA
 2. Haga clic en **Poner sin conexión**
 3. Lea la explicación, haga clic en **Continuar**
 4. Elija un modo (*Protegida con contraseña* o *Exportada a archivo*)
 5. Introduzca la contraseña dos veces
-6. Confirme. Para *Exportada a archivo*, la clave cifrada se descarga inmediatamente — guárdela de forma segura.
+6. Confirme. Para *Exportada a archivo*, la clave cifrada se descarga inmediatamente: guárdela de forma segura.
 
-### Paso a paso — Restaurar
+### Paso a paso. Restaurar
 1. Abra el panel de detalles de la CA sin conexión
 2. Haga clic en **Restaurar**
 3. Introduzca la contraseña

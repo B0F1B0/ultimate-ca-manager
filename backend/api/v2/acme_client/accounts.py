@@ -392,7 +392,7 @@ def deactivate_ca_account(account_id):
         return error_response('ACME account not found', 404)
     if not acct.is_registered():
         return error_response(
-            'Account is not registered with the CA — use Delete to remove it locally', 400
+            'Account is not registered with the CA: use Delete to remove it locally', 400
         )
 
     label = acct.label

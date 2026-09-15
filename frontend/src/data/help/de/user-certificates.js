@@ -17,7 +17,7 @@ export default {
         title: 'Aktionen',
         items: [
           { label: 'Exportieren', text: 'Als PEM (mit Schlüssel und Kette) oder PKCS#12 (passwortgeschützt) herunterladen' },
-          { label: 'Widerrufen', text: 'Mit einem Grund widerrufen — das Zertifikat erscheint in der CRL' },
+          { label: 'Widerrufen', text: 'Mit einem Grund widerrufen, das Zertifikat erscheint in der CRL' },
           { label: 'Löschen', text: 'Das Zertifikat und seine Benutzerzuordnung aus UCM entfernen' },
         ]
       },
@@ -39,7 +39,7 @@ export default {
     ],
     warnings: [
       'Der Widerruf eines Benutzerzertifikats verhindert sofort die mTLS-Anmeldung mit diesem Zertifikat',
-      'Das Löschen entfernt das Zertifikat dauerhaft — es kann nicht wiederhergestellt werden',
+      'Das Löschen entfernt das Zertifikat dauerhaft: es kann nicht wiederhergestellt werden',
     ],
   },
   helpGuides: {
@@ -49,7 +49,7 @@ export default {
 
 Die Seite Benutzerzertifikate verwaltet mTLS-Client-Zertifikate, die über den Tab **Konto → mTLS** registriert wurden. Anders als reguläre Zertifikate sind diese speziell an Benutzerkonten für die mutuelle TLS-Authentifizierung gebunden.
 
-Die Zertifikate hier werden vollständig von UCM verwaltet — sie werden mit privaten Schlüsseln in der Datenbank gespeichert und können jederzeit exportiert, widerrufen oder gelöscht werden.
+Die Zertifikate hier werden vollständig von UCM verwaltet: sie werden mit privaten Schlüsseln in der Datenbank gespeichert und können jederzeit exportiert, widerrufen oder gelöscht werden.
 
 ## Ein Zertifikat registrieren
 
@@ -60,17 +60,17 @@ Die Zertifikate hier werden vollständig von UCM verwaltet — sie werden mit pr
 
 ## Zertifikatsstatus
 
-- **Gültig** — Innerhalb des Gültigkeitszeitraums und nicht widerrufen
-- **Ablaufend** — Läuft innerhalb von 30 Tagen ab
-- **Abgelaufen** — Nach dem „Nicht nach"-Datum
-- **Widerrufen** — Explizit widerrufen, in der CRL veröffentlicht
+- **Gültig**: Innerhalb des Gültigkeitszeitraums und nicht widerrufen
+- **Ablaufend**: Läuft innerhalb von 30 Tagen ab
+- **Abgelaufen**: Nach dem „Nicht nach"-Datum
+- **Widerrufen**: Explizit widerrufen, in der CRL veröffentlicht
 
 ## Ein Zertifikat exportieren
 
 1. Wählen Sie ein Zertifikat → **Exportieren**
 2. Wählen Sie das Format:
-   - **PEM** — Zertifikat + privater Schlüssel + CA-Kette im Textformat
-   - **PKCS#12** — Binärbündel, passwortgeschützt (mind. 8 Zeichen)
+   - **PEM**: Zertifikat + privater Schlüssel + CA-Kette im Textformat
+   - **PKCS#12**: Binärbündel, passwortgeschützt (mind. 8 Zeichen)
 3. Klicken Sie auf **Herunterladen**
 
 Die exportierte Datei kann in Browser, Betriebssysteme oder API-Clients für die mTLS-Authentifizierung importiert werden.
@@ -107,9 +107,9 @@ Das Löschen entfernt sowohl das Zertifikat als auch die Benutzer-Zertifikat-Zuo
 
 ### Erforderliche Berechtigungen
 
-- **read:user_certificates** — Zertifikatsliste und Details anzeigen
-- **write:user_certificates** — Zertifikate widerrufen
-- **delete:user_certificates** — Zertifikate löschen
+- **read:user_certificates**: Zertifikatsliste und Details anzeigen
+- **write:user_certificates**: Zertifikate widerrufen
+- **delete:user_certificates**: Zertifikate löschen
 
 > 💡 Registrieren Sie neue mTLS-Zertifikate über die Konto-Seite. Diese Seite dient der Verwaltung bestehender Zertifikate.
 `

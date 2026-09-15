@@ -14,10 +14,10 @@ export default {
       {
         title: 'Configuración',
         items: [
-          { label: 'CA firmante', text: 'La CA cuya clave privada firma los tokens de marca de tiempo — debe ser una CA válida y no expirada' },
-          { label: 'OID de política', text: 'Identificador de objeto para la política TSA (ej., 1.2.3.4.1) — incluido en cada respuesta de marca de tiempo' },
+          { label: 'CA firmante', text: 'La CA cuya clave privada firma los tokens de marca de tiempo, debe ser una CA válida y no expirada' },
+          { label: 'OID de política', text: 'Identificador de objeto para la política TSA (ej., 1.2.3.4.1): incluido en cada respuesta de marca de tiempo' },
           { label: 'Activar/Desactivar', text: 'Alternar el endpoint TSA sin perder la configuración' },
-          { label: 'Requerir certificado dedicado', text: 'Opcional: rechaza firmar marcas de tiempo con el propio certificado de la CA — requiere un certificado de firma de entidad final dedicado con EKU timeStamping crítico (RFC 3161)' },
+          { label: 'Requerir certificado dedicado', text: 'Opcional: rechaza firmar marcas de tiempo con el propio certificado de la CA, requiere un certificado de firma de entidad final dedicado con EKU timeStamping crítico (RFC 3161)' },
                   { label: 'Certificado de firma (v2.217)', text: 'Firme los tokens con un certificado final dedicado elegido entre los certificados emitidos (EKU timeStamping, clave en poder de UCM). Las renovaciones se siguen automáticamente; un firmante caducado o revocado hace fallar las solicitudes con 503 y nunca recae en el certificado de la CA' },
                   { label: 'Generar un certificado de firma (v2.218)', text: 'Emisión en un clic de un firmante RFC 3161 hecho a medida: CA:FALSE, KeyUsage digitalSignature únicamente y un EKU timeStamping exclusivo y crítico, la forma que exigen los verificadores estrictos (openssl ts -verify). Se emite desde la CA TSA configurada y se selecciona automáticamente cuando no hay ningún firmante utilizable definido. El certificado tiene origen "manual": añada "manual" a los orígenes de renovación automática o renuévelo usted mismo antes de que caduque' },
         ]
@@ -35,11 +35,11 @@ export default {
       'Las marcas de tiempo TSA se usan en la firma de código para asegurar que las firmas sigan siendo válidas después de la expiración del certificado',
       'El endpoint TSA acepta HTTP POST con Content-Type: application/timestamp-query',
       'Use SHA-256 o algoritmos de hash más fuertes al crear solicitudes de marca de tiempo',
-      'No se requiere autenticación — el endpoint TSA es de acceso público como CRL/OCSP',
+      'No se requiere autenticación: el endpoint TSA es de acceso público como CRL/OCSP',
     ],
     warnings: [
       'Se debe configurar una CA firmante válida antes de activar TSA',
-      'El endpoint TSA es un endpoint de protocolo público — no incluya datos sensibles en las solicitudes de marca de tiempo',
+      'El endpoint TSA es un endpoint de protocolo público, no incluya datos sensibles en las solicitudes de marca de tiempo',
     ],
   },
   helpGuides: {
@@ -51,18 +51,18 @@ Time Stamp Authority (TSA) implementa **RFC 3161** para proporcionar marcas de t
 
 ## Cómo funciona
 
-1. **El cliente crea una solicitud de marca de tiempo** — genera un hash del archivo con SHA-256/SHA-512 y crea un \`TimeStampReq\` (codificado en ASN.1 DER)
-2. **El cliente envía la solicitud a TSA** — HTTP POST al endpoint \`/tsa\` con \`Content-Type: application/timestamp-query\`
-3. **UCM firma la marca de tiempo** — la CA configurada firma el hash + la hora actual en un \`TimeStampResp\`
-4. **El cliente recibe y almacena la respuesta** — el archivo \`.tsr\` puede demostrar más tarde que el documento existía en ese momento
+1. **El cliente crea una solicitud de marca de tiempo**: genera un hash del archivo con SHA-256/SHA-512 y crea un \`TimeStampReq\` (codificado en ASN.1 DER)
+2. **El cliente envía la solicitud a TSA**: HTTP POST al endpoint \`/tsa\` con \`Content-Type: application/timestamp-query\`
+3. **UCM firma la marca de tiempo**: la CA configurada firma el hash + la hora actual en un \`TimeStampResp\`
+4. **El cliente recibe y almacena la respuesta**: el archivo \`.tsr\` puede demostrar más tarde que el documento existía en ese momento
 
 ## Configuración
 
 ### Pestaña de configuración
 
-1. **Activar TSA** — Alternar el servidor TSA
-2. **CA firmante** — Seleccionar qué Autoridad de Certificación firma los tokens de marca de tiempo
-3. **OID de política** — Identificador de objeto para la política TSA (ej., \`1.2.3.4.1\`), incluido en cada respuesta de marca de tiempo
+1. **Activar TSA**: Alternar el servidor TSA
+2. **CA firmante**: Seleccionar qué Autoridad de Certificación firma los tokens de marca de tiempo
+3. **OID de política**: Identificador de objeto para la política TSA (ej., \`1.2.3.4.1\`), incluido en cada respuesta de marca de tiempo
 
 ### Elegir una CA firmante
 
@@ -70,7 +70,7 @@ La clave privada de la CA firmante se usa para firmar cada token de marca de tie
 
 - Use una **sub-CA dedicada** para marcas de tiempo en lugar de su CA raíz
 - El certificado de la CA debe incluir el uso extendido de clave **id-kp-timeStamping** (OID 1.3.6.1.5.5.7.3.8)
-- Asegúrese de que el certificado de la CA tenga **validez suficiente** — las marcas de tiempo deben permanecer verificables durante años
+- Asegúrese de que el certificado de la CA tenga **validez suficiente**: las marcas de tiempo deben permanecer verificables durante años
 - Active **Requerir un certificado de marca de tiempo dedicado** para exigirlo en el momento de la firma en lugar de confiar en la convención
 
 ### OID de política
@@ -84,9 +84,9 @@ El OID de política identifica la política TSA bajo la cual se emiten las marca
 
 La pestaña de información muestra:
 
-- **URL del endpoint TSA** — URL lista para copiar y pegar para la configuración del cliente
-- **Ejemplos de uso** — Comandos OpenSSL para crear solicitudes, enviarlas y verificar respuestas
-- **Estadísticas** — Total de solicitudes de marca de tiempo procesadas (exitosas y fallidas)
+- **URL del endpoint TSA**: URL lista para copiar y pegar para la configuración del cliente
+- **Ejemplos de uso**: Comandos OpenSSL para crear solicitudes, enviarlas y verificar respuestas
+- **Estadísticas**: Total de solicitudes de marca de tiempo procesadas (exitosas y fallidas)
 
 ## Ejemplos de uso
 
@@ -155,10 +155,10 @@ curl -s -H "Content-Type: application/timestamp-query" \\
 
 ## Consideraciones de seguridad
 
-- El endpoint TSA es **público** — no se requiere autenticación (igual que CRL/OCSP)
-- Cada respuesta de marca de tiempo está **firmada** por la clave de la CA — los clientes verifican la firma para asegurar la autenticidad
+- El endpoint TSA es **público**: no se requiere autenticación (igual que CRL/OCSP)
+- Cada respuesta de marca de tiempo está **firmada** por la clave de la CA: los clientes verifican la firma para asegurar la autenticidad
 - Use **SHA-256 o más fuerte** al crear solicitudes (SHA-1 se acepta pero no se recomienda)
-- TSA **no** ve el documento original — solo se transmite el hash
+- TSA **no** ve el documento original: solo se transmite el hash
 - Considere **limitar la velocidad** si el endpoint TSA está expuesto a Internet
 
 > 💡 Las marcas de tiempo son esenciales para la firma de código: aseguran que su software firmado siga siendo confiable incluso después de que expire el certificado de firma.

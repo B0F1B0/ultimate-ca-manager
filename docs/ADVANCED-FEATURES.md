@@ -1,6 +1,6 @@
 # UCM Advanced Features
 
-All features are included in UCM as core functionality. There is no separate "Pro" or "Community" edition — everything ships in a single unified codebase under `api/v2/`.
+All features are included in UCM as core functionality. There is no separate "Pro" or "Community" edition: everything ships in a single unified codebase under `api/v2/`.
 
 ## Features Overview
 

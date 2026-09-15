@@ -364,7 +364,7 @@ def _issue_approved_certificate(approval):
     ).get('san_dns') or []
     _policies = PolicyEvaluationService.applicable_policies(
         data['ca_id'], data.get('template_id'), data.get('cn'), _requested_dns)
-    _violations, validity_days = PolicyEvaluationService.enforce_rules(
+    _violations, validity_days, _capped_by = PolicyEvaluationService.enforce_rules(
         _policies, key_type=normalized_key,
         dns_name_count=len(set(_requested_dns) | set(_implicit_dns)),
         validity_days=validity_days,

@@ -2,7 +2,7 @@ export default {
   helpContent: {
     title: 'Autoridades Certificadoras SSH',
     subtitle: 'Gerenciar CAs SSH para autenticação de usuários e hosts',
-    overview: 'Crie e gerencie Autoridades Certificadoras SSH seguindo os padrões OpenSSH. As CAs SSH eliminam a necessidade de distribuir chaves públicas individuais — em vez disso, servidores e usuários confiam na CA, e a CA assina certificados que concedem acesso.',
+    overview: 'Crie e gerencie Autoridades Certificadoras SSH seguindo os padrões OpenSSH. As CAs SSH eliminam a necessidade de distribuir chaves públicas individuais, em vez disso, servidores e usuários confiam na CA, e a CA assina certificados que concedem acesso.',
     sections: [
       {
         title: 'Tipos de CA',
@@ -24,7 +24,7 @@ export default {
         items: [
           { label: 'Script de Configuração Linux/macOS', text: 'Baixe um script shell POSIX (.sh) que configura automaticamente o sshd para confiar nesta CA. Instalação rápida: curl -fsSL <url> | bash' },
           { label: 'Script de Configuração Windows', text: 'Baixe um script PowerShell (.ps1) que configura o OpenSSH Server do Windows (grava a chave pública da CA em %ProgramData%\\ssh, restringe as ACLs, adiciona TrustedUserCAKeys / HostCertificate ao sshd_config, valida com sshd -T, reinicia o sshd). Instalação rápida: iwr <url> | iex' },
-          { label: 'Bloco de diagnóstico', text: 'Em caso de falha do Add-WindowsCapability (WSUS / máquina em domínio), o script imprime um bloco rotulado explicando o estado da diretiva e três caminhos de correção — ele nunca modifica a diretiva WSUS / WU por si só' },
+          { label: 'Bloco de diagnóstico', text: 'Em caso de falha do Add-WindowsCapability (WSUS / máquina em domínio), o script imprime um bloco rotulado explicando o estado da diretiva e três caminhos de correção, ele nunca modifica a diretiva WSUS / WU por si só' },
           { label: 'Dry-run', text: 'Ambos os scripts suportam uma flag -DryRun / --dry-run para visualizar as alterações sem aplicá-las' },
           { label: 'Configuração Manual', text: 'Copie a chave pública da CA e adicione TrustedUserCAKeys (User CA) ou HostCertificate (Host CA) ao sshd_config' },
         ]
@@ -39,19 +39,19 @@ export default {
       {
         title: 'Formatos de TTL',
         items: [
-          { label: 'Durações com sufixo', text: 'TTL Padrão e TTL Máximo aceitam 24h, 7d, 365d — sufixos s, m, h, d, w, y' },
+          { label: 'Durações com sufixo', text: 'TTL Padrão e TTL Máximo aceitam 24h, 7d, 365d, sufixos s, m, h, d, w, y' },
           { label: 'Números simples', text: 'Um número puro é interpretado como segundos (ex. 3600 = 1 hora)' },
           { label: 'Validação', text: 'Valores malformados são rejeitados com um erro indicando os formatos aceitos' },
         ]
       },
     ],
     tips: [
-      'Use CAs separadas para certificados de usuário e de host — nunca misture.',
+      'Use CAs separadas para certificados de usuário e de host: nunca misture.',
       'Ed25519 é recomendado para novas implantações devido à velocidade e segurança.',
-      'Baixe o script de configuração para facilitar a configuração do servidor — ele gerencia backup e validação automaticamente.',
+      'Baixe o script de configuração para facilitar a configuração do servidor: ele gerencia backup e validação automaticamente.',
     ],
     warnings: [
-      'Excluir uma CA não revoga os certificados assinados por ela — revogue-os primeiro ou atualize a confiança do servidor.',
+      'Excluir uma CA não revoga os certificados assinados por ela: revogue-os primeiro ou atualize a confiança do servidor.',
       'Se a chave privada da CA for comprometida, todos os certificados assinados por ela devem ser considerados não confiáveis.',
     ],
   },
@@ -62,7 +62,7 @@ export default {
 
 As Autoridades Certificadoras (CAs) SSH são a base da autenticação baseada em certificados SSH. Em vez de distribuir chaves públicas individuais para cada servidor, você cria uma CA e configura os servidores para confiar nela. Qualquer certificado assinado pela CA é automaticamente aceito.
 
-O UCM suporta o formato de certificado OpenSSH (RFC 4253 + extensões OpenSSH), que é nativamente compreendido pelo OpenSSH 5.4+ — sem necessidade de software adicional nos servidores ou clientes.
+O UCM suporta o formato de certificado OpenSSH (RFC 4253 + extensões OpenSSH), que é nativamente compreendido pelo OpenSSH 5.4+: sem necessidade de software adicional nos servidores ou clientes.
 
 ## Tipos de CA
 
@@ -76,7 +76,7 @@ TrustedUserCAKeys /etc/ssh/user_ca.pub
 \`\`\`
 
 ### Host CA
-Uma Host CA assina certificados que autenticam **servidores para os clientes**. Quando um cliente confia em uma Host CA, ele pode verificar que o servidor ao qual se conecta é legítimo — eliminando avisos de "Trust On First Use" (TOFU).
+Uma Host CA assina certificados que autenticam **servidores para os clientes**. Quando um cliente confia em uma Host CA, ele pode verificar que o servidor ao qual se conecta é legítimo: eliminando avisos de "Trust On First Use" (TOFU).
 
 **Configuração do cliente:**
 \`\`\`
@@ -90,9 +90,9 @@ Uma Host CA assina certificados que autenticam **servidores para os clientes**. 
 2. Insira um nome descritivo (ex.: "Production User CA")
 3. Selecione o tipo de CA: **User** ou **Host**
 4. Escolha o algoritmo de chave:
-   - **Ed25519** — Recomendado. Rápido, chaves pequenas, segurança moderna.
-   - **ECDSA P-256/P-384** — Boa compatibilidade e segurança.
-   - **RSA 2048/4096** — Maior compatibilidade, chaves maiores.
+   - **Ed25519**: Recomendado. Rápido, chaves pequenas, segurança moderna.
+   - **ECDSA P-256/P-384**: Boa compatibilidade e segurança.
+   - **RSA 2048/4096**: Maior compatibilidade, chaves maiores.
 5. Opcionalmente, defina a validade máxima e extensões padrão
 6. Clique em **Criar**
 
@@ -100,8 +100,8 @@ Uma Host CA assina certificados que autenticam **servidores para os clientes**. 
 
 Os campos **TTL Padrão** e **TTL Máximo** aceitam durações legíveis:
 
-- Valores com sufixo — \`24h\`, \`7d\`, \`365d\` (sufixos aceitos: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
-- Números puros — interpretados como **segundos** (ex. \`3600\` = 1 hora)
+- Valores com sufixo: \`24h\`, \`7d\`, \`365d\` (sufixos aceitos: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
+- Números puros: interpretados como **segundos** (ex. \`3600\` = 1 hora)
 
 Valores malformados são rejeitados com um erro indicando os formatos aceitos.
 

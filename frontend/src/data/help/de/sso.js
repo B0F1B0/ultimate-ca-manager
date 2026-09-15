@@ -9,7 +9,7 @@ export default {
         items: [
           { label: 'Identitätsanbieter', text: 'IDP-Metadaten-URL konfigurieren oder XML hochladen' },
           { label: 'SP-Metadaten-URL', text: 'Geben Sie diese URL Ihrem IDP zur automatischen Konfiguration von UCM als Service Provider' },
-          { label: 'SP-Zertifikat', text: 'UCM-HTTPS-Zertifikat in Metadaten enthalten — muss vom IDP vertraut werden, sonst werden die Metadaten abgelehnt' },
+          { label: 'SP-Zertifikat', text: 'UCM-HTTPS-Zertifikat in Metadaten enthalten, muss vom IDP vertraut werden, sonst werden die Metadaten abgelehnt' },
           { label: 'Entity ID', text: 'UCM Service Provider Entity-Kennung' },
           { label: 'ACS-URL', text: 'Assertion Consumer Service Callback-URL' },
           { label: 'Attributzuordnung', text: 'IDP-Attribute UCM-Benutzerfeldern zuordnen' },
@@ -29,7 +29,7 @@ export default {
         title: 'Rollen-Provisionierung (#81)',
         items: [
           { label: 'Standardrolle', text: 'Wird NUR angewendet, wenn ein Benutzer beim ersten SSO-Login automatisch erstellt wird. Später in UCM vorgenommene Rollenänderungen bleiben erhalten.' },
-          { label: 'Rollenzuordnung', text: 'Externe Gruppen (Azure AD, Okta, LDAP) → UCM-Rollen (admin / operator / viewer) zuordnen. Wird bei der Benutzererstellung verwendet und bei jedem Login, wenn die Rollensynchronisierung aktiviert ist. Wenn mehrere Gruppen passen, gewinnt die Rolle mit den höchsten Rechten (admin > operator > auditor > viewer) — die Reihenfolge der Einträge spielt keine Rolle (#221).' },
+          { label: 'Rollenzuordnung', text: 'Externe Gruppen (Azure AD, Okta, LDAP) → UCM-Rollen (admin / operator / viewer) zuordnen. Wird bei der Benutzererstellung verwendet und bei jedem Login, wenn die Rollensynchronisierung aktiviert ist. Wenn mehrere Gruppen passen, gewinnt die Rolle mit den höchsten Rechten (admin > operator > auditor > viewer): die Reihenfolge der Einträge spielt keine Rolle (#221).' },
           { label: 'Rolle bei jedem Login synchronisieren', text: 'AUS (Standard): SSO überschreibt nie von UCM verwaltete Rollen. EIN: Die Rolle wird bei jedem Login aus role_mapping neu synchronisiert; Benutzer ohne passende Zuordnung behalten ihre gespeicherte Rolle (default_role wird nie erneut angewendet).' },
           { label: 'Benutzer automatisch aktualisieren', text: 'Aktualisiert E-Mail und vollständigen Namen bei jedem Login. Verändert die Rolle NICHT.' },
         ]
@@ -53,7 +53,7 @@ export default {
       'Das UCM-HTTPS-Zertifikat muss vom IDP vertraut werden, damit SAML-Metadaten akzeptiert werden',
     ],
     warnings: [
-      'Falsch konfiguriertes SSO kann alle Benutzer aussperren — behalten Sie immer einen lokalen Admin',
+      'Falsch konfiguriertes SSO kann alle Benutzer aussperren: behalten Sie immer einen lokalen Admin',
     ],
   },
   helpGuides: {
@@ -74,11 +74,11 @@ https://ihr-ucm-host:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 Diese URL gibt ein SAML 2.0-konformes XML-Dokument zurück mit:
-- **Entity ID** — UCMs Service-Provider-Kennung
-- **ACS-URL** — Assertion Consumer Service-Endpunkt (HTTP-POST)
-- **SLO-URL** — Single Logout Service-Endpunkt
-- **Signaturzertifikat** — UCMs HTTPS-Zertifikat zur Signaturverifizierung
-- **NameID-Format** — Angefordertes Namenskennung-Format
+- **Entity ID**: UCMs Service-Provider-Kennung
+- **ACS-URL**: Assertion Consumer Service-Endpunkt (HTTP-POST)
+- **SLO-URL**: Single Logout Service-Endpunkt
+- **Signaturzertifikat**: UCMs HTTPS-Zertifikat zur Signaturverifizierung
+- **NameID-Format**: Angefordertes Namenskennung-Format
 
 Kopieren Sie diese URL in die „Service Provider hinzufügen"- oder „SAML-Anwendung"-Konfiguration Ihres IDP.
 
@@ -88,7 +88,7 @@ Kopieren Sie diese URL in die „Service Provider hinzufügen"- oder „SAML-Anw
 1. Erhalten Sie die IDP-Metadaten-URL oder XML-Datei von Ihrem Identitätsanbieter
 2. Gehen Sie in UCM zu **Einstellungen → SSO**
 3. Klicken Sie auf **Anbieter hinzufügen** → SAML
-4. Geben Sie die **IDP-Metadaten-URL** ein — UCM füllt automatisch Entity ID, SSO/SLO-URLs und Zertifikat
+4. Geben Sie die **IDP-Metadaten-URL** ein. UCM füllt automatisch Entity ID, SSO/SLO-URLs und Zertifikat
 5. Oder fügen Sie das IDP-Metadaten-XML direkt ein
 6. Konfigurieren Sie die **Attributzuordnung** (Benutzername, E-Mail, Gruppen)
 7. Klicken Sie auf **Speichern** und **Aktivieren**

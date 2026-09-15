@@ -395,7 +395,7 @@ def run_retention_now():
 
     return success_response(
         data={"removed": removed},
-        message=f"Retention applied — removed {removed} backup(s)",
+        message=f"Retention applied: removed {removed} backup(s)",
     )
 
 

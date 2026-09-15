@@ -9,7 +9,7 @@ export default {
         items: [
           { label: '身份提供商', text: '配置 IDP 元数据 URL 或上传 XML' },
           { label: 'SP 元数据 URL', text: '向您的 IDP 提供此 URL 以自动配置 UCM 作为服务提供商' },
-          { label: 'SP 证书', text: '元数据中包含的 UCM HTTPS 证书——必须被 IDP 信任，否则元数据将被拒绝' },
+          { label: 'SP 证书', text: '元数据中包含的 UCM HTTPS 证书,, 必须被 IDP 信任，否则元数据将被拒绝' },
           { label: 'Entity ID', text: 'UCM 服务提供商实体标识符' },
           { label: 'ACS URL', text: '断言消费者服务回调 URL' },
           { label: '属性映射', text: '将 IDP 属性映射到 UCM 用户字段' },
@@ -29,7 +29,7 @@ export default {
         title: '角色配置 (#81)',
         items: [
           { label: '默认角色', text: '仅在用户首次 SSO 登录被自动创建时应用。之后在 UCM 中所做的角色更改会被保留。' },
-          { label: '角色映射', text: '将外部组（Azure AD、Okta、LDAP）映射到 UCM 角色（admin / operator / viewer）。在用户创建时使用；启用角色同步后，每次登录时也会使用。多个组匹配时，权限最高的角色胜出（admin > operator > auditor > viewer）——条目顺序无关紧要 (#221)。' },
+          { label: '角色映射', text: '将外部组（Azure AD、Okta、LDAP）映射到 UCM 角色（admin / operator / viewer）。在用户创建时使用；启用角色同步后，每次登录时也会使用。多个组匹配时，权限最高的角色胜出（admin > operator > auditor > viewer）,, 条目顺序无关紧要 (#221)。' },
           { label: '每次登录时同步角色', text: '关闭（默认）：SSO 绝不覆盖由 UCM 管理的角色。开启：每次登录时从 role_mapping 重新同步角色；没有映射匹配的用户保留其已存储的角色（default_role 绝不会被重新应用）。' },
           { label: '自动更新用户', text: '每次登录时更新邮箱和全名。不会改动角色。' },
         ]
@@ -53,7 +53,7 @@ export default {
       'UCM HTTPS 证书必须被 IDP 信任，SAML 元数据才能被接受',
     ],
     warnings: [
-      '错误配置的 SSO 可能会锁定所有用户——请始终保留本地管理员',
+      '错误配置的 SSO 可能会锁定所有用户:, 请始终保留本地管理员',
     ],
   },
   helpGuides: {
@@ -74,11 +74,11 @@ https://your-ucm-host:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 此 URL 返回符合 SAML 2.0 的 XML 文档，包含：
-- **Entity ID** — UCM 的服务提供商标识符
-- **ACS URL** — 断言消费者服务端点（HTTP-POST）
-- **SLO URL** — 单点登出服务端点
-- **签名证书** — UCM 的 HTTPS 证书用于签名验证
-- **NameID 格式** — 请求的名称标识符格式
+- **Entity ID**: UCM 的服务提供商标识符
+- **ACS URL**: 断言消费者服务端点（HTTP-POST）
+- **SLO URL**: 单点登出服务端点
+- **签名证书**: UCM 的 HTTPS 证书用于签名验证
+- **NameID 格式**: 请求的名称标识符格式
 
 将此 URL 复制到 IDP 的"添加服务提供商"或"SAML 应用"配置中。
 
@@ -88,7 +88,7 @@ https://your-ucm-host:8443/api/v2/sso/saml/metadata
 1. 从身份提供商获取 IDP 元数据 URL 或 XML 文件
 2. 在 UCM 中进入**设置 → SSO**
 3. 点击**添加提供商** → SAML
-4. 输入 **IDP 元数据 URL** — UCM 自动填充 Entity ID、SSO/SLO URL 和证书
+4. 输入 **IDP 元数据 URL**: UCM 自动填充 Entity ID、SSO/SLO URL 和证书
 5. 或直接粘贴 IDP 元数据 XML
 6. 配置**属性映射**（用户名、邮箱、组）
 7. 点击**保存**并**启用**

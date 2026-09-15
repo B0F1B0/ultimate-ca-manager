@@ -25,7 +25,7 @@ export default {
       },
     ],
     tips: [
-      'La Verifica SSL supporta porte personalizzate — usala per controllare qualsiasi servizio TLS',
+      'La Verifica SSL supporta porte personalizzate: usala per controllare qualsiasi servizio TLS',
       'La Corrispondenza chiavi confronta gli hash del modulo per verificare le coppie corrispondenti',
       'Il Convertitore preserva la catena completa dei certificati quando crea file PKCS#12',
     ],
@@ -76,7 +76,7 @@ Mostra: Soggetto, Emittente, SAN, validità, numero di serie, key usage, estensi
 Verifica che un certificato, un CSR e una chiave privata appartengano allo stesso insieme:
 
 1. Incolla il **certificato** PEM
-2. Incolla la **chiave privata** PEM (opzionalmente crittografata — fornisci la password)
+2. Incolla la **chiave privata** PEM (opzionalmente crittografata: fornisci la password)
 3. Facoltativamente incolla un **CSR** PEM
 4. Clicca **Verifica corrispondenza**
 

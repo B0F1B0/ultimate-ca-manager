@@ -57,7 +57,7 @@ class NotificationsMixin:
             safe_name = html_escape(profile.name)
             subject = f"[UCM] Discovery scan '{profile.name}': {', '.join(parts)}"
             body = (
-                f"<h2>Discovery Scan Complete — {safe_name}</h2>"
+                f"<h2>Discovery Scan Complete: {safe_name}</h2>"
                 f"<p>Targets scanned: {summary['total_targets']}</p>"
                 f"<p>Certificates found: {summary['certs_found']}</p>"
                 f"<p>New unmanaged: <strong>{new_certs}</strong></p>"

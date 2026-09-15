@@ -28,17 +28,17 @@ export default {
         content: 'Sobald ein Provider konfiguriert ist, können Sie den privaten Schlüssel einer CA bei der Erstellung an diesen HSM binden:',
         items: [
           { label: 'Key-Storage-Toggle', text: 'Im CA-Erstellungsformular Local (in DB verschlüsselt) oder HSM wählen. Provider + Key-Label auswählen' },
-          { label: 'Signaturpfad', text: 'Jede Ausstellung, CRL- und OCSP-Signatur dieser CA läuft über den HSM — der Schlüssel verlässt ihn nie' },
+          { label: 'Signaturpfad', text: 'Jede Ausstellung, CRL- und OCSP-Signatur dieser CA läuft über den HSM, der Schlüssel verlässt ihn nie' },
           { label: 'Export-Einschränkungen', text: 'PKCS#12-, JKS- und Key-only-Exporte sind für HSM-CAs deaktiviert (nur das öffentliche Zertifikat / die Chain können exportiert werden)' },
           { label: 'CRL & OCSP', text: 'Beide funktionieren transparent mit HSM-CAs (signiert via HSM)' },
-          { label: 'Migration', text: 'Bestehende lokale CAs können nach der Erstellung nicht in einen HSM verschoben werden — bei der Erstellung wählen' },
+          { label: 'Migration', text: 'Bestehende lokale CAs können nach der Erstellung nicht in einen HSM verschoben werden, bei der Erstellung wählen' },
         ]
       },
 
     ],
     tips: [
       'Verwenden Sie SoftHSM zum Testen, bevor Sie mit einem physischen HSM bereitstellen',
-      'Auf einem HSM generierte Schlüssel verlassen niemals die Hardware — sie können nicht exportiert werden',
+      'Auf einem HSM generierte Schlüssel verlassen niemals die Hardware: sie können nicht exportiert werden',
       'Testen Sie die Verbindung, bevor Sie einen HSM-Anbieter für die CA-Signierung verwenden',
       'Für langlebige Root-CAs in Produktion HSM-gestützte Schlüsselablage bevorzugen',
     ],
@@ -63,41 +63,41 @@ Die Industriestandard-HSM-Schnittstelle. Unterstützte Geräte:
 - **SoftHSM** (softwarebasiert, zum Testen)
 - Jedes PKCS#11-kompatible Gerät
 
-> 💡 **Docker**: SoftHSM ist im Docker-Image vorinstalliert. Beim ersten Start wird automatisch ein Standard-Token initialisiert und als \`SoftHSM-Default\`-Anbieter registriert — sofort einsatzbereit.
+> 💡 **Docker**: SoftHSM ist im Docker-Image vorinstalliert. Beim ersten Start wird automatisch ein Standard-Token initialisiert und als \`SoftHSM-Default\`-Anbieter registriert, sofort einsatzbereit.
 
 Konfiguration:
-- **Bibliothekspfad** — Pfad zur PKCS#11-Shared-Library (.so/.dll)
-- **Slot** — HSM-Slotnummer
-- **PIN** — Benutzer-PIN zur Authentifizierung
+- **Bibliothekspfad**: Pfad zur PKCS#11-Shared-Library (.so/.dll)
+- **Slot**: HSM-Slotnummer
+- **PIN**: Benutzer-PIN zur Authentifizierung
 
 ### AWS CloudHSM
 Amazon Web Services Cloud-basiertes HSM:
-- **Cluster-ID** — CloudHSM-Cluster-Kennung
-- **Region** — AWS-Region
-- **Anmeldedaten** — AWS-Zugriffsschlüssel und -Geheimnis
+- **Cluster-ID**: CloudHSM-Cluster-Kennung
+- **Region**: AWS-Region
+- **Anmeldedaten**: AWS-Zugriffsschlüssel und -Geheimnis
 
 ### Azure Key Vault
 Microsoft Azure verwalteter Schlüsselspeicher:
-- **Vault-URL** — Azure Key Vault-Endpunkt
-- **Mandanten-ID** — Azure AD-Mandant
-- **Client-ID/Geheimnis** — Dienstprinzipal-Anmeldedaten
+- **Vault-URL**: Azure Key Vault-Endpunkt
+- **Mandanten-ID**: Azure AD-Mandant
+- **Client-ID/Geheimnis**: Dienstprinzipal-Anmeldedaten
 
 ### Google Cloud KMS
 Google Cloud Key Management Service:
-- **Projekt** — GCP-Projekt-ID
-- **Standort** — KMS-Schlüsselring-Standort
-- **Schlüsselring** — Name des Schlüsselrings
-- **Anmeldedaten** — Dienstkonto-JSON-Schlüssel
+- **Projekt**: GCP-Projekt-ID
+- **Standort**: KMS-Schlüsselring-Standort
+- **Schlüsselring**: Name des Schlüsselrings
+- **Anmeldedaten**: Dienstkonto-JSON-Schlüssel
 
 ### OpenBao / Vault Transit
-OpenBao- oder HashiCorp Vault Transit Secrets Engine. Schlüssel werden remote über die Transit-API verwaltet — keine PKCS#11-Bibliothek erforderlich.
+OpenBao- oder HashiCorp Vault Transit Secrets Engine. Schlüssel werden remote über die Transit-API verwaltet: keine PKCS#11-Bibliothek erforderlich.
 
 Konfiguration:
-- **URL** — Serveradresse (z.B. \`https://openbao.example.com:8200\`)
-- **Token** — Authentifizierungstoken
-- **Mount-Pfad** — Transit-Engine-Mountpoint (Standard: \`transit\`)
-- **Namespace** — Optionaler Namespace für Multi-Tenant-Setups
-- **TLS-Überprüfung überspringen** — TLS-Zertifikatsprüfung überspringen (für selbstsignierte Zertifikate)
+- **URL**: Serveradresse (z.B. \`https://openbao.example.com:8200\`)
+- **Token**: Authentifizierungstoken
+- **Mount-Pfad**: Transit-Engine-Mountpoint (Standard: \`transit\`)
+- **Namespace**: Optionaler Namespace für Multi-Tenant-Setups
+- **TLS-Überprüfung überspringen**: TLS-Zertifikatsprüfung überspringen (für selbstsignierte Zertifikate)
 
 Unterstützte Schlüsseltypen:
 - RSA 2048, 3072, 4096
@@ -120,9 +120,9 @@ Testen Sie die Verbindung immer nach dem Erstellen oder Ändern eines Anbieters.
 
 ### Anbieterstatus
 Jeder Anbieter zeigt einen Verbindungsstatusindikator:
-- **Verbunden** — HSM ist erreichbar und authentifiziert
-- **Getrennt** — HSM nicht erreichbar
-- **Fehler** — Authentifizierungs- oder Konfigurationsproblem
+- **Verbunden**: HSM ist erreichbar und authentifiziert
+- **Getrennt**: HSM nicht erreichbar
+- **Fehler**: Authentifizierungs- oder Konfigurationsproblem
 
 ## Schlüsselverwaltung
 

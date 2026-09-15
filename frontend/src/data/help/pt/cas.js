@@ -29,12 +29,12 @@ export default {
         title: 'CAs assinadas externamente (modo CSR, v2.214)',
         content: 'O tipo de criação "Assinada por CA externa (CSR)" cobre o padrão de raiz offline: o par de chaves vive no UCM, o certificado é assinado em outro lugar. A chave privada nunca sai do UCM.',
         items: [
-          { label: 'Criar', text: 'O UCM gera o par de chaves (local ou HSM) e um CSR do tipo CA — o CSR é baixado automaticamente' },
+          { label: 'Criar', text: 'O UCM gera o par de chaves (local ou HSM) e um CSR do tipo CA, o CSR é baixado automaticamente' },
           { label: 'Aguardando certificado', text: 'A CA pendente não pode assinar, ser exportada, ser pai nem ficar offline até que seu certificado seja instalado' },
           { label: 'Enviar certificado', text: 'Cole ou envie o certificado assinado externamente (PEM/DER). Sua chave pública deve corresponder à chave privada armazenada; as restrições de CA são aplicadas' },
-          { label: 'Cadeia', text: 'Vinculada automaticamente quando o emissor é conhecido pelo UCM — importe a raiz externa (apenas o certificado) para uma cadeia completa' },
+          { label: 'Cadeia', text: 'Vinculada automaticamente quando o emissor é conhecido pelo UCM, importe a raiz externa (apenas o certificado) para uma cadeia completa' },
           { label: 'Renovar via CSR', text: 'Reemite um CSR a partir da mesma chave (SKI estável); faça-o ser assinado externamente e envie o novo certificado' },
-          { label: 'Após a renovação', text: 'O certificado substituído permanece válido até seu notAfter — o UCM mostra seu número de série após o envio; revogue-o na raiz externa se ele não deve mais ser confiável' },
+          { label: 'Após a renovação', text: 'O certificado substituído permanece válido até seu notAfter, o UCM mostra seu número de série após o envio; revogue-o na raiz externa se ele não deve mais ser confiável' },
         ]
       },
       {
@@ -43,7 +43,7 @@ export default {
           { label: 'Armazenamento de chave', text: 'Na criação da CA, escolha Local (criptografado no BD) ou HSM' },
           { label: 'Gerar nova chave', text: 'Cria uma nova chave de assinatura no provedor HSM selecionado' },
           { label: 'Usar chave existente', text: 'Vincula a CA a uma chave de assinatura não utilizada já presente no HSM' },
-          { label: 'Sem exportação de chave privada', text: 'As chaves apoiadas por HSM nunca saem do HSM — exportações PKCS#12, JKS e apenas chave estão desativadas' },
+          { label: 'Sem exportação de chave privada', text: 'As chaves apoiadas por HSM nunca saem do HSM, exportações PKCS#12, JKS e apenas chave estão desativadas' },
           { label: 'Pré-requisito', text: 'Configure e conecte um provedor HSM em Gerenciamento HSM primeiro' },
         ]
       },
@@ -60,13 +60,13 @@ export default {
       },
       {
         title: 'CRLs externas para CAs sem chave (v2.215)',
-        content: 'Uma CA cuja chave o UCM não pode usar (CA offline, importação apenas de certificado) não pode assinar sua própria CRL — envie em vez disso uma CRL gerada junto à chave offline.',
+        content: 'Uma CA cuja chave o UCM não pode usar (CA offline, importação apenas de certificado) não pode assinar sua própria CRL, envie em vez disso uma CRL gerada junto à chave offline.',
         items: [
           { label: 'Onde', text: 'Painel de detalhes da CA › Lista de revogação (CRL): mostra o número da CRL servida, a contagem de entradas, thisUpdate/nextUpdate e um aviso quando o nextUpdate tiver passado' },
           { label: 'Envio', text: 'PEM ou DER, apenas CRLs completas (não delta). A assinatura deve ser verificável com o certificado da CA e o emissor deve corresponder ao seu sujeito' },
-          { label: 'Monotonicidade', text: 'Um envio mais antigo que a CRL atualmente servida (número de CRL ou thisUpdate) é recusado — emita-a com um número de CRL maior' },
+          { label: 'Monotonicidade', text: 'Um envio mais antigo que a CRL atualmente servida (número de CRL ou thisUpdate) é recusado, emita-a com um número de CRL maior' },
           { label: 'Publicação', text: 'A CRL enviada é servida no caminho CDP existente da CA, e o OCSP responde revogado para os seriais que ela lista' },
-          { label: 'Fluxo de trabalho', text: 'Revogue na raiz offline, gere a CRL da raiz no ambiente air-gap e envie-a aqui — a chave da raiz nunca fica online' },
+          { label: 'Fluxo de trabalho', text: 'Revogue na raiz offline, gere a CRL da raiz no ambiente air-gap e envie-a aqui, a chave da raiz nunca fica online' },
         ]
       },
     ],
@@ -77,9 +77,9 @@ export default {
       'A exportação PKCS#12 inclui a cadeia completa e é ideal para backup',
     ],
     warnings: [
-      'Excluir uma CA NÃO revogará os certificados que ela emitiu — revogue-os primeiro',
+      'Excluir uma CA NÃO revogará os certificados que ela emitiu: revogue-os primeiro',
       'As chaves privadas são armazenadas criptografadas; perder o banco de dados significa perder as chaves',
-      'Senhas do modo offline NÃO são recuperáveis — armazene-as em seu gerenciador de senhas / vault antes de confirmar',
+      'Senhas do modo offline NÃO são recuperáveis: armazene-as em seu gerenciador de senhas / vault antes de confirmar',
     ],
   },
   helpGuides: {
@@ -131,38 +131,38 @@ Agrupa CAs pelo campo Organização (O). Útil para configurações multi-tenant
 > ⚠ A validade da CA Intermediária não pode exceder a validade da sua CA pai.
 
 ### Criar uma CA assinada externamente (modo CSR, v2.214)
-Para o padrão de raiz offline — a chave da CA emissora vive no UCM, seu certificado é assinado em outro lugar:
+Para o padrão de raiz offline: a chave da CA emissora vive no UCM, seu certificado é assinado em outro lugar:
 1. Clique em **Criar** → tipo **Assinada por CA externa (CSR)**
-2. Preencha o Sujeito e as configurações de chave (local ou HSM) — a validade é decidida pelo assinante externo
+2. Preencha o Sujeito e as configurações de chave (local ou HSM): a validade é decidida pelo assinante externo
 3. Envie: o UCM gera o par de chaves e um CSR do tipo CA (baixado automaticamente)
 4. Faça o CSR ser assinado pela sua CA raiz externa/offline
 5. De volta à CA (selo **Aguardando certificado**), clique em **Enviar certificado** e forneça o certificado assinado (PEM ou DER)
 
-O UCM só ativa a CA se a chave pública do certificado corresponder à chave privada armazenada e se as restrições de CA forem respeitadas. A cadeia é vinculada automaticamente quando o emissor é conhecido pelo UCM — importe a raiz externa (apenas o certificado) para uma cadeia completa. Até a ativação, a CA pendente não pode assinar, ser exportada, ser CA pai nem ficar offline.
+O UCM só ativa a CA se a chave pública do certificado corresponder à chave privada armazenada e se as restrições de CA forem respeitadas. A cadeia é vinculada automaticamente quando o emissor é conhecido pelo UCM: importe a raiz externa (apenas o certificado) para uma cadeia completa. Até a ativação, a CA pendente não pode assinar, ser exportada, ser CA pai nem ficar offline.
 
 Para renovar, use **Renovar via CSR**: um novo CSR é emitido **a partir da mesma chave** (o SKI permanece estável), assinado externamente e enviado pelo mesmo fluxo.
 
 ## Importando uma CA
 
 Importe certificados de CA existentes via:
-- **Arquivo PEM** — Certificado em formato PEM
-- **Arquivo DER** — Formato binário DER
-- **PKCS#12** — Pacote de certificado + chave privada (requer senha)
+- **Arquivo PEM**: Certificado em formato PEM
+- **Arquivo DER**: Formato binário DER
+- **PKCS#12**: Pacote de certificado + chave privada (requer senha)
 
 Ao importar sem chave privada, a CA pode verificar certificados mas não pode assinar novos.
 
 ## Exportando uma CA
 
 Formatos de exportação:
-- **PEM** — Certificado codificado em Base64
-- **DER** — Formato binário
-- **PKCS#12 (P12/PFX)** — Certificado + chave privada + cadeia, protegido por senha
+- **PEM**: Certificado codificado em Base64
+- **DER**: Formato binário
+- **PKCS#12 (P12/PFX)**: Certificado + chave privada + cadeia, protegido por senha
 
 > 💡 A exportação PKCS#12 inclui a cadeia completa de certificados e é ideal para backup.
 
 ## Chaves Privadas
 
-CAs com **ícone de chave** (🔑) possuem chave privada armazenada no UCM e podem assinar certificados. CAs sem chave são apenas para confiança — validam cadeias mas não podem emitir.
+CAs com **ícone de chave** (🔑) possuem chave privada armazenada no UCM e podem assinar certificados. CAs sem chave são apenas para confiança: validam cadeias mas não podem emitir.
 
 ### Armazenamento de Chaves
 As chaves privadas são criptografadas em repouso no banco de dados do UCM. Para maior segurança, considere usar um provedor HSM (veja a página HSM).
@@ -221,8 +221,8 @@ O UCM pode armazenar a chave de assinatura de uma CA em um módulo de segurança
 3. Em **Armazenamento de chave**, mude de *Local* para **HSM**
 4. Escolha o provedor HSM
 5. Escolha um modo de chave:
-   - **Gerar nova chave** — forneça um rótulo (letras/dígitos/_/-) e escolha o algoritmo (RSA-2048/3072/4096 ou EC-P256/P384/P521)
-   - **Usar chave existente** — escolha uma chave de assinatura não utilizada já presente no HSM
+   - **Gerar nova chave**: forneça um rótulo (letras/dígitos/_/-) e escolha o algoritmo (RSA-2048/3072/4096 ou EC-P256/P384/P521)
+   - **Usar chave existente**: escolha uma chave de assinatura não utilizada já presente no HSM
 6. Envie. O UCM cria o certificado CA e o vincula à chave HSM.
 
 ### Limitações
@@ -232,28 +232,28 @@ O UCM pode armazenar a chave de assinatura de uma CA em um módulo de segurança
 
 ## Modo offline
 
-Tire a chave de assinatura de uma CA do uso em tempo de execução sem excluir a CA. O certificado, a cadeia, a CRL e o OCSP continuam funcionando — apenas as operações de assinatura (assinar CSR, emitir certificado, renovar CA) são bloqueadas.
+Tire a chave de assinatura de uma CA do uso em tempo de execução sem excluir a CA. O certificado, a cadeia, a CRL e o OCSP continuam funcionando: apenas as operações de assinatura (assinar CSR, emitir certificado, renovar CA) são bloqueadas.
 
 Esta é a maneira padrão de proteger uma CA raiz entre cerimônias raras, mantendo online sua âncora de confiança e infraestrutura de revogação.
 
 ### Dois modos
 
-**Protegida por senha** — a chave privada permanece no banco de dados UCM, envolvida (PKCS#8) sob uma senha que você escolhe. Para colocar a CA novamente online, clique em **Restaurar** e digite a senha novamente. Rápido e conveniente; a segurança depende da força da senha e de o UCM não estar comprometido.
+**Protegida por senha**: a chave privada permanece no banco de dados UCM, envolvida (PKCS#8) sob uma senha que você escolhe. Para colocar a CA novamente online, clique em **Restaurar** e digite a senha novamente. Rápido e conveniente; a segurança depende da força da senha e de o UCM não estar comprometido.
 
-**Exportada para arquivo** — a chave privada é exportada como um arquivo PEM criptografado por senha baixado uma vez. A chave é então **removida do banco de dados**. Para colocar a CA novamente online, clique em **Restaurar**, faça upload do arquivo e digite a senha. Esta é a opção mais forte (verdadeiro air-gap) mas você é totalmente responsável pelo arquivo: se perdê-lo, a chave é irrecuperável.
+**Exportada para arquivo**: a chave privada é exportada como um arquivo PEM criptografado por senha baixado uma vez. A chave é então **removida do banco de dados**. Para colocar a CA novamente online, clique em **Restaurar**, faça upload do arquivo e digite a senha. Esta é a opção mais forte (verdadeiro air-gap) mas você é totalmente responsável pelo arquivo: se perdê-lo, a chave é irrecuperável.
 
 ### Regras de senha
 A senha segue a política de complexidade padrão do UCM: comprimento mínimo, mistura de classes de caracteres, sem sequências triviais. As mesmas regras das senhas de usuário.
 
-### Passo a passo — Colocar offline
+### Passo a passo. Colocar offline
 1. Abra o painel de detalhes da CA
 2. Clique em **Colocar offline**
 3. Leia a explicação, clique em **Continuar**
 4. Escolha um modo (*Protegida por senha* ou *Exportada para arquivo*)
 5. Digite a senha duas vezes
-6. Confirme. Para *Exportada para arquivo*, a chave criptografada é baixada imediatamente — armazene-a com segurança.
+6. Confirme. Para *Exportada para arquivo*, a chave criptografada é baixada imediatamente: armazene-a com segurança.
 
-### Passo a passo — Restaurar
+### Passo a passo. Restaurar
 1. Abra o painel de detalhes da CA offline
 2. Clique em **Restaurar**
 3. Digite a senha

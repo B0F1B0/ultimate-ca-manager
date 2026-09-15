@@ -1273,7 +1273,7 @@ export default function AccountPage() {
                     placeholder={`${user?.username || 'user'} mTLS`}
                   />
                   {/* Directing a CA other than the configured mTLS one requires
-                      write:cas server-side — without it, only the configured
+                      write:cas server-side, without it, only the configured
                       default is issuable, so offer no choice that would 403. */}
                   {canChooseMtlsCa && (
                     <Select

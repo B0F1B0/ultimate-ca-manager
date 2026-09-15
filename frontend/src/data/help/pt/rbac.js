@@ -24,7 +24,7 @@ export default {
       },
     ],
     tips: [
-      'Siga o princípio do menor privilégio — conceda apenas permissões necessárias',
+      'Siga o princípio do menor privilégio: conceda apenas permissões necessárias',
       'As funções do sistema não podem ser modificadas ou excluídas',
       'Alterne categorias inteiras para configuração rápida de funções',
     ],
@@ -40,10 +40,10 @@ RBAC fornece gerenciamento granular de permissões. Defina funções personaliza
 
 Quatro funções integradas que não podem ser modificadas ou excluídas:
 
-- **Admin** — Acesso total a tudo
-- **Operador** — Gerenciar certificados, CAs, CSRs, modelos. Sem acesso a configurações do sistema, usuários ou RBAC
-- **Auditor** — Acesso somente leitura a todos os dados operacionais (certificados, CAs, ACME, SCEP, HSM, logs de auditoria, políticas, grupos) mas não configurações ou gerenciamento de usuários
-- **Visualizador** — Acesso básico somente leitura a certificados, CAs, CSRs, modelos e armazenamento de confiança
+- **Admin**: Acesso total a tudo
+- **Operador**: Gerenciar certificados, CAs, CSRs, modelos. Sem acesso a configurações do sistema, usuários ou RBAC
+- **Auditor**: Acesso somente leitura a todos os dados operacionais (certificados, CAs, ACME, SCEP, HSM, logs de auditoria, políticas, grupos) mas não configurações ou gerenciamento de usuários
+- **Visualizador**: Acesso básico somente leitura a certificados, CAs, CSRs, modelos e armazenamento de confiança
 
 ## Funções Personalizadas
 
@@ -55,24 +55,24 @@ Quatro funções integradas que não podem ser modificadas ou excluídas:
 
 ### Matriz de Permissões
 As permissões são organizadas por categoria:
-- **CAs** — Criar, ler, atualizar, excluir, importar, exportar
-- **Certificados** — Emitir, ler, revogar, renovar, excluir, exportar (somente o certificado — ver Chaves Privadas)
-- **Chaves Privadas** — Exportação direta da chave privada (\`read:private_keys\`), somente admin: nenhuma função integrada além de Admin a possui. As funções sem ela passam pela Recuperação de chaves
-- **CSRs** — Criar, ler, assinar, excluir
-- **Modelos** — Criar, ler, atualizar, excluir
-- **Usuários** — Criar, ler, atualizar, excluir
-- **Grupos** — Criar, ler, atualizar, excluir
-- **Configurações** — Ler, atualizar
-- **Auditoria** — Ler, exportar, limpeza
-- **ACME** — Configurar, gerenciar contas
-- **SCEP** — Configurar, aprovar solicitações
-- **Armazenamento de Confiança** — Gerenciar certificados confiáveis
-- **HSM** — Gerenciar provedores e chaves
-- **SSH** — Gerenciar CAs e certificados SSH
-- **Políticas** — Ver políticas de certificado
-- **Aprovações** — Ver e decidir solicitações de aprovação
-- **Recuperação de Chaves** — Solicitar recuperações e ver solicitações (a aprovação é somente admin)
-- **Backup** — Criar, restaurar
+- **CAs**: Criar, ler, atualizar, excluir, importar, exportar
+- **Certificados**: Emitir, ler, revogar, renovar, excluir, exportar (somente o certificado: ver Chaves Privadas)
+- **Chaves Privadas**: Exportação direta da chave privada (\`read:private_keys\`), somente admin: nenhuma função integrada além de Admin a possui. As funções sem ela passam pela Recuperação de chaves
+- **CSRs**: Criar, ler, assinar, excluir
+- **Modelos**: Criar, ler, atualizar, excluir
+- **Usuários**: Criar, ler, atualizar, excluir
+- **Grupos**: Criar, ler, atualizar, excluir
+- **Configurações**: Ler, atualizar
+- **Auditoria**: Ler, exportar, limpeza
+- **ACME**: Configurar, gerenciar contas
+- **SCEP**: Configurar, aprovar solicitações
+- **Armazenamento de Confiança**: Gerenciar certificados confiáveis
+- **HSM**: Gerenciar provedores e chaves
+- **SSH**: Gerenciar CAs e certificados SSH
+- **Políticas**: Ver políticas de certificado
+- **Aprovações**: Ver e decidir solicitações de aprovação
+- **Recuperação de Chaves**: Solicitar recuperações e ver solicitações (a aprovação é somente admin)
+- **Backup**: Criar, restaurar
 
 ### Alternância de Categorias
 Clique no cabeçalho de uma categoria para ativar/desativar todas as permissões daquela categoria de uma vez.
@@ -83,8 +83,8 @@ Um badge percentual mostra quanto do conjunto total de permissões a função co
 ## Atribuindo Funções
 
 Funções são atribuídas:
-- **Diretamente** — Na página de Usuários, edite um usuário e selecione uma função
-- **Via Grupos** — Um grupo concede um conjunto de permissões; cada membro o recebe além de sua própria função
+- **Diretamente**: Na página de Usuários, edite um usuário e selecione uma função
+- **Via Grupos**: Um grupo concede um conjunto de permissões; cada membro o recebe além de sua própria função
 
 ## Permissões Efetivas
 

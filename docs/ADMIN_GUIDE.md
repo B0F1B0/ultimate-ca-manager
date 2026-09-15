@@ -130,8 +130,8 @@ security.trusted_proxies = 10.0.0.5/32, 192.168.10.0/24
 
 This affects:
 
-- **Audit log IP** — `X-Forwarded-For` is honoured **only** when the request comes from a trusted CIDR; otherwise the direct `remote_addr` is used. Spoofed XFF from untrusted networks is ignored.
-- **mTLS / EST / SCEP** — proxy-injected `X-SSL-Client-*` headers are only accepted from trusted CIDRs. Direct deployments (UCM terminates TLS itself) are unaffected.
+- **Audit log IP**: `X-Forwarded-For` is honoured **only** when the request comes from a trusted CIDR; otherwise the direct `remote_addr` is used. Spoofed XFF from untrusted networks is ignored.
+- **mTLS / EST / SCEP**: proxy-injected `X-SSL-Client-*` headers are only accepted from trusted CIDRs. Direct deployments (UCM terminates TLS itself) are unaffected.
 
 ### Authentication Methods
 
@@ -146,10 +146,10 @@ Enable/disable in **Settings** > **Security**:
 
 mTLS client certificates can be enrolled from the **Account → mTLS** tab. Once enrolled, certificates are fully managed by UCM:
 
-- **User Certificates page** (`/user-certificates`) — Dedicated page to list, export, revoke, and delete all mTLS client certificates
-- **Export** — Download as PEM (with key and chain) or PKCS12 (password-protected)
-- **Revoke** — Revoke with reason (key compromise, superseded, etc.)
-- **RBAC** — Viewers see only their own certificates; operators and admins see all
+- **User Certificates page** (`/user-certificates`): Dedicated page to list, export, revoke, and delete all mTLS client certificates
+- **Export**: Download as PEM (with key and chain) or PKCS12 (password-protected)
+- **Revoke**: Revoke with reason (key compromise, superseded, etc.)
+- **RBAC**: Viewers see only their own certificates; operators and admins see all
 
 ### Single Sign-On (SSO)
 
@@ -182,12 +182,12 @@ Configure SSO under **Settings → SSO**. UCM supports three SSO providers:
 
 Configure SMTP settings under **Settings → Email** to enable email notifications:
 
-- **SMTP Host/Port** — Mail server address and port
-- **Credentials** — Username and password (if required)
-- **Encryption** — None, STARTTLS, or SSL/TLS
-- **From Address** — Sender email for all notifications
-- **Content Type** — HTML, Plain Text, or Both
-- **Alert Recipients** — One or more email addresses for expiry alerts
+- **SMTP Host/Port**: Mail server address and port
+- **Credentials**: Username and password (if required)
+- **Encryption**: None, STARTTLS, or SSL/TLS
+- **From Address**: Sender email for all notifications
+- **Content Type**: HTML, Plain Text, or Both
+- **Alert Recipients**: One or more email addresses for expiry alerts
 
 Use the **Test** button to send a test email and verify connectivity.
 
@@ -251,8 +251,8 @@ sudo systemctl start ucm
 
 UCM supports two database backends:
 
-- **SQLite** (default) — zero-config, file-based, suitable for single-node deployments
-- **PostgreSQL 13+** — recommended for high availability, multi-instance, or when you already operate a managed PG cluster
+- **SQLite** (default): zero-config, file-based, suitable for single-node deployments
+- **PostgreSQL 13+**: recommended for high availability, multi-instance, or when you already operate a managed PG cluster
 
 The active backend is selected by the `DATABASE_URL` environment variable (or `/etc/ucm/ucm.env` on DEB/RPM):
 
@@ -263,9 +263,9 @@ The active backend is selected by the `DATABASE_URL` environment variable (or `/
 
 **Settings → Database** shows the current backend, size, table count, and exposes:
 
-- **Test connection** — validate a `DATABASE_URL` before switching
-- **Switch backend** — persist `DATABASE_URL` to `/etc/ucm/ucm.env` and restart (DEB/RPM)
-- **Migrate data** — copy all rows from the current backend to the target, then restart
+- **Test connection**: validate a `DATABASE_URL` before switching
+- **Switch backend**: persist `DATABASE_URL` to `/etc/ucm/ucm.env` and restart (DEB/RPM)
+- **Migrate data**: copy all rows from the current backend to the target, then restart
 
 The migration is **bidirectional** (SQLite ↔ PostgreSQL) and:
 
@@ -283,7 +283,7 @@ The migration is **bidirectional** (SQLite ↔ PostgreSQL) and:
   - SQLite: delete the target `.db` file
 - If a migration fails mid-way, the source is untouched and a backup is available under `/opt/ucm/data/backups/db_migration/`. Reset the target before retrying.
 
-> ⚠ Docker installs cannot persist `/etc/ucm/ucm.env` from inside the container. After running **Migrate** on Docker, the API returns the target URL — set `DATABASE_URL` in your `docker-compose.yml` or `docker run -e` and restart the container manually.
+> ⚠ Docker installs cannot persist `/etc/ucm/ucm.env` from inside the container. After running **Migrate** on Docker, the API returns the target URL: set `DATABASE_URL` in your `docker-compose.yml` or `docker run -e` and restart the container manually.
 
 > **Admin lockout fix (v2.141).** Switching the active backend from PostgreSQL back to SQLite (or vice versa) no longer locks out the admin account. The bcrypt password hash is preserved across the swap and the in-process SQLAlchemy session pool is rebuilt before the next login attempt. Earlier releases could leave a stale connection pool pointing at the old backend, causing `Invalid credentials` on first login after the swap.
 
@@ -372,7 +372,7 @@ http://your-server:8080/cdp/<ca_refid>-delta.crl   # when delta CRL is enabled
 
 **Named URLs (opt-in, per CA):** when a CA is created with *Use CA name in
 protocol URLs* (Advanced), CDP/AIA paths use an immutable slug derived from the
-CA name (`/cdp/my-issuing-ca.crl`) instead of the random id — easier to
+CA name (`/cdp/my-issuing-ca.crl`) instead of the random id: easier to
 configure manually in relying products. Both forms always resolve; the slug
 cannot be changed after creation and reveals the CA name in URLs.
 
@@ -383,7 +383,7 @@ Management UI: **CA → CRL / CDP** tab (enable CDP, optional delta, regeneratio
 CDP/OCSP/AIA clients often expect plain HTTP on port **80**. UCM runs
 unprivileged, so it cannot bind ports below 1024 by itself. Three options:
 
-1. **Systemd capability** — let the service bind 80 directly:
+1. **Systemd capability**: let the service bind 80 directly:
 
    ```bash
    # /etc/ucm/ucm.env
@@ -398,10 +398,10 @@ unprivileged, so it cannot bind ports below 1024 by itself. Three options:
    sudo systemctl restart ucm
    ```
 
-2. **Reverse proxy** — keep UCM on 8080 and forward `:80 → :8080` for the
+2. **Reverse proxy**: keep UCM on 8080 and forward `:80 → :8080` for the
    protocol paths (`/cdp/`, `/ocsp`, `/aia/`) with nginx/HAProxy/Caddy.
 
-3. **Docker** — map the port at run time: `-p 80:8080`.
+3. **Docker**: map the port at run time: `-p 80:8080`.
 
 Whichever option you pick, set the CDP/OCSP/AIA URLs on the CA so issued
 certificates embed the port-80 form of the URL.
@@ -469,7 +469,7 @@ View ACME accounts and orders in the ACME page, or via API:
 curl -k -b cookies.txt https://localhost:8443/api/v2/acme/accounts
 ```
 
-### ACME client accounts — `preferred_chain` (RFC 8555 alternate chains)
+### ACME client accounts: `preferred_chain` (RFC 8555 alternate chains)
 
 UCM can select an *alternate* chain advertised by the CA via `Link: rel="alternate"` (RFC 8555 §7.4.2). This choice is driven by the `preferred_chain` field on **ACME client accounts**.
 
@@ -505,22 +505,22 @@ curl -k -b cookies.txt https://localhost:8443/api/v2/scep/requests?status=pendin
 EST (RFC 7030) is configured under **Operations → EST**:
 
 1. **Enable EST** and select the issuing CA
-2. **Authentication** — Configure client authentication (HTTP Basic or TLS mutual auth)
-3. **Endpoint** — `https://your-server:8443/.well-known/est/`
-4. **Operations** — Simple enroll, re-enroll, CA certs distribution
+2. **Authentication**: Configure client authentication (HTTP Basic or TLS mutual auth)
+3. **Endpoint**: `https://your-server:8443/.well-known/est/`
+4. **Operations**: Simple enroll, re-enroll, CA certs distribution
 5. Monitor EST requests in the Operations page
 
 ### Discovery Administration
 
 Configure certificate discovery under **Operations → Discovery**:
 
-1. **Scan Profiles** — Create profiles with target hosts/CIDR ranges, port lists, and scan options
-2. **Scheduling** — Enable scheduled scans with configurable intervals
-3. **Results** — View discovered certificates, filter by status, expiry, issuer
-4. **Quick Scan** — One-off scans without creating a profile
-5. **SNI support** — Enable SNI for virtual host scanning
+1. **Scan Profiles**: Create profiles with target hosts/CIDR ranges, port lists, and scan options
+2. **Scheduling**: Enable scheduled scans with configurable intervals
+3. **Results**: View discovered certificates, filter by status, expiry, issuer
+4. **Quick Scan**: One-off scans without creating a profile
+5. **SNI support**: Enable SNI for virtual host scanning
 
-### Windows Autoenrollment (XCEP/WSTEP) — Kerberos/SPNEGO
+### Windows Autoenrollment (XCEP/WSTEP): Kerberos/SPNEGO
 
 Configure under **Settings → Windows Autoenrollment**. Policy discovery (XCEP) and issuance (WSTEP) work out of the box for username/password and certificate-based binding. The **Kerberos** binding, used for silent GPO autoenrollment, needs one extra server-side dependency that is deliberately **not** installed by default: `pyspnego`'s `kerberos` extra pulls in `gssapi`, a C extension that requires the system's Kerberos development headers to build. Installing it by default would break `pip install -r requirements.txt` on hosts without a compiler or `libkrb5-dev`, so it's opt-in.
 
@@ -536,7 +536,7 @@ dnf install -y krb5-devel gcc python3-devel
 pip install pyspnego[kerberos]
 ```
 
-For a DEB/RPM install, run `pip install` inside `/opt/ucm/venv` (e.g. `/opt/ucm/venv/bin/pip install pyspnego[kerberos]`) as the `ucm` user. For Docker, add the same `apt-get`/`pip install` lines to a custom image built from `neyslim/ultimate-ca-manager` — the extra isn't baked into the published image either.
+For a DEB/RPM install, run `pip install` inside `/opt/ucm/venv` (e.g. `/opt/ucm/venv/bin/pip install pyspnego[kerberos]`) as the `ucm` user. For Docker, add the same `apt-get`/`pip install` lines to a custom image built from `neyslim/ultimate-ca-manager`: the extra isn't baked into the published image either.
 
 ```bash
 systemctl restart ucm
@@ -624,13 +624,13 @@ UCM includes a full report scheduler that can automatically generate and email r
 1. Go to **Reports** page
 2. Click the **schedule icon** next to any report type
 3. Configure:
-   - **Enabled** — Toggle schedule on/off
-   - **Frequency** — `daily`, `weekly`, or `monthly`
-   - **Time** — Execution time in `HH:MM` format (24-hour, server timezone)
-   - **Day of Week** — For weekly: `0` (Monday) through `6` (Sunday)
-   - **Day of Month** — For monthly: `1` through `28`
-   - **Format** — Output format: `csv`, `json`, or `pdf`
-   - **Recipients** — Email addresses to receive the report (max 50)
+   - **Enabled**: Toggle schedule on/off
+   - **Frequency**: `daily`, `weekly`, or `monthly`
+   - **Time**: Execution time in `HH:MM` format (24-hour, server timezone)
+   - **Day of Week**: For weekly: `0` (Monday) through `6` (Sunday)
+   - **Day of Month**: For monthly: `1` through `28`
+   - **Format**: Output format: `csv`, `json`, or `pdf`
+   - **Recipients**: Email addresses to receive the report (max 50)
 4. Click **Save**
 
 ### Example Schedule Configuration
@@ -657,10 +657,10 @@ Before relying on a schedule, send a test report:
 
 ### Troubleshooting Schedules
 
-- **Reports not sending** — Check SMTP configuration in Settings > Email
-- **Empty reports** — Verify the report type has data (e.g., no expiring certs if all are valid)
-- **Wrong timezone** — Report time uses server timezone; check system clock
-- **Recipient limit** — Maximum 50 email addresses per report schedule
+- **Reports not sending**: Check SMTP configuration in Settings > Email
+- **Empty reports**: Verify the report type has data (e.g., no expiring certs if all are valid)
+- **Wrong timezone**: Report time uses server timezone; check system clock
+- **Recipient limit**: Maximum 50 email addresses per report schedule
 
 ---
 

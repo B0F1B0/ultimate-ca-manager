@@ -29,12 +29,12 @@ export default {
         title: 'CA signées en externe (mode CSR, v2.214)',
         content: 'Le type de création « Signée par une CA externe (CSR) » couvre le schéma de racine hors ligne : la paire de clés vit dans UCM, le certificat est signé ailleurs. La clé privée ne quitte jamais UCM.',
         items: [
-          { label: 'Créer', text: 'UCM génère la paire de clés (locale ou HSM) et un CSR de type CA — le CSR est téléchargé automatiquement' },
+          { label: 'Créer', text: 'UCM génère la paire de clés (locale ou HSM) et un CSR de type CA, le CSR est téléchargé automatiquement' },
           { label: 'En attente de certificat', text: "La CA en attente ne peut ni signer, ni être exportée, ni être parente, ni passer hors ligne tant que son certificat n'est pas installé" },
           { label: 'Téléverser le certificat', text: 'Collez ou téléversez le certificat signé en externe (PEM/DER). Sa clé publique doit correspondre à la clé privée stockée ; les contraintes de CA sont vérifiées' },
-          { label: 'Chaîne', text: "Liée automatiquement lorsque l'émetteur est connu de UCM — importez la racine externe (certificat seul) pour une chaîne complète" },
+          { label: 'Chaîne', text: "Liée automatiquement lorsque l'émetteur est connu de UCM, importez la racine externe (certificat seul) pour une chaîne complète" },
           { label: 'Renouveler via CSR', text: 'Réémet un CSR depuis la même clé (SKI stable) ; faites-le signer en externe et téléversez le nouveau certificat' },
-          { label: 'Après renouvellement', text: "Le certificat remplacé reste valide jusqu'à son notAfter — UCM affiche son numéro de série après le téléversement ; révoquez-le auprès de la racine externe s'il ne doit plus être approuvé" },
+          { label: 'Après renouvellement', text: "Le certificat remplacé reste valide jusqu'à son notAfter, UCM affiche son numéro de série après le téléversement ; révoquez-le auprès de la racine externe s'il ne doit plus être approuvé" },
         ]
       },
       {
@@ -43,7 +43,7 @@ export default {
           { label: 'Stockage de la clé', text: 'Choisissez Local (chiffré en BD) ou HSM lors de la création de la CA' },
           { label: 'Générer une nouvelle clé', text: 'Créer une nouvelle clé de signature sur le fournisseur HSM sélectionné' },
           { label: 'Utiliser une clé existante', text: 'Lier la CA à une clé de signature inutilisée déjà présente sur le HSM' },
-          { label: 'Pas d\'export de clé privée', text: 'Les clés adossées HSM ne quittent jamais le HSM — les exports PKCS#12, JKS et clé seule sont désactivés' },
+          { label: 'Pas d\'export de clé privée', text: 'Les clés adossées HSM ne quittent jamais le HSM, les exports PKCS#12, JKS et clé seule sont désactivés' },
           { label: 'Prérequis', text: 'Configurer et connecter un fournisseur HSM dans la gestion HSM au préalable' },
         ]
       },
@@ -60,13 +60,13 @@ export default {
       },
       {
         title: 'CRL externes pour les CA sans clé (v2.215)',
-        content: "Une CA dont UCM ne peut pas utiliser la clé (CA hors ligne, import du certificat seul) ne peut pas signer sa propre CRL — téléversez à la place une CRL générée auprès de la clé hors ligne.",
+        content: "Une CA dont UCM ne peut pas utiliser la clé (CA hors ligne, import du certificat seul) ne peut pas signer sa propre CRL, téléversez à la place une CRL générée auprès de la clé hors ligne.",
         items: [
           { label: 'Où', text: "Panneau de détails de la CA › Liste de révocation (CRL) : affiche le numéro de la CRL servie, le nombre d'entrées, thisUpdate/nextUpdate, et un avertissement dès que nextUpdate est dépassé" },
           { label: 'Téléversement', text: "CRL complètes (non delta) uniquement, au format PEM ou DER. La signature doit se vérifier avec le certificat de la CA et l'émetteur doit correspondre à son sujet" },
-          { label: 'Monotonie', text: 'Un téléversement plus ancien que la CRL actuellement servie (numéro de CRL ou thisUpdate) est refusé — émettez-la avec un numéro de CRL supérieur' },
+          { label: 'Monotonie', text: 'Un téléversement plus ancien que la CRL actuellement servie (numéro de CRL ou thisUpdate) est refusé, émettez-la avec un numéro de CRL supérieur' },
           { label: 'Publication', text: "La CRL téléversée est servie au chemin CDP existant de la CA, et l'OCSP répond « révoqué » pour les numéros de série qu'elle liste" },
-          { label: 'Flux de travail', text: "Révoquez auprès de la racine hors ligne, générez la CRL de la racine dans l'environnement isolé (air-gap), puis téléversez-la ici — la clé de la racine ne passe jamais en ligne" },
+          { label: 'Flux de travail', text: "Révoquez auprès de la racine hors ligne, générez la CRL de la racine dans l'environnement isolé (air-gap), puis téléversez-la ici, la clé de la racine ne passe jamais en ligne" },
         ]
       },
     ],
@@ -77,9 +77,9 @@ export default {
       'L\'exportation PKCS#12 inclut la chaîne complète et est idéale pour la sauvegarde',
     ],
     warnings: [
-      'Supprimer une CA ne révoquera PAS les certificats qu\'elle a émis — révoquez-les d\'abord',
+      'Supprimer une CA ne révoquera PAS les certificats qu\'elle a émis : révoquez-les d\'abord',
       'Les clés privées sont stockées chiffrées ; perdre la base de données signifie perdre les clés',
-      'Les mots de passe du mode hors ligne ne sont PAS récupérables — stockez-les dans votre coffre-fort avant de confirmer',
+      'Les mots de passe du mode hors ligne ne sont PAS récupérables : stockez-les dans votre coffre-fort avant de confirmer',
     ],
   },
   helpGuides: {
@@ -117,7 +117,7 @@ Regroupe les CA par leur champ Organisation (O). Utile pour les configurations m
 1. Cliquez sur **Créer** → **CA racine**
 2. Remplissez les champs du sujet (CN, O, OU, C, ST, L)
 3. Sélectionnez l'algorithme de clé (RSA 2048/4096, ECDSA P-256/P-384)
-4. Choisissez l'algorithme de signature (Auto, SHA-256/384/512 — Auto aligne P-384 sur SHA-384)
+4. Choisissez l'algorithme de signature (Auto, SHA-256/384/512. Auto aligne P-384 sur SHA-384)
 5. Définissez la période de validité (typiquement 10-20 ans pour les CA racines)
 6. Optionnel : ouvrez **Profil certificat (RFC 5280)** pour ajuster Key Usage / EKU
 7. Cliquez sur **Créer**
@@ -132,38 +132,38 @@ Regroupe les CA par leur champ Organisation (O). Utile pour les configurations m
 > ⚠ La validité de la CA intermédiaire ne peut pas dépasser celle de sa CA parente.
 
 ### Créer une CA signée en externe (mode CSR, v2.214)
-Pour le schéma de racine hors ligne — la clé de la CA émettrice vit dans UCM, son certificat est signé ailleurs :
+Pour le schéma de racine hors ligne : la clé de la CA émettrice vit dans UCM, son certificat est signé ailleurs :
 1. Cliquez sur **Créer** → type **Signée par une CA externe (CSR)**
-2. Renseignez le sujet et les paramètres de clé (locale ou HSM) — la validité est décidée par le signataire externe
+2. Renseignez le sujet et les paramètres de clé (locale ou HSM) : la validité est décidée par le signataire externe
 3. Validez : UCM génère la paire de clés et un CSR de type CA (téléchargé automatiquement)
 4. Faites signer le CSR par votre CA racine externe/hors ligne
 5. De retour sur la CA (badge **En attente de certificat**), cliquez sur **Téléverser le certificat** et fournissez le certificat signé (PEM ou DER)
 
-UCM n'active la CA que si la clé publique du certificat correspond à la clé privée stockée et que les contraintes de CA sont respectées. La chaîne se lie automatiquement lorsque l'émetteur est connu de UCM — importez la racine externe (certificat seul) pour une chaîne complète. Tant qu'elle n'est pas activée, la CA en attente ne peut ni signer, ni être exportée, ni être CA parente, ni passer hors ligne.
+UCM n'active la CA que si la clé publique du certificat correspond à la clé privée stockée et que les contraintes de CA sont respectées. La chaîne se lie automatiquement lorsque l'émetteur est connu de UCM : importez la racine externe (certificat seul) pour une chaîne complète. Tant qu'elle n'est pas activée, la CA en attente ne peut ni signer, ni être exportée, ni être CA parente, ni passer hors ligne.
 
 Pour renouveler, utilisez **Renouveler via CSR** : un nouveau CSR est émis **depuis la même clé** (le SKI reste stable), signé en externe, puis téléversé via le même flux.
 
 ## Importer une CA
 
 Importez des certificats de CA existants via :
-- **Fichier PEM** — Certificat au format PEM
-- **Fichier DER** — Format binaire DER
-- **PKCS#12** — Certificat + clé privée en bundle (nécessite un mot de passe)
+- **Fichier PEM** : Certificat au format PEM
+- **Fichier DER** : Format binaire DER
+- **PKCS#12** : Certificat + clé privée en bundle (nécessite un mot de passe)
 
 Lors de l'importation sans clé privée, la CA peut vérifier les certificats mais ne peut pas en signer de nouveaux.
 
 ## Exporter une CA
 
 Formats d'exportation :
-- **PEM** — Certificat encodé en Base64
-- **DER** — Format binaire
-- **PKCS#12 (P12/PFX)** — Certificat + clé privée + chaîne, protégé par mot de passe
+- **PEM** : Certificat encodé en Base64
+- **DER** : Format binaire
+- **PKCS#12 (P12/PFX)** : Certificat + clé privée + chaîne, protégé par mot de passe
 
 > 💡 L'exportation PKCS#12 inclut la chaîne de certificats complète et est idéale pour la sauvegarde.
 
 ## Clés privées
 
-Les CA avec une **icône de clé** (🔑) ont une clé privée stockée dans UCM et peuvent signer des certificats. Les CA sans clé sont en mode confiance uniquement — elles valident les chaînes mais ne peuvent pas émettre.
+Les CA avec une **icône de clé** (🔑) ont une clé privée stockée dans UCM et peuvent signer des certificats. Les CA sans clé sont en mode confiance uniquement : elles valident les chaînes mais ne peuvent pas émettre.
 
 ### Stockage des clés
 Les clés privées sont chiffrées au repos dans la base de données UCM. Pour une sécurité renforcée, envisagez d'utiliser un fournisseur HSM (voir la page HSM).
@@ -222,8 +222,8 @@ UCM peut stocker la clé de signature d'une CA sur un module matériel de sécur
 3. Dans **Stockage de la clé**, basculez de *Local* à **HSM**
 4. Choisissez le fournisseur HSM
 5. Choisissez un mode de clé :
-   - **Générer une nouvelle clé** — fournissez une étiquette (lettres/chiffres/_/-) et choisissez l'algorithme (RSA-2048/3072/4096 ou EC-P256/P384/P521)
-   - **Utiliser une clé existante** — choisissez une clé de signature inutilisée déjà présente sur le HSM
+   - **Générer une nouvelle clé** : fournissez une étiquette (lettres/chiffres/_/-) et choisissez l'algorithme (RSA-2048/3072/4096 ou EC-P256/P384/P521)
+   - **Utiliser une clé existante** : choisissez une clé de signature inutilisée déjà présente sur le HSM
 6. Validez. UCM crée le certificat de CA et le lie à la clé HSM.
 
 ### Limitations
@@ -233,28 +233,28 @@ UCM peut stocker la clé de signature d'une CA sur un module matériel de sécur
 
 ## Mode hors ligne
 
-Sortez la clé de signature d'une CA de l'usage runtime sans supprimer la CA. Le certificat, la chaîne, la CRL et l'OCSP continuent de fonctionner — seules les opérations de signature (signer un CSR, émettre un certificat, renouveler la CA) sont bloquées.
+Sortez la clé de signature d'une CA de l'usage runtime sans supprimer la CA. Le certificat, la chaîne, la CRL et l'OCSP continuent de fonctionner : seules les opérations de signature (signer un CSR, émettre un certificat, renouveler la CA) sont bloquées.
 
 C'est la façon standard de protéger une CA racine entre des cérémonies rares, tout en gardant son ancre de confiance et son infrastructure de révocation en ligne.
 
 ### Deux modes
 
-**Protégée par mot de passe** — la clé privée reste en base de données UCM, chiffrée (PKCS#8) avec un mot de passe que vous choisissez. Pour remettre la CA en ligne, cliquez sur **Restaurer** et ressaisissez le mot de passe. Rapide et pratique ; la sécurité dépend de la robustesse du mot de passe et de la non-compromission d'UCM.
+**Protégée par mot de passe** : la clé privée reste en base de données UCM, chiffrée (PKCS#8) avec un mot de passe que vous choisissez. Pour remettre la CA en ligne, cliquez sur **Restaurer** et ressaisissez le mot de passe. Rapide et pratique ; la sécurité dépend de la robustesse du mot de passe et de la non-compromission d'UCM.
 
-**Exportée en fichier** — la clé privée est exportée en fichier PEM chiffré par mot de passe téléchargé une fois. La clé est ensuite **retirée de la base**. Pour remettre la CA en ligne, cliquez sur **Restaurer**, téléversez le fichier et saisissez le mot de passe. C'est l'option la plus forte (vrai air-gap) mais vous êtes pleinement responsable du fichier : si vous le perdez, la clé est irrécupérable.
+**Exportée en fichier** : la clé privée est exportée en fichier PEM chiffré par mot de passe téléchargé une fois. La clé est ensuite **retirée de la base**. Pour remettre la CA en ligne, cliquez sur **Restaurer**, téléversez le fichier et saisissez le mot de passe. C'est l'option la plus forte (vrai air-gap) mais vous êtes pleinement responsable du fichier : si vous le perdez, la clé est irrécupérable.
 
 ### Règles de mot de passe
 Le mot de passe suit la politique de complexité standard UCM : longueur minimale, mélange de classes de caractères, pas de séquences triviales. Mêmes règles que les mots de passe utilisateurs.
 
-### Étape par étape — Mettre hors ligne
+### Étape par étape. Mettre hors ligne
 1. Ouvrez le panneau de détails de la CA
 2. Cliquez sur **Mettre hors ligne**
 3. Lisez l'explication, cliquez sur **Continuer**
 4. Choisissez un mode (*Protégée par mot de passe* ou *Exportée en fichier*)
 5. Saisissez le mot de passe deux fois
-6. Confirmez. Pour *Exportée en fichier*, la clé chiffrée est téléchargée immédiatement — stockez-la en sécurité.
+6. Confirmez. Pour *Exportée en fichier*, la clé chiffrée est téléchargée immédiatement : stockez-la en sécurité.
 
-### Étape par étape — Restaurer
+### Étape par étape. Restaurer
 1. Ouvrez le panneau de détails de la CA hors ligne
 2. Cliquez sur **Restaurer**
 3. Saisissez le mot de passe

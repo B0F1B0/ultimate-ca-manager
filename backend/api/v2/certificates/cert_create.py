@@ -9,6 +9,7 @@ from ipaddress import ip_address
 from flask import request, g
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response
+from utils import notices as notices_mod
 from utils.dn_validation import validate_dn_field
 from utils.eku_validation import normalize_extra_ekus, to_object_identifiers, merge_eku_lists
 from utils.eku_validation import add_ocsp_nocheck_if_responder
@@ -253,13 +254,19 @@ def create_certificate():
         ).get('san_dns') or []
         policies = PolicyEvaluationService.applicable_policies(
             ca.id, data.get('template_id'), data.get('cn'), requested_dns)
-        violations, validity_days = PolicyEvaluationService.enforce_rules(
+        requested_validity = validity_days
+        violations, validity_days, capped_by = PolicyEvaluationService.enforce_rules(
             policies, key_type=normalized_key,
             dns_name_count=len(set(requested_dns) | set(implicit_dns)),
             validity_days=validity_days,
         )
         if violations:
             return error_response('Policy violation: ' + '; '.join(violations), 400)
+        notices = []
+        if capped_by and validity_days < requested_validity:
+            notices.append(notices_mod.validity_shortened(
+                requested_validity, validity_days,
+                notices_mod.policy_validity_reason(capped_by, validity_days)))
 
         # Record which inherited values the request explicitly diverged from
         # (#258): the template link is kept and the divergence flagged. The
@@ -603,7 +610,8 @@ def create_certificate():
 
         return created_response(
             data=cert_dict,
-            message='Certificate created successfully'
+            message='Certificate created successfully',
+            meta=notices_mod.meta_with_notices(notices),
         )
 
     except Exception as e:

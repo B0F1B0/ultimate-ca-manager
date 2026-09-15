@@ -57,40 +57,40 @@ Regeln, die beim Widerruf von Zertifikaten angewendet werden. Können eine Geneh
 
 ### Maximale Gültigkeit
 Maximale Zertifikatslaufzeit in Tagen. Gängige Werte:
-- **90 Tage** — Kurzlebige Automatisierung (ACME-Stil)
-- **397 Tage** — CA/Browser Forum Baseline für öffentliches TLS
-- **730 Tage** — Interne/private PKI
-- **365 Tage** — Code-Signierung
+- **90 Tage**: Kurzlebige Automatisierung (ACME-Stil)
+- **397 Tage**: CA/Browser Forum Baseline für öffentliches TLS
+- **730 Tage**: Interne/private PKI
+- **365 Tage**: Code-Signierung
 
 ### Erlaubte Schlüsseltypen
 Einschränken, welche Schlüsselalgorithmen und -größen verwendet werden können:
-- **RSA-2048** — Minimum für öffentliches Vertrauen
-- **RSA-4096** — Höhere Sicherheit, größere Zertifikate
-- **EC-P256** — Modern, schnell, empfohlen
-- **EC-P384** — Höhere Sicherheit mit elliptischer Kurve
-- **EC-P521** — Maximale Sicherheit (selten erforderlich)
+- **RSA-2048**: Minimum für öffentliches Vertrauen
+- **RSA-4096**: Höhere Sicherheit, größere Zertifikate
+- **EC-P256**: Modern, schnell, empfohlen
+- **EC-P384**: Höhere Sicherheit mit elliptischer Kurve
+- **EC-P521**: Maximale Sicherheit (selten erforderlich)
 
 ### SAN-Einschränkungen
-- **Max. DNS-Namen** — Anzahl der Subject Alternative Names begrenzen
-- **DNS-Muster** — Auf bestimmte Domänenmuster einschränken (z.B. \`*.firma.com\`)
+- **Max. DNS-Namen**: Anzahl der Subject Alternative Names begrenzen
+- **DNS-Muster**: Auf bestimmte Domänenmuster einschränken (z.B. \`*.firma.com\`)
 
 ## Genehmigungsworkflows
 
 Wenn **Genehmigung erforderlich** aktiviert ist, wird die Zertifikatsausstellung pausiert, bis die erforderliche Anzahl von Genehmigern aus der zugewiesenen Gruppe die Anfrage genehmigt hat.
 
 ### Konfiguration
-- **Genehmigungsgruppe** — Eine Benutzergruppe auswählen, die für Genehmigungen verantwortlich ist
-- **Min. Genehmiger** — Anzahl der erforderlichen Genehmigungen (z.B. 2 von 3 Gruppenmitgliedern)
-- **Benachrichtigungen** — Administratoren bei Richtlinienverstößen benachrichtigen
+- **Genehmigungsgruppe**: Eine Benutzergruppe auswählen, die für Genehmigungen verantwortlich ist
+- **Min. Genehmiger**: Anzahl der erforderlichen Genehmigungen (z.B. 2 von 3 Gruppenmitgliedern)
+- **Benachrichtigungen**: Administratoren bei Richtlinienverstößen benachrichtigen
 
 > 💡 Verwenden Sie Genehmigungsworkflows für hochwertige Zertifikate wie Code-Signierung und Wildcard-Zertifikate.
 
 ## Prioritätssystem
 
 Richtlinien werden in Prioritätsreihenfolge ausgewertet. Niedrigere Nummern haben höhere Priorität:
-- **1–10** — Kritische Sicherheitsrichtlinien (Code-Signierung, Wildcard)
-- **10–20** — Standard-Compliance (öffentliches TLS, interne PKI)
-- **20+** — Permissive Standardwerte
+- **1–10**: Kritische Sicherheitsrichtlinien (Code-Signierung, Wildcard)
+- **10–20**: Standard-Compliance (öffentliches TLS, interne PKI)
+- **20+**: Permissive Standardwerte
 
 Wenn mehrere Richtlinien auf eine Zertifikatsanfrage zutreffen, gewinnt die Richtlinie mit der höchsten Priorität (niedrigste Nummer).
 
@@ -105,11 +105,11 @@ Richtlinie gilt nur für Zertifikate, die von der ausgewählten CA ausgestellt w
 ## Standardrichtlinien
 
 UCM wird mit 5 integrierten Richtlinien ausgeliefert, die reale PKI-Best-Practices widerspiegeln:
-- **Code-Signierung** (Priorität 5) — Starke Schlüssel, Genehmigung erforderlich
-- **Wildcard-Zertifikate** (Priorität 8) — Genehmigung erforderlich, max. 10 SANs
-- **Webserver-TLS** (Priorität 10) — CA/B-Forum-konform, 397 Tage max.
-- **Kurzlebige Automatisierung** (Priorität 15) — 90 Tage ACME-Stil
-- **Interne PKI** (Priorität 20) — 730 Tage, lockere Regeln
+- **Code-Signierung** (Priorität 5): Starke Schlüssel, Genehmigung erforderlich
+- **Wildcard-Zertifikate** (Priorität 8): Genehmigung erforderlich, max. 10 SANs
+- **Webserver-TLS** (Priorität 10): CA/B-Forum-konform, 397 Tage max.
+- **Kurzlebige Automatisierung** (Priorität 15): 90 Tage ACME-Stil
+- **Interne PKI** (Priorität 20): 730 Tage, lockere Regeln
 
 > 💡 Passen Sie die Standardrichtlinien an die Anforderungen Ihrer Organisation an oder deaktivieren Sie sie.
 `

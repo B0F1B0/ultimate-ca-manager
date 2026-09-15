@@ -11,19 +11,19 @@ export default {
           { label: 'Regenerar manualmente', text: 'Forzar la regeneración inmediata de la CRL' },
           { label: 'Descargar CRL', text: 'Descargar el archivo CRL en formato DER o PEM' },
           { label: 'CDP URL', text: 'URL del punto de distribución de CRL para incluir en los certificados' },
-          { label: 'Validez', text: 'Validez de la CRL por CA desde 1 día hasta 5 años (90d/180d/1y/3y/5y para CAs sin conexión que no pueden volver a firmar según el calendario). Aparece una advertencia pasado un año — las partes que confían pueden conservar datos de revocación obsoletos durante toda la ventana' },
-          { label: 'CRL externa', text: 'Las CAs sin clave o sin conexión no pueden autofirmar una CRL — suba una generada junto a la clave sin conexión desde el panel de detalles de la CA; se valida (firma, emisor, monotonía) y se sirve en la misma URL de CDP (v2.215)' },
+          { label: 'Validez', text: 'Validez de la CRL por CA desde 1 día hasta 5 años (90d/180d/1y/3y/5y para CAs sin conexión que no pueden volver a firmar según el calendario). Aparece una advertencia pasado un año, las partes que confían pueden conservar datos de revocación obsoletos durante toda la ventana' },
+          { label: 'CRL externa', text: 'Las CAs sin clave o sin conexión no pueden autofirmar una CRL, suba una generada junto a la clave sin conexión desde el panel de detalles de la CA; se valida (firma, emisor, monotonía) y se sirve en la misma URL de CDP (v2.215)' },
         ]
       },
       {
         title: 'Servicio OCSP',
         items: [
           { label: 'Estado', text: 'Indica si el respondedor OCSP está activo para cada CA' },
-          { label: 'AIA URL', text: 'URLs de acceso a información de autoridad — puntos de acceso del respondedor OCSP y descarga del certificado del emisor CA incluidos en los certificados emitidos' },
+          { label: 'AIA URL', text: 'URLs de acceso a información de autoridad, puntos de acceso del respondedor OCSP y descarga del certificado del emisor CA incluidos en los certificados emitidos' },
           { label: 'Caché', text: 'Caché de respuestas con limpieza diaria automática de las entradas expiradas' },
           { label: 'Total de consultas', text: 'Número de solicitudes OCSP procesadas' },
-          { label: 'Respondedor delegado', text: 'Firma las respuestas con un certificado OCSPSigning dedicado en lugar de la clave de la CA — asigne uno por CA desde el panel de detalles' },
-          { label: 'Auto-renovación del respondedor', text: 'Una tarea diaria reemite el certificado del respondedor delegado antes de que expire (mismo par de claves, renovado a la par) y lo vuelve a vincular — activado por defecto' },
+          { label: 'Respondedor delegado', text: 'Firma las respuestas con un certificado OCSPSigning dedicado en lugar de la clave de la CA, asigne uno por CA desde el panel de detalles' },
+          { label: 'Auto-renovación del respondedor', text: 'Una tarea diaria reemite el certificado del respondedor delegado antes de que expire (mismo par de claves, renovado a la par) y lo vuelve a vincular, activado por defecto' },
         ]
       },
     ],
@@ -47,9 +47,9 @@ Una CRL es una lista firmada de números de serie de certificados revocados, pub
 
 ### CRL por CA
 Cada CA tiene su propia CRL. La lista de CRL muestra todas sus CA con:
-- **Cantidad de revocados** — Número de certificados en la CRL
-- **Última regeneración** — Cuándo se reconstruyó la CRL por última vez
-- **Auto-regeneración** — Si las actualizaciones automáticas de la CRL están activadas
+- **Cantidad de revocados**: Número de certificados en la CRL
+- **Última regeneración**: Cuándo se reconstruyó la CRL por última vez
+- **Auto-regeneración**: Si las actualizaciones automáticas de la CRL están activadas
 
 ### Regenerar una CRL
 Haga clic en **Regenerar** para reconstruir la CRL de una CA inmediatamente. Esto es útil después de revocar certificados.
@@ -61,7 +61,7 @@ Active la auto-regeneración para reconstruir automáticamente la CRL cada vez q
 El calendario de la CRL (por CA) establece cuánto tiempo permanece válida cada CRL publicada. Las opciones van de **1 día a 5 años**: 1d, 2d, 3d, 7d, 14d, 30d, 90d, 180d, 1y, 3y, 5y.
 
 - **Las CAs en línea** deberían mantener una validez corta (días) para que las partes que confían recojan las revocaciones rápidamente
-- **Las CAs sin conexión** (típicamente una raíz que no puede volver a firmar las CRL según el calendario) son el caso de uso previsto para las opciones largas — de 90d a 5y
+- **Las CAs sin conexión** (típicamente una raíz que no puede volver a firmar las CRL según el calendario) son el caso de uso previsto para las opciones largas: de 90d a 5y
 - Se muestra una advertencia pasado un año: las partes que confían pueden conservar datos de revocación obsoletos durante toda la ventana de validez
 
 ### Punto de distribución de CRL (CDP)
@@ -71,7 +71,7 @@ La URL del CDP se incluye en los certificados para que los clientes sepan dónde
 http://su-servidor:8080/cdp/{ca_refid}.crl
 \`\`\`
 
-> 💡 **Activación automática**: Al crear una nueva CA, el CDP se activa automáticamente si hay una URL base de protocolo o un servidor de protocolo HTTP configurado. La URL del CDP se genera automáticamente — no se requieren pasos manuales.
+> 💡 **Activación automática**: Al crear una nueva CA, el CDP se activa automáticamente si hay una URL base de protocolo o un servidor de protocolo HTTP configurado. La URL del CDP se genera automáticamente, no se requieren pasos manuales.
 
 > ⚠️ **Importante**: Las URLs se generan automáticamente usando el puerto del protocolo HTTP y el FQDN del servidor. Si accede a UCM mediante \`localhost\`, la URL no puede generarse. Configure su **FQDN** o **URL base de protocolo** en Configuración → General primero.
 
@@ -85,32 +85,32 @@ OCSP proporciona verificación del estado de certificados en tiempo real. En lug
 
 ### Estado de OCSP
 La sección OCSP muestra:
-- **Estado del respondedor** — Activo o inactivo por CA
-- **Total de consultas** — Número de solicitudes OCSP procesadas
-- **Caché** — Caché de respuestas con limpieza diaria automática de entradas expiradas
+- **Estado del respondedor**: Activo o inactivo por CA
+- **Total de consultas**: Número de solicitudes OCSP procesadas
+- **Caché**: Caché de respuestas con limpieza diaria automática de entradas expiradas
 
 ### Caché OCSP
 
 UCM almacena en caché las respuestas OCSP para mejorar el rendimiento. La caché se:
-- **Limpia automáticamente** — Las respuestas expiradas se eliminan diariamente por el programador
-- **Invalida al revocar** — Cuando un certificado se revoca, su respuesta OCSP en caché se elimina inmediatamente
-- **Invalida al levantar suspensión** — Cuando se levanta una suspensión de certificado, la caché OCSP se actualiza
+- **Limpia automáticamente**: Las respuestas expiradas se eliminan diariamente por el programador
+- **Invalida al revocar**: Cuando un certificado se revoca, su respuesta OCSP en caché se elimina inmediatamente
+- **Invalida al levantar suspensión**: Cuando se levanta una suspensión de certificado, la caché OCSP se actualiza
 
 ### Respondedor OCSP delegado
 
-Por defecto, las respuestas OCSP se firman con la propia clave de la CA. Un **respondedor delegado** utiliza en su lugar un certificado dedicado con el EKU **OCSPSigning** — asigne uno por CA desde el panel de detalles de la CA (solo son elegibles los certificados que llevan el EKU OCSPSigning y una clave privada).
+Por defecto, las respuestas OCSP se firman con la propia clave de la CA. Un **respondedor delegado** utiliza en su lugar un certificado dedicado con el EKU **OCSPSigning**: asigne uno por CA desde el panel de detalles de la CA (solo son elegibles los certificados que llevan el EKU OCSPSigning y una clave privada).
 
-**Renovación automática**: una tarea diaria reemite el certificado del respondedor antes de que expire — mismo par de claves y extensiones, renovado a la par — y vuelve a vincular la configuración del respondedor de la CA al nuevo certificado. Los certificados de firma OCSP de corta duración (por ejemplo, una plantilla de 90 días) rotan sin acción manual. Activado por defecto; puede desactivarse y la ventana de renovación ajustarse mediante configuración.
+**Renovación automática**: una tarea diaria reemite el certificado del respondedor antes de que expire, mismo par de claves y extensiones, renovado a la par, y vuelve a vincular la configuración del respondedor de la CA al nuevo certificado. Los certificados de firma OCSP de corta duración (por ejemplo, una plantilla de 90 días) rotan sin acción manual. Activado por defecto; puede desactivarse y la ventana de renovación ajustarse mediante configuración.
 
 ### URLs AIA
 La extensión de acceso a información de autoridad (AIA) se incluye en los certificados para indicar a los clientes dónde encontrar:
 
-**Respondedor OCSP** — verificación de revocación en tiempo real:
+**Respondedor OCSP**: verificación de revocación en tiempo real:
 \`\`\`
 http://su-servidor:8080/ocsp
 \`\`\`
 
-**CA Issuers** (RFC 5280 §4.2.2.1) — descargar el certificado de la CA emisora para construir la cadena:
+**CA Issuers** (RFC 5280 §4.2.2.1): descargar el certificado de la CA emisora para construir la cadena:
 \`\`\`
 http://su-servidor:8080/ca/{ca_refid}.cer   (formato DER)
 http://su-servidor:8080/ca/{ca_refid}.pem   (formato PEM)
@@ -118,7 +118,7 @@ http://su-servidor:8080/ca/{ca_refid}.pem   (formato PEM)
 
 Active CA Issuers por CA en la sección **AIA CA Issuers** del panel de detalles. La URL se genera automáticamente usando el servidor de protocolo HTTP y el FQDN configurado.
 
-> ⚠️ **Requisito previo**: Las URLs de protocolo (CDP, OCSP, AIA) requieren un **FQDN** válido o una **URL base de protocolo** configurada en Configuración → General. Si accede a UCM mediante \`localhost\`, activar estas funciones fallará — configure el FQDN primero.
+> ⚠️ **Requisito previo**: Las URLs de protocolo (CDP, OCSP, AIA) requieren un **FQDN** válido o una **URL base de protocolo** configurada en Configuración → General. Si accede a UCM mediante \`localhost\`, activar estas funciones fallará, configure el FQDN primero.
 
 ### OCSP vs CRL
 

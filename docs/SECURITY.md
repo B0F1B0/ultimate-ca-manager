@@ -250,12 +250,12 @@ A consolidated audit landed in v2.142. All changes are operator-transparent exce
 | **Session directory perms** | Boot refuses to start if perms are not `0o700` (`RuntimeError: Refusing to boot: session dir <path> has perms <oct>, expected 0o700`) | DEB/RPM/Docker handle this; manual installs must `chown ucm:ucm <dir> && chmod 0700 <dir>` |
 | **Reverse-proxy mTLS** (mTLS / EST / SCEP) | Proxy-injected `X-SSL-Client-*` headers only honoured from CIDRs in `security.trusted_proxies` | Set `security.trusted_proxies` if you terminate TLS on a reverse proxy; direct deployments unaffected |
 | **CSV bulk import** (`/api/v2/users/import`) | Capped at 5 MB / 10 000 rows, returns `413` on overflow | Split larger imports |
-| **CRL on-demand** (`/cdp/<ca>.crl`) | Per-CA serialisation lock, returns `503` + `Retry-After: 5` under contention | None — clients honour `Retry-After`. Cached CRL endpoint unaffected. |
-| **Webhooks** | DNS revalidated at delivery time (closes DNS-rebinding window between config and delivery) | None — RFC1918/.lan/.local still allowed by design (on-prem) |
-| **2FA backup codes** | Hashed at rest (Argon2id), atomic single-use consumption (`UPDATE ... WHERE hash = ? AND used_at IS NULL`) | None — re-generate codes after upgrade for fresh hashes |
+| **CRL on-demand** (`/cdp/<ca>.crl`) | Per-CA serialisation lock, returns `503` + `Retry-After: 5` under contention | None, clients honour `Retry-After`. Cached CRL endpoint unaffected. |
+| **Webhooks** | DNS revalidated at delivery time (closes DNS-rebinding window between config and delivery) | None. RFC1918/.lan/.local still allowed by design (on-prem) |
+| **2FA backup codes** | Hashed at rest (Argon2id), atomic single-use consumption (`UPDATE ... WHERE hash = ? AND used_at IS NULL`) | None: re-generate codes after upgrade for fresh hashes |
 | **Approval quorum** | Per-request DB lock, recount-in-transaction, idempotent re-submit | None |
-| **ACME account keys** | Encrypted at rest with master key | None — migrated transparently on first read |
-| **Audit IP** | `client_ip()` honours `X-Forwarded-For` only behind trusted proxy | None — same as mTLS row |
+| **ACME account keys** | Encrypted at rest with master key | None: migrated transparently on first read |
+| **Audit IP** | `client_ip()` honours `X-Forwarded-For` only behind trusted proxy | None: same as mTLS row |
 | **SCEP CSR copy** | KU/EKU stripped to whitelist (`digitalSignature`, `keyEncipherment`, `serverAuth`, `clientAuth`); arbitrary client-supplied bits are dropped | Use templates/policies for non-default usages |
 | **EST endpoints** | Per-request `est_enabled` check returns `503 EST disabled` instead of falling through to SPA HTML | None |
 | **Database commits** | All `api/v2/*` go through `safe_commit()` (rollback + log on failure) | None |
@@ -266,17 +266,17 @@ The hardening pass also exposed reusable helpers in `backend/utils/`:
 
 | Helper | Module | Purpose |
 |--------|--------|---------|
-| `is_request_from_trusted_proxy()` | `trusted_proxy` | Bool — true only if request comes from `security.trusted_proxies` CIDR |
+| `is_request_from_trusted_proxy()` | `trusted_proxy` | Bool: true only if request comes from `security.trusted_proxies` CIDR |
 | `client_ip()` | `trusted_proxy` | Resolves XFF only behind trusted proxy, else `remote_addr` |
 | `reject_untrusted_proxy_headers()` | `trusted_proxy` | 401 helper for routes consuming proxy-injected headers |
 | `validate_url_not_cloud_metadata()` | `ssrf_protection` | Default for user-supplied outbound URLs (webhooks, SSO, ACME proxy, imports) |
-| `validate_url_not_private()` | `ssrf_protection` | Strict — only when target MUST be public Internet (rare) |
+| `validate_url_not_private()` | `ssrf_protection` | Strict, only when target MUST be public Internet (rare) |
 | `safe_commit()` | `safe_commit` | Wrapped `db.session.commit()` with rollback + log |
 | `audit_event(action=..., ip=client_ip(), ...)` | `audit` | Shorthand for `AuditService.log_action` |
-| `require_json_body` | `validation` | Decorator — 400 if body is missing/invalid JSON |
+| `require_json_body` | `validation` | Decorator: 400 if body is missing/invalid JSON |
 | `parse_request_pagination()` | `validation` | `(page, per_page)` from query string with bounds |
 
-> **SSRF policy reminder.** UCM is on-prem. RFC1918, loopback, `.lan`/`.local`/`.corp` are the **primary use case**, not an attack vector. Use `validate_url_not_cloud_metadata` (blocks cloud-metadata + loopback only) for any user-supplied outbound URL — never `validate_url_not_private`, which would break LAN webhooks, internal SSO, and local ACME validation.
+> **SSRF policy reminder.** UCM is on-prem. RFC1918, loopback, `.lan`/`.local`/`.corp` are the **primary use case**, not an attack vector. Use `validate_url_not_cloud_metadata` (blocks cloud-metadata + loopback only) for any user-supplied outbound URL, never `validate_url_not_private`, which would break LAN webhooks, internal SSO, and local ACME validation.
 
 ### 11. v2.152 hardening pass
 
@@ -315,14 +315,14 @@ Operators can now take any CA offline to prevent unauthorized signing. Two modes
 | `file_exported` | Returned to the operator as a single-layer password-encrypted PKCS#8 PEM; `ca.prv` set to `NULL` in the database | Password + re-uploaded `.key.pem` |
 
 Threat model:
-- **Stolen DB only** — `password_protected` keys remain encrypted under both the master key and the offline password. `file_exported` keys are absent entirely.
-- **Stolen DB + master key** — `password_protected` keys still require the offline password. `file_exported` keys are absent.
-- **Stolen offline file** — useless without the password (PKCS#8 password-encrypted; standard cryptography library hardening).
-- **Forgotten password** — no recovery. The CA is unrecoverable. This is by design.
+- **Stolen DB only**: `password_protected` keys remain encrypted under both the master key and the offline password. `file_exported` keys are absent entirely.
+- **Stolen DB + master key**: `password_protected` keys still require the offline password. `file_exported` keys are absent.
+- **Stolen offline file**: useless without the password (PKCS#8 password-encrypted; standard cryptography library hardening).
+- **Forgotten password**: no recovery. The CA is unrecoverable. This is by design.
 
-Sign/issue/CRL paths gate on `ca.offline` (see `services/ca/ca_signing.py:31`, `csrs.py:689`, `services/cert/mixins/csr.py`, `crl.py:97`). The `update_ca` endpoint can no longer flip the `offline` flag — only the dedicated `take_offline` / `restore` endpoints do, both of which require the password.
+Sign/issue/CRL paths gate on `ca.offline` (see `services/ca/ca_signing.py:31`, `csrs.py:689`, `services/cert/mixins/csr.py`, `crl.py:97`). The `update_ca` endpoint can no longer flip the `offline` flag, only the dedicated `take_offline` / `restore` endpoints do, both of which require the password.
 
-Audit actions: `ca.offline.password_protected`, `ca.offline.file_exported`, `ca.restore.password_protected`, `ca.restore.file_exported`. The legacy free-text "offline reason" field is no longer collected — the mode IS the audit record.
+Audit actions: `ca.offline.password_protected`, `ca.offline.file_exported`, `ca.restore.password_protected`, `ca.restore.file_exported`. The legacy free-text "offline reason" field is no longer collected, the mode IS the audit record.
 
 Password policy for the offline password is the same as the user password policy (12+ chars, mixed classes, no 4+ sequential).
 

@@ -49,7 +49,7 @@ Genera, scarica e pianifica report di conformità PKI. I report forniscono visib
 Elenco completo di tutti i certificati gestiti da UCM. Include soggetto, emittente, numero di serie, date di validità, tipo di chiave e stato attuale. Usa per audit di conformità e documentazione dell'infrastruttura.
 
 ### Certificati in scadenza
-Certificati in scadenza entro una finestra temporale specificata (predefinito: 30 giorni). Fondamentale per evitare interruzioni — rivedi questo report regolarmente o pianificalo per la consegna giornaliera.
+Certificati in scadenza entro una finestra temporale specificata (predefinito: 30 giorni). Fondamentale per evitare interruzioni, rivedi questo report regolarmente o pianificalo per la consegna giornaliera.
 
 ### Gerarchia CA
 Struttura delle Autorità di certificazione che mostra le relazioni padre-figlio, il conteggio dei certificati per CA e lo stato della CA. Utile per comprendere la topologia della tua PKI.
@@ -66,18 +66,18 @@ Clicca **Scarica PDF** in alto a destra per generare un report esecutivo profess
 
 ### Contenuti
 Il report PDF include 9 sezioni:
-1. **Pagina di copertina** — Metriche chiave, indicatore di rischio e risultati principali in sintesi
-2. **Indice** — Navigazione rapida
-3. **Riepilogo esecutivo** — Stato generale della PKI, distribuzione dei certificati e livello di rischio
-4. **Valutazione dei rischi** — Risultati critici, certificati in scadenza, algoritmi deboli
-5. **Inventario certificati** — Analisi per stato, tipo di chiave e CA emittente
-6. **Analisi della conformità** — Distribuzione dei punteggi, analisi per grado, punteggi per categoria
-7. **Ciclo di vita dei certificati** — Timeline delle scadenze e tasso di automazione
-8. **Infrastruttura CA** — Dettagli CA root e intermedie, gerarchia
-9. **Raccomandazioni** — Azioni concrete basate sullo stato attuale della PKI
+1. **Pagina di copertina**: Metriche chiave, indicatore di rischio e risultati principali in sintesi
+2. **Indice**: Navigazione rapida
+3. **Riepilogo esecutivo**: Stato generale della PKI, distribuzione dei certificati e livello di rischio
+4. **Valutazione dei rischi**: Risultati critici, certificati in scadenza, algoritmi deboli
+5. **Inventario certificati**: Analisi per stato, tipo di chiave e CA emittente
+6. **Analisi della conformità**: Distribuzione dei punteggi, analisi per grado, punteggi per categoria
+7. **Ciclo di vita dei certificati**: Timeline delle scadenze e tasso di automazione
+8. **Infrastruttura CA**: Dettagli CA root e intermedie, gerarchia
+9. **Raccomandazioni**: Azioni concrete basate sullo stato attuale della PKI
 
 ### Grafici e visuali
-Il report include elementi visivi: barra indicatore di rischio, distribuzione degli stati, analisi per grado di conformità e timeline delle scadenze — progettati per stakeholder non tecnici.
+Il report include elementi visivi: barra indicatore di rischio, distribuzione degli stati, analisi per grado di conformità e timeline delle scadenze, progettati per stakeholder non tecnici.
 
 > 💡 Il report PDF viene generato da dati in tempo reale. Scaricalo prima delle riunioni per lo snapshot più aggiornato.
 
@@ -91,8 +91,8 @@ Il report include elementi visivi: barra indicatore di rischio, distribuzione de
 ## Download dei report
 
 Ogni riga del report ha pulsanti di download:
-- **CSV** — Formato foglio di calcolo per Excel, Google Sheets o LibreOffice
-- **JSON** — Dati strutturati per automazione e integrazione
+- **CSV**: Formato foglio di calcolo per Excel, Google Sheets o LibreOffice
+- **JSON**: Dati strutturati per automazione e integrazione
 
 > 💡 I report CSV sono più facili per gli stakeholder non tecnici. JSON è migliore per script e integrazioni API.
 
@@ -117,11 +117,11 @@ Prima di abilitare le pianificazioni, usa il pulsante ✈️ su qualsiasi riga d
 
 ## Permessi
 
-- **read:reports** — Genera e scarica report
-- **read:audit + export:audit** — Scarica il report esecutivo PDF
-- **write:settings** — Configura le pianificazioni dei report
+- **read:reports**: Genera e scarica report
+- **read:audit + export:audit**: Scarica il report esecutivo PDF
+- **write:settings**: Configura le pianificazioni dei report
 
-> 💡 Pianifica prima il report scadenze — è il più operativamente prezioso e aiuta a prevenire le interruzioni legate ai certificati.
+> 💡 Pianifica prima il report scadenze: è il più operativamente prezioso e aiuta a prevenire le interruzioni legate ai certificati.
 `
   }
 }

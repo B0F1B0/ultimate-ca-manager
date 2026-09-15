@@ -9,7 +9,7 @@ export default {
         items: [
           { label: 'Fournisseur d\'identité', text: 'Configurer l\'URL de métadonnées IDP ou téléverser le XML' },
           { label: 'URL de métadonnées SP', text: 'Fournissez cette URL à votre IDP pour configurer automatiquement UCM comme fournisseur de services' },
-          { label: 'Certificat SP', text: 'Certificat HTTPS d\'UCM inclus dans les métadonnées — doit être approuvé par l\'IDP sinon les métadonnées seront rejetées' },
+          { label: 'Certificat SP', text: 'Certificat HTTPS d\'UCM inclus dans les métadonnées, doit être approuvé par l\'IDP sinon les métadonnées seront rejetées' },
           { label: 'Entity ID', text: 'Identifiant d\'entité du fournisseur de services UCM' },
           { label: 'URL ACS', text: 'URL de callback du service de consommation d\'assertions (Assertion Consumer Service)' },
           { label: 'Mappage d\'attributs', text: 'Mapper les attributs IDP aux champs utilisateur UCM' },
@@ -29,7 +29,7 @@ export default {
         title: 'Provisionnement des rôles (#81)',
         items: [
           { label: 'Rôle par défaut', text: 'Appliqué UNIQUEMENT quand un utilisateur est auto-créé à la première connexion SSO. Les changements de rôle effectués ensuite dans UCM sont préservés.' },
-          { label: 'Mappage de rôles', text: 'Mapper les groupes externes (Azure AD, Okta, LDAP) → rôles UCM (admin / operator / viewer). Utilisé à la création de l\'utilisateur, et à chaque connexion quand la synchronisation des rôles est activée. Quand plusieurs groupes correspondent, le rôle le plus privilégié gagne (admin > operator > auditor > viewer) — l\'ordre des entrées n\'a pas d\'importance (#221).' },
+          { label: 'Mappage de rôles', text: 'Mapper les groupes externes (Azure AD, Okta, LDAP) → rôles UCM (admin / operator / viewer). Utilisé à la création de l\'utilisateur, et à chaque connexion quand la synchronisation des rôles est activée. Quand plusieurs groupes correspondent, le rôle le plus privilégié gagne (admin > operator > auditor > viewer) : l\'ordre des entrées n\'a pas d\'importance (#221).' },
           { label: 'Synchroniser le rôle à chaque connexion', text: 'OFF (par défaut) : le SSO n\'écrase jamais les rôles gérés dans UCM. ON : le rôle est re-synchronisé depuis role_mapping à chaque connexion ; les utilisateurs sans correspondance de mappage conservent leur rôle stocké (default_role n\'est jamais ré-appliqué).' },
           { label: 'Mise à jour automatique des utilisateurs', text: 'Met à jour l\'e-mail et le nom complet à chaque connexion. Ne touche PAS au rôle.' },
         ]
@@ -53,7 +53,7 @@ export default {
       'Le certificat HTTPS d\'UCM doit être approuvé par l\'IDP pour que les métadonnées SAML soient acceptées',
     ],
     warnings: [
-      'Un SSO mal configuré peut verrouiller tous les utilisateurs — conservez toujours un admin local',
+      'Un SSO mal configuré peut verrouiller tous les utilisateurs : conservez toujours un admin local',
     ],
   },
   helpGuides: {
@@ -74,11 +74,11 @@ https://votre-hote-ucm:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 Cette URL retourne un document XML conforme SAML 2.0 contenant :
-- **Entity ID** — Identifiant du fournisseur de services UCM
-- **URL ACS** — Point de terminaison du service de consommation d'assertions (HTTP-POST)
-- **URL SLO** — Point de terminaison du service de déconnexion unique
-- **Certificat de signature** — Certificat HTTPS d'UCM pour la vérification de signature
-- **Format NameID** — Format d'identifiant de nom demandé
+- **Entity ID** : Identifiant du fournisseur de services UCM
+- **URL ACS** : Point de terminaison du service de consommation d'assertions (HTTP-POST)
+- **URL SLO** : Point de terminaison du service de déconnexion unique
+- **Certificat de signature** : Certificat HTTPS d'UCM pour la vérification de signature
+- **Format NameID** : Format d'identifiant de nom demandé
 
 Copiez cette URL dans la configuration « Ajouter un fournisseur de services » ou « Application SAML » de votre IDP.
 
@@ -88,7 +88,7 @@ Copiez cette URL dans la configuration « Ajouter un fournisseur de services » 
 1. Obtenez l'URL de métadonnées IDP ou le fichier XML de votre fournisseur d'identité
 2. Dans UCM, allez dans **Paramètres → SSO**
 3. Cliquez sur **Ajouter un fournisseur** → SAML
-4. Entrez l'**URL de métadonnées IDP** — UCM remplit automatiquement l'Entity ID, les URL SSO/SLO et le certificat
+4. Entrez l'**URL de métadonnées IDP** : UCM remplit automatiquement l'Entity ID, les URL SSO/SLO et le certificat
 5. Ou collez directement le XML de métadonnées IDP
 6. Configurez le **mappage d'attributs** (nom d'utilisateur, e-mail, groupes)
 7. Cliquez sur **Enregistrer** et **Activer**

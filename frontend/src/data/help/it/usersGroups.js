@@ -19,7 +19,7 @@ export default {
         title: 'Gruppi',
         items: [
           { label: 'Crea gruppo', text: 'Definisci un gruppo e assegna i membri' },
-          { label: 'Permessi di gruppo', text: 'Un gruppo concede un insieme di permessi — ogni membro li riceve in aggiunta al proprio ruolo' },
+          { label: 'Permessi di gruppo', text: 'Un gruppo concede un insieme di permessi, ogni membro li riceve in aggiunta al proprio ruolo' },
           { label: 'Gestione membri', text: 'Aggiungi o rimuovi utenti dai gruppi' },
         ]
       },
@@ -29,7 +29,7 @@ export default {
       'Gli utenti disabilitati non possono accedere ma i loro dati vengono preservati',
     ],
     warnings: [
-      'L\'eliminazione di un utente è permanente — considera di disabilitarlo invece',
+      'L\'eliminazione di un utente è permanente: considera di disabilitarlo invece',
     ],
   },
   helpGuides: {
@@ -50,8 +50,8 @@ Gestisci gli account utente, i gruppi e le assegnazioni dei ruoli. Gli utenti si
 6. Clicca **Crea**
 
 ### Stato dell'utente
-- **Attivo** — Può accedere ed eseguire azioni
-- **Disabilitato** — Non può accedere, i dati vengono preservati
+- **Attivo**: Può accedere ed eseguire azioni
+- **Disabilitato**: Non può accedere, i dati vengono preservati
 
 Cambia lo stato di un utente senza eliminare il suo account.
 
@@ -82,10 +82,10 @@ I permessi effettivi di un utente sono l'**unione** di:
 ## Ruoli
 
 ### Ruoli di sistema
-- **Admin** — Accesso completo a tutte le funzionalità
-- **Operator** — Può gestire certificati, CA, CSR ma non le impostazioni di sistema
-- **Auditor** — Accesso in sola lettura a tutti i dati operativi per conformità e audit
-- **Viewer** — Accesso in sola lettura a certificati, CA e template
+- **Admin**: Accesso completo a tutte le funzionalità
+- **Operator**: Può gestire certificati, CA, CSR ma non le impostazioni di sistema
+- **Auditor**: Accesso in sola lettura a tutti i dati operativi per conformità e audit
+- **Viewer**: Accesso in sola lettura a certificati, CA e template
 
 ### Ruoli personalizzati
 Crea ruoli con permessi granulari nella pagina **RBAC**.
@@ -95,8 +95,8 @@ Crea ruoli con permessi granulari nella pagina **RBAC**.
 ## Origine di autenticazione
 
 La colonna **Origine** indica la provenienza di ogni utente:
-- **Locale** — creato e gestito in UCM (password locale)
-- **LDAP / OAuth2 / SAML** — provvisto automaticamente al primo accesso SSO; il nome del provider di origine appare sul badge (es. \`LDAP · Corporate AD\`).
+- **Locale**: creato e gestito in UCM (password locale)
+- **LDAP / OAuth2 / SAML**: provvisto automaticamente al primo accesso SSO; il nome del provider di origine appare sul badge (es. \`LDAP · Corporate AD\`).
 
 Dalla v2.133 i ruoli modificati manualmente in UCM per utenti SSO vengono **conservati** tra un accesso e l'altro, a meno che **«Sincronizza ruolo a ogni accesso»** non sia attivato sul provider (vedere **Impostazioni → SSO**).
 `

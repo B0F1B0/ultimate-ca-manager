@@ -58,9 +58,9 @@ Gestisci il tuo profilo personale, le impostazioni di sicurezza e le chiavi API.
 
 ## Profilo
 
-- **Nome completo** — Il tuo nome visualizzato in UCM
-- **Email** — Utilizzata per notifiche, recupero password e registrazione ACME
-- **Info account** — Data di creazione, timestamp dell'ultimo accesso, conteggio totale degli accessi
+- **Nome completo**: Il tuo nome visualizzato in UCM
+- **Email**: Utilizzata per notifiche, recupero password e registrazione ACME
+- **Info account**: Data di creazione, timestamp dell'ultimo accesso, conteggio totale degli accessi
 
 ## Sicurezza
 
@@ -73,7 +73,7 @@ Aggiungi una password monouso basata sul tempo utilizzando qualsiasi app di aute
 1. Clicca **Abilita 2FA**
 2. Scansiona il codice QR con la tua app di autenticazione (Google Authenticator, Authy, 1Password, ecc.)
 3. Inserisci il codice a 6 cifre per confermare
-4. Salva i **codici di recupero** — vengono mostrati solo una volta
+4. Salva i **codici di recupero**: vengono mostrati solo una volta
 
 > ⚠ Se perdi l'accesso all'autenticatore e ai codici di recupero, un amministratore dovrà disabilitare il tuo 2FA.
 
@@ -102,7 +102,7 @@ Gestisci i certificati client per l'autenticazione TLS reciproca:
 2. Inserisci un **nome** (descrittivo, es. "Pipeline CI/CD")
 3. Facoltativamente imposta una **data di scadenza**
 4. Clicca **Crea**
-5. Copia immediatamente la chiave — viene mostrata solo una volta
+5. Copia immediatamente la chiave: viene mostrata solo una volta
 
 ### Utilizzo delle chiavi API
 Includi la chiave nell'header \`X-API-Key\`:

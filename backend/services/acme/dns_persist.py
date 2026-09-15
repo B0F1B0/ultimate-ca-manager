@@ -162,7 +162,7 @@ def check_record_against(issuer, params, issuer_domains, account_uri,
     persist_until = params.get('persistuntil')
     if persist_until is not None and now_ts > persist_until:
         return False, 'unauthorized', (
-            'dns-persist-01 record persistUntil has expired — refresh the record'
+            'dns-persist-01 record persistUntil has expired: refresh the record'
         )
 
     # accounturi — Simple String Comparison (RFC 3986 §6.2.1): exact match

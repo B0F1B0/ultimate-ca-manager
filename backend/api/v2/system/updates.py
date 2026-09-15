@@ -86,11 +86,11 @@ def install_update():
             except Exception as e:
                 logger.error(f"Checksum fetch failed: {e}")
                 return error_response(
-                    "Could not retrieve the release checksum — install refused", 502
+                    "Could not retrieve the release checksum: install refused", 502
                 )
             if not expected_sha256:
                 return error_response(
-                    "Release checksum does not cover this package — install refused", 502
+                    "Release checksum does not cover this package: install refused", 502
                 )
             checksum_note = 'SHA256 verified'
 
@@ -124,7 +124,7 @@ def install_update():
             resource_name='UCM Update',
             details=(
                 f"Update from {update_info['current_version']} to "
-                f"{update_info['latest_version']} triggered ({checksum_note}) — "
+                f"{update_info['latest_version']} triggered ({checksum_note}), "
                 f"performed by the update watcher on restart"
             )
         )

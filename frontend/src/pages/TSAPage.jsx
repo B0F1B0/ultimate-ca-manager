@@ -247,7 +247,7 @@ export default function TSAPage() {
                   value: c.refid,
                   label: `${c.subject_cn || c.descr || c.subject}`
                     + `${c.key_type ? ` (${c.key_type})` : ''}`
-                    + `${c.eku_critical_exclusive ? ` — ${t('tsa.signerStrictBadge')}` : ''}`
+                    + `${c.eku_critical_exclusive ? `: ${t('tsa.signerStrictBadge')}` : ''}`
                 }))
               ]}
               value={config.signer_cert_refid || ''}

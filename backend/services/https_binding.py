@@ -179,11 +179,11 @@ def on_certificate_renewed(event_type, payload, ca_refid, meta):
         if not cert or not cert.crt or not cert.prv:
             logger.warning(
                 "HTTPS-bound certificate %s renewed but unusable "
-                "(missing cert or key) — HTTPS files left untouched", refid)
+                "(missing cert or key). HTTPS files left untouched", refid)
             return
         materialize_https_cert(cert)
         logger.info(
-            "HTTPS-bound certificate %s renewed — re-materialized, "
+            "HTTPS-bound certificate %s renewed, re-materialized, "
             "restarting the service", refid)
         from services.audit_service import AuditService
         AuditService.log_action(

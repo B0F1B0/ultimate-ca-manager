@@ -102,7 +102,7 @@ class HsmRSAPrivateKey:
 
         if not isinstance(padding_alg, padding.PKCS1v15):
             logger.warning(
-                "HSM RSA sign requested with %s padding — only PKCS1v15 is "
+                "HSM RSA sign requested with %s padding, only PKCS1v15 is "
                 "fully tested; falling back to provider default.",
                 type(padding_alg).__name__,
             )
@@ -169,7 +169,7 @@ class HsmECPrivateKey:
         hash_name = 'sha256'
         if not isinstance(signature_algorithm, ec.ECDSA):
             logger.warning(
-                "HSM EC sign called with %s — expected ec.ECDSA",
+                "HSM EC sign called with %s: expected ec.ECDSA",
                 type(signature_algorithm).__name__,
             )
         else:

@@ -39,19 +39,19 @@ Der Vertrauensspeicher verwaltet vertrauenswürdige CA-Zertifikate, die für die
 
 ## Zertifikatskategorien
 
-- **Root-CA** — Selbstsignierte Vertrauensanker
-- **Intermediate** — CAs, signiert von Root- oder anderen Intermediate-CAs
-- **Client-Auth** — Zertifikate für mTLS-Client-Authentifizierung
-- **Code-Signierung** — Zertifikate zur Verifizierung von Code-Signaturen
-- **Benutzerdefiniert** — Manuell kategorisierte Zertifikate
+- **Root-CA**: Selbstsignierte Vertrauensanker
+- **Intermediate**: CAs, signiert von Root- oder anderen Intermediate-CAs
+- **Client-Auth**: Zertifikate für mTLS-Client-Authentifizierung
+- **Code-Signierung**: Zertifikate zur Verifizierung von Code-Signaturen
+- **Benutzerdefiniert**: Manuell kategorisierte Zertifikate
 
 ## Zertifikate importieren
 
 ### Aus Datei
 Zertifikatsdateien in folgenden Formaten hochladen:
-- **PEM** — Base64-kodiert (einzeln oder gebündelt)
-- **DER** — Binärformat
-- **PKCS#7 (P7B)** — Zertifikatskette
+- **PEM**: Base64-kodiert (einzeln oder gebündelt)
+- **DER**: Binärformat
+- **PKCS#7 (P7B)**: Zertifikatskette
 
 ### Von URL
 Ein Zertifikat von einem Remote-HTTPS-Endpunkt abrufen. UCM lädt die Zertifikatskette des Servers herunter und importiert sie.
@@ -66,10 +66,10 @@ Alle vertrauenswürdigen CAs aus dem Vertrauensspeicher des Betriebssystems impo
 
 ## Einträge verwalten
 
-- **Nach Zweck filtern** — Die Liste nach Zertifikatskategorie eingrenzen
-- **Suche** — Zertifikate nach Betreffsname suchen
-- **Exportieren** — Einzelne Zertifikate im PEM-Format herunterladen
-- **Löschen** — Ein Zertifikat aus dem Vertrauensspeicher entfernen
+- **Nach Zweck filtern**: Die Liste nach Zertifikatskategorie eingrenzen
+- **Suche**: Zertifikate nach Betreffsname suchen
+- **Exportieren**: Einzelne Zertifikate im PEM-Format herunterladen
+- **Löschen**: Ein Zertifikat aus dem Vertrauensspeicher entfernen
 
 ## Anwendungsfälle
 

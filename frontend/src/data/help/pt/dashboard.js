@@ -22,7 +22,7 @@ export default {
     tips: [
       'Arraste os widgets para reorganizar o layout do seu painel',
       'Clique no ícone de olho no cabeçalho para mostrar/ocultar widgets específicos',
-      'O painel é atualizado em tempo real via WebSocket — não é necessário atualizar manualmente',
+      'O painel é atualizado em tempo real via WebSocket: não é necessário atualizar manualmente',
       'O layout é salvo por usuário e persiste entre sessões',
     ],
   },
@@ -37,20 +37,20 @@ O Painel é o seu centro de monitoramento. Ele exibe métricas em tempo real, gr
 
 ### Cartão de Estatísticas
 Exibe quatro contadores principais:
-- **Total de CAs** — Autoridades Certificadoras Raiz e Intermediárias
-- **Certificados Ativos** — Certificados válidos e não revogados
-- **CSRs Pendentes** — Requisições de Assinatura de Certificado aguardando aprovação
-- **Expirando em Breve** — Certificados expirando nos próximos 30 dias
+- **Total de CAs**: Autoridades Certificadoras Raiz e Intermediárias
+- **Certificados Ativos**: Certificados válidos e não revogados
+- **CSRs Pendentes**: Requisições de Assinatura de Certificado aguardando aprovação
+- **Expirando em Breve**: Certificados expirando nos próximos 30 dias
 
 ### Tendência de Certificados
 Um gráfico de linha mostrando a emissão de certificados ao longo do tempo. Passe o mouse sobre os pontos para ver contagens exatas.
 
 ### Distribuição de Status
 Gráfico de pizza mostrando a distribuição dos estados dos certificados:
-- **Válido** — Dentro do período de validade e não revogado
-- **Expirando** — Expira dentro de 30 dias
-- **Expirado** — Passou da data "Não Depois"
-- **Revogado** — Explicitamente revogado
+- **Válido**: Dentro do período de validade e não revogado
+- **Expirando**: Expira dentro de 30 dias
+- **Expirado**: Passou da data "Não Depois"
+- **Revogado**: Explicitamente revogado
 
 ### Próxima Expiração
 Lista os certificados que expiram mais cedo. Clique em qualquer certificado para navegar até seus detalhes. Configure o limite em **Configurações → Geral**.
@@ -86,7 +86,7 @@ Clique no **ícone de olho** no cabeçalho da página para alternar a visibilida
 Sua configuração de layout é salva por usuário no navegador. Ela persiste entre sessões e dispositivos que compartilham o mesmo perfil de navegador.
 
 ## Atualizações em Tempo Real
-O painel recebe atualizações ao vivo via WebSocket. Não é necessário atualizar manualmente — novos certificados, mudanças de status e entradas de atividade aparecem automaticamente.
+O painel recebe atualizações ao vivo via WebSocket. Não é necessário atualizar manualmente: novos certificados, mudanças de status e entradas de atividade aparecem automaticamente.
 
 > 💡 Se o WebSocket estiver desconectado, um indicador amarelo aparece na barra lateral. Os dados serão atualizados na reconexão.
 `

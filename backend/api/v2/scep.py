@@ -498,7 +498,7 @@ def _validate_profile_payload(data, *, partial=False, profile_id=None):
         )
         if resulting_intune_enabled and not resulting_auto_approve:
             return False, ('Intune SCEP challenge validation requires auto-approve '
-                            '— Intune expects a synchronous validate-then-issue '
+                            '. Intune expects a synchronous validate-then-issue '
                             'response, not a manual approval queue')
         if resulting_intune_enabled:
             tenant = data.get('intune_tenant_id') or (existing.intune_tenant_id if existing else None)

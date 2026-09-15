@@ -25,11 +25,11 @@ export default {
       {
         title: 'Profile',
         items: [
-          { label: 'URL-Segment', text: 'Jedes Profil wird unter /scep/<segment>/pkiclient.exe bereitgestellt — jede Geräteflotte oder jedes MDM-Profil auf die eigene URL zeigen lassen' },
+          { label: 'URL-Segment', text: 'Jedes Profil wird unter /scep/<segment>/pkiclient.exe bereitgestellt, jede Geräteflotte oder jedes MDM-Profil auf die eigene URL zeigen lassen' },
           { label: 'Zertifikatsvorlage', text: 'Ist eine Vorlage gebunden, bestimmen deren KU/EKU und Gültigkeit jedes über das Profil ausgestellte Zertifikat' },
           { label: 'Challenge pro Profil', text: 'Jedes Profil hat ein eigenes, verschlüsselt gespeichertes Challenge-Passwort mit demselben Ablauffenster wie die globale Challenge' },
           { label: 'Standard-Endpunkt', text: 'Der Endpunkt /scep/pkiclient.exe ohne Segment bedient weiterhin die globale Konfiguration' },
-          { label: 'Microsoft Intune-Validierung', text: 'Ein Profil kann anstelle eines statischen Passworts gegen Intunes eigene gerätespezifische SCEP-Challenge validieren — erfordert eine Entra-App-Registrierung (Berechtigungen SCEP challenge validation + Application.Read.All) und aktivierte Auto-Genehmigung' },
+          { label: 'Microsoft Intune-Validierung', text: 'Ein Profil kann anstelle eines statischen Passworts gegen Intunes eigene gerätespezifische SCEP-Challenge validieren, erfordert eine Entra-App-Registrierung (Berechtigungen SCEP challenge validation + Application.Read.All) und aktivierte Auto-Genehmigung' },
           { label: 'Manuelle Genehmigung', text: 'Eine über ein Profil eingegangene Anfrage wird mit der Vorlage dieses Profils (Gültigkeit, Key Usages) genehmigt, genau wie die Auto-Genehmigung sie ausstellen würde' },
           { label: 'Zwecke, die kein Antragsteller erhalten darf', text: 'Eine an ein Profil gebundene Vorlage darf weder OCSP-Signierung, Zeitstempelung, „Any Purpose" noch Smartcard-Anmeldung tragen, und eine SCEP-Erneuerung übernimmt sie nie; Smartcard-Anmeldung ist erlaubt, wenn das Profil gegen Intune validiert, das für die Identität bürgt' },
         ]
@@ -39,10 +39,10 @@ export default {
       'Verwenden Sie eindeutige Challenge-Passwörter pro CA für bessere Sicherheitsüberwachung',
       'Auto-Genehmigung ist praktisch, aber überprüfen Sie Anfragen in Hochsicherheitsumgebungen manuell',
       'SCEP-URL-Format: https://ihr-server:port/scep',
-      'Intune-Profile benötigen aktivierte Auto-Genehmigung — die Registrierung bei Intune ist ein synchroner Validierungs- und Ausstellungsvorgang ohne Genehmigungswarteschlange auf Intune-Seite',
+      'Intune-Profile benötigen aktivierte Auto-Genehmigung: die Registrierung bei Intune ist ein synchroner Validierungs- und Ausstellungsvorgang ohne Genehmigungswarteschlange auf Intune-Seite',
     ],
     warnings: [
-      'Challenge-Passwörter werden in der SCEP-Anfrage übertragen — verwenden Sie HTTPS für Transportsicherheit',
+      'Challenge-Passwörter werden in der SCEP-Anfrage übertragen: verwenden Sie HTTPS für Transportsicherheit',
     ],
   },
   helpGuides: {
@@ -50,22 +50,22 @@ export default {
     content: `
 ## Übersicht
 
-Das Simple Certificate Enrollment Protocol (SCEP) ermöglicht es Netzwerkgeräten — Routern, Switches, Firewalls, MDM-verwalteten Endpunkten — automatisch Zertifikate anzufordern und zu erhalten.
+Das Simple Certificate Enrollment Protocol (SCEP) ermöglicht es Netzwerkgeräten. Routern, Switches, Firewalls, MDM-verwalteten Endpunkten: automatisch Zertifikate anzufordern und zu erhalten.
 
 ## Tabs
 
 ### Anfragen
 Alle SCEP-Registrierungsanfragen anzeigen:
-- **Ausstehend** — Warten auf manuelle Genehmigung (wenn Auto-Genehmigung deaktiviert ist)
-- **Genehmigt** — Erfolgreich ausgestellt
-- **Abgelehnt** — Von einem Administrator abgelehnt
+- **Ausstehend**: Warten auf manuelle Genehmigung (wenn Auto-Genehmigung deaktiviert ist)
+- **Genehmigt**: Erfolgreich ausgestellt
+- **Abgelehnt**: Von einem Administrator abgelehnt
 
 ### Konfiguration
 Den SCEP-Server konfigurieren:
-- **Aktivieren/Deaktivieren** — Den SCEP-Dienst umschalten
-- **Signierende CA** — Auswählen, welche CA SCEP-registrierte Zertifikate signiert
-- **CA-Kennung** — Die Kennung, die Geräte verwenden, um die richtige CA zu finden
-- **Auto-Genehmigung** — Anfragen mit gültigem Challenge-Passwort automatisch genehmigen
+- **Aktivieren/Deaktivieren**: Den SCEP-Dienst umschalten
+- **Signierende CA**: Auswählen, welche CA SCEP-registrierte Zertifikate signiert
+- **CA-Kennung**: Die Kennung, die Geräte verwenden, um die richtige CA zu finden
+- **Auto-Genehmigung**: Anfragen mit gültigem Challenge-Passwort automatisch genehmigen
 
 ### Profile
 Benannte Enrollment-Endpunkte, jeder unter seiner eigenen URL bereitgestellt:
@@ -75,19 +75,19 @@ https://ihr-server:8443/scep/<profil>/pkiclient.exe
 \`\`\`
 
 Jedes Profil ist gebunden an:
-- **Seine eigene CA** — verschiedene Geräteflotten können sich gegen verschiedene CAs registrieren
-- **Eine optionale Zertifikatsvorlage** — ist eine Vorlage gebunden, bestimmen deren Key Usage, Extended Key Usage und Gültigkeit jedes über das Profil ausgestellte Zertifikat
-- **Zwecke, die kein Antragsteller erhalten darf** — eine an ein Profil gebundene Vorlage darf weder OCSP-Signierung, Zeitstempelung, „Any Purpose" noch Smartcard-Anmeldung tragen, und eine SCEP-Erneuerung übernimmt sie nie; Smartcard-Anmeldung ist erlaubt, wenn das Profil gegen Intune validiert, das für die Identität bürgt
-- **Ein Challenge-Passwort pro Profil** — verschlüsselt gespeichert, mit demselben Ablauffenster wie die globale Challenge
-- **Eine Genehmigungsrichtlinie** — Auto-Genehmigung oder manuelle Prüfung pro Profil
+- **Seine eigene CA**: verschiedene Geräteflotten können sich gegen verschiedene CAs registrieren
+- **Eine optionale Zertifikatsvorlage**: ist eine Vorlage gebunden, bestimmen deren Key Usage, Extended Key Usage und Gültigkeit jedes über das Profil ausgestellte Zertifikat
+- **Zwecke, die kein Antragsteller erhalten darf**: eine an ein Profil gebundene Vorlage darf weder OCSP-Signierung, Zeitstempelung, „Any Purpose" noch Smartcard-Anmeldung tragen, und eine SCEP-Erneuerung übernimmt sie nie; Smartcard-Anmeldung ist erlaubt, wenn das Profil gegen Intune validiert, das für die Identität bürgt
+- **Ein Challenge-Passwort pro Profil**: verschlüsselt gespeichert, mit demselben Ablauffenster wie die globale Challenge
+- **Eine Genehmigungsrichtlinie**: Auto-Genehmigung oder manuelle Prüfung pro Profil
 
 Lassen Sie jede Geräteflotte, jedes MDM-Profil oder jeden Mandanten auf die eigene Profil-URL zeigen. Der Endpunkt \`/scep/pkiclient.exe\` ohne Segment bedient weiterhin unverändert die globale Konfiguration.
 
 ### Challenge-Passwörter
 Pro-CA-Challenge-Passwörter verwalten. Geräte müssen ein gültiges Challenge-Passwort in ihrer Registrierungsanfrage zur Authentifizierung angeben.
 
-- **Passwort anzeigen** — Das aktuelle Challenge für eine CA anzeigen
-- **Regenerieren** — Ein neues Challenge-Passwort erstellen (macht das alte ungültig)
+- **Passwort anzeigen**: Das aktuelle Challenge für eine CA anzeigen
+- **Regenerieren**: Ein neues Challenge-Passwort erstellen (macht das alte ungültig)
 
 ### Information
 Zeigt die SCEP-Endpunkt-URL und Integrationsanweisungen an.
@@ -136,13 +136,13 @@ Konfigurieren Sie das SCEP-Profil mit:
 - Challenge: das Passwort von UCM
 
 ### Microsoft Intune
-Intune unterstützt kein statisches Challenge-Passwort — es stellt eine eigene verschlüsselte, gerätespezifische Challenge aus, die nur die Intune-API validieren kann. Aktivieren Sie auf einem SCEP-**Profil** (nicht dem globalen Endpunkt) **Microsoft Intune SCEP-Challenge-Validierung** und geben Sie Mandanten-ID, Client-ID und Client-Secret einer Entra-App-Registrierung an:
+Intune unterstützt kein statisches Challenge-Passwort: es stellt eine eigene verschlüsselte, gerätespezifische Challenge aus, die nur die Intune-API validieren kann. Aktivieren Sie auf einem SCEP-**Profil** (nicht dem globalen Endpunkt) **Microsoft Intune SCEP-Challenge-Validierung** und geben Sie Mandanten-ID, Client-ID und Client-Secret einer Entra-App-Registrierung an:
 
 1. Registrieren Sie in Microsoft Entra ID eine App und erteilen Sie ihr die Anwendungsberechtigungen **Intune API → SCEP challenge validation** (\`scep_challenge_provider\`) und **Microsoft Graph → Application.Read.All**, beide mit Administratorzustimmung
 2. Geben Sie Mandanten-ID, Client-ID und Client-Secret im Profil ein und klicken Sie auf **Verbindung testen**, um vor dem Speichern zu bestätigen, dass UCM Intune erreichen kann
 3. Zeigen Sie in Intune die Server-URL des Geräte-SCEP-Profils auf den Endpunkt \`/scep/<segment>/pkiclient.exe\` dieses Profils
 
-Intune-Profile müssen **Auto-Genehmigung** aktiviert haben — die Registrierung bei Intune ist ein synchroner Validierungs- und Ausstellungsvorgang, ohne Warteschlange auf Intune-Seite für eine manuelle Prüfung.
+Intune-Profile müssen **Auto-Genehmigung** aktiviert haben: die Registrierung bei Intune ist ein synchroner Validierungs- und Ausstellungsvorgang, ohne Warteschlange auf Intune-Seite für eine manuelle Prüfung.
 `
   }
 }

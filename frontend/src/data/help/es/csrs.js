@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'Los CSR preservan la clave privada del solicitante — nunca sale de su sistema',
+      'Los CSR preservan la clave privada del solicitante: nunca sale de su sistema',
       'Puede añadir una clave privada a un CSR después de firmarlo si es necesario para la exportación PKCS#12',
       'Un certificado importado para un CSR generado en UCM completa ese CSR: el registro conserva su clave privada, por lo que el certificado se exporta con ella',
       'Utilice el modo Microsoft CA para firmar CSR a través de AD CS cuando esté conectado a una PKI Windows',
-      'Al firmar, use "EKU adicionales" para añadir Microsoft RDP, smartcard logon, IPsec o cualquier OID — el EKU existente del CSR se reconstruye con el conjunto fusionado',
+      'Al firmar, use "EKU adicionales" para añadir Microsoft RDP, smartcard logon, IPsec o cualquier OID: el EKU existente del CSR se reconstruye con el conjunto fusionado',
     ],
   },
   helpGuides: {
@@ -58,7 +58,7 @@ UCM puede generar un CSR y un par de claves directamente:
 
 El CSR y la clave privada se crean y almacenan en UCM. El CSR aparece en la pestaña Pendientes listo para firmar.
 
-> 💡 Esto es conveniente cuando desea que UCM gestione todo el ciclo de vida — CSR, firma y almacenamiento de claves.
+> 💡 Esto es conveniente cuando desea que UCM gestione todo el ciclo de vida. CSR, firma y almacenamiento de claves.
 
 ## Cargar un CSR
 
@@ -70,10 +70,10 @@ El CSR y la clave privada se crean y almacenan en UCM. El CSR aparece en la pest
 ## Revisar un CSR
 
 Haga clic en un CSR para ver:
-- **Sujeto** — CN, O, OU, C, etc.
-- **SAN** — Nombres DNS, direcciones IP, correos electrónicos
-- **Información de clave** — Algoritmo, tamaño, huella digital de la clave pública
-- **Firma** — Algoritmo y validez
+- **Sujeto**: CN, O, OU, C, etc.
+- **SAN**: Nombres DNS, direcciones IP, correos electrónicos
+- **Información de clave**: Algoritmo, tamaño, huella digital de la clave pública
+- **Firma**: Algoritmo y validez
 
 ## Firmar un CSR
 

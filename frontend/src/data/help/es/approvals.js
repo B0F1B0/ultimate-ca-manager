@@ -7,8 +7,8 @@ export default {
       {
         title: 'Ciclo de vida de la solicitud',
         items: [
-          { label: 'Pendiente', text: 'En espera de revisión — el certificado aún no puede ser emitido' },
-          { label: 'Aprobada', text: 'Todas las aprobaciones requeridas recibidas — el certificado puede ser emitido' },
+          { label: 'Pendiente', text: 'En espera de revisión, el certificado aún no puede ser emitido' },
+          { label: 'Aprobada', text: 'Todas las aprobaciones requeridas recibidas, el certificado puede ser emitido' },
           { label: 'Rechazada', text: 'Cualquier rechazo detiene inmediatamente la solicitud' },
           { label: 'Expirada', text: 'No decidida en siete días; cerrada como expirada y nunca contada como pendiente' },
         ]
@@ -34,7 +34,7 @@ export default {
       },
     ],
     tips: [
-      'Cualquier rechazo individual detiene inmediatamente la aprobación — esto es intencional por seguridad.',
+      'Cualquier rechazo individual detiene inmediatamente la aprobación: esto es intencional por seguridad.',
       'Mientras una renovación espera aprobación, el planificador deja el certificado a esa decisión, siempre que pueda llegar antes de que expire el certificado.',
       'Los comentarios de aprobación se registran en la pista de auditoría para cumplimiento normativo.',
     ],
@@ -44,7 +44,7 @@ export default {
     content: `
 ## Descripción general
 
-La página de Aprobaciones muestra todas las solicitudes de certificados que requieren aprobación manual antes de su emisión. Los flujos de aprobación se configuran en **Políticas** — cuando una política tiene "Requerir aprobación" activado, cualquier solicitud de certificado que coincida crea una solicitud de aprobación aquí.
+La página de Aprobaciones muestra todas las solicitudes de certificados que requieren aprobación manual antes de su emisión. Los flujos de aprobación se configuran en **Políticas**: cuando una política tiene "Requerir aprobación" activado, cualquier solicitud de certificado que coincida crea una solicitud de aprobación aquí.
 
 ## Ciclo de vida de la solicitud
 
@@ -89,10 +89,10 @@ Una solicitud espera **siete días** una decisión. Pasado ese plazo se cierra c
 
 1. Haz clic en una solicitud pendiente para ver sus detalles
 2. Haz clic en **Rechazar**
-3. Introduce un **motivo de rechazo** (obligatorio) — esto se registra para cumplimiento de auditoría
+3. Introduce un **motivo de rechazo** (obligatorio): esto se registra para cumplimiento de auditoría
 4. La solicitud se detiene inmediatamente
 
-> ⚠ Cualquier rechazo individual detiene toda la solicitud. Esto es intencional — si algún revisor identifica un problema, la emisión no debe proceder.
+> ⚠ Cualquier rechazo individual detiene toda la solicitud. Esto es intencional: si algún revisor identifica un problema, la emisión no debe proceder.
 
 ## Historial de aprobaciones
 
@@ -106,15 +106,15 @@ Este historial es inmutable y forma parte de la pista de auditoría.
 ## Filtrado
 
 Usa la barra de filtro por estado en la parte superior para mostrar:
-- **Pendiente** — Solicitudes que esperan tu revisión
-- **Aprobada** — Solicitudes aprobadas recientemente
-- **Rechazada** — Solicitudes rechazadas con motivos
-- **Total** — Todas las solicitudes sin importar el estado
+- **Pendiente**: Solicitudes que esperan tu revisión
+- **Aprobada**: Solicitudes aprobadas recientemente
+- **Rechazada**: Solicitudes rechazadas con motivos
+- **Total**: Todas las solicitudes sin importar el estado
 
 ## Permisos
 
-- **read:approvals** — Ver solicitudes de aprobación
-- **write:approvals** — Aprobar o rechazar solicitudes
+- **read:approvals**: Ver solicitudes de aprobación
+- **write:approvals**: Aprobar o rechazar solicitudes
 
 > 💡 Configura notificaciones por email en las políticas para que los aprobadores sean alertados cuando lleguen nuevas solicitudes.
 `

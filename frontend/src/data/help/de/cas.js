@@ -29,12 +29,12 @@ export default {
         title: 'Extern signierte CAs (CSR-Modus, v2.214)',
         content: 'Der Erstellungstyp „Von externer CA signiert (CSR)" deckt das Offline-Root-Muster ab: Das Schlüsselpaar liegt in UCM, das Zertifikat wird extern signiert. Der private Schlüssel verlässt UCM nie.',
         items: [
-          { label: 'Erstellen', text: 'UCM generiert das Schlüsselpaar (lokal oder HSM) und einen CSR vom Typ CA — der CSR wird automatisch heruntergeladen' },
+          { label: 'Erstellen', text: 'UCM generiert das Schlüsselpaar (lokal oder HSM) und einen CSR vom Typ CA, der CSR wird automatisch heruntergeladen' },
           { label: 'Warten auf Zertifikat', text: 'Die wartende CA kann nicht signieren, exportiert werden, übergeordnete CA sein oder offline gehen, bis ihr Zertifikat installiert ist' },
           { label: 'Zertifikat hochladen', text: 'Das extern signierte Zertifikat einfügen oder hochladen (PEM/DER). Sein öffentlicher Schlüssel muss zum gespeicherten privaten Schlüssel passen; CA-Constraints werden erzwungen' },
-          { label: 'Kette', text: 'Automatische Verknüpfung, wenn der Aussteller UCM bekannt ist — importieren Sie die externe Root (nur Zertifikat) für eine vollständige Kette' },
+          { label: 'Kette', text: 'Automatische Verknüpfung, wenn der Aussteller UCM bekannt ist, importieren Sie die externe Root (nur Zertifikat) für eine vollständige Kette' },
           { label: 'Erneuern via CSR', text: 'Stellt einen CSR aus demselben Schlüssel erneut aus (stabile SKI); extern signieren und das neue Zertifikat hochladen' },
-          { label: 'Nach der Erneuerung', text: 'Das abgelöste Zertifikat bleibt bis zu seinem notAfter gültig — UCM zeigt seine Seriennummer nach dem Hochladen an; widerrufen Sie es bei der externen Root, wenn ihm nicht mehr vertraut werden soll' },
+          { label: 'Nach der Erneuerung', text: 'Das abgelöste Zertifikat bleibt bis zu seinem notAfter gültig, UCM zeigt seine Seriennummer nach dem Hochladen an; widerrufen Sie es bei der externen Root, wenn ihm nicht mehr vertraut werden soll' },
         ]
       },
       {
@@ -43,7 +43,7 @@ export default {
           { label: 'Schlüsselspeicher', text: 'Bei der CA-Erstellung Lokal (in DB verschlüsselt) oder HSM wählen' },
           { label: 'Neuen Schlüssel generieren', text: 'Neuen Signaturschlüssel auf dem ausgewählten HSM-Anbieter erstellen' },
           { label: 'Vorhandenen Schlüssel verwenden', text: 'CA an einen ungenutzten Signaturschlüssel auf dem HSM binden' },
-          { label: 'Kein privater Schlüssel-Export', text: 'HSM-gesicherte Schlüssel verlassen das HSM nicht — PKCS#12-, JKS- und Nur-Schlüssel-Exporte sind deaktiviert' },
+          { label: 'Kein privater Schlüssel-Export', text: 'HSM-gesicherte Schlüssel verlassen das HSM nicht, PKCS#12-, JKS- und Nur-Schlüssel-Exporte sind deaktiviert' },
           { label: 'Voraussetzung', text: 'Zuerst einen HSM-Anbieter in der HSM-Verwaltung konfigurieren und verbinden' },
         ]
       },
@@ -60,13 +60,13 @@ export default {
       },
       {
         title: 'Externe CRLs für CAs ohne Schlüssel (v2.215)',
-        content: 'Eine CA, deren Schlüssel UCM nicht verwenden kann (Offline-CA, Nur-Zertifikat-Import), kann ihre eigene CRL nicht signieren — laden Sie stattdessen eine hoch, die neben dem Offline-Schlüssel erzeugt wurde.',
+        content: 'Eine CA, deren Schlüssel UCM nicht verwenden kann (Offline-CA, Nur-Zertifikat-Import), kann ihre eigene CRL nicht signieren, laden Sie stattdessen eine hoch, die neben dem Offline-Schlüssel erzeugt wurde.',
         items: [
           { label: 'Wo', text: 'CA-Detailansicht › Widerrufsliste (CRL): zeigt die Nummer der ausgelieferten CRL, die Anzahl der Einträge, thisUpdate/nextUpdate sowie eine Warnung, sobald nextUpdate überschritten ist' },
           { label: 'Hochladen', text: 'PEM oder DER, nur vollständige CRLs (keine Delta-CRLs). Die Signatur muss sich gegen das CA-Zertifikat verifizieren lassen und der Aussteller muss zu dessen Subject passen' },
-          { label: 'Monotonie', text: 'Ein Upload, der älter ist als die aktuell ausgelieferte CRL (CRL-Nummer oder thisUpdate), wird abgelehnt — stellen Sie sie mit einer höheren CRL-Nummer aus' },
+          { label: 'Monotonie', text: 'Ein Upload, der älter ist als die aktuell ausgelieferte CRL (CRL-Nummer oder thisUpdate), wird abgelehnt, stellen Sie sie mit einer höheren CRL-Nummer aus' },
           { label: 'Auslieferung', text: 'Die hochgeladene CRL wird unter dem bestehenden CDP-Pfad der CA ausgeliefert, und OCSP antwortet für die darin aufgeführten Seriennummern mit „widerrufen"' },
-          { label: 'Ablauf', text: 'Widerrufen Sie an der Offline-Root, erzeugen Sie die Root-CRL in der Air-Gap-Umgebung und laden Sie sie hier hoch — der Root-Schlüssel geht nie online' },
+          { label: 'Ablauf', text: 'Widerrufen Sie an der Offline-Root, erzeugen Sie die Root-CRL in der Air-Gap-Umgebung und laden Sie sie hier hoch, der Root-Schlüssel geht nie online' },
         ]
       },
     ],
@@ -77,9 +77,9 @@ export default {
       'PKCS#12-Export enthält die vollständige Kette und ist ideal für Sicherungen',
     ],
     warnings: [
-      'Das Löschen einer CA widerruft NICHT die von ihr ausgestellten Zertifikate — widerrufen Sie diese zuerst',
+      'Das Löschen einer CA widerruft NICHT die von ihr ausgestellten Zertifikate: widerrufen Sie diese zuerst',
       'Private Schlüssel werden verschlüsselt gespeichert; der Verlust der Datenbank bedeutet den Verlust der Schlüssel',
-      'Offline-Modus-Passwörter sind NICHT wiederherstellbar — bewahren Sie sie vor der Bestätigung in Ihrem Passwortmanager / Vault auf',
+      'Offline-Modus-Passwörter sind NICHT wiederherstellbar: bewahren Sie sie vor der Bestätigung in Ihrem Passwortmanager / Vault auf',
     ],
   },
   helpGuides: {
@@ -131,38 +131,38 @@ Gruppiert CAs nach ihrem Organisation-Feld (O). Nützlich für Multi-Mandanten-S
 > ⚠ Die Gültigkeit der Intermediate-CA kann die Gültigkeit der übergeordneten CA nicht überschreiten.
 
 ### Eine extern signierte CA erstellen (CSR-Modus, v2.214)
-Für das Offline-Root-Muster — der Schlüssel der ausstellenden CA liegt in UCM, ihr Zertifikat wird extern signiert:
+Für das Offline-Root-Muster: der Schlüssel der ausstellenden CA liegt in UCM, ihr Zertifikat wird extern signiert:
 1. Klicken Sie auf **Erstellen** → Typ **Von externer CA signiert (CSR)**
-2. Füllen Sie Subject und Schlüsseleinstellungen aus (lokal oder HSM) — die Gültigkeit bestimmt der externe Signierer
+2. Füllen Sie Subject und Schlüsseleinstellungen aus (lokal oder HSM): die Gültigkeit bestimmt der externe Signierer
 3. Absenden: UCM generiert das Schlüsselpaar und einen CSR vom Typ CA (wird automatisch heruntergeladen)
 4. Lassen Sie den CSR von Ihrer externen/Offline-Root-CA signieren
 5. Zurück auf der CA (Badge **Warten auf Zertifikat**) klicken Sie auf **Zertifikat hochladen** und stellen das signierte Zertifikat bereit (PEM oder DER)
 
-UCM aktiviert die CA nur, wenn der öffentliche Schlüssel des Zertifikats zum gespeicherten privaten Schlüssel passt und die CA-Constraints erfüllt sind. Die Kette wird automatisch verknüpft, wenn der Aussteller UCM bekannt ist — importieren Sie die externe Root (nur Zertifikat) für eine vollständige Kette. Bis zur Aktivierung kann die wartende CA nicht signieren, exportiert werden, übergeordnete CA sein oder offline gehen.
+UCM aktiviert die CA nur, wenn der öffentliche Schlüssel des Zertifikats zum gespeicherten privaten Schlüssel passt und die CA-Constraints erfüllt sind. Die Kette wird automatisch verknüpft, wenn der Aussteller UCM bekannt ist: importieren Sie die externe Root (nur Zertifikat) für eine vollständige Kette. Bis zur Aktivierung kann die wartende CA nicht signieren, exportiert werden, übergeordnete CA sein oder offline gehen.
 
 Zum Erneuern verwenden Sie **Erneuern via CSR**: Ein neuer CSR wird **aus demselben Schlüssel** ausgestellt (die SKI bleibt stabil), extern signiert und über denselben Ablauf hochgeladen.
 
 ## Eine CA importieren
 
 Importieren Sie vorhandene CA-Zertifikate über:
-- **PEM-Datei** — Zertifikat im PEM-Format
-- **DER-Datei** — Binäres DER-Format
-- **PKCS#12** — Zertifikat + privater Schlüssel (erfordert Passwort)
+- **PEM-Datei**: Zertifikat im PEM-Format
+- **DER-Datei**: Binäres DER-Format
+- **PKCS#12**: Zertifikat + privater Schlüssel (erfordert Passwort)
 
 Beim Import ohne privaten Schlüssel kann die CA Zertifikate verifizieren, aber keine neuen signieren.
 
 ## Eine CA exportieren
 
 Exportformate:
-- **PEM** — Base64-kodiertes Zertifikat
-- **DER** — Binärformat
-- **PKCS#12 (P12/PFX)** — Zertifikat + privater Schlüssel + Kette, passwortgeschützt
+- **PEM**: Base64-kodiertes Zertifikat
+- **DER**: Binärformat
+- **PKCS#12 (P12/PFX)**: Zertifikat + privater Schlüssel + Kette, passwortgeschützt
 
 > 💡 PKCS#12-Export enthält die vollständige Zertifikatskette und ist ideal für Sicherungen.
 
 ## Private Schlüssel
 
-CAs mit einem **Schlüsselsymbol** (🔑) haben einen in UCM gespeicherten privaten Schlüssel und können Zertifikate signieren. CAs ohne Schlüssel dienen nur der Vertrauensvalidierung — sie validieren Ketten, können aber nicht ausstellen.
+CAs mit einem **Schlüsselsymbol** (🔑) haben einen in UCM gespeicherten privaten Schlüssel und können Zertifikate signieren. CAs ohne Schlüssel dienen nur der Vertrauensvalidierung: sie validieren Ketten, können aber nicht ausstellen.
 
 ### Schlüsselspeicherung
 Private Schlüssel werden in der UCM-Datenbank verschlüsselt gespeichert. Für höhere Sicherheit erwägen Sie die Verwendung eines HSM-Anbieters (siehe HSM-Seite).
@@ -221,8 +221,8 @@ UCM kann den Signaturschlüssel einer CA auf einem externen Hardware-Sicherheits
 3. Wechseln Sie unter **Schlüsselspeicher** von *Lokal* zu **HSM**
 4. Wählen Sie den HSM-Anbieter
 5. Wählen Sie einen Schlüsselmodus:
-   - **Neuen Schlüssel generieren** — Bezeichnung angeben (Buchstaben/Ziffern/_/-) und Algorithmus wählen (RSA-2048/3072/4096 oder EC-P256/P384/P521)
-   - **Vorhandenen Schlüssel verwenden** — einen ungenutzten Signaturschlüssel auf dem HSM auswählen
+   - **Neuen Schlüssel generieren**: Bezeichnung angeben (Buchstaben/Ziffern/_/-) und Algorithmus wählen (RSA-2048/3072/4096 oder EC-P256/P384/P521)
+   - **Vorhandenen Schlüssel verwenden**: einen ungenutzten Signaturschlüssel auf dem HSM auswählen
 6. Absenden. UCM erstellt das CA-Zertifikat und bindet es an den HSM-Schlüssel.
 
 ### Einschränkungen
@@ -232,28 +232,28 @@ UCM kann den Signaturschlüssel einer CA auf einem externen Hardware-Sicherheits
 
 ## Offline-Modus
 
-Nehmen Sie den Signierschlüssel einer CA aus der Laufzeitnutzung, ohne die CA zu löschen. Zertifikat, Kette, CRL und OCSP funktionieren weiter — nur Signieroperationen (CSR signieren, Zertifikat ausstellen, CA erneuern) sind blockiert.
+Nehmen Sie den Signierschlüssel einer CA aus der Laufzeitnutzung, ohne die CA zu löschen. Zertifikat, Kette, CRL und OCSP funktionieren weiter: nur Signieroperationen (CSR signieren, Zertifikat ausstellen, CA erneuern) sind blockiert.
 
 Dies ist der Standardweg, eine Root-CA zwischen seltenen Zeremonien zu schützen und gleichzeitig ihren Trust-Anchor und ihre Widerrufsinfrastruktur online zu halten.
 
 ### Zwei Modi
 
-**Passwortgeschützt** — der private Schlüssel bleibt in der UCM-Datenbank, mit einem von Ihnen gewählten Passwort gewrappt (PKCS#8). Klicken Sie zum Reaktivieren auf **Wiederherstellen** und geben Sie das Passwort erneut ein. Schnell und bequem; die Sicherheit hängt von der Passwortstärke und davon ab, dass UCM nicht kompromittiert ist.
+**Passwortgeschützt**: der private Schlüssel bleibt in der UCM-Datenbank, mit einem von Ihnen gewählten Passwort gewrappt (PKCS#8). Klicken Sie zum Reaktivieren auf **Wiederherstellen** und geben Sie das Passwort erneut ein. Schnell und bequem; die Sicherheit hängt von der Passwortstärke und davon ab, dass UCM nicht kompromittiert ist.
 
-**Datei-exportiert** — der private Schlüssel wird als passwortverschlüsselte PEM-Datei einmalig heruntergeladen. Der Schlüssel wird dann **aus der Datenbank entfernt**. Klicken Sie zum Reaktivieren auf **Wiederherstellen**, laden Sie die Datei hoch und geben Sie das Passwort ein. Dies ist die stärkste Option (echtes Air-Gap), aber Sie sind voll für die Datei verantwortlich: bei Verlust ist der Schlüssel unwiederbringlich.
+**Datei-exportiert**: der private Schlüssel wird als passwortverschlüsselte PEM-Datei einmalig heruntergeladen. Der Schlüssel wird dann **aus der Datenbank entfernt**. Klicken Sie zum Reaktivieren auf **Wiederherstellen**, laden Sie die Datei hoch und geben Sie das Passwort ein. Dies ist die stärkste Option (echtes Air-Gap), aber Sie sind voll für die Datei verantwortlich: bei Verlust ist der Schlüssel unwiederbringlich.
 
 ### Passwort-Regeln
 Das Passwort folgt der Standard-UCM-Komplexitätsrichtlinie: Mindestlänge, Mischung der Zeichenklassen, keine trivialen Sequenzen. Dieselben Regeln wie für Benutzerpasswörter.
 
-### Schritt für Schritt — Offline nehmen
+### Schritt für Schritt. Offline nehmen
 1. CA-Detailansicht öffnen
 2. Auf **Offline nehmen** klicken
 3. Erklärung lesen, **Weiter** klicken
 4. Modus wählen (*Passwortgeschützt* oder *Datei-exportiert*)
 5. Passwort zweimal eingeben
-6. Bestätigen. Bei *Datei-exportiert* wird der verschlüsselte Schlüssel sofort heruntergeladen — sicher aufbewahren.
+6. Bestätigen. Bei *Datei-exportiert* wird der verschlüsselte Schlüssel sofort heruntergeladen: sicher aufbewahren.
 
-### Schritt für Schritt — Wiederherstellen
+### Schritt für Schritt. Wiederherstellen
 1. Detailansicht der offline CA öffnen
 2. Auf **Wiederherstellen** klicken
 3. Passwort eingeben

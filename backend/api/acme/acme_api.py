@@ -313,7 +313,7 @@ def _verify_jws_signature(protected: Dict[str, Any], signing_input: bytes,
     try:
         import josepy as jose
     except ImportError:
-        logger.error("josepy library not installed — ACME JWS verification unavailable")
+        logger.error("josepy library not installed. ACME JWS verification unavailable")
         return "JWS verification unavailable: josepy not installed"
 
     kty = key_to_verify.get('kty')

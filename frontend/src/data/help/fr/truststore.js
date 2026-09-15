@@ -39,19 +39,19 @@ Le magasin de confiance gère les certificats CA de confiance utilisés pour la 
 
 ## Catégories de certificats
 
-- **CA racine** — Ancres de confiance auto-signées
-- **Intermédiaire** — CA signées par une racine ou d'autres intermédiaires
-- **Authentification client** — Certificats pour l'authentification client mTLS
-- **Signature de code** — Certificats pour la vérification de signature de code
-- **Personnalisé** — Certificats catégorisés manuellement
+- **CA racine** : Ancres de confiance auto-signées
+- **Intermédiaire** : CA signées par une racine ou d'autres intermédiaires
+- **Authentification client** : Certificats pour l'authentification client mTLS
+- **Signature de code** : Certificats pour la vérification de signature de code
+- **Personnalisé** : Certificats catégorisés manuellement
 
 ## Importer des certificats
 
 ### Depuis un fichier
 Téléversez des fichiers de certificat dans ces formats :
-- **PEM** — Encodé en Base64 (simple ou groupé)
-- **DER** — Format binaire
-- **PKCS#7 (P7B)** — Chaîne de certificats
+- **PEM** : Encodé en Base64 (simple ou groupé)
+- **DER** : Format binaire
+- **PKCS#7 (P7B)** : Chaîne de certificats
 
 ### Depuis une URL
 Récupérez un certificat depuis un point de terminaison HTTPS distant. UCM télécharge et importe la chaîne de certificats du serveur.
@@ -66,10 +66,10 @@ Importez toutes les CA de confiance du magasin de confiance du système d'exploi
 
 ## Gérer les entrées
 
-- **Filtrer par usage** — Restreindre la liste par catégorie de certificat
-- **Rechercher** — Trouver des certificats par nom de sujet
-- **Exporter** — Télécharger des certificats individuels au format PEM
-- **Supprimer** — Retirer un certificat du magasin de confiance
+- **Filtrer par usage** : Restreindre la liste par catégorie de certificat
+- **Rechercher** : Trouver des certificats par nom de sujet
+- **Exporter** : Télécharger des certificats individuels au format PEM
+- **Supprimer** : Retirer un certificat du magasin de confiance
 
 ## Cas d'utilisation
 

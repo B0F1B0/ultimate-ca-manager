@@ -92,7 +92,7 @@ export class ErrorBoundary extends Component {
             {isReloading ? (
               <>
                 <Check size={16} weight="bold" className="text-accent-success" />
-                <span className="text-accent-success">Service is back — reloading...</span>
+                <span className="text-accent-success">Service is back: reloading...</span>
               </>
             ) : (
               <>

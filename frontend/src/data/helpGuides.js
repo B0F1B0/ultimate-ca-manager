@@ -1,5 +1,5 @@
 /**
- * Detailed help guides for all UCM pages — v2.50
+ * Detailed help guides for all UCM pages: v2.50
  * Each entry: { title, content (markdown string) }
  * Markdown supports: ## h2, ### h3, #### h4, **bold**, `code`, *italic*,
  *   - lists, 1. numbered, > blockquotes, ``` code blocks
@@ -19,20 +19,20 @@ The Dashboard is your central monitoring hub. It displays real-time metrics, cha
 
 ### Statistics Card
 Displays four key counters:
-- **Total CAs** — Root and Intermediate Certificate Authorities
-- **Active Certificates** — Valid, non-revoked certificates
-- **Pending CSRs** — Certificate Signing Requests awaiting approval
-- **Expiring Soon** — Certificates expiring within 30 days
+- **Total CAs**: Root and Intermediate Certificate Authorities
+- **Active Certificates**: Valid, non-revoked certificates
+- **Pending CSRs**: Certificate Signing Requests awaiting approval
+- **Expiring Soon**: Certificates expiring within 30 days
 
 ### Certificate Trend
 A line chart showing certificate issuance over time. Hover over data points to see exact counts.
 
 ### Status Distribution
 Pie chart showing the breakdown of certificate states:
-- **Valid** — Within validity period and not revoked
-- **Expiring** — Expires within 30 days
-- **Expired** — Past the "Not After" date
-- **Revoked** — Explicitly revoked
+- **Valid**: Within validity period and not revoked
+- **Expiring**: Expires within 30 days
+- **Expired**: Past the "Not After" date
+- **Revoked**: Explicitly revoked
 
 ### Next Expiry
 Lists certificates expiring soonest. Click any certificate to navigate to its details. Configure the threshold in **Settings → General**.
@@ -68,7 +68,7 @@ Click the **eye icon** in the page header to toggle individual widget visibility
 Your layout configuration is saved per-user in the browser. It persists across sessions and devices sharing the same browser profile.
 
 ## Real-Time Updates
-The dashboard receives live updates via WebSocket. No manual refresh is needed — new certificates, status changes, and activity entries appear automatically.
+The dashboard receives live updates via WebSocket. No manual refresh is needed: new certificates, status changes, and activity entries appear automatically.
 
 > 💡 If WebSocket is disconnected, a yellow indicator appears in the sidebar. Data will refresh on reconnection.
 `
@@ -124,38 +124,38 @@ Groups CAs by their Organization (O) field. Useful for multi-tenant setups where
 > ⚠ The Intermediate CA validity cannot exceed its parent CA's validity.
 
 ### Create an externally-signed CA (CSR mode, v2.214)
-For the offline-root pattern — the issuing CA's key lives in UCM, its certificate is signed elsewhere:
+For the offline-root pattern: the issuing CA's key lives in UCM, its certificate is signed elsewhere:
 1. Click **Create** → type **Signed by external CA (CSR)**
-2. Fill in the Subject and key settings (local or HSM) — validity is decided by the external signer
+2. Fill in the Subject and key settings (local or HSM): validity is decided by the external signer
 3. Submit: UCM generates the key pair and a CA-type CSR (downloads automatically)
 4. Have the CSR signed by your external/offline root CA
 5. Back on the CA (badge **Awaiting certificate**), click **Upload certificate** and provide the signed certificate (PEM or DER)
 
-UCM only activates the CA if the certificate's public key matches the stored private key and the CA constraints hold. The chain links automatically when the issuer is known to UCM — import the external root (certificate only) for a complete chain. Until activation, the pending CA cannot sign, be exported, be a parent CA or go offline.
+UCM only activates the CA if the certificate's public key matches the stored private key and the CA constraints hold. The chain links automatically when the issuer is known to UCM: import the external root (certificate only) for a complete chain. Until activation, the pending CA cannot sign, be exported, be a parent CA or go offline.
 
 To renew, use **Renew via CSR**: a new CSR is issued **from the same key** (the SKI stays stable), signed externally, and uploaded through the same flow.
 
 ## Importing a CA
 
 Import existing CA certificates via:
-- **PEM file** — Certificate in PEM format
-- **DER file** — Binary DER format
-- **PKCS#12** — Certificate + private key bundle (requires password)
+- **PEM file**: Certificate in PEM format
+- **DER file**: Binary DER format
+- **PKCS#12**: Certificate + private key bundle (requires password)
 
 When importing without a private key, the CA can verify certificates but cannot sign new ones.
 
 ## Exporting a CA
 
 Export formats:
-- **PEM** — Base64-encoded certificate
-- **DER** — Binary format
-- **PKCS#12 (P12/PFX)** — Certificate + private key + chain, password-protected
+- **PEM**: Base64-encoded certificate
+- **DER**: Binary format
+- **PKCS#12 (P12/PFX)**: Certificate + private key + chain, password-protected
 
 > 💡 PKCS#12 export includes the full certificate chain and is ideal for backup.
 
 ## Private Keys
 
-CAs with a **key icon** (🔑) have a private key stored in UCM and can sign certificates. CAs without a key are trust-only — they validate chains but cannot issue.
+CAs with a **key icon** (🔑) have a private key stored in UCM and can sign certificates. CAs without a key are trust-only: they validate chains but cannot issue.
 
 ### Key Storage
 Private keys are encrypted at rest in the UCM database. For higher security, consider using an HSM provider (see HSM page).
@@ -214,8 +214,8 @@ UCM can store a CA's signing key on an external Hardware Security Module instead
 3. In **Key Storage**, switch from *Local* to **HSM**
 4. Pick the HSM provider
 5. Choose a key mode:
-   - **Generate new key** — provide a label (letters/digits/_/-) and pick the algorithm (RSA-2048/3072/4096 or EC-P256/P384/P521)
-   - **Use existing key** — pick an unused signing key already present on the HSM
+   - **Generate new key**: provide a label (letters/digits/_/-) and pick the algorithm (RSA-2048/3072/4096 or EC-P256/P384/P521)
+   - **Use existing key**: pick an unused signing key already present on the HSM
 6. Submit. UCM creates the CA certificate and binds it to the HSM key.
 
 ### Limitations
@@ -225,28 +225,28 @@ UCM can store a CA's signing key on an external Hardware Security Module instead
 
 ## Offline Mode
 
-Take a CA's signing key out of runtime use without deleting the CA. The certificate, chain, CRL and OCSP responder keep working — only signing operations (CSR sign, certificate issue, CA renew) are blocked.
+Take a CA's signing key out of runtime use without deleting the CA. The certificate, chain, CRL and OCSP responder keep working, only signing operations (CSR sign, certificate issue, CA renew) are blocked.
 
 This is the standard way to protect a Root CA between rare ceremonies, while keeping its trust anchor and revocation infrastructure online.
 
 ### Two modes
 
-**Password protected** — the private key stays in the UCM database, wrapped (PKCS#8) under a password you choose. To bring the CA back online, click **Restore** and re-enter the password. Fast and convenient; security depends on the password's strength and on UCM not being compromised.
+**Password protected**: the private key stays in the UCM database, wrapped (PKCS#8) under a password you choose. To bring the CA back online, click **Restore** and re-enter the password. Fast and convenient; security depends on the password's strength and on UCM not being compromised.
 
-**File exported** — the private key is exported as a password-encrypted PEM file that downloads once. The key is then **removed from the database**. To bring the CA back online, click **Restore**, upload the file and enter the password. This is the strongest option (true air-gap) but you are fully responsible for the file: lose it and the key is unrecoverable.
+**File exported**: the private key is exported as a password-encrypted PEM file that downloads once. The key is then **removed from the database**. To bring the CA back online, click **Restore**, upload the file and enter the password. This is the strongest option (true air-gap) but you are fully responsible for the file: lose it and the key is unrecoverable.
 
 ### Password rules
 The password follows the standard UCM password complexity policy: minimum length, mix of character classes, no trivial sequences. The same rules as user passwords.
 
-### Step by step — Take offline
+### Step by step. Take offline
 1. Open the CA detail panel
 2. Click **Take offline**
 3. Read the explanation, click **Continue**
 4. Pick a mode (*Password protected* or *File exported*)
 5. Enter the password twice
-6. Confirm. For *File exported*, the encrypted key downloads immediately — store it safely.
+6. Confirm. For *File exported*, the encrypted key downloads immediately: store it safely.
 
-### Step by step — Restore
+### Step by step. Restore
 1. Open the offline CA's detail panel
 2. Click **Restore**
 3. Enter the password
@@ -278,12 +278,12 @@ Central management for all X.509 certificates. Issue new certificates, import ex
 
 ## Certificate Status
 
-- **Valid** — Within validity period and not revoked
-- **Expiring** — Will expire within 30 days (configurable)
-- **Expired** — Past the "Not After" date
-- **Revoked** — Explicitly revoked, published in CRL
-- **Orphan** — Issuing CA no longer exists in UCM
-- **Archived** — Superseded by a renewal or re-enrolment that kept the old record for history (SCEP, EST, WSTEP, ACME, OCSP responder)
+- **Valid**: Within validity period and not revoked
+- **Expiring**: Will expire within 30 days (configurable)
+- **Expired**: Past the "Not After" date
+- **Revoked**: Explicitly revoked, published in CRL
+- **Orphan**: Issuing CA no longer exists in UCM
+- **Archived**: Superseded by a renewal or re-enrolment that kept the old record for history (SCEP, EST, WSTEP, ACME, OCSP responder)
 
 ## Issuing a Certificate
 
@@ -302,22 +302,22 @@ Templates pre-fill Key Usage, Extended Key Usage, subject defaults, and validity
 ## Importing Certificates
 
 Supported formats:
-- **PEM** — Single or bundled certificates
-- **DER** — Binary format
-- **PKCS#12 (P12/PFX)** — Certificate + key + chain (password required)
-- **PKCS#7 (P7B)** — Certificate chain without keys
+- **PEM**: Single or bundled certificates
+- **DER**: Binary format
+- **PKCS#12 (P12/PFX)**: Certificate + key + chain (password required)
+- **PKCS#7 (P7B)**: Certificate chain without keys
 
 ## Renewing a Certificate
 
 Since v2.214, renewal updates the certificate **in place**:
-- Same record: **id, refid and creation date never change** — integrations keep their references
+- Same record: **id, refid and creation date never change**: integrations keep their references
 - Same Subject and SANs; new serial number and validity period
 - Certificates whose key UCM holds are **re-keyed**; protocol-enrolled certificates (SCEP/EST/ACME) are re-signed with their existing public key
 - The **superseded serial stays published on the CRL** (reason \`superseded\`) and answers \`revoked\` over OCSP until the old certificate's original expiry
 - \`renewed_at\` / \`renewed_times\` track the renewal history
-- A revoked certificate cannot be renewed (409) — issue a new one instead
+- A revoked certificate cannot be renewed (409): issue a new one instead
 
-**Deleting**: a valid, non-revoked certificate cannot be deleted (409) — revoke it first so relying parties see the change. Revocations are persisted independently of the certificate record and survive deletion.
+**Deleting**: a valid, non-revoked certificate cannot be deleted (409): revoke it first so relying parties see the change. Revocations are persisted independently of the certificate record and survive deletion.
 
 ## Revoking a Certificate
 
@@ -327,7 +327,7 @@ Since v2.214, renewal updates the certificate **in place**:
 
 Revoked certificates are published in the CRL on next regeneration.
 
-> ⚠ Revocation is generally permanent — except for **Certificate Hold** which can be removed.
+> ⚠ Revocation is generally permanent: except for **Certificate Hold** which can be removed.
 
 ### Remove Hold (Unhold)
 
@@ -346,12 +346,12 @@ Combines revocation with immediate re-issuance. The new certificate inherits the
 ## Exporting Certificates
 
 Export formats:
-- **PEM** — Certificate only
-- **PEM + Chain** — Certificate with full issuer chain
-- **DER** — Binary format
-- **PKCS#12** — Certificate + key + chain, password-protected
+- **PEM**: Certificate only
+- **PEM + Chain**: Certificate with full issuer chain
+- **DER**: Binary format
+- **PKCS#12**: Certificate + key + chain, password-protected
 
-> ⚠ Exporting the **private key** (PKCS#12/PFX, JKS, or key file) requires the admin-only **read:private_keys** permission. Roles without it — including the built-in Operator role — must retrieve archived keys through the approval-gated **Key Recovery** workflow instead.
+> ⚠ Exporting the **private key** (PKCS#12/PFX, JKS, or key file) requires the admin-only **read:private_keys** permission. Roles without it, including the built-in Operator role, must retrieve archived keys through the approval-gated **Key Recovery** workflow instead.
 
 ## Favorites
 
@@ -363,21 +363,21 @@ Select two certificates and click **Compare** to see a side-by-side diff of thei
 
 ## Filtering & Search
 
-- **Status filter** — Valid, Expiring, Expired, Revoked, Orphan, Archived
-- **CA filter** — Show certificates from a specific CA
-- **Source filter** — Filter by how the certificate entered UCM (issued, imported, ACME, SCEP, etc.)
-- **Template filter** — Find certificates **modified from template**: issued from a template but with the key type, validity, or digest explicitly overridden at request time. The divergent fields are listed on the certificate detail; the record is frozen at issuance
-- **Text search** — Search by CN, serial number, or SAN
-- **Sorting** — By name, expiry date, creation date, status
+- **Status filter**: Valid, Expiring, Expired, Revoked, Orphan, Archived
+- **CA filter**: Show certificates from a specific CA
+- **Source filter**: Filter by how the certificate entered UCM (issued, imported, ACME, SCEP, etc.)
+- **Template filter**: Find certificates **modified from template**: issued from a template but with the key type, validity, or digest explicitly overridden at request time. The divergent fields are listed on the certificate detail; the record is frozen at issuance
+- **Text search**: Search by CN, serial number, or SAN
+- **Sorting**: By name, expiry date, creation date, status
 
 ## Conformance linting
 
 The **Lint** action (certificate detail) checks X.509 standards conformance. Informative only.
 
-- **RFC 5280** — IETF X.509 profile, always relevant
-- **CA/Browser Forum** — Baseline Requirements for public TLS certs (expect noise on internal PKI)
+- **RFC 5280**: IETF X.509 profile, always relevant
+- **CA/Browser Forum**: Baseline Requirements for public TLS certs (expect noise on internal PKI)
 - Severities: fatal / error / warning / notice / info
-- Engine: pkilint (+ zlint when present) — optional server dependency, degrades gracefully when absent
+- Engine: pkilint (+ zlint when present): optional server dependency, degrades gracefully when absent
 `
   },
 
@@ -389,7 +389,7 @@ The **Lint** action (certificate detail) checks X.509 standards conformance. Inf
 
 The User Certificates page manages mTLS client certificates enrolled via the **Account → mTLS** tab. Unlike regular certificates, these are specifically tied to user accounts for mutual TLS authentication.
 
-Certificates here are fully managed by UCM — they are stored in the database with private keys, and can be exported, revoked, or deleted at any time.
+Certificates here are fully managed by UCM: they are stored in the database with private keys, and can be exported, revoked, or deleted at any time.
 
 ## Enrolling a Certificate
 
@@ -400,17 +400,17 @@ Certificates here are fully managed by UCM — they are stored in the database w
 
 ## Certificate Status
 
-- **Valid** — Within validity period and not revoked
-- **Expiring** — Will expire within 30 days
-- **Expired** — Past the "Not After" date
-- **Revoked** — Explicitly revoked, published in CRL
+- **Valid**: Within validity period and not revoked
+- **Expiring**: Will expire within 30 days
+- **Expired**: Past the "Not After" date
+- **Revoked**: Explicitly revoked, published in CRL
 
 ## Exporting a Certificate
 
 1. Select a certificate → **Export**
 2. Choose format:
-   - **PEM** — Certificate + private key + CA chain in text format
-   - **PKCS#12** — Binary bundle, password-protected (min 8 characters)
+   - **PEM**: Certificate + private key + CA chain in text format
+   - **PKCS#12**: Binary bundle, password-protected (min 8 characters)
 3. Click **Download**
 
 The exported file can be imported into browsers, operating systems, or API clients for mTLS authentication.
@@ -447,9 +447,9 @@ Delete removes both the certificate and the user-certificate association. Only a
 
 ### Required Permissions
 
-- **read:user_certificates** — View certificate list and details
-- **write:user_certificates** — Revoke certificates
-- **delete:user_certificates** — Delete certificates
+- **read:user_certificates**: View certificate list and details
+- **write:user_certificates**: Revoke certificates
+- **delete:user_certificates**: Delete certificates
 
 > 💡 Enroll new mTLS certificates from the Account page. This page is for managing existing certificates.
 `
@@ -483,7 +483,7 @@ UCM can generate a CSR and key pair directly:
 
 The CSR and private key are created and stored in UCM. The CSR appears in the Pending tab ready for signing.
 
-> 💡 This is convenient when you want UCM to manage the entire lifecycle — CSR, signing, and key storage.
+> 💡 This is convenient when you want UCM to manage the entire lifecycle. CSR, signing, and key storage.
 
 ## Uploading a CSR
 
@@ -495,10 +495,10 @@ The CSR and private key are created and stored in UCM. The CSR appears in the Pe
 ## Reviewing a CSR
 
 Click a CSR to view:
-- **Subject** — CN, O, OU, C, etc.
-- **SANs** — DNS names, IP addresses, emails
-- **Key info** — Algorithm, size, public key fingerprint
-- **Signature** — Algorithm and validity
+- **Subject**: CN, O, OU, C, etc.
+- **SANs**: DNS names, IP addresses, emails
+- **Key info**: Algorithm, size, public key fingerprint
+- **Signature**: Algorithm and validity
 
 ## Signing a CSR
 
@@ -573,13 +573,13 @@ Templates define reusable certificate profiles. Instead of manually configuring 
 
 ### End-Entity Templates
 For server certificates, client certificates, code signing, and email protection. These templates typically set:
-- **Key Usage** — Digital Signature, Key Encipherment
-- **Extended Key Usage** — Server Auth, Client Auth, Code Signing, Email Protection
+- **Key Usage**: Digital Signature, Key Encipherment
+- **Extended Key Usage**: Server Auth, Client Auth, Code Signing, Email Protection
 
 ### CA Templates
 For creating Intermediate CAs. These set:
-- **Key Usage** — Certificate Sign, CRL Sign
-- **Basic Constraints** — CA:TRUE, optional path length
+- **Key Usage**: Certificate Sign, CRL Sign
+- **Basic Constraints**: CA:TRUE, optional path length
 
 ## Creating a Template
 
@@ -603,17 +603,17 @@ When issuing a certificate or signing a CSR, select a template from the dropdown
 
 Templates carry three opt-in flags used by the Windows autoenrollment protocols (XCEP/WSTEP, configured under **Settings → Windows Autoenrollment**):
 
-- **Allow autoenrollment** — Advertise the template as \`autoEnroll=true\` in Certificate Enrollment Policy, so GPO/Kerberos-authenticated clients request it automatically at logon with no user action. Off by default — like real ADCS, a template can still be enrolled manually (MMC "Request New Certificate", \`certreq\`) without this, since Enroll and Autoenroll are separate permissions.
-- **Build subject from Active Directory** — For unattended GPO autoenrollment: derive the certificate's subject and SAN from the requester's AD object (via the AD Connector) instead of requiring the client to supply one.
-- **Restrict enrollment to AD group** — Only principals belonging to the configured Active Directory group (nested membership included) may enroll against this template over the Kerberos-authenticated endpoint. Enter a group name or full DN; leave blank to allow any authenticated principal, matching real ADCS's default. Not enforced on the Username/Password endpoint, which has no per-request identity to check.
+- **Allow autoenrollment**: Advertise the template as \`autoEnroll=true\` in Certificate Enrollment Policy, so GPO/Kerberos-authenticated clients request it automatically at logon with no user action. Off by default: like real ADCS, a template can still be enrolled manually (MMC "Request New Certificate", \`certreq\`) without this, since Enroll and Autoenroll are separate permissions.
+- **Build subject from Active Directory**: For unattended GPO autoenrollment: derive the certificate's subject and SAN from the requester's AD object (via the AD Connector) instead of requiring the client to supply one.
+- **Restrict enrollment to AD group**: Only principals belonging to the configured Active Directory group (nested membership included) may enroll against this template over the Kerberos-authenticated endpoint. Enter a group name or full DN; leave blank to allow any authenticated principal, matching real ADCS's default. Not enforced on the Username/Password endpoint, which has no per-request identity to check.
 
 Templates with these flags show **AD**, **Auto**, and **ACL** badges in the template list.
 
 ## Pinned Subject Fields
 
-A template can **pin** the organizational subject fields — **C, ST, L, O, OU** — for certificates issued over WSTEP. A pinned value is forced onto every issued certificate, overriding whatever the client's CSR or the Active Directory derivation supplies for that field.
+A template can **pin** the organizational subject fields: **C, ST, L, O, OU**: for certificates issued over WSTEP. A pinned value is forced onto every issued certificate, overriding whatever the client's CSR or the Active Directory derivation supplies for that field.
 
-- **Common Name and Subject Alternative Name are never affected** — they stay dynamic per requester
+- **Common Name and Subject Alternative Name are never affected**: they stay dynamic per requester
 - Leave a field blank to leave it dynamic
 - Templates with pinned fields show a **Pinned** badge, and the pinned values appear in the template detail panel
 
@@ -630,8 +630,8 @@ Export templates as JSON for sharing between UCM instances.
 
 ### Import
 Import from:
-- **JSON file** — Upload a template JSON file
-- **JSON paste** — Paste JSON directly into the text area
+- **JSON file**: Upload a template JSON file
+- **JSON paste**: Paste JSON directly into the text area
 
 ## Common Template Examples
 
@@ -667,9 +667,9 @@ A CRL is a signed list of revoked certificate serial numbers, published by a CA.
 
 ### CRL per CA
 Each CA has its own CRL. The CRL list shows all your CAs with:
-- **Revoked count** — Number of certificates in the CRL
-- **Last regenerated** — When the CRL was last rebuilt
-- **Auto-regeneration** — Whether automatic CRL updates are enabled
+- **Revoked count**: Number of certificates in the CRL
+- **Last regenerated**: When the CRL was last rebuilt
+- **Auto-regeneration**: Whether automatic CRL updates are enabled
 
 ### Regenerating a CRL
 Click **Regenerate** to rebuild a CA's CRL immediately. This is useful after revoking certificates.
@@ -681,7 +681,7 @@ Enable auto-regeneration to automatically rebuild the CRL whenever a certificate
 The CRL schedule (per CA) sets how long each published CRL remains valid. Options range from **1 day to 5 years**: 1d, 2d, 3d, 7d, 14d, 30d, 90d, 180d, 1y, 3y, 5y.
 
 - **Online CAs** should keep a short validity (days) so relying parties pick up revocations quickly
-- **Offline CAs** (typically a Root that cannot re-sign CRLs on schedule) are the intended use case for the long options — 90d up to 5y
+- **Offline CAs** (typically a Root that cannot re-sign CRLs on schedule) are the intended use case for the long options: 90d up to 5y
 - A warning is shown past one year: relying parties may keep stale revocation data for the whole validity window
 
 ### CRL Distribution Point (CDP)
@@ -691,7 +691,7 @@ The CDP URL is embedded in certificates so clients know where to download the CR
 http://your-server:8080/cdp/{ca_refid}.crl
 \`\`\`
 
-> 💡 **Auto-enabled**: When you create a new CA, CDP is automatically enabled if a Protocol Base URL or HTTP protocol server is configured. The CDP URL is auto-generated — no manual steps needed.
+> 💡 **Auto-enabled**: When you create a new CA, CDP is automatically enabled if a Protocol Base URL or HTTP protocol server is configured. The CDP URL is auto-generated, no manual steps needed.
 
 > ⚠️ **Important**: URLs are auto-generated using the HTTP protocol port and server FQDN. If you access UCM via \`localhost\`, the URL cannot be generated. Configure your **FQDN** or **Protocol Base URL** in Settings → General first.
 
@@ -705,32 +705,32 @@ OCSP provides real-time certificate status checking. Instead of downloading an e
 
 ### OCSP Status
 The OCSP section shows:
-- **Responder status** — Active or inactive per CA
-- **Total queries** — Number of OCSP requests processed
-- **Cache** — Response cache with automatic daily cleanup of expired entries
+- **Responder status**: Active or inactive per CA
+- **Total queries**: Number of OCSP requests processed
+- **Cache**: Response cache with automatic daily cleanup of expired entries
 
 ### OCSP Cache
 
 UCM caches OCSP responses for performance. The cache is:
-- **Automatically cleaned** — Expired responses are purged daily by the scheduler
-- **Invalidated on revocation** — When a certificate is revoked, its cached OCSP response is immediately cleared
-- **Invalidated on unhold** — When a Certificate Hold is removed, the OCSP cache is updated
+- **Automatically cleaned**: Expired responses are purged daily by the scheduler
+- **Invalidated on revocation**: When a certificate is revoked, its cached OCSP response is immediately cleared
+- **Invalidated on unhold**: When a Certificate Hold is removed, the OCSP cache is updated
 
 ### Delegated OCSP Responder
 
-By default, OCSP responses are signed with the CA key itself. A **delegated responder** uses a dedicated certificate with the **OCSPSigning** EKU instead — assign one per CA from the CA's detail panel (only certificates carrying the OCSPSigning EKU and a private key are eligible).
+By default, OCSP responses are signed with the CA key itself. A **delegated responder** uses a dedicated certificate with the **OCSPSigning** EKU instead: assign one per CA from the CA's detail panel (only certificates carrying the OCSPSigning EKU and a private key are eligible).
 
-**Automatic renewal**: a daily task re-issues the responder certificate before it expires — same key pair and extensions, renewed at par — and rebinds the CA's responder configuration to the new certificate. Short-lived OCSP signing certificates (e.g. a 90-day template) rotate without manual action. Enabled by default; it can be disabled and the renewal window tuned via configuration.
+**Automatic renewal**: a daily task re-issues the responder certificate before it expires, same key pair and extensions, renewed at par, and rebinds the CA's responder configuration to the new certificate. Short-lived OCSP signing certificates (e.g. a 90-day template) rotate without manual action. Enabled by default; it can be disabled and the renewal window tuned via configuration.
 
 ### AIA URLs
 The Authority Information Access (AIA) extension is embedded in certificates to tell clients where to find:
 
-**OCSP Responder** — real-time revocation checking:
+**OCSP Responder**: real-time revocation checking:
 \`\`\`
 http://your-server:8080/ocsp
 \`\`\`
 
-**CA Issuers** (RFC 5280 §4.2.2.1) — download the issuing CA certificate for chain building:
+**CA Issuers** (RFC 5280 §4.2.2.1): download the issuing CA certificate for chain building:
 \`\`\`
 http://your-server:8080/ca/{ca_refid}.cer   (DER format)
 http://your-server:8080/ca/{ca_refid}.pem   (PEM format)
@@ -738,7 +738,7 @@ http://your-server:8080/ca/{ca_refid}.pem   (PEM format)
 
 Enable CA Issuers per CA in the **AIA CA Issuers** section of the detail panel. The URL is automatically generated using the HTTP protocol server and the configured FQDN.
 
-> ⚠️ **Prerequisite**: Protocol URLs (CDP, OCSP, AIA) require a valid **FQDN** or a configured **Protocol Base URL** in Settings → General. If you access UCM via \`localhost\`, enabling these features will fail — set the FQDN first.
+> ⚠️ **Prerequisite**: Protocol URLs (CDP, OCSP, AIA) require a valid **FQDN** or a configured **Protocol Base URL** in Settings → General. If you access UCM via \`localhost\`, enabling these features will fail, set the FQDN first.
 
 ### OCSP vs CRL
 
@@ -759,22 +759,22 @@ Enable CA Issuers per CA in the **AIA CA Issuers** section of the detail panel. 
     content: `
 ## Overview
 
-The Simple Certificate Enrollment Protocol (SCEP) enables network devices — routers, switches, firewalls, MDM-managed endpoints — to automatically request and obtain certificates.
+The Simple Certificate Enrollment Protocol (SCEP) enables network devices: routers, switches, firewalls, MDM-managed endpoints, to automatically request and obtain certificates.
 
 ## Tabs
 
 ### Requests
 View all SCEP enrollment requests:
-- **Pending** — Awaiting manual approval (if auto-approve is off)
-- **Approved** — Successfully issued
-- **Rejected** — Denied by an administrator
+- **Pending**: Awaiting manual approval (if auto-approve is off)
+- **Approved**: Successfully issued
+- **Rejected**: Denied by an administrator
 
 ### Configuration
 Configure the SCEP server:
-- **Enable/Disable** — Toggle the SCEP service
-- **Signing CA** — Select which CA signs SCEP-enrolled certificates
-- **CA Identifier** — The identifier devices use to locate the correct CA
-- **Auto-Approve** — Automatically approve requests with valid challenge passwords
+- **Enable/Disable**: Toggle the SCEP service
+- **Signing CA**: Select which CA signs SCEP-enrolled certificates
+- **CA Identifier**: The identifier devices use to locate the correct CA
+- **Auto-Approve**: Automatically approve requests with valid challenge passwords
 
 ### Profiles
 Named enrollment endpoints, each served at its own URL:
@@ -784,19 +784,19 @@ https://your-server:8443/scep/<profile>/pkiclient.exe
 \`\`\`
 
 Each profile is bound to:
-- **Its own CA** — different device fleets can enroll against different CAs
-- **An optional certificate template** — when bound, the template's key usage, extended key usage and validity govern every certificate issued through the profile
-- **Purposes no enrollee may hold** — a template bound to a profile cannot carry OCSP signing, timestamping, any purpose or Smartcard Logon, and a SCEP renewal never carries them over; Smartcard Logon is allowed when the profile validates against Intune, which vouches for the identity
-- **A per-profile challenge password** — stored encrypted, with the same expiry window as the global challenge (or Microsoft Intune validation, see below)
-- **An approval policy** — auto-approve or manual review per profile
+- **Its own CA**: different device fleets can enroll against different CAs
+- **An optional certificate template**: when bound, the template's key usage, extended key usage and validity govern every certificate issued through the profile
+- **Purposes no enrollee may hold**: a template bound to a profile cannot carry OCSP signing, timestamping, any purpose or Smartcard Logon, and a SCEP renewal never carries them over; Smartcard Logon is allowed when the profile validates against Intune, which vouches for the identity
+- **A per-profile challenge password**: stored encrypted, with the same expiry window as the global challenge (or Microsoft Intune validation, see below)
+- **An approval policy**: auto-approve or manual review per profile
 
 Point each device fleet, MDM profile, or tenant at its own profile URL. The unlabelled \`/scep/pkiclient.exe\` endpoint keeps serving the global configuration unchanged.
 
 ### Challenge Passwords
 Manage per-CA challenge passwords. Devices must include a valid challenge password in their enrollment request to authenticate.
 
-- **View password** — Show the current challenge for a CA
-- **Regenerate** — Create a new challenge password (invalidates the old one)
+- **View password**: Show the current challenge for a CA
+- **Regenerate**: Create a new challenge password (invalidates the old one)
 
 ### Information
 Displays the SCEP endpoint URL and integration instructions.
@@ -845,13 +845,13 @@ Configure the SCEP profile with:
 - Challenge: the password from UCM
 
 ### Microsoft Intune
-Intune doesn't support a static challenge password — it issues its own encrypted, per-device challenge that only Intune's API can validate. On a SCEP **profile** (not the global endpoint), enable **Microsoft Intune SCEP challenge validation** and provide an Entra app registration's tenant ID, client ID and client secret:
+Intune doesn't support a static challenge password: it issues its own encrypted, per-device challenge that only Intune's API can validate. On a SCEP **profile** (not the global endpoint), enable **Microsoft Intune SCEP challenge validation** and provide an Entra app registration's tenant ID, client ID and client secret:
 
 1. In Microsoft Entra ID, register an app and grant it **Intune API → SCEP challenge validation** (\`scep_challenge_provider\`) and **Microsoft Graph → Application.Read.All**, both application permissions, admin-consented
 2. Enter the tenant ID, client ID and client secret on the profile, then **Test Connection** to confirm UCM can reach Intune before saving
 3. In Intune, point the device SCEP profile's server URL at this profile's \`/scep/<segment>/pkiclient.exe\` endpoint
 
-Intune-enabled profiles must have **Auto-Approve** on — Intune's enrollment flow is a synchronous validate-then-issue round trip, with no queue on Intune's side for a human to review.
+Intune-enabled profiles must have **Auto-Approve** on. Intune's enrollment flow is a synchronous validate-then-issue round trip, with no queue on Intune's side for a human to review.
 `
   },
 
@@ -863,18 +863,18 @@ Intune-enabled profiles must have **Auto-Approve** on — Intune's enrollment fl
 
 UCM supports ACME (Automated Certificate Management Environment) in two modes:
 
-- **ACME Client** — Obtain certificates from any RFC 8555-compliant CA (Let's Encrypt, ZeroSSL, Buypass, HARICA, or custom)
-- **Local ACME Server** — Built-in ACME server for internal PKI automation with multi-CA support
+- **ACME Client**: Obtain certificates from any RFC 8555-compliant CA (Let's Encrypt, ZeroSSL, Buypass, HARICA, or custom)
+- **Local ACME Server**: Built-in ACME server for internal PKI automation with multi-CA support
 
 ## ACME Client
 
 ### Client Settings
 Manage your ACME client configuration:
-- **Environment** — Staging (testing) or Production (live certificates)
-- **Contact Email** — Required for account registration
-- **Auto-Renewal** — Automatically renew certificates before expiry
-- **Certificate Key Type** — RSA-2048, RSA-4096, ECDSA P-256, or ECDSA P-384
-- **Account Key Algorithm** — ES256, ES384, or RS256 for ACME account signing
+- **Environment**: Staging (testing) or Production (live certificates)
+- **Contact Email**: Required for account registration
+- **Auto-Renewal**: Automatically renew certificates before expiry
+- **Certificate Key Type**: RSA-2048, RSA-4096, ECDSA P-256, or ECDSA P-384
+- **Account Key Algorithm**: ES256, ES384, or RS256 for ACME account signing
 
 ### Custom ACME Server
 Use any RFC 8555-compliant CA, not just Let's Encrypt:
@@ -892,11 +892,11 @@ Set your CA's directory URL in **Settings** → **Custom ACME Server**.
 ### External CA Accounts
 Manage every external CA account UCM registers with:
 
-- **Multiple accounts per CA allowed** — several accounts can share the same directory URL (e.g. two Let's Encrypt accounts with different contact emails for administrative separation, useful alongside dns-persist-01). The account row, not the URL, is the identity.
-- **Empty Directory URL** — defaults to Let's Encrypt Production.
-- **Default account** — picked when a request selects no CA account; URL-based lookups resolve to the default.
-- **Import** — bring an existing account's private key at creation: PKCS#8, SEC1/X9.62 (\`BEGIN EC PRIVATE KEY\`) and PKCS#1 (\`BEGIN RSA PRIVATE KEY\`) envelopes are all accepted; the algorithm is derived automatically.
-- **Per-account proxy endpoint** — each account can expose \`/acme/proxy/<slug>/directory\` with its own slug.
+- **Multiple accounts per CA allowed**: several accounts can share the same directory URL (e.g. two Let's Encrypt accounts with different contact emails for administrative separation, useful alongside dns-persist-01). The account row, not the URL, is the identity.
+- **Empty Directory URL**: defaults to Let's Encrypt Production.
+- **Default account**: picked when a request selects no CA account; URL-based lookups resolve to the default.
+- **Import**: bring an existing account's private key at creation: PKCS#8, SEC1/X9.62 (\`BEGIN EC PRIVATE KEY\`) and PKCS#1 (\`BEGIN RSA PRIVATE KEY\`) envelopes are all accepted; the algorithm is derived automatically.
+- **Per-account proxy endpoint**: each account can expose \`/acme/proxy/<slug>/directory\` with its own slug.
 
 ### External Account Binding (EAB)
 Some CAs require EAB credentials to link your ACME account with an existing account at the CA:
@@ -916,14 +916,14 @@ Some CAs require EAB credentials to link your ACME account with an existing acco
 | **ECDSA P-256** | 256 bit | ≈ RSA-3072 | Much faster |
 | **ECDSA P-384** | 384 bit | ≈ RSA-7680 | Faster |
 
-ECDSA keys are recommended for modern deployments — smaller, faster, and equally secure.
+ECDSA keys are recommended for modern deployments: smaller, faster, and equally secure.
 
 ### Key Source
 When requesting a certificate, choose where the private key comes from:
 
-- **Generate new key** *(default)* — UCM creates a fresh key pair for each order
-- **Reuse key on renewal** — keep the same private key across renewals (needed for DANE/TLSA records and key pinning); the first issuance generates the key, renewals reload it
-- **Provide external CSR** — paste a PEM CSR generated elsewhere; UCM submits it at finalize and the private key never enters UCM. CSR domains must exactly match the order identifiers
+- **Generate new key** *(default)*: UCM creates a fresh key pair for each order
+- **Reuse key on renewal**: keep the same private key across renewals (needed for DANE/TLSA records and key pinning); the first issuance generates the key, renewals reload it
+- **Provide external CSR**: paste a PEM CSR generated elsewhere; UCM submits it at finalize and the private key never enters UCM. CSR domains must exactly match the order identifiers
 
 ### Preflight (dry run)
 **Run Preflight** on the request form validates the whole request against the Let's Encrypt **staging** directory, without consuming production rate limits:
@@ -933,7 +933,7 @@ When requesting a certificate, choose where the private key comes from:
 - **Validate only** checks configuration and connectivity without creating an order
 - Optionally verifies DNS TXT propagation after you added the records
 
-> 💡 Custom CAs have no staging endpoint — preflight then validates configuration and connectivity only.
+> 💡 Custom CAs have no staging endpoint: preflight then validates configuration and connectivity only.
 
 ### DNS Providers
 Configure DNS-01 challenge providers for domain validation. Supported providers include:
@@ -951,16 +951,16 @@ Each provider requires API credentials specific to the DNS service.
 #### Custom Command provider
 For DNS services without a native driver, the **Custom Command** provider runs admin-configured local commands for TXT record create/delete. Record details are passed as environment variables:
 
-- \`DOMAIN\` — base domain being validated
-- \`RECORD_NAME\` — full TXT record name (\`_acme-challenge.example.com\`)
-- \`RECORD_VALUE\` — TXT content (challenge digest)
-- \`TTL\` — record TTL in seconds
-- \`ACTION\` — \`create\` or \`delete\`
+- \`DOMAIN\`: base domain being validated
+- \`RECORD_NAME\`: full TXT record name (\`_acme-challenge.example.com\`)
+- \`RECORD_VALUE\`: TXT content (challenge digest)
+- \`TTL\`: record TTL in seconds
+- \`ACTION\`: \`create\` or \`delete\`
 
 The command requires an **absolute binary path**, runs without a shell (no pipes or expansion), and is killed after a configurable timeout (5–300 s, default 60). Use a small wrapper script to bridge any external DNS tooling.
 
 ### Custom DNS Resolvers
-Optionally override the resolvers used to verify \`_acme-challenge\` TXT records (useful for split-horizon DNS or to avoid public-resolver caching). Entries are comma-separated and accept plain IPs or \`host:port\` — e.g. a loopback-only BIND or a dnsmasq instance on an alternate port.
+Optionally override the resolvers used to verify \`_acme-challenge\` TXT records (useful for split-horizon DNS or to avoid public-resolver caching). Entries are comma-separated and accept plain IPs or \`host:port\`: e.g. a loopback-only BIND or a dnsmasq instance on an alternate port.
 
 ### Domains
 Map your domains to DNS providers. When requesting a certificate for a domain, UCM uses the mapped provider to create DNS-01 challenge records.
@@ -996,8 +996,8 @@ Each external CA account can expose its own ACME proxy endpoint:
 1. Open **External CA Accounts** (same Let's Encrypt tab)
 2. Edit or create a CA account
 3. Enable **Expose via ACME proxy**
-4. Set a unique **Proxy path (slug)** — e.g. \`actalis-production\`, \`letsencrypt-staging\`
-5. Save — the URL appears in the proxy section and on the account card
+4. Set a unique **Proxy path (slug)**: e.g. \`actalis-production\`, \`letsencrypt-staging\`
+5. Save: the URL appears in the proxy section and on the account card
 
 Clients use:
 \`\`\`
@@ -1020,7 +1020,7 @@ Reserved slugs (cannot be used): \`directory\`, \`new-order\`, \`challenge\`, \`
 ### Prune Replaced Certificates
 Each proxy renewal imports a fresh certificate into the inventory, so replaced ones pile up over time. The **Purge replaced certificates** toggle (proxy settings) cleans up automatically: when a proxy order finalizes, certificates previously imported by proxy orders for the **exact same domain set** are deleted.
 
-- **Revoked certificates are always kept** — the revocation record stays intact
+- **Revoked certificates are always kept**: the revocation record stays intact
 - Certificates not issued through the proxy are never touched
 - Off by default
 
@@ -1049,7 +1049,7 @@ certbot certonly \\
   -d subdomain.example.com
 \`\`\`
 
-> 💡 Proxy EAB credentials are separate from client EAB — they authenticate UCM with the upstream CA, not your clients with UCM.
+> 💡 Proxy EAB credentials are separate from client EAB: they authenticate UCM with the upstream CA, not your clients with UCM.
 
 > ⚠ Prerequisite: the domain (or a parent domain covering subdomains) must be configured in ACME Domains with a DNS provider. The proxy supports dns-01 only.
 
@@ -1060,9 +1060,9 @@ certbot certonly \\
 ## Local ACME Server
 
 ### Configuration
-- **Enable/Disable** — Toggle the built-in ACME server
-- **Default CA** — Select which CA signs certificates by default
-- **Terms of Service** — Optional ToS URL for clients
+- **Enable/Disable**: Toggle the built-in ACME server
+- **Default CA**: Select which CA signs certificates by default
+- **Terms of Service**: Optional ToS URL for clients
 
 ### ACME Directory URL
 \`\`\`
@@ -1082,21 +1082,21 @@ Map internal domains to specific CAs. This allows different domains to be signed
 
 ### CA Resolution Order
 When an ACME client requests a certificate, UCM determines the signing CA in this order:
-1. **Local Domain mapping** — Exact match, then parent domain match
-2. **DNS Domain mapping** — The CA configured for the DNS provider
-3. **Global default** — The CA set in ACME server configuration
-4. **First available** — Any CA with a private key
+1. **Local Domain mapping**: Exact match, then parent domain match
+2. **DNS Domain mapping**: The CA configured for the DNS provider
+3. **Global default**: The CA set in ACME server configuration
+4. **First available**: Any CA with a private key
 
 ### EAB Credentials (Server-side)
 When UCM is the ACME server (or proxy), you can require **External Account Binding**: clients must present a pre-issued kid + HMAC key to register an account. Issue and revoke credentials from **ACME → EAB Credentials**.
 
 Each credential can be restricted to the **domains it may request certificates for**:
-- \`*\` — any domain (the default for new and pre-existing credentials)
-- \`*.example.com\` — the domain and all its sub-domains
+- \`*\`: any domain (the default for new and pre-existing credentials)
+- \`*.example.com\`: the domain and all its sub-domains
 - An explicit list of domains
 - An **empty list blocks issuance entirely** for that credential
 
-Restrictions are enforced on new-order and new-authz, on both the built-in ACME server and the proxy. They are only meaningful when **EAB is required** — otherwise clients can simply register without a credential.
+Restrictions are enforced on new-order and new-authz, on both the built-in ACME server and the proxy. They are only meaningful when **EAB is required**: otherwise clients can simply register without a credential.
 
 ### Accounts
 View registered ACME client accounts:
@@ -1135,11 +1135,11 @@ Mixed DNS + IP orders are also supported.
 ### Issued certificate
 The signed certificate contains an **iPAddress** SubjectAltName entry for each validated IP.
 
-> 💡 Internal addresses (RFC1918, loopback) validate out of the box — UCM's primary deployment model. Cloud-metadata IPs remain blocked.
+> 💡 Internal addresses (RFC1918, loopback) validate out of the box. UCM's primary deployment model. Cloud-metadata IPs remain blocked.
 
 ## Persistent DNS Validation (dns-persist-01)
 
-The local ACME server supports **dns-persist-01** (draft-ietf-acme-dns-persist): validation through a **persistent** TXT record bound to the ACME account — renewals need no DNS writes.
+The local ACME server supports **dns-persist-01** (draft-ietf-acme-dns-persist): validation through a **persistent** TXT record bound to the ACME account, renewals need no DNS writes.
 
 ### Setup
 1. Enable it under **ACME → Configuration → Persistent DNS Validation** (off by default).
@@ -1150,15 +1150,15 @@ _validation-persist.app.example.com. IN TXT "ca.example.com; accounturi=https://
 The challenge object advertises the expected \`accounturi\` and \`issuer-domain-names\`.
 
 ### Options
-- \`policy=wildcard\` — also authorizes wildcard certificates and subdomains of the validated name (a record on a parent domain covers its children)
-- \`persistUntil=<unix-timestamp>\` — stops new validation attempts after that time
+- \`policy=wildcard\`: also authorizes wildcard certificates and subdomains of the validated name (a record on a parent domain covers its children)
+- \`persistUntil=<unix-timestamp>\`: stops new validation attempts after that time
 
-> ⚠️ The record grants issuance capability to the ACME account key for as long as it exists — delete the TXT record to revoke it.
+> ⚠️ The record grants issuance capability to the ACME account key for as long as it exists: delete the TXT record to revoke it.
 
 ## Using certbot
 
 \`\`\`
-# Register account (Let's Encrypt — default)
+# Register account (Let's Encrypt: default)
 certbot register --agree-tos --email admin@example.com
 
 # Register with custom ACME CA + EAB
@@ -1216,10 +1216,10 @@ Enrollment over Secure Transport (EST) is defined in **RFC 7030** and provides c
 
 ### Settings Tab
 
-1. **Enable EST** — Toggle the EST protocol on or off
-2. **Signing CA** — Select which Certificate Authority signs EST-enrolled certificates
-3. **Authentication** — Configure HTTP Basic Auth credentials (username and password)
-4. **Certificate Validity** — Default validity period for EST-issued certificates (in days)
+1. **Enable EST**: Toggle the EST protocol on or off
+2. **Signing CA**: Select which Certificate Authority signs EST-enrolled certificates
+3. **Authentication**: Configure HTTP Basic Auth credentials (username and password)
+4. **Certificate Validity**: Default validity period for EST-issued certificates (in days)
 
 ### Saving Configuration
 
@@ -1229,21 +1229,21 @@ Click **Save** to apply changes. The EST endpoints become available immediately 
 
 EST supports two authentication methods:
 
-### Mutual TLS (mTLS) — Recommended
+### Mutual TLS (mTLS): Recommended
 
 The client presents a certificate during the TLS handshake. UCM validates the certificate and authenticates the client automatically.
 
-- **Strongest method** — cryptographic client identity
-- **Required for** \`/simplereenroll\` — the client must present its current certificate
-- **Presented certificate** — for \`/simpleenroll\` and \`/serverkeygen\`, a certificate signed by the EST CA must be one it still holds: revoked, superseded or deleted certificates are refused (RFC 7030 §3.3.2); a certificate from another trusted authority is still accepted
+- **Strongest method**: cryptographic client identity
+- **Required for** \`/simplereenroll\`: the client must present its current certificate
+- **Presented certificate**: for \`/simpleenroll\` and \`/serverkeygen\`, a certificate signed by the EST CA must be one it still holds: revoked, superseded or deleted certificates are refused (RFC 7030 §3.3.2); a certificate from another trusted authority is still accepted
 - **Depends on** proper TLS termination config (reverse proxy must pass \`SSL_CLIENT_CERT\` to UCM)
 
-### HTTP Basic Auth — Fallback
+### HTTP Basic Auth. Fallback
 
 Username and password authentication over HTTPS. Configured in EST Settings.
 
-- **Simpler to set up** — no client certificate needed
-- **Less secure** — credentials transmitted per request (protected by HTTPS)
+- **Simpler to set up**: no client certificate needed
+- **Less secure**: credentials transmitted per request (protected by HTTPS)
 - **Use when** mTLS infrastructure is not available
 
 ## EST Endpoints
@@ -1253,7 +1253,7 @@ All endpoints are under \`/.well-known/est/\`:
 ### GET /cacerts
 Retrieve the CA certificate chain. **No authentication required.**
 
-Use this to bootstrap trust — clients fetch the CA cert before enrollment.
+Use this to bootstrap trust: clients fetch the CA cert before enrollment.
 
 \`\`\`bash
 curl -k https://your-server:8443/.well-known/est/cacerts | \\
@@ -1274,7 +1274,7 @@ curl -k --user est-user:est-password \\
 \`\`\`
 
 ### POST /simplereenroll
-Renew an existing certificate. **Requires mTLS** — the client must present the certificate being renewed.
+Renew an existing certificate. **Requires mTLS**: the client must present the certificate being renewed.
 
 \`\`\`bash
 curl -k --cert client.pem --key client.key \\
@@ -1292,9 +1292,9 @@ Server generates a key pair and returns the certificate along with the private k
 ## Information Tab
 
 The Information tab displays:
-- **Endpoint URLs** — Copy-paste ready URLs for each EST operation
-- **Enrollment Statistics** — Number of enrollments, re-enrollments, and errors
-- **Last activity** — Most recent EST operations from audit logs
+- **Endpoint URLs**: Copy-paste ready URLs for each EST operation
+- **Enrollment Statistics**: Number of enrollments, re-enrollments, and errors
+- **Last activity**: Most recent EST operations from audit logs
 
 ## Integration Examples
 
@@ -1357,19 +1357,19 @@ Time Stamp Authority (TSA) implements **RFC 3161** to provide trusted timestamps
 
 ## How It Works
 
-1. **Client creates a timestamp request** — hashes a file with SHA-256/SHA-512 and creates a \`TimeStampReq\` (ASN.1 DER-encoded)
-2. **Client sends request to TSA** — HTTP POST to the \`/tsa\` endpoint with \`Content-Type: application/timestamp-query\`
-3. **UCM signs the timestamp** — the configured CA signs the hash + current time into a \`TimeStampResp\`
-4. **Client receives and stores the response** — the \`.tsr\` file can later prove the document existed at that time
+1. **Client creates a timestamp request**: hashes a file with SHA-256/SHA-512 and creates a \`TimeStampReq\` (ASN.1 DER-encoded)
+2. **Client sends request to TSA**: HTTP POST to the \`/tsa\` endpoint with \`Content-Type: application/timestamp-query\`
+3. **UCM signs the timestamp**: the configured CA signs the hash + current time into a \`TimeStampResp\`
+4. **Client receives and stores the response**: the \`.tsr\` file can later prove the document existed at that time
 
 ## Configuration
 
 ### Settings Tab
 
-1. **Enable TSA** — Toggle the TSA server on or off
-2. **Signing CA** — Select which Certificate Authority signs timestamp tokens
-3. **Policy OID** — Object Identifier for the TSA policy (e.g., \`1.2.3.4.1\`), included in every timestamp response
-4. **Require a dedicated TSA certificate** — Opt-in: refuse to sign timestamps with the CA certificate itself. When enabled, a dedicated end-entity signing certificate with a **critical timeStamping EKU** (RFC 3161) is required
+1. **Enable TSA**: Toggle the TSA server on or off
+2. **Signing CA**: Select which Certificate Authority signs timestamp tokens
+3. **Policy OID**: Object Identifier for the TSA policy (e.g., \`1.2.3.4.1\`), included in every timestamp response
+4. **Require a dedicated TSA certificate**: Opt-in: refuse to sign timestamps with the CA certificate itself. When enabled, a dedicated end-entity signing certificate with a **critical timeStamping EKU** (RFC 3161) is required
 
 ### Choosing a Signing CA
 
@@ -1377,7 +1377,7 @@ The signing CA's private key is used to sign every timestamp token. Best practic
 
 - Use a **dedicated sub-CA** for timestamping rather than your root CA
 - The CA certificate should include the **id-kp-timeStamping** Extended Key Usage (OID 1.3.6.1.5.5.7.3.8)
-- Ensure the CA certificate has **sufficient validity** — timestamps must remain verifiable for years
+- Ensure the CA certificate has **sufficient validity**: timestamps must remain verifiable for years
 - Enable **Require a dedicated timestamping certificate** to enforce this at signing time instead of relying on convention
 
 ### Policy OID
@@ -1391,9 +1391,9 @@ The Policy OID identifies the TSA policy under which timestamps are issued. It i
 
 The Information tab displays:
 
-- **TSA Endpoint URL** — Copy-paste ready URL for client configuration
-- **Usage Examples** — OpenSSL commands for creating requests, sending them, and verifying responses
-- **Statistics** — Total timestamp requests processed (successful and failed)
+- **TSA Endpoint URL**: Copy-paste ready URL for client configuration
+- **Usage Examples**: OpenSSL commands for creating requests, sending them, and verifying responses
+- **Statistics**: Total timestamp requests processed (successful and failed)
 
 ## Usage Examples
 
@@ -1462,10 +1462,10 @@ curl -s -H "Content-Type: application/timestamp-query" \\
 
 ## Security Considerations
 
-- The TSA endpoint is **public** — no authentication is required (same as CRL/OCSP)
-- Each timestamp response is **signed** by the CA key — clients verify the signature to ensure authenticity
+- The TSA endpoint is **public**: no authentication is required (same as CRL/OCSP)
+- Each timestamp response is **signed** by the CA key: clients verify the signature to ensure authenticity
 - Use **SHA-256 or stronger** hash algorithms when creating requests (SHA-1 is accepted but discouraged)
-- The TSA does **not** see the original document — only the hash is transmitted
+- The TSA does **not** see the original document: only the hash is transmitted
 - Consider **rate limiting** if the TSA endpoint is exposed to the internet
 
 > 💡 Timestamps are essential for code signing: they ensure your signed software remains trusted even after the signing certificate expires.
@@ -1482,19 +1482,19 @@ The Trust Store manages trusted CA certificates used for chain validation. Impor
 
 ## Certificate Categories
 
-- **Root CA** — Self-signed trust anchors
-- **Intermediate** — CAs signed by root or other intermediates
-- **Client Auth** — Certificates for mTLS client authentication
-- **Code Signing** — Certificates for code signature verification
-- **Custom** — Manually categorized certificates
+- **Root CA**: Self-signed trust anchors
+- **Intermediate**: CAs signed by root or other intermediates
+- **Client Auth**: Certificates for mTLS client authentication
+- **Code Signing**: Certificates for code signature verification
+- **Custom**: Manually categorized certificates
 
 ## Importing Certificates
 
 ### From File
 Upload certificate files in these formats:
-- **PEM** — Base64-encoded (single or bundled)
-- **DER** — Binary format
-- **PKCS#7 (P7B)** — Certificate chain
+- **PEM**: Base64-encoded (single or bundled)
+- **DER**: Binary format
+- **PKCS#7 (P7B)**: Certificate chain
 
 ### From URL
 Fetch a certificate from a remote HTTPS endpoint. UCM downloads and imports the server's certificate chain.
@@ -1509,10 +1509,10 @@ Import all trusted CAs from the operating system's trust store. This populates U
 
 ## Managing Entries
 
-- **Filter by purpose** — Narrow the list by certificate category
-- **Search** — Find certificates by subject name
-- **Export** — Download individual certificates in PEM format
-- **Delete** — Remove a certificate from the trust store
+- **Filter by purpose**: Narrow the list by certificate category
+- **Search**: Find certificates by subject name
+- **Export**: Download individual certificates in PEM format
+- **Delete**: Remove a certificate from the trust store
 
 ## Use Cases
 
@@ -1546,8 +1546,8 @@ Manage user accounts, groups, and role assignments. Users authenticate to UCM vi
 6. Click **Create**
 
 ### User Status
-- **Active** — Can log in and perform actions
-- **Disabled** — Cannot log in, data is preserved
+- **Active**: Can log in and perform actions
+- **Disabled**: Cannot log in, data is preserved
 
 Toggle a user's status without deleting their account.
 
@@ -1578,10 +1578,10 @@ A user's effective permissions are the **union** of:
 ## Roles
 
 ### System Roles
-- **Admin** — Full access to all features
-- **Operator** — Can manage certificates, CAs, CSRs but not system settings
-- **Auditor** — Read-only access to all operational data for compliance and audit
-- **Viewer** — Read-only access to certificates, CAs, and templates
+- **Admin**: Full access to all features
+- **Operator**: Can manage certificates, CAs, CSRs but not system settings
+- **Auditor**: Read-only access to all operational data for compliance and audit
+- **Viewer**: Read-only access to certificates, CAs, and templates
 
 ### Custom Roles
 Create roles with granular permissions on the **RBAC** page.
@@ -1591,8 +1591,8 @@ Create roles with granular permissions on the **RBAC** page.
 ## Authentication Source
 
 The **Source** column shows where each user comes from:
-- **Local** — created and managed in UCM (local password)
-- **LDAP / OAuth2 / SAML** — auto-provisioned on first SSO login. The originating provider name is shown on the badge (e.g. \`LDAP · Corporate AD\`).
+- **Local**: created and managed in UCM (local password)
+- **LDAP / OAuth2 / SAML**: auto-provisioned on first SSO login. The originating provider name is shown on the badge (e.g. \`LDAP · Corporate AD\`).
 
 Since v2.133, roles changed manually in UCM for SSO users are **preserved** between logins, unless **"Sync role on every login"** is enabled on the provider (see **Settings → SSO**).
 `
@@ -1610,10 +1610,10 @@ RBAC provides fine-grained permission management. Define custom roles with speci
 
 Four built-in roles that cannot be modified or deleted:
 
-- **Admin** — Full access to everything
-- **Operator** — Manage certificates, CAs, CSRs, templates. No access to system settings, users, or RBAC
-- **Auditor** — Read-only access to all operational data (certificates, CAs, ACME, SCEP, HSM, audit logs, policies, groups) but not settings or user management
-- **Viewer** — Basic read-only access to certificates, CAs, CSRs, templates, and trust store
+- **Admin**: Full access to everything
+- **Operator**: Manage certificates, CAs, CSRs, templates. No access to system settings, users, or RBAC
+- **Auditor**: Read-only access to all operational data (certificates, CAs, ACME, SCEP, HSM, audit logs, policies, groups) but not settings or user management
+- **Viewer**: Basic read-only access to certificates, CAs, CSRs, templates, and trust store
 
 ## Custom Roles
 
@@ -1625,24 +1625,24 @@ Four built-in roles that cannot be modified or deleted:
 
 ### Permission Matrix
 Permissions are organized by category:
-- **CAs** — Create, read, update, delete, import, export
-- **Certificates** — Issue, read, revoke, renew, delete, export (certificate only — see Private Keys)
-- **Private Keys** — Direct private-key export (\`read:private_keys\`), admin-only: no built-in role except Admin holds it. Roles without it go through Key Recovery
-- **CSRs** — Create, read, sign, delete
-- **Templates** — Create, read, update, delete
-- **Users** — Create, read, update, delete
-- **Groups** — Create, read, update, delete
-- **Settings** — Read, update
-- **Audit** — Read, export, cleanup
-- **ACME** — Configure, manage accounts
-- **SCEP** — Configure, approve requests
-- **Trust Store** — Manage trusted certificates
-- **HSM** — Manage providers and keys
-- **SSH** — Manage SSH CAs and certificates
-- **Policies** — View certificate policies
-- **Approvals** — View and decide approval requests
-- **Key Recovery** — Request recoveries and view requests (approval is admin-only)
-- **Backup** — Create, restore
+- **CAs**: Create, read, update, delete, import, export
+- **Certificates**: Issue, read, revoke, renew, delete, export (certificate only: see Private Keys)
+- **Private Keys**: Direct private-key export (\`read:private_keys\`), admin-only: no built-in role except Admin holds it. Roles without it go through Key Recovery
+- **CSRs**: Create, read, sign, delete
+- **Templates**: Create, read, update, delete
+- **Users**: Create, read, update, delete
+- **Groups**: Create, read, update, delete
+- **Settings**: Read, update
+- **Audit**: Read, export, cleanup
+- **ACME**: Configure, manage accounts
+- **SCEP**: Configure, approve requests
+- **Trust Store**: Manage trusted certificates
+- **HSM**: Manage providers and keys
+- **SSH**: Manage SSH CAs and certificates
+- **Policies**: View certificate policies
+- **Approvals**: View and decide approval requests
+- **Key Recovery**: Request recoveries and view requests (approval is admin-only)
+- **Backup**: Create, restore
 
 ### Category Toggles
 Click a category header to enable/disable all permissions in that category at once.
@@ -1653,8 +1653,8 @@ A percentage badge shows how much of the total permission set the role covers. 1
 ## Assigning Roles
 
 Roles are assigned:
-- **Directly** — On the Users page, edit a user and select a role
-- **Via Groups** — A group grants a permission set; every member receives it in addition to their own role
+- **Directly**: On the Users page, edit a user and select a role
+- **Via Groups**: A group grants a permission set; every member receives it in addition to their own role
 
 ## Effective Permissions
 
@@ -1674,19 +1674,19 @@ The most permissive rule wins (additive model, no deny rules).
     content: `
 ## Overview
 
-Complete audit trail of all operations in UCM. Every action — certificate issuance, revocation, user login, setting change — is logged with details about who, what, when, and where.
+Complete audit trail of all operations in UCM. Every action: certificate issuance, revocation, user login, setting change, is logged with details about who, what, when, and where.
 
 ## Log Entry Details
 
 Each log entry records:
-- **Timestamp** — When the action occurred
-- **User** — Who performed the action
-- **Action** — What was done (create, update, delete, login, etc.)
-- **Resource** — What was affected (certificate, CA, user, etc.)
-- **Status** — Success or failure
-- **IP Address** — Source IP of the request
-- **User Agent** — Client application identifier
-- **Details** — Additional context (error messages, changed values)
+- **Timestamp**: When the action occurred
+- **User**: Who performed the action
+- **Action**: What was done (create, update, delete, login, etc.)
+- **Resource**: What was affected (certificate, CA, user, etc.)
+- **Status**: Success or failure
+- **IP Address**: Source IP of the request
+- **User Agent**: Client application identifier
+- **Details**: Additional context (error messages, changed values)
 
 ## Filtering
 
@@ -1701,8 +1701,8 @@ Filter by operation category:
 Show only actions performed by a specific user.
 
 ### By Status
-- **Success** — Operations that completed successfully
-- **Failed** — Operations that failed (authentication failures, permission denied, errors)
+- **Success**: Operations that completed successfully
+- **Failed**: Operations that failed (authentication failures, permission denied, errors)
 
 ### By Date Range
 Set **From** and **To** dates to narrow the time window.
@@ -1713,8 +1713,8 @@ Free-text search across all log fields.
 ## Export
 
 Export filtered logs in:
-- **JSON** — Machine-readable, includes all fields
-- **CSV** — Spreadsheet-compatible, includes key fields
+- **JSON**: Machine-readable, includes all fields
+- **CSV**: Spreadsheet-compatible, includes key fields
 
 Exports include only the currently filtered results.
 
@@ -1747,36 +1747,36 @@ System-wide configuration organized into tabs. Changes take effect immediately u
 
 ## General
 
-- **Instance Name** — Displayed in the browser title and emails
-- **Hostname** — The server's fully qualified domain name
-- **Default Validity** — Default certificate validity period in days
-- **Expiry Warning Threshold** — Days before expiry to trigger warnings
-- **Public ACME vhost** — Concrete hostname in ACME directory URLs (e.g. \`acme.ucm.example.com\` — not \`*.ucm.example.com\`). A wildcard \`*.ucm.example.com\` **TLS certificate SAN** covers both \`admin.ucm.example.com\` and \`acme.ucm.example.com\`. Configure DNS and TLS for the ACME vhost **before** saving — clients that re-read the directory switch URLs immediately.
+- **Instance Name**: Displayed in the browser title and emails
+- **Hostname**: The server's fully qualified domain name
+- **Default Validity**: Default certificate validity period in days
+- **Expiry Warning Threshold**: Days before expiry to trigger warnings
+- **Public ACME vhost**: Concrete hostname in ACME directory URLs (e.g. \`acme.ucm.example.com\`: not \`*.ucm.example.com\`). A wildcard \`*.ucm.example.com\` **TLS certificate SAN** covers both \`admin.ucm.example.com\` and \`acme.ucm.example.com\`. Configure DNS and TLS for the ACME vhost **before** saving: clients that re-read the directory switch URLs immediately.
 
 ## Appearance
 
-- **Theme** — Light, Dark, or System (follows OS preference)
-- **Accent Color** — Primary color used for buttons, links, and highlights
-- **Force Desktop Mode** — Disable responsive mobile layout
-- **Sidebar Behavior** — Collapsed or expanded by default
+- **Theme**: Light, Dark, or System (follows OS preference)
+- **Accent Color**: Primary color used for buttons, links, and highlights
+- **Force Desktop Mode**: Disable responsive mobile layout
+- **Sidebar Behavior**: Collapsed or expanded by default
 
 ## Email (SMTP)
 
 Configure SMTP for email notifications (expiry alerts, user invitations):
 - **SMTP Host** and **Port**
 - **Username** and **Password**
-- **Encryption** — None, STARTTLS, or SSL/TLS
-- **From Address** — Sender email address
-- **Content Type** — HTML, Plain Text, or Both
-- **Alert Recipients** — Add multiple recipients using the tag input
+- **Encryption**: None, STARTTLS, or SSL/TLS
+- **From Address**: Sender email address
+- **Content Type**: HTML, Plain Text, or Both
+- **Alert Recipients**: Add multiple recipients using the tag input
 
 Click **Test** to send a test email and verify the configuration.
 
 ### Email Template Editor
 
 Click **Edit Template** to open the split-pane template editor in a floating window:
-- **HTML tab** — Edit the HTML email template with live preview on the right
-- **Plain Text tab** — Edit the plain text version for email clients that don't support HTML
+- **HTML tab**: Edit the HTML email template with live preview on the right
+- **Plain Text tab**: Edit the plain text version for email clients that don't support HTML
 - Available variables: \`{{title}}\`, \`{{content}}\`, \`{{datetime}}\`, \`{{instance_url}}\`, \`{{logo}}\`, \`{{title_color}}\`
 - Click **Reset to Default** to restore the built-in UCM-branded template
 - The window is resizable and draggable for comfortable editing
@@ -1813,7 +1813,7 @@ Require all users to enable two-factor authentication.
 ### Private Key Encryption
 Encrypt all private keys stored in the database with AES-256, protected by a master key file. The section shows the encryption status and the **encrypted / unencrypted** key counters. Two opt-in environment variables make missing keys fatal at startup: \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` (integration-secret encryption) and \`UCM_REQUIRE_KEY_ENCRYPTION\` (private-key encryption).
 
-> 💡 Security-sensitive settings (session, lockout, HSTS, public URL, password policy) require the **admin:settings** permission — the fields are locked for operators.
+> 💡 Security-sensitive settings (session, lockout, HSTS, public URL, password policy) require the **admin:settings** permission, the fields are locked for operators.
 
 > ⚠ Test IP restrictions carefully before applying them. Incorrect rules can lock out all users.
 
@@ -1856,16 +1856,16 @@ Upload a backup file to restore UCM to a previous state.
 
 ## Audit
 
-- **Log retention** — Auto-cleanup old logs after N days
-- **Syslog forwarding** — Send events to a remote syslog server (UDP/TCP/TLS)
-- **Integrity verification** — Enable hash chaining for tamper detection
+- **Log retention**: Auto-cleanup old logs after N days
+- **Syslog forwarding**: Send events to a remote syslog server (UDP/TCP/TLS)
+- **Integrity verification**: Enable hash chaining for tamper detection
 
 ## Database
 
 UCM supports two database backends:
 
-- **SQLite** (default) — file-based, zero-config, ideal for single-node
-- **PostgreSQL 13+** — recommended for HA, multi-instance, or when you already operate a managed PG cluster
+- **SQLite** (default): file-based, zero-config, ideal for single-node
+- **PostgreSQL 13+**: recommended for HA, multi-instance, or when you already operate a managed PG cluster
 
 The active backend is selected by the \`DATABASE_URL\` environment variable. When unset, UCM uses SQLite at \`UCM_DATA_DIR/ucm.db\`.
 
@@ -1875,10 +1875,10 @@ The active backend is selected by the \`DATABASE_URL\` environment variable. Whe
 - Migration version
 
 ### Test connection
-Validate a \`DATABASE_URL\` (e.g. \`postgresql://user:pass@host:5432/ucm\`) before switching. The test opens a real connection and reports any error. PostgreSQL servers older than 13 are rejected — UCM requires PostgreSQL 13 or newer.
+Validate a \`DATABASE_URL\` (e.g. \`postgresql://user:pass@host:5432/ucm\`) before switching. The test opens a real connection and reports any error. PostgreSQL servers older than 13 are rejected, UCM requires PostgreSQL 13 or newer.
 
 ### Switch backend
-Persists \`DATABASE_URL\` to \`/etc/ucm/ucm.env\` (DEB/RPM) and restarts UCM. **No data is copied** — use **Migrate** first if you want to keep your existing data.
+Persists \`DATABASE_URL\` to \`/etc/ucm/ucm.env\` (DEB/RPM) and restarts UCM. **No data is copied**: use **Migrate** first if you want to keep your existing data.
 
 ### Migrate data
 Copies all rows from the current backend to the target. Works in both directions (SQLite ↔ PostgreSQL):
@@ -1888,7 +1888,7 @@ Copies all rows from the current backend to the target. Works in both directions
 3. FK checks are disabled during the bulk load
 4. Source/target columns are intersected (legacy columns are skipped with a warning)
 5. PostgreSQL sequences are reset after load
-6. The service restarts automatically (DEB/RPM) — on Docker, set \`DATABASE_URL\` in your compose file and restart the container manually
+6. The service restarts automatically (DEB/RPM): on Docker, set \`DATABASE_URL\` in your compose file and restart the container manually
 
 **Safety checks (fail fast, source untouched):**
 - The target must be empty. If \`users\`, \`cas\`, or \`certificates\` already contain rows, the migration is refused with HTTP 409 and a cleanup hint:
@@ -1929,11 +1929,11 @@ Configure HTTP webhooks to notify external systems on events:
 
 Optional outbound authentication (all apply in addition to the optional HMAC signature):
 
-- **None** — No auth header (public webhooks)
-- **Bearer** — Authorization: Bearer {token}
-- **Basic** — Authorization: Basic base64(username:password)
-- **API Key** — Custom header (e.g. X-Api-Key: {token})
-- **Custom** — Authorization: {scheme} {token} (e.g. auth-key VALUE)
+- **None**: No auth header (public webhooks)
+- **Bearer**: Authorization: Bearer {token}
+- **Basic**: Authorization: Basic base64(username:password)
+- **API Key**: Custom header (e.g. X-Api-Key: {token})
+- **Custom**: Authorization: {scheme} {token} (e.g. auth-key VALUE)
 
 Tokens are stored encrypted and never returned in the UI.
 
@@ -1974,9 +1974,9 @@ Settings › System surfaces the background tasks.
 
 ## Auto-renewal
 The auto-renewal settings drive the renewal scheduler.
-- **Sources** — the scheduler renews certificates whose private key the server holds: by default those issued from the form or a signed request ("manual"), and SCEP, ACME and EST enrolments with a server-generated key. Devices holding their own key renew through their protocol
-- **Awaiting approval** — a certificate whose renewal is queued for approval is left to that decision, as long as it can come before the certificate expires
-- **Renewed meanwhile** — a certificate an operator renewed during the batch is not renewed a second time; one deleted during the batch is skipped
+- **Sources**: the scheduler renews certificates whose private key the server holds: by default those issued from the form or a signed request ("manual"), and SCEP, ACME and EST enrolments with a server-generated key. Devices holding their own key renew through their protocol
+- **Awaiting approval**: a certificate whose renewal is queued for approval is left to that decision, as long as it can come before the certificate expires
+- **Renewed meanwhile**: a certificate an operator renewed during the batch is not renewed a second time; one deleted during the batch is skipped
 
 ## Scheduled backups
 
@@ -1990,55 +1990,55 @@ Settings › Backup enables automatic backups.
 
 UCM's own LDAP connection to Active Directory, independent of any LDAP provider configured under SSO. That one is for logging into UCM; this one is used for certificate-related AD lookups and works whether or not SSO is configured at all.
 
-- **Purpose** — Resolves a Kerberos machine or user principal to its AD object, so UCM can derive a certificate subject/SAN the same way a real Windows CA would
-- **Server** — Hostname/IP and port of a domain controller
-- **LDAPS** — Toggle to use LDAP over SSL/TLS; **Verify SSL Certificate** validates the DC's certificate (optionally against a custom CA bundle when it isn't publicly trusted)
-- **Base DN** and **Bind DN / Password** — Service account credentials used for lookups
-- **Test Connection** — Verify connectivity and credentials before saving
+- **Purpose**: Resolves a Kerberos machine or user principal to its AD object, so UCM can derive a certificate subject/SAN the same way a real Windows CA would
+- **Server**: Hostname/IP and port of a domain controller
+- **LDAPS**: Toggle to use LDAP over SSL/TLS; **Verify SSL Certificate** validates the DC's certificate (optionally against a custom CA bundle when it isn't publicly trusted)
+- **Base DN** and **Bind DN / Password**: Service account credentials used for lookups
+- **Test Connection**: Verify connectivity and credentials before saving
 
 ### GPO Enrollment Policy URLs
 
 Once configured, register one of the displayed URLs as a Certificate Enrollment Policy server in Group Policy (Public Key Policies → Certificate Services Client – Certificate Enrollment Policy), alongside Certificate Services Client – Auto-Enrollment:
-- **Kerberos** — No credential prompt; requires a domain-joined client and the GPO's authentication type set to Kerberos
-- **Username/Password** — Prompts for credentials; for interactive "Request New Certificate" enrollment only
+- **Kerberos**: No credential prompt; requires a domain-joined client and the GPO's authentication type set to Kerberos
+- **Username/Password**: Prompts for credentials; for interactive "Request New Certificate" enrollment only
 
 ## Windows Autoenrollment (XCEP/WSTEP)
 
-Native Windows certificate enrollment via **MS-XCEP** (policy discovery) and **MS-WSTEP** (certificate issuance and renewal) — the same protocols real ADCS uses for MMC "Request New Certificate", \`certreq\`, and unattended GPO autoenrollment.
+Native Windows certificate enrollment via **MS-XCEP** (policy discovery) and **MS-WSTEP** (certificate issuance and renewal): the same protocols real ADCS uses for MMC "Request New Certificate", \`certreq\`, and unattended GPO autoenrollment.
 
 ### Setup Checklist
 
-The tab tracks what's configured versus what's still needed, for both manual and unattended enrollment paths — a Certificate Authority, Policy Discovery (XCEP), Certificate Issuance (WSTEP), and, for unattended GPO autoenrollment, an Active Directory Connector, Kerberos/SPNEGO, and at least one template with autoenrollment allowed.
+The tab tracks what's configured versus what's still needed, for both manual and unattended enrollment paths: a Certificate Authority, Policy Discovery (XCEP), Certificate Issuance (WSTEP), and, for unattended GPO autoenrollment, an Active Directory Connector, Kerberos/SPNEGO, and at least one template with autoenrollment allowed.
 
 ### Policy Discovery (XCEP)
 
-- **Certificate Authority** — The CA whose templates are advertised and that issues certificates through this configuration
-- **Validity (days)** — Default validity applied to certificates issued via WSTEP
+- **Certificate Authority**: The CA whose templates are advertised and that issues certificates through this configuration
+- **Validity (days)**: Default validity applied to certificates issued via WSTEP
 
 ### Kerberos / SPNEGO
 
 Binds the Kerberos-authenticated XCEP/WSTEP endpoints used for silent GPO autoenrollment, so machines and users are authenticated by their Kerberos ticket instead of a credential prompt:
-- **Service Principal Name (SPN)** — e.g. \`HTTP/ucm.example.com@EXAMPLE.COM\`
-- **Keytab** — Generated with \`ktpass\` or \`ktutil\` on the domain controller for the SPN above
+- **Service Principal Name (SPN)**: e.g. \`HTTP/ucm.example.com@EXAMPLE.COM\`
+- **Keytab**: Generated with \`ktpass\` or \`ktutil\` on the domain controller for the SPN above
 
-> ⚠ Kerberos requires the server-side **\`gssapi\` backend** (the Python \`gssapi\` library plus the system Kerberos libraries) — the base SPNEGO package alone is not enough. Without it, Kerberos authentication won't work even when enabled here, and the Kerberos binding is not advertised; a warning is shown on the tab.
+> ⚠ Kerberos requires the server-side **\`gssapi\` backend** (the Python \`gssapi\` library plus the system Kerberos libraries): the base SPNEGO package alone is not enough. Without it, Kerberos authentication won't work even when enabled here, and the Kerberos binding is not advertised; a warning is shown on the tab.
 
 ### Enrollment Policy URLs
 
-- **Username/Password** — Prompts for credentials; for interactive "Request New Certificate" enrollment, doesn't require Active Directory
-- **Kerberos** — No credential prompt; requires a domain-joined client and GPO configuration
+- **Username/Password**: Prompts for credentials; for interactive "Request New Certificate" enrollment, doesn't require Active Directory
+- **Kerberos**: No credential prompt; requires a domain-joined client and GPO configuration
 
 ### Certificate Renewal Binding
 
-Besides Username/Password and Kerberos, WSTEP supports **client-certificate renewal**, mirroring real ADCS CES endpoints: the renewal request (RST) must be XML-DSig-signed with the private key of a certificate **UCM itself issued**. The presented certificate is matched **byte-for-byte** against the stored certificate for the configured CA — serial number or subject alone are never enough. This lets Windows clients renew unattended using their current certificate, without credentials or a Kerberos ticket.
+Besides Username/Password and Kerberos, WSTEP supports **client-certificate renewal**, mirroring real ADCS CES endpoints: the renewal request (RST) must be XML-DSig-signed with the private key of a certificate **UCM itself issued**. The presented certificate is matched **byte-for-byte** against the stored certificate for the configured CA, serial number or subject alone are never enough. This lets Windows clients renew unattended using their current certificate, without credentials or a Kerberos ticket.
 
 ### SID Security Extension (KB5014754)
 
-On **Kerberos-authenticated issuance**, UCM embeds the requester's AD SID in the Microsoft SID security extension (\`szOID_NTDS_CA_SECURITY_EXT\`) of the issued certificate. Domain controllers use it for **strong certificate mapping** (KB5014754) — required since AD enforcement of strong mapping for certificate-based authentication (smartcard logon, PKINIT).
+On **Kerberos-authenticated issuance**, UCM embeds the requester's AD SID in the Microsoft SID security extension (\`szOID_NTDS_CA_SECURITY_EXT\`) of the issued certificate. Domain controllers use it for **strong certificate mapping** (KB5014754): required since AD enforcement of strong mapping for certificate-based authentication (smartcard logon, PKINIT).
 
 ### AD-Derived Subjects
 
-A certificate template can opt into **Build subject from Active Directory** (Templates → Enrollment): for unattended GPO autoenrollment, the subject and SAN are derived from the requester's AD object via the AD Connector instead of requiring the client to supply one — matching how a real ADCS template is configured for autoenrollment. Independently, **Allow autoenrollment** advertises the template as \`autoEnroll=true\` in Certificate Enrollment Policy so GPO/Kerberos-authenticated clients request it automatically at logon.
+A certificate template can opt into **Build subject from Active Directory** (Templates → Enrollment): for unattended GPO autoenrollment, the subject and SAN are derived from the requester's AD object via the AD Connector instead of requiring the client to supply one, matching how a real ADCS template is configured for autoenrollment. Independently, **Allow autoenrollment** advertises the template as \`autoEnroll=true\` in Certificate Enrollment Policy so GPO/Kerberos-authenticated clients request it automatically at logon.
 `
   },
 
@@ -2052,9 +2052,9 @@ Manage your personal profile, security settings, and API keys.
 
 ## Profile
 
-- **Full Name** — Your display name shown across UCM
-- **Email** — Used for notifications, password recovery, and ACME registration
-- **Account Info** — Creation date, last login timestamp, total login count
+- **Full Name**: Your display name shown across UCM
+- **Email**: Used for notifications, password recovery, and ACME registration
+- **Account Info**: Creation date, last login timestamp, total login count
 
 ## Security
 
@@ -2067,7 +2067,7 @@ Add a time-based one-time password using any authenticator app:
 1. Click **Enable 2FA**
 2. Scan the QR code with your authenticator app (Google Authenticator, Authy, 1Password, etc.)
 3. Enter the 6-digit code to confirm
-4. Save the **recovery codes** — they are shown only once
+4. Save the **recovery codes**: they are shown only once
 
 > ⚠ If you lose access to your authenticator and recovery codes, an admin must disable your 2FA.
 
@@ -2096,7 +2096,7 @@ Manage client certificates for mutual TLS authentication:
 2. Enter a **name** (descriptive, e.g., "CI/CD Pipeline")
 3. Optionally set an **expiration date**
 4. Click **Create**
-5. Copy the key immediately — it is shown only once
+5. Copy the key immediately: it is shown only once
 
 ### Using API Keys
 Include the key in the \`X-API-Key\` header:
@@ -2128,10 +2128,10 @@ Import certificates from external sources and export your PKI data for backup or
 The Smart Import wizard auto-detects file types and processes them:
 
 ### Supported Formats
-- **PEM** — Single or bundled certificates, CAs, and keys
-- **DER** — Binary certificate or key
-- **PKCS#12 (P12/PFX)** — Certificate + key + chain (requires password)
-- **PKCS#7 (P7B)** — Certificate chain without keys
+- **PEM**: Single or bundled certificates, CAs, and keys
+- **DER**: Binary certificate or key
+- **PKCS#12 (P12/PFX)**: Certificate + key + chain (requires password)
+- **PKCS#7 (P7B)**: Certificate chain without keys
 
 ### How It Works
 1. Click **Import** or drag files onto the drop zone
@@ -2160,15 +2160,15 @@ UCM imports certificates with their private keys (if available) and preserves th
 ## Export Certificates
 
 Bulk export all certificates:
-- **PEM** — Individual PEM files
-- **P7B Bundle** — All certificates in a single PKCS#7 file
-- **ZIP** — All certificates as individual PEM files in a ZIP archive
+- **PEM**: Individual PEM files
+- **P7B Bundle**: All certificates in a single PKCS#7 file
+- **ZIP**: All certificates as individual PEM files in a ZIP archive
 
 ## Export CAs
 
 Bulk export all Certificate Authorities:
-- **PEM** — Certificate chain in PEM format
-- **Full chain** — Root → Intermediate → Sub-CA
+- **PEM**: Certificate chain in PEM format
+- **Full chain**: Root → Intermediate → Sub-CA
 
 ## Migration Between UCM Instances
 
@@ -2228,7 +2228,7 @@ Shows: Subject, Issuer, SANs, validity, serial number, key usage, extensions, fi
 Verify that a certificate, CSR, and private key belong together:
 
 1. Paste the **certificate** PEM
-2. Paste the **private key** PEM (optionally encrypted — provide password)
+2. Paste the **private key** PEM (optionally encrypted: provide password)
 3. Optionally paste a **CSR** PEM
 4. Click **Match**
 
@@ -2271,11 +2271,11 @@ Bulk operations and data management. Perform batch actions across multiple resou
 
 ## Import/Export Tab
 
-Same as the Import/Export page — Smart Import wizard and bulk export functionality.
+Same as the Import/Export page. Smart Import wizard and bulk export functionality.
 
 ## OPNsense Tab
 
-Same as the Import/Export OPNsense integration — connect, browse, and import from OPNsense.
+Same as the Import/Export OPNsense integration: connect, browse, and import from OPNsense.
 
 ## Bulk Actions
 
@@ -2291,26 +2291,26 @@ Perform batch operations on multiple resources at once.
 ### Available Actions by Resource
 
 #### Certificates
-- **Bulk Revoke** — Revoke multiple certificates at once
-- **Bulk Renew** — Renew multiple certificates
-- **Bulk Export** — Download selected certificates as a bundle
-- **Bulk Delete** — Permanently remove selected certificates
+- **Bulk Revoke**: Revoke multiple certificates at once
+- **Bulk Renew**: Renew multiple certificates
+- **Bulk Export**: Download selected certificates as a bundle
+- **Bulk Delete**: Permanently remove selected certificates
 
 #### CAs
-- **Bulk Export** — Download selected CAs
-- **Bulk Delete** — Remove selected CAs (must have no children)
+- **Bulk Export**: Download selected CAs
+- **Bulk Delete**: Remove selected CAs (must have no children)
 
 #### CSRs
-- **Bulk Sign** — Sign multiple CSRs with a selected CA
-- **Bulk Delete** — Remove selected CSRs
+- **Bulk Sign**: Sign multiple CSRs with a selected CA
+- **Bulk Delete**: Remove selected CSRs
 
 #### Templates
-- **Bulk Export** — Export as JSON
-- **Bulk Delete** — Remove selected templates
+- **Bulk Export**: Export as JSON
+- **Bulk Delete**: Remove selected templates
 
 #### Users
-- **Bulk Disable** — Deactivate selected user accounts
-- **Bulk Delete** — Permanently remove selected users
+- **Bulk Disable**: Deactivate selected user accounts
+- **Bulk Delete**: Permanently remove selected users
 
 > ⚠ Bulk operations are irreversible. Always create a backup before performing bulk deletes or revocations.
 
@@ -2335,41 +2335,41 @@ The industry standard HSM interface. Supported devices:
 - **SoftHSM** (software-based, for testing)
 - Any PKCS#11-compliant device
 
-> 💡 **Docker**: SoftHSM is pre-installed in the Docker image. On first start, a default token is auto-initialized and registered as the \`SoftHSM-Default\` provider — ready to use immediately.
+> 💡 **Docker**: SoftHSM is pre-installed in the Docker image. On first start, a default token is auto-initialized and registered as the \`SoftHSM-Default\` provider, ready to use immediately.
 
 Configuration:
-- **Library Path** — Path to the PKCS#11 shared library (.so/.dll)
-- **Slot** — HSM slot number
-- **PIN** — User PIN for authentication
+- **Library Path**: Path to the PKCS#11 shared library (.so/.dll)
+- **Slot**: HSM slot number
+- **PIN**: User PIN for authentication
 
 ### AWS CloudHSM
 Amazon Web Services cloud-based HSM:
-- **Cluster ID** — CloudHSM cluster identifier
-- **Region** — AWS region
-- **Credentials** — AWS access key and secret
+- **Cluster ID**: CloudHSM cluster identifier
+- **Region**: AWS region
+- **Credentials**: AWS access key and secret
 
 ### Azure Key Vault
 Microsoft Azure managed key storage:
-- **Vault URL** — Azure Key Vault endpoint
-- **Tenant ID** — Azure AD tenant
-- **Client ID/Secret** — Service principal credentials
+- **Vault URL**: Azure Key Vault endpoint
+- **Tenant ID**: Azure AD tenant
+- **Client ID/Secret**: Service principal credentials
 
 ### Google Cloud KMS
 Google Cloud Key Management Service:
-- **Project** — GCP project ID
-- **Location** — KMS key ring location
-- **Key Ring** — Name of the key ring
-- **Credentials** — Service account JSON key
+- **Project**: GCP project ID
+- **Location**: KMS key ring location
+- **Key Ring**: Name of the key ring
+- **Credentials**: Service account JSON key
 
 ### OpenBao / Vault Transit
-OpenBao or HashiCorp Vault Transit Secrets Engine. Keys are managed remotely via the Transit API — no PKCS#11 library required.
+OpenBao or HashiCorp Vault Transit Secrets Engine. Keys are managed remotely via the Transit API, no PKCS#11 library required.
 
 Configuration:
-- **URL** — Server address (e.g., \`https://openbao.example.com:8200\`)
-- **Token** — Authentication token
-- **Mount Path** — Transit engine mount point (default: \`transit\`)
-- **Namespace** — Optional namespace for multi-tenant setups
-- **TLS Skip Verify** — Skip TLS certificate verification (for self-signed certs)
+- **URL**: Server address (e.g., \`https://openbao.example.com:8200\`)
+- **Token**: Authentication token
+- **Mount Path**: Transit engine mount point (default: \`transit\`)
+- **Namespace**: Optional namespace for multi-tenant setups
+- **TLS Skip Verify**: Skip TLS certificate verification (for self-signed certs)
 
 Supported key types:
 - RSA 2048, 3072, 4096
@@ -2394,9 +2394,9 @@ Always test the connection after creating or modifying a provider. UCM verifies 
 
 ### Provider Status
 Each provider shows a connection status indicator:
-- **Connected** — HSM is reachable and authenticated
-- **Disconnected** — Cannot reach the HSM
-- **Error** — Authentication or configuration issue
+- **Connected**: HSM is reachable and authenticated
+- **Disconnected**: Cannot reach the HSM
+- **Error**: Authentication or configuration issue
 
 ## Key Management
 
@@ -2437,11 +2437,11 @@ https://your-ucm-host:8443/api/v2/sso/saml/metadata
 \`\`\`
 
 This URL returns a SAML 2.0 compliant XML document containing:
-- **Entity ID** — UCM's service provider identifier
-- **ACS URL** — Assertion Consumer Service endpoint (HTTP-POST)
-- **SLO URL** — Single Logout Service endpoint
-- **Signing Certificate** — UCM's HTTPS certificate for signing verification
-- **NameID Format** — Requested name identifier format
+- **Entity ID**: UCM's service provider identifier
+- **ACS URL**: Assertion Consumer Service endpoint (HTTP-POST)
+- **SLO URL**: Single Logout Service endpoint
+- **Signing Certificate**: UCM's HTTPS certificate for signing verification
+- **NameID Format**: Requested name identifier format
 
 Copy this URL into your IDP's "Add Service Provider" or "SAML Application" configuration.
 
@@ -2451,7 +2451,7 @@ Copy this URL into your IDP's "Add Service Provider" or "SAML Application" confi
 1. Obtain the IDP metadata URL or XML file from your identity provider
 2. In UCM, go to **Settings → SSO**
 3. Click **Add Provider** → SAML
-4. Enter the **IDP Metadata URL** — UCM auto-populates Entity ID, SSO/SLO URLs, and certificate
+4. Enter the **IDP Metadata URL**: UCM auto-populates Entity ID, SSO/SLO URLs, and certificate
 5. Or paste the IDP metadata XML directly
 6. Configure **attribute mapping** (username, email, groups)
 7. Click **Save** and **Enable**
@@ -2527,27 +2527,27 @@ System-wide security configuration affecting all user accounts and access patter
 
 Encrypt all CA and certificate private keys stored in the database with AES-256, protected by a master key file kept outside the database.
 
-- **Status and counters** — The section shows whether encryption is enabled and how many keys are currently **encrypted** vs **unencrypted**
-- **Enable Encryption** — Generates the master key file and encrypts all stored private keys. Back up the key file immediately: without it, encrypted keys are permanently lost
-- **Disable Encryption** — Decrypts all private keys back to plaintext storage (confirmation required)
+- **Status and counters**: The section shows whether encryption is enabled and how many keys are currently **encrypted** vs **unencrypted**
+- **Enable Encryption**: Generates the master key file and encrypts all stored private keys. Back up the key file immediately: without it, encrypted keys are permanently lost
+- **Disable Encryption**: Decrypts all private keys back to plaintext storage (confirmation required)
 
 ### Startup Enforcement
 
 Without a configured encryption key, UCM logs a warning at startup but keeps running. Two **opt-in environment variables** turn that into a hard failure:
 
-- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` — refuse to start without an explicit database encryption key (otherwise integration secrets fall back to a key derived from the machine id)
-- \`UCM_REQUIRE_KEY_ENCRYPTION\` — refuse to start unless private-key encryption is enabled
+- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\`: refuse to start without an explicit database encryption key (otherwise integration secrets fall back to a key derived from the machine id)
+- \`UCM_REQUIRE_KEY_ENCRYPTION\`: refuse to start unless private-key encryption is enabled
 
 Both accept \`1\`/\`true\`/\`yes\`/\`on\`. An invalid key is treated as fatal instead of silently falling back to plaintext.
 
 ## Password Policy
 
 ### Complexity Requirements
-- **Minimum length** — 8 to 32 characters
-- **Require uppercase** — At least one uppercase letter
-- **Require lowercase** — At least one lowercase letter
-- **Require numbers** — At least one digit
-- **Require special characters** — At least one symbol
+- **Minimum length**: 8 to 32 characters
+- **Require uppercase**: At least one uppercase letter
+- **Require lowercase**: At least one lowercase letter
+- **Require numbers**: At least one digit
+- **Require special characters**: At least one symbol
 
 ### Password Expiry
 Force users to change their password after a set number of days. Set to 0 to disable.
@@ -2587,8 +2587,8 @@ Block specific IPs or CIDR ranges. All other IPs are allowed.
 Require all users to enable 2FA. Users who haven't set up 2FA will be prompted on their next login.
 
 ### Supported Methods
-- **TOTP** — Time-based one-time passwords (authenticator apps)
-- **WebAuthn** — Hardware security keys and biometrics
+- **TOTP**: Time-based one-time passwords (authenticator apps)
+- **WebAuthn**: Hardware security keys and biometrics
 
 > 💡 Enforce 2FA for admin accounts at minimum. Consider enforcing it for all users in security-sensitive environments.
 
@@ -2596,13 +2596,13 @@ Require all users to enable 2FA. Users who haven't set up 2FA will be prompted o
 
 Let users log in with a client certificate instead of a password:
 
-- **Trusted CA** — Select the CA that issues and validates mTLS client certificates
-- **Require client certificate** — Optionally make mTLS mandatory for the web UI
+- **Trusted CA**: Select the CA that issues and validates mTLS client certificates
+- **Require client certificate**: Optionally make mTLS mandatory for the web UI
 - Changing mTLS settings requires a service restart
 
 ## Required Permissions
 
-Security-sensitive settings — session, lockout, HSTS, public URL, and password policy — require the **admin:settings** permission. For operators (write:settings only), those fields are shown locked; the rest of the card still saves normally.
+Security-sensitive settings: session, lockout, HSTS, public URL, and password policy, require the **admin:settings** permission. For operators (write:settings only), those fields are shown locked; the rest of the card still saves normally.
 `
   },
 
@@ -2630,40 +2630,40 @@ Rules applied when certificates are revoked. Can require approval before revocat
 
 ### Max Validity
 Maximum certificate lifetime in days. Common values:
-- **90 days** — Short-lived automation (ACME-style)
-- **397 days** — CA/Browser Forum baseline for public TLS
-- **730 days** — Internal/private PKI
-- **365 days** — Code signing
+- **90 days**: Short-lived automation (ACME-style)
+- **397 days**: CA/Browser Forum baseline for public TLS
+- **730 days**: Internal/private PKI
+- **365 days**: Code signing
 
 ### Allowed Key Types
 Restrict which key algorithms and sizes can be used:
-- **RSA-2048** — Minimum for public trust
-- **RSA-4096** — Higher security, larger certificates
-- **EC-P256** — Modern, fast, recommended
-- **EC-P384** — Higher security elliptic curve
-- **EC-P521** — Maximum security (rarely needed)
+- **RSA-2048**: Minimum for public trust
+- **RSA-4096**: Higher security, larger certificates
+- **EC-P256**: Modern, fast, recommended
+- **EC-P384**: Higher security elliptic curve
+- **EC-P521**: Maximum security (rarely needed)
 
 ### SAN Restrictions
-- **Max DNS Names** — Limit the number of Subject Alternative Names
-- **DNS Pattern** — Restrict to specific domain patterns (e.g. \`*.company.com\`)
+- **Max DNS Names**: Limit the number of Subject Alternative Names
+- **DNS Pattern**: Restrict to specific domain patterns (e.g. \`*.company.com\`)
 
 ## Approval Workflows
 
 When **Require Approval** is enabled, certificate issuance is paused until the required number of approvers from the assigned group have approved the request.
 
 ### Configuration
-- **Approval Group** — Select a user group responsible for approvals
-- **Min Approvers** — Number of approvals required (e.g. 2 of 3 group members)
-- **Notifications** — Alert administrators when policies are violated
+- **Approval Group**: Select a user group responsible for approvals
+- **Min Approvers**: Number of approvals required (e.g. 2 of 3 group members)
+- **Notifications**: Alert administrators when policies are violated
 
 > 💡 Use approval workflows for high-value certificates like code signing and wildcard certificates.
 
 ## Priority System
 
 Policies are evaluated in priority order. Lower numbers have higher precedence:
-- **1–10** — Critical security policies (code signing, wildcard)
-- **10–20** — Standard compliance (public TLS, internal PKI)
-- **20+** — Permissive defaults
+- **1–10**: Critical security policies (code signing, wildcard)
+- **10–20**: Standard compliance (public TLS, internal PKI)
+- **20+**: Permissive defaults
 
 When multiple policies match a certificate request, the highest-priority (lowest number) policy wins.
 
@@ -2678,11 +2678,11 @@ Policy applies only to certificates issued by the selected CA. Use for granular 
 ## Default Policies
 
 UCM ships with 5 built-in policies reflecting real-world PKI best practices:
-- **Code Signing** (priority 5) — Strong keys, approval required
-- **Wildcard Certificates** (priority 8) — Approval required, max 10 SANs
-- **Web Server TLS** (priority 10) — CA/B Forum compliant, 397-day max
-- **Short-Lived Automation** (priority 15) — 90-day ACME-style
-- **Internal PKI** (priority 20) — 730-day, relaxed rules
+- **Code Signing** (priority 5): Strong keys, approval required
+- **Wildcard Certificates** (priority 8): Approval required, max 10 SANs
+- **Web Server TLS** (priority 10): CA/B Forum compliant, 397-day max
+- **Short-Lived Automation** (priority 15): 90-day ACME-style
+- **Internal PKI** (priority 20): 730-day, relaxed rules
 
 > 💡 Customize or disable default policies to match your organization's requirements.
 `
@@ -2693,7 +2693,7 @@ UCM ships with 5 built-in policies reflecting real-world PKI best practices:
     content: `
 ## Overview
 
-The Approvals page shows all certificate requests that require manual approval before issuance. Approval workflows are configured in **Policies** — when a policy has "Require Approval" enabled, any matching certificate request creates an approval request here.
+The Approvals page shows all certificate requests that require manual approval before issuance. Approval workflows are configured in **Policies**: when a policy has "Require Approval" enabled, any matching certificate request creates an approval request here.
 
 ## Request Lifecycle
 
@@ -2738,10 +2738,10 @@ A request waits **seven days** for a decision. Past that it is closed as expired
 
 1. Click a pending request to view its details
 2. Click **Reject**
-3. Enter a **rejection reason** (required) — this is logged for audit compliance
+3. Enter a **rejection reason** (required): this is logged for audit compliance
 4. The request is immediately stopped
 
-> ⚠ Any single rejection stops the entire request. This is intentional — if any reviewer identifies a problem, issuance should not proceed.
+> ⚠ Any single rejection stops the entire request. This is intentional: if any reviewer identifies a problem, issuance should not proceed.
 
 ## Approval History
 
@@ -2755,15 +2755,15 @@ This history is immutable and part of the audit trail.
 ## Filtering
 
 Use the status filter bar at the top to show:
-- **Pending** — Requests awaiting your review
-- **Approved** — Recently approved requests
-- **Rejected** — Rejected requests with reasons
-- **Total** — All requests regardless of status
+- **Pending**: Requests awaiting your review
+- **Approved**: Recently approved requests
+- **Rejected**: Rejected requests with reasons
+- **Total**: All requests regardless of status
 
 ## Permissions
 
-- **read:approvals** — View approval requests
-- **write:approvals** — Approve or reject requests
+- **read:approvals**: View approval requests
+- **write:approvals**: Approve or reject requests
 
 > 💡 Set up email notifications in policies so approvers are alerted when new requests arrive.
 `
@@ -2774,7 +2774,7 @@ Use the status filter bar at the top to show:
     content: `
 ## Overview
 
-Key Recovery retrieves the **archived private key** of a previously issued certificate through an approval-gated, fully audited workflow. It is meant for keys that were **not exported at issuance time** — the preset did not allow export, or it was simply skipped — and are needed later, with an approval trail attached to the retrieval.
+Key Recovery retrieves the **archived private key** of a previously issued certificate through an approval-gated, fully audited workflow. It is meant for keys that were **not exported at issuance time**: the preset did not allow export, or it was simply skipped, and are needed later, with an approval trail attached to the retrieval.
 
 Recovery only works when the private key was archived (stored in the database) at issuance. It cannot reconstruct a key that was never kept.
 
@@ -2784,25 +2784,25 @@ Recovery only works when the private key was archived (stored in the database) a
 A user opens a recovery request for a specific certificate and provides a reason. The request is recorded and enters the pending state.
 
 ### 2. Approve (four-eyes)
-A second authorised operator reviews the request and approves it. The requester **cannot approve their own request** — request and approval are separate actions by different people (dual control).
+A second authorised operator reviews the request and approves it. The requester **cannot approve their own request**: request and approval are separate actions by different people (dual control).
 
 ### 3. Download
 Once approved, the archived key is released as a **password-protected PKCS#12** bundle. The download is recorded in the audit trail.
 
 ## Requirements
 
-- **Archived key** — the certificate's private key must be present in the database. Certificates whose key was never archived cannot be recovered.
-- **Dual control** — the request and the approval are distinct steps performed by different users.
+- **Archived key**: the certificate's private key must be present in the database. Certificates whose key was never archived cannot be recovered.
+- **Dual control**: the request and the approval are distinct steps performed by different users.
 
 ## Permissions
 
-- **read:key_recovery** — Request a recovery and view requests
-- **admin** — Approve or deny a pending recovery request
-- **read:private_keys** — Admin-only scope required for *direct* private-key export from the Certificates page (bypassing this workflow)
+- **read:key_recovery**: Request a recovery and view requests
+- **admin**: Approve or deny a pending recovery request
+- **read:private_keys**: Admin-only scope required for *direct* private-key export from the Certificates page (bypassing this workflow)
 
 ## What it is (and isn't)
 
-Key Recovery adds an **approval trail** to retrieving an archived key after issuance. Direct private-key export is gated behind the admin-only **read:private_keys** scope — roles without it (including the built-in Operator role) must go through Key Recovery, so the four-eyes approval cannot be bypassed.
+Key Recovery adds an **approval trail** to retrieving an archived key after issuance. Direct private-key export is gated behind the admin-only **read:private_keys** scope, roles without it (including the built-in Operator role) must go through Key Recovery, so the four-eyes approval cannot be bypassed.
 
 > 💡 Every request, approval and download is written to the audit trail for compliance.
 `
@@ -2821,7 +2821,7 @@ Generate, download, and schedule PKI compliance reports. Reports provide visibil
 Complete list of all certificates managed by UCM. Includes subject, issuer, serial number, validity dates, key type, and current status. Use for compliance audits and infrastructure documentation.
 
 ### Expiring Certificates
-Certificates expiring within a specified time window (default: 30 days). Critical for avoiding outages — review this report regularly or schedule it for daily delivery.
+Certificates expiring within a specified time window (default: 30 days). Critical for avoiding outages, review this report regularly or schedule it for daily delivery.
 
 ### CA Hierarchy
 Certificate Authority structure showing parent-child relationships, certificate counts per CA, and CA status. Useful for understanding your PKI topology.
@@ -2838,18 +2838,18 @@ Click **Download PDF** in the top-right to generate a professional executive rep
 
 ### Contents
 The PDF report includes 9 sections:
-1. **Cover Page** — Key metrics, risk gauge, and key findings at a glance
-2. **Table of Contents** — Quick navigation
-3. **Executive Summary** — Overall PKI health, certificate distribution, and risk level
-4. **Risk Assessment** — Critical findings, expiring certificates, weak algorithms
-5. **Certificate Inventory** — Breakdown by status, key type, and issuing CA
-6. **Compliance Analysis** — Score distribution, grade breakdown, category scores
-7. **Certificate Lifecycle** — Expiration timeline and automation rate
-8. **CA Infrastructure** — Root and intermediate CA details, hierarchy
-9. **Recommendations** — Actionable items based on current PKI state
+1. **Cover Page**: Key metrics, risk gauge, and key findings at a glance
+2. **Table of Contents**: Quick navigation
+3. **Executive Summary**: Overall PKI health, certificate distribution, and risk level
+4. **Risk Assessment**: Critical findings, expiring certificates, weak algorithms
+5. **Certificate Inventory**: Breakdown by status, key type, and issuing CA
+6. **Compliance Analysis**: Score distribution, grade breakdown, category scores
+7. **Certificate Lifecycle**: Expiration timeline and automation rate
+8. **CA Infrastructure**: Root and intermediate CA details, hierarchy
+9. **Recommendations**: Actionable items based on current PKI state
 
 ### Charts & Visuals
-The report includes visual elements: risk gauge bar, status distribution, compliance grade breakdown, and expiration timeline — designed for non-technical stakeholders.
+The report includes visual elements: risk gauge bar, status distribution, compliance grade breakdown, and expiration timeline, designed for non-technical stakeholders.
 
 > 💡 The PDF report is generated from live data. Download it before meetings for the most current snapshot.
 
@@ -2863,8 +2863,8 @@ The report includes visual elements: risk gauge bar, status distribution, compli
 ## Downloading Reports
 
 Each report row has download buttons:
-- **CSV** — Spreadsheet format for Excel, Google Sheets, or LibreOffice
-- **JSON** — Structured data for automation and integration
+- **CSV**: Spreadsheet format for Excel, Google Sheets, or LibreOffice
+- **JSON**: Structured data for automation and integration
 
 > 💡 CSV reports are easier for non-technical stakeholders. JSON is better for scripts and API integrations.
 
@@ -2889,11 +2889,11 @@ Before enabling schedules, use the ✈️ button on any report row to send a tes
 
 ## Permissions
 
-- **read:reports** — Generate and download reports
-- **read:audit + export:audit** — Download PDF executive report
-- **write:settings** — Configure report schedules
+- **read:reports**: Generate and download reports
+- **read:audit + export:audit**: Download PDF executive report
+- **write:settings**: Configure report schedules
 
-> 💡 Schedule the expiry report first — it's the most operationally valuable and helps prevent certificate-related outages.
+> 💡 Schedule the expiry report first: it's the most operationally valuable and helps prevent certificate-related outages.
 `
   },
 
@@ -2911,7 +2911,7 @@ Certificate Discovery scans your network to find TLS certificates deployed on se
 All certificates found by scans, with status, expiry, and endpoint details. Click a row to open the detail panel with certificate info, Subject Alternative Names, and scan history (first seen, last seen, last changed).
 
 ### Profiles
-Saved scan configurations for recurring scans — targets, ports, schedule, and notifications.
+Saved scan configurations for recurring scans: targets, ports, schedule, and notifications.
 
 ### History
 Past scan runs with duration, targets scanned, certificates found, and who triggered the run.
@@ -2921,51 +2921,51 @@ Past scan runs with duration, targets scanned, certificates found, and who trigg
 Run an ad-hoc scan without saving a profile:
 
 1. Click **Quick Scan**
-2. Enter **targets** — one per line: hostname, IP, CIDR subnet (\`192.168.1.0/24\`), or \`host:port\` (\`10.0.0.1:8443\`)
-3. Enter **ports** — comma-separated TCP ports (e.g. \`443, 8443, 636\`), or pick the common-ports preset
-4. Optionally tune **advanced options** — reverse DNS resolution (PTR records), timeout, concurrency
-5. Click **Start Scan** — progress updates live via WebSocket
+2. Enter **targets**: one per line: hostname, IP, CIDR subnet (\`192.168.1.0/24\`), or \`host:port\` (\`10.0.0.1:8443\`)
+3. Enter **ports**: comma-separated TCP ports (e.g. \`443, 8443, 636\`), or pick the common-ports preset
+4. Optionally tune **advanced options**: reverse DNS resolution (PTR records), timeout, concurrency
+5. Click **Start Scan**: progress updates live via WebSocket
 
 ## Scan Profiles
 
 Profiles save a target configuration for repeated use:
 
-- **Targets and ports** — same formats as Quick Scan
-- **Schedule** — manual, or automatic every 1h / 6h / 12h / 24h / 7d
-- **Notifications** — email alerts when new certificates are discovered, when a certificate changes on an endpoint, or when discovered certificates are expiring
+- **Targets and ports**: same formats as Quick Scan
+- **Schedule**: manual, or automatic every 1h / 6h / 12h / 24h / 7d
+- **Notifications**: email alerts when new certificates are discovered, when a certificate changes on an endpoint, or when discovered certificates are expiring
 
 Run a profile on demand with **Scan**, or let the scheduler run it at the configured interval.
 
 ## Result Statuses
 
-- **Managed** — The certificate's SHA-256 fingerprint matches a certificate in UCM's inventory
-- **Unmanaged** — Found on the network but not in the inventory — a candidate for bringing under management
-- **Error** — The endpoint could not be scanned; the error column shows a hint (connection refused, DNS failure, timeout, TLS handshake / SNI issue)
+- **Managed**: The certificate's SHA-256 fingerprint matches a certificate in UCM's inventory
+- **Unmanaged**: Found on the network but not in the inventory: a candidate for bringing under management
+- **Error**: The endpoint could not be scanned; the error column shows a hint (connection refused, DNS failure, timeout, TLS handshake / SNI issue)
 
 ### Change Detection
 When an endpoint presents a different certificate than the previous scan, the change is recorded (previous fingerprint kept, **Last changed** timestamp) and can trigger a notification.
 
 ## Filtering & Export
 
-- **Status filter pills** — Managed, Unmanaged, Error, Expired, Expiring Soon
-- **Profile filter** — Restrict results to one scan profile
-- **Export** — Download discovered certificates as CSV or JSON (filters apply)
-- **Retry** — Re-scan individual error targets, or **Retry all errors** at once
-- **Resolve DNS** — Bulk reverse-DNS resolution for discovered IPs
+- **Status filter pills**: Managed, Unmanaged, Error, Expired, Expiring Soon
+- **Profile filter**: Restrict results to one scan profile
+- **Export**: Download discovered certificates as CSV or JSON (filters apply)
+- **Retry**: Re-scan individual error targets, or **Retry all errors** at once
+- **Resolve DNS**: Bulk reverse-DNS resolution for discovered IPs
 
 ## Limits & Security
 
 - Subnets are capped at 1024 addresses (a /22 IPv4 equivalent); up to 1000 targets per profile scan
-- Private RFC1918 ranges and loopback are scannable — UCM's on-prem deployment model; link-local, multicast, and reserved ranges are blocked
+- Private RFC1918 ranges and loopback are scannable: UCM's on-prem deployment model; link-local, multicast, and reserved ranges are blocked
 - All scan actions are audit-logged
 
 ## Permissions
 
-- **read:certificates** — View discovered certificates, profiles, and history
-- **admin:system** — Create/edit profiles and run scans
-- **delete:certificates** — Delete discovered results
+- **read:certificates**: View discovered certificates, profiles, and history
+- **admin:system**: Create/edit profiles and run scans
+- **delete:certificates**: Delete discovered results
 
-> 💡 Schedule a daily scan of your server subnets and enable the new-certificate notification — it catches certificates deployed outside your PKI process.
+> 💡 Schedule a daily scan of your server subnets and enable the new-certificate notification: it catches certificates deployed outside your PKI process.
 `
   },
 
@@ -2992,8 +2992,8 @@ UCM integrates with Microsoft Active Directory Certificate Services (AD CS) to s
 
 | Method | Requirements | Best For |
 |--------|-------------|----------|
-| **Client Certificate (mTLS)** | Client cert/key PEM from the CA | Production — no domain join needed |
-| **Basic Auth** | Username + password, HTTPS | Simple setups — enable basic auth in IIS certsrv |
+| **Client Certificate (mTLS)** | Client cert/key PEM from the CA | Production, no domain join needed |
+| **Basic Auth** | Username + password, HTTPS | Simple setups: enable basic auth in IIS certsrv |
 | **Kerberos** | Domain-joined machine + keytab | Enterprise AD environments |
 
 ### Client Certificate Setup (Recommended)
@@ -3035,14 +3035,14 @@ EOBO allows an enrollment agent to request certificates on behalf of other users
 1. In the sign modal, select the Microsoft CA connection and template
 2. Check the **Enroll on Behalf Of (EOBO)** checkbox
 3. The fields auto-populate from the CSR:
-   - **Enrollee DN** — from the CSR subject (e.g., CN=John Doe,OU=Users,DC=corp,DC=local)
-   - **Enrollee UPN** — from the CSR SAN email (e.g., john.doe@corp.local)
+   - **Enrollee DN**: from the CSR subject (e.g., CN=John Doe,OU=Users,DC=corp,DC=local)
+   - **Enrollee UPN**: from the CSR SAN email (e.g., john.doe@corp.local)
 4. Adjust the values if needed
 5. Click **Sign**
 
 UCM passes these as ADCS request attributes:
-- EnrolleeObjectName:<DN> — identifies the target user in AD
-- EnrolleePrincipalName:<UPN> — the user's login name
+- EnrolleeObjectName:<DN>: identifies the target user in AD
+- EnrolleePrincipalName:<UPN>: the user's login name
 
 ### EOBO vs Direct Enrollment
 
@@ -3056,12 +3056,12 @@ UCM passes these as ADCS request attributes:
 ## Certificate Lifecycle
 
 ### Renewing an AD CS certificate
-Renewal does **not** re-sign locally (the issuing key lives on the Windows CA). UCM resubmits the certificate's original CSR — same key, subject and SANs — to the connection and template that issued it, and updates the certificate in place. If the CA holds the renewal for manager approval, it is tracked as a pending request.
+Renewal does **not** re-sign locally (the issuing key lives on the Windows CA). UCM resubmits the certificate's original CSR: same key, subject and SANs, to the connection and template that issued it, and updates the certificate in place. If the CA holds the renewal for manager approval, it is tracked as a pending request.
 
 ### Revoking an AD CS certificate
 AD CS Web Enrollment has no revocation endpoint. Revoking an AD CS-issued certificate:
-- **Without the WinRM admin channel** — marks it revoked in UCM only; the Windows CA is not notified. Revoke it on the CA as well.
-- **With the WinRM admin channel** — UCM propagates the revocation to the Windows CA (certutil -revoke + CRL publish). Lifting a certificateHold propagates the unrevoke too.
+- **Without the WinRM admin channel**: marks it revoked in UCM only; the Windows CA is not notified. Revoke it on the CA as well.
+- **With the WinRM admin channel**: UCM propagates the revocation to the Windows CA (certutil -revoke + CRL publish). Lifting a certificateHold propagates the unrevoke too.
 
 ## WinRM Admin Channel (optional)
 
@@ -3076,14 +3076,14 @@ The admin channel lets UCM run management operations on the Windows CA that Web 
 1. Edit the connection and enable **WinRM admin channel**
 2. Set the host (defaults to the connection server), port, and transport
 3. **Transport**: Kerberos (recommended, reuses the connection keytab) or NTLM, over HTTP or HTTPS
-4. **Credentials**: leave empty to reuse the connection's own (Basic/Kerberos). mTLS connections have no reusable WinRM credential — set a dedicated account
+4. **Credentials**: leave empty to reuse the connection's own (Basic/Kerberos). mTLS connections have no reusable WinRM credential, set a dedicated account
 5. Click **Test admin channel**
 
 | Enroll auth mode | Reuses credentials for WinRM? |
 |------------------|-------------------------------|
-| Kerberos (keytab) | Yes — same principal/keytab |
-| Basic (user/pass) | Yes — password to NTLM/Kerberos |
-| Certificate (mTLS) | No — set a dedicated WinRM account |
+| Kerberos (keytab) | Yes: same principal/keytab |
+| Basic (user/pass) | Yes: password to NTLM/Kerberos |
+| Certificate (mTLS) | No: set a dedicated WinRM account |
 
 ## CRL Revocation Sync
 
@@ -3096,8 +3096,8 @@ Enable **Import certificates issued directly on the CA** to bring certificates i
 ## CA Control Panel
 
 The control panel (opened from the connection, requires the admin channel) manages requests awaiting CA manager approval and shows CA health:
-- **Pending requests** — list, **Approve** (certutil -resubmit; the issued certificate is imported automatically) or **Deny** (certutil -deny)
-- **Health** — CA service status, CA certificate expiry, CRL next-update, and pending-request count
+- **Pending requests**: list, **Approve** (certutil -resubmit; the issued certificate is imported automatically) or **Deny** (certutil -deny)
+- **Health**: CA service status, CA certificate expiry, CRL next-update, and pending-request count
 
 ## Troubleshooting
 
@@ -3108,8 +3108,8 @@ The control panel (opened from the connection, requires the admin channel) manag
 | EOBO denied | Verify enrollment agent certificate and template permissions |
 | Request stuck pending | Approve it from the CA Control Panel, or on the Windows CA console then refresh status |
 | Admin channel test fails | Verify WinRM is enabled on the CA, the port/transport, and that pywinrm is installed |
-| Revocation not on the CA | Enable the WinRM admin channel — without it, revocation is local to UCM |
-| Pending not detected (non-English CA) | Fixed in v2.192 — UCM now recognizes localized AD CS pending pages |
+| Revocation not on the CA | Enable the WinRM admin channel, without it, revocation is local to UCM |
+| Pending not detected (non-English CA) | Fixed in v2.192. UCM now recognizes localized AD CS pending pages |
 
 > 💡 Use the **Test Connection** button to verify authentication and discover available templates before signing. Enable the **WinRM admin channel** to manage revocation, CRLs, inventory and pending requests directly from UCM.
 `
@@ -3123,7 +3123,7 @@ The control panel (opened from the connection, requires the admin channel) manag
 
 SSH Certificate Authorities (CAs) are the foundation of SSH certificate-based authentication. Instead of distributing individual public keys to every server, you create a CA and configure servers to trust it. Any certificate signed by the CA is then automatically accepted.
 
-UCM supports the OpenSSH certificate format (RFC 4253 + OpenSSH extensions), which is natively understood by OpenSSH 5.4+ — no additional software needed on servers or clients.
+UCM supports the OpenSSH certificate format (RFC 4253 + OpenSSH extensions), which is natively understood by OpenSSH 5.4+, no additional software needed on servers or clients.
 
 ## CA Types
 
@@ -3137,7 +3137,7 @@ TrustedUserCAKeys /etc/ssh/user_ca.pub
 \`\`\`
 
 ### Host CA
-A Host CA signs certificates that authenticate **servers to clients**. When a client trusts a Host CA, it can verify that the server it connects to is legitimate — eliminating "trust on first use" (TOFU) warnings.
+A Host CA signs certificates that authenticate **servers to clients**. When a client trusts a Host CA, it can verify that the server it connects to is legitimate: eliminating "trust on first use" (TOFU) warnings.
 
 **Client configuration:**
 \`\`\`
@@ -3151,9 +3151,9 @@ A Host CA signs certificates that authenticate **servers to clients**. When a cl
 2. Enter a descriptive name (e.g., "Production User CA")
 3. Select the CA type: **User** or **Host**
 4. Choose the key algorithm:
-   - **Ed25519** — Recommended. Fast, small keys, modern security.
-   - **ECDSA P-256/P-384** — Good compatibility and security.
-   - **RSA 2048/4096** — Broadest compatibility, larger keys.
+   - **Ed25519**: Recommended. Fast, small keys, modern security.
+   - **ECDSA P-256/P-384**: Good compatibility and security.
+   - **RSA 2048/4096**: Broadest compatibility, larger keys.
 5. Optionally set max validity and default extensions
 6. Click **Create**
 
@@ -3161,8 +3161,8 @@ A Host CA signs certificates that authenticate **servers to clients**. When a cl
 
 The **Default TTL** and **Max TTL** fields accept human-readable durations:
 
-- Suffixed values — \`24h\`, \`7d\`, \`365d\` (accepted suffixes: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
-- Bare numbers — interpreted as **seconds** (e.g. \`3600\` = 1 hour)
+- Suffixed values: \`24h\`, \`7d\`, \`365d\` (accepted suffixes: \`s\`, \`m\`, \`h\`, \`d\`, \`w\`, \`y\`)
+- Bare numbers: interpreted as **seconds** (e.g. \`3600\` = 1 hour)
 
 Malformed values are rejected with an error naming the accepted formats.
 
@@ -3276,14 +3276,14 @@ ssh -i ~/.ssh/id_work user@server
 ### Generate Mode
 UCM generates both the key pair and the certificate. Use this when you need to provision credentials centrally.
 
-> ⚠ **Download the private key immediately** — it is not stored in UCM and cannot be recovered.
+> ⚠ **Download the private key immediately**: it is not stored in UCM and cannot be recovered.
 
 **Workflow:**
 1. Select a CA and fill in the certificate details
 2. Choose "Generate" mode
 3. Click **Issue**
 4. Download all three files:
-   - Private key (\`keyid\`) — **Save securely!**
+   - Private key (\`keyid\`): **Save securely!**
    - Certificate (\`keyid-cert.pub\`)
    - Public key (\`keyid.pub\`)
 
@@ -3300,7 +3300,7 @@ Principals define **who** (user certs) or **what** (host certs) the certificate 
 - **User certificates**: list of usernames the holder can log in as (e.g., \`deploy\`, \`admin\`)
 - **Host certificates**: list of hostnames/IPs the server is known by (e.g., \`web01.example.com\`, \`10.0.1.5\`)
 
-> 💡 If no principals are specified, the certificate works for any principal — which is usually too permissive.
+> 💡 If no principals are specified, the certificate works for any principal, which is usually too permissive.
 
 ### Validity
 

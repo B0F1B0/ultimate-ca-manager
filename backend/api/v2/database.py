@@ -186,7 +186,7 @@ def _switch_backend():
                 _refusal_status(boot_stats),
             )
     else:
-        boot_msg = 'Reverting to SQLite default — no bootstrap needed'
+        boot_msg = 'Reverting to SQLite default, no bootstrap needed'
         boot_stats = {}
 
     ok, msg, env_backup = svc.persist_database_url_with_backup(database_url)

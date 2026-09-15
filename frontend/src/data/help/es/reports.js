@@ -49,7 +49,7 @@ Genere, descargue y programe informes de cumplimiento PKI. Los informes proporci
 Lista completa de todos los certificados gestionados por UCM. Incluye asunto, emisor, número de serie, fechas de validez, tipo de clave y estado actual. Úselo para auditorías de cumplimiento y documentación de infraestructura.
 
 ### Certificados por expirar
-Certificados que expiran dentro de un período de tiempo especificado (por defecto: 30 días). Crítico para evitar interrupciones — revise este informe regularmente o prográmelo para entrega diaria.
+Certificados que expiran dentro de un período de tiempo especificado (por defecto: 30 días). Crítico para evitar interrupciones, revise este informe regularmente o prográmelo para entrega diaria.
 
 ### Jerarquía de CA
 Estructura de las autoridades de certificación que muestra las relaciones padre-hijo, el recuento de certificados por CA y el estado de la CA. Útil para comprender la topología de su PKI.
@@ -66,18 +66,18 @@ Haga clic en **Descargar PDF** en la esquina superior derecha para generar un in
 
 ### Contenido
 El informe PDF incluye 9 secciones:
-1. **Portada** — Métricas clave, medidor de riesgo y hallazgos principales de un vistazo
-2. **Tabla de contenidos** — Navegación rápida
-3. **Resumen ejecutivo** — Salud general de la PKI, distribución de certificados y nivel de riesgo
-4. **Evaluación de riesgos** — Hallazgos críticos, certificados por expirar, algoritmos débiles
-5. **Inventario de certificados** — Desglose por estado, tipo de clave y CA emisora
-6. **Análisis de cumplimiento** — Distribución de puntuaciones, desglose de calificaciones, puntuaciones por categoría
-7. **Ciclo de vida de certificados** — Línea de tiempo de expiración y tasa de automatización
-8. **Infraestructura de CA** — Detalles de CA raíz e intermedias, jerarquía
-9. **Recomendaciones** — Elementos accionables basados en el estado actual de la PKI
+1. **Portada**: Métricas clave, medidor de riesgo y hallazgos principales de un vistazo
+2. **Tabla de contenidos**: Navegación rápida
+3. **Resumen ejecutivo**: Salud general de la PKI, distribución de certificados y nivel de riesgo
+4. **Evaluación de riesgos**: Hallazgos críticos, certificados por expirar, algoritmos débiles
+5. **Inventario de certificados**: Desglose por estado, tipo de clave y CA emisora
+6. **Análisis de cumplimiento**: Distribución de puntuaciones, desglose de calificaciones, puntuaciones por categoría
+7. **Ciclo de vida de certificados**: Línea de tiempo de expiración y tasa de automatización
+8. **Infraestructura de CA**: Detalles de CA raíz e intermedias, jerarquía
+9. **Recomendaciones**: Elementos accionables basados en el estado actual de la PKI
 
 ### Gráficos y visualizaciones
-El informe incluye elementos visuales: barra de medidor de riesgo, distribución de estados, desglose de calificaciones de cumplimiento y línea de tiempo de expiración — diseñados para partes interesadas no técnicas.
+El informe incluye elementos visuales: barra de medidor de riesgo, distribución de estados, desglose de calificaciones de cumplimiento y línea de tiempo de expiración, diseñados para partes interesadas no técnicas.
 
 > 💡 El informe PDF se genera a partir de datos en tiempo real. Descárguelo antes de las reuniones para obtener la instantánea más actual.
 
@@ -91,8 +91,8 @@ El informe incluye elementos visuales: barra de medidor de riesgo, distribución
 ## Descarga de informes
 
 Cada fila de informe tiene botones de descarga:
-- **CSV** — Formato de hoja de cálculo para Excel, Google Sheets o LibreOffice
-- **JSON** — Datos estructurados para automatización e integración
+- **CSV**: Formato de hoja de cálculo para Excel, Google Sheets o LibreOffice
+- **JSON**: Datos estructurados para automatización e integración
 
 > 💡 Los informes CSV son más fáciles para partes interesadas no técnicas. JSON es mejor para scripts e integraciones API.
 
@@ -117,11 +117,11 @@ Antes de activar los programas, use el botón ✈️ en cualquier fila de inform
 
 ## Permisos
 
-- **read:reports** — Generar y descargar informes
-- **read:audit + export:audit** — Descargar informe ejecutivo PDF
-- **write:settings** — Configurar programas de informes
+- **read:reports**: Generar y descargar informes
+- **read:audit + export:audit**: Descargar informe ejecutivo PDF
+- **write:settings**: Configurar programas de informes
 
-> 💡 Programe el informe de expiración primero — es el más valioso operativamente y ayuda a prevenir interrupciones relacionadas con certificados.
+> 💡 Programe el informe de expiración primero: es el más valioso operativamente y ayuda a prevenir interrupciones relacionadas con certificados.
 `
   }
 }

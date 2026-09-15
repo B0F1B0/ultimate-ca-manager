@@ -620,7 +620,7 @@ class CACreationMixin:
                 )
         elif parent is None:
             warnings.append(
-                "Issuing CA not found in UCM — import the external root "
+                "Issuing CA not found in UCM: import the external root "
                 "(certificate only) to complete the chain"
             )
 

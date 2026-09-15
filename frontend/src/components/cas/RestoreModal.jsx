@@ -57,7 +57,7 @@ export function RestoreModal({ open, onClose, ca, onSuccess }) {
   }
 
   const title = useMemo(
-    () => `${t('cas.restore')} — ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
+    () => `${t('cas.restore')}: ${ca?.common_name || ca?.descr || `CA #${ca?.id}`}`,
     [t, ca]
   )
 

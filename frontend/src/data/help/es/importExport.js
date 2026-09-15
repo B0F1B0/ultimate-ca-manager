@@ -7,7 +7,7 @@ export default {
       {
         title: 'Importar',
         items: [
-          { label: 'Importación inteligente', text: 'Suba cualquier archivo de certificado — UCM detecta automáticamente el formato (PEM, DER, P12, P7B)' },
+          { label: 'Importación inteligente', text: 'Suba cualquier archivo de certificado, UCM detecta automáticamente el formato (PEM, DER, P12, P7B)' },
           { label: 'Sincronización OPNsense', text: 'Conéctese al firewall OPNsense e importe sus certificados y CAs' },
         ]
       },
@@ -45,10 +45,10 @@ Importe certificados de fuentes externas y exporte sus datos PKI para copias de 
 El asistente de importación inteligente detecta automáticamente los tipos de archivo y los procesa:
 
 ### Formatos compatibles
-- **PEM** — Certificados individuales o en paquete, CAs y claves
-- **DER** — Certificado o clave en formato binario
-- **PKCS#12 (P12/PFX)** — Certificado + clave + cadena (requiere contraseña)
-- **PKCS#7 (P7B)** — Cadena de certificados sin claves
+- **PEM**: Certificados individuales o en paquete, CAs y claves
+- **DER**: Certificado o clave en formato binario
+- **PKCS#12 (P12/PFX)**: Certificado + clave + cadena (requiere contraseña)
+- **PKCS#7 (P7B)**: Cadena de certificados sin claves
 
 ### Cómo funciona
 1. Haga clic en **Importar** o arrastre archivos a la zona de carga
@@ -77,15 +77,15 @@ UCM importa los certificados con sus claves privadas (si están disponibles) y p
 ## Exportar certificados
 
 Exportación masiva de todos los certificados:
-- **PEM** — Archivos PEM individuales
-- **Paquete P7B** — Todos los certificados en un solo archivo PKCS#7
-- **ZIP** — Todos los certificados como archivos PEM individuales en un archivo ZIP
+- **PEM**: Archivos PEM individuales
+- **Paquete P7B**: Todos los certificados en un solo archivo PKCS#7
+- **ZIP**: Todos los certificados como archivos PEM individuales en un archivo ZIP
 
 ## Exportar CAs
 
 Exportación masiva de todas las Autoridades de Certificación:
-- **PEM** — Cadena de certificados en formato PEM
-- **Cadena completa** — Raíz → Intermedia → Sub-CA
+- **PEM**: Cadena de certificados en formato PEM
+- **Cadena completa**: Raíz → Intermedia → Sub-CA
 
 ## Migración entre instancias UCM
 

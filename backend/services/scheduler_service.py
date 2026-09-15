@@ -397,7 +397,7 @@ class SchedulerService:
         self._app = app
         # Only one process across master/workers may run the background loop.
         if not self._acquire_singleton_lock():
-            logger.info("Scheduler background loop owned by another process — "
+            logger.info("Scheduler background loop owned by another process, "
                         "tasks registered here, but not running the loop in this process")
             return
 

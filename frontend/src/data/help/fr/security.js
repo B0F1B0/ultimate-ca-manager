@@ -36,7 +36,7 @@ export default {
         title: 'Authentification mTLS',
         items: [
           { label: 'CA de confiance', text: 'Sélectionner la CA qui émet et valide les certificats client de connexion mTLS' },
-          { label: 'Exiger un certificat client', text: 'Rendre optionnellement mTLS obligatoire pour l\'interface web — la modification des paramètres mTLS nécessite un redémarrage du service' },
+          { label: 'Exiger un certificat client', text: 'Rendre optionnellement mTLS obligatoire pour l\'interface web, la modification des paramètres mTLS nécessite un redémarrage du service' },
         ]
       },
     ],
@@ -47,7 +47,7 @@ export default {
     warnings: [
       'Une politique de mot de passe trop stricte peut frustrer les utilisateurs',
       'Assurez-vous toujours qu\'au moins un admin peut accéder au système avant d\'activer les restrictions IP',
-      'Les paramètres sensibles (session, verrouillage, HSTS, URL publique, politique de mot de passe) exigent admin:settings — les champs sont verrouillés pour les opérateurs',
+      'Les paramètres sensibles (session, verrouillage, HSTS, URL publique, politique de mot de passe) exigent admin:settings, les champs sont verrouillés pour les opérateurs',
     ],
   },
   helpGuides: {
@@ -61,27 +61,27 @@ Configuration de sécurité à l'échelle du système affectant tous les comptes
 
 Chiffrez toutes les clés privées de CA et de certificats stockées en base de données avec AES-256, protégées par un fichier de clé maîtresse conservé en dehors de la base.
 
-- **Statut et compteurs** — La section indique si le chiffrement est activé et combien de clés sont actuellement **chiffrées** vs **non chiffrées**
-- **Activer le chiffrement** — Génère le fichier de clé maîtresse et chiffre toutes les clés privées stockées. Sauvegardez le fichier de clé immédiatement : sans lui, les clés chiffrées sont définitivement perdues
-- **Désactiver le chiffrement** — Déchiffre toutes les clés privées vers le stockage en clair (confirmation requise)
+- **Statut et compteurs** : La section indique si le chiffrement est activé et combien de clés sont actuellement **chiffrées** vs **non chiffrées**
+- **Activer le chiffrement** : Génère le fichier de clé maîtresse et chiffre toutes les clés privées stockées. Sauvegardez le fichier de clé immédiatement : sans lui, les clés chiffrées sont définitivement perdues
+- **Désactiver le chiffrement** : Déchiffre toutes les clés privées vers le stockage en clair (confirmation requise)
 
 ### Application au démarrage
 
 Sans clé de chiffrement configurée, UCM journalise un avertissement au démarrage mais continue de fonctionner. Deux **variables d'environnement opt-in** transforment cela en échec bloquant :
 
-- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` — refuser de démarrer sans clé de chiffrement de base de données explicite (sinon les secrets d'intégration se rabattent sur une clé dérivée de l'identifiant machine)
-- \`UCM_REQUIRE_KEY_ENCRYPTION\` — refuser de démarrer si le chiffrement des clés privées n'est pas activé
+- \`UCM_REQUIRE_DB_ENCRYPTION_KEY\` : refuser de démarrer sans clé de chiffrement de base de données explicite (sinon les secrets d'intégration se rabattent sur une clé dérivée de l'identifiant machine)
+- \`UCM_REQUIRE_KEY_ENCRYPTION\` : refuser de démarrer si le chiffrement des clés privées n'est pas activé
 
 Les deux acceptent \`1\`/\`true\`/\`yes\`/\`on\`. Une clé invalide est traitée comme fatale au lieu de retomber silencieusement en clair.
 
 ## Politique de mot de passe
 
 ### Exigences de complexité
-- **Longueur minimale** — 8 à 32 caractères
-- **Exiger majuscules** — Au moins une lettre majuscule
-- **Exiger minuscules** — Au moins une lettre minuscule
-- **Exiger chiffres** — Au moins un chiffre
-- **Exiger caractères spéciaux** — Au moins un symbole
+- **Longueur minimale** : 8 à 32 caractères
+- **Exiger majuscules** : Au moins une lettre majuscule
+- **Exiger minuscules** : Au moins une lettre minuscule
+- **Exiger chiffres** : Au moins un chiffre
+- **Exiger caractères spéciaux** : Au moins un symbole
 
 ### Expiration du mot de passe
 Forcer les utilisateurs à changer leur mot de passe après un nombre de jours défini. Définir à 0 pour désactiver.
@@ -121,8 +121,8 @@ Bloquer des IP ou plages CIDR spécifiques. Toutes les autres IP sont autorisée
 Exiger que tous les utilisateurs activent la 2FA. Les utilisateurs qui n'ont pas configuré la 2FA seront invités à le faire lors de leur prochaine connexion.
 
 ### Méthodes prises en charge
-- **TOTP** — Mots de passe à usage unique basés sur le temps (applications d'authentification)
-- **WebAuthn** — Clés de sécurité matérielles et biométrie
+- **TOTP** : Mots de passe à usage unique basés sur le temps (applications d'authentification)
+- **WebAuthn** : Clés de sécurité matérielles et biométrie
 
 > 💡 Appliquez la 2FA pour les comptes admin au minimum. Envisagez de l'appliquer pour tous les utilisateurs dans les environnements sensibles en termes de sécurité.
 
@@ -130,13 +130,13 @@ Exiger que tous les utilisateurs activent la 2FA. Les utilisateurs qui n'ont pas
 
 Permettre aux utilisateurs de se connecter avec un certificat client au lieu d'un mot de passe :
 
-- **CA de confiance** — Sélectionner la CA qui émet et valide les certificats client mTLS
-- **Exiger un certificat client** — Rendre optionnellement mTLS obligatoire pour l'interface web
+- **CA de confiance** : Sélectionner la CA qui émet et valide les certificats client mTLS
+- **Exiger un certificat client** : Rendre optionnellement mTLS obligatoire pour l'interface web
 - La modification des paramètres mTLS nécessite un redémarrage du service
 
 ## Permissions requises
 
-Les paramètres sensibles — session, verrouillage, HSTS, URL publique et politique de mot de passe — exigent la permission **admin:settings**. Pour les opérateurs (write:settings uniquement), ces champs apparaissent verrouillés ; le reste de la carte s'enregistre normalement.
+Les paramètres sensibles : session, verrouillage, HSTS, URL publique et politique de mot de passe, exigent la permission **admin:settings**. Pour les opérateurs (write:settings uniquement), ces champs apparaissent verrouillés ; le reste de la carte s'enregistre normalement.
 `
   }
 }

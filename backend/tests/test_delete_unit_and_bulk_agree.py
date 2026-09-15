@@ -89,7 +89,7 @@ class TestBothPathsRefuseTheSameRows:
         bulk = _bulk(auth_client, 'certificates', [cert['id']])
         assert json.loads(bulk.data)['data']['failed'] == [
             {'id': cert['id'],
-             'error': 'Cannot delete a valid certificate — revoke it first'}]
+             'error': 'Cannot delete a valid certificate: revoke it first'}]
 
         unit = auth_client.delete(f"/api/v2/certificates/{cert['id']}")
         assert unit.status_code == 409, unit.data

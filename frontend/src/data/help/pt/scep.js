@@ -25,11 +25,11 @@ export default {
       {
         title: 'Perfis',
         items: [
-          { label: 'Segmento de URL', text: 'Cada perfil é servido em /scep/<segment>/pkiclient.exe — aponte cada frota de dispositivos ou perfil MDM para o seu próprio URL' },
+          { label: 'Segmento de URL', text: 'Cada perfil é servido em /scep/<segment>/pkiclient.exe, aponte cada frota de dispositivos ou perfil MDM para o seu próprio URL' },
           { label: 'Modelo de certificado', text: 'Quando um modelo está vinculado, os seus KU/EKU e validade governam cada certificado emitido pelo perfil' },
           { label: 'Desafio por perfil', text: 'Cada perfil tem sua própria senha de desafio, armazenada criptografada, com a mesma janela de expiração do desafio global' },
           { label: 'Endpoint padrão', text: 'O endpoint /scep/pkiclient.exe sem segmento continua servindo a configuração global' },
-          { label: 'Validação Microsoft Intune', text: 'Um perfil pode validar contra o desafio SCEP próprio do Intune por dispositivo em vez de uma senha estática — requer um registro de aplicativo no Entra (permissões SCEP challenge validation + Application.Read.All) e auto-aprovação ativada' },
+          { label: 'Validação Microsoft Intune', text: 'Um perfil pode validar contra o desafio SCEP próprio do Intune por dispositivo em vez de uma senha estática, requer um registro de aplicativo no Entra (permissões SCEP challenge validation + Application.Read.All) e auto-aprovação ativada' },
           { label: 'Aprovação manual', text: 'Uma solicitação que chegou por um perfil é aprovada com o modelo desse perfil (validade, key usages), exatamente como a auto-aprovação a emitiria' },
           { label: 'Finalidades que nenhum inscrito pode ter', text: 'Um modelo vinculado a um perfil não pode conter assinatura OCSP, carimbo de tempo, qualquer finalidade ou Smartcard Logon, e uma renovação SCEP nunca os transfere; Smartcard Logon é permitido quando o perfil valida contra o Intune, que atesta a identidade' },
         ]
@@ -39,10 +39,10 @@ export default {
       'Use senhas de desafio únicas por CA para melhor rastreabilidade de auditoria',
       'Auto-aprovação é conveniente, mas revise solicitações manualmente em ambientes de alta segurança',
       'Formato da URL SCEP: https://seu-servidor:porta/scep',
-      'Perfis com Intune precisam da auto-aprovação ativada — a inscrição no Intune é uma ida e volta síncrona de validação e emissão, sem fila de aprovação do lado do Intune',
+      'Perfis com Intune precisam da auto-aprovação ativada: a inscrição no Intune é uma ida e volta síncrona de validação e emissão, sem fila de aprovação do lado do Intune',
     ],
     warnings: [
-      'Senhas de desafio são transmitidas na solicitação SCEP — use HTTPS para segurança de transporte',
+      'Senhas de desafio são transmitidas na solicitação SCEP: use HTTPS para segurança de transporte',
     ],
   },
   helpGuides: {
@@ -50,22 +50,22 @@ export default {
     content: `
 ## Visão Geral
 
-O Simple Certificate Enrollment Protocol (SCEP) permite que dispositivos de rede — roteadores, switches, firewalls, endpoints gerenciados por MDM — solicitem e obtenham certificados automaticamente.
+O Simple Certificate Enrollment Protocol (SCEP) permite que dispositivos de rede: roteadores, switches, firewalls, endpoints gerenciados por MDM, solicitem e obtenham certificados automaticamente.
 
 ## Abas
 
 ### Solicitações
 Visualize todas as solicitações de inscrição SCEP:
-- **Pendente** — Aguardando aprovação manual (se auto-aprovação estiver desativada)
-- **Aprovada** — Emitida com sucesso
-- **Rejeitada** — Negada por um administrador
+- **Pendente**: Aguardando aprovação manual (se auto-aprovação estiver desativada)
+- **Aprovada**: Emitida com sucesso
+- **Rejeitada**: Negada por um administrador
 
 ### Configuração
 Configure o servidor SCEP:
-- **Ativar/Desativar** — Alternar o serviço SCEP
-- **CA Assinante** — Selecionar qual CA assina certificados inscritos via SCEP
-- **Identificador de CA** — O identificador que dispositivos usam para localizar a CA correta
-- **Auto-Aprovação** — Aprovar automaticamente solicitações com senhas de desafio válidas
+- **Ativar/Desativar**: Alternar o serviço SCEP
+- **CA Assinante**: Selecionar qual CA assina certificados inscritos via SCEP
+- **Identificador de CA**: O identificador que dispositivos usam para localizar a CA correta
+- **Auto-Aprovação**: Aprovar automaticamente solicitações com senhas de desafio válidas
 
 ### Perfis
 Endpoints de inscrição nomeados, cada um servido em sua própria URL:
@@ -75,19 +75,19 @@ https://seu-servidor:8443/scep/<perfil>/pkiclient.exe
 \`\`\`
 
 Cada perfil está vinculado a:
-- **Sua própria CA** — frotas de dispositivos diferentes podem se inscrever em CAs diferentes
-- **Um modelo de certificado opcional** — quando vinculado, o key usage, extended key usage e validade do modelo governam cada certificado emitido pelo perfil
-- **Finalidades que nenhum inscrito pode ter** — um modelo vinculado a um perfil não pode conter assinatura OCSP, carimbo de tempo, qualquer finalidade ou Smartcard Logon, e uma renovação SCEP nunca os transfere; Smartcard Logon é permitido quando o perfil valida contra o Intune, que atesta a identidade
-- **Uma senha de desafio por perfil** — armazenada criptografada, com a mesma janela de expiração do desafio global
-- **Uma política de aprovação** — auto-aprovação ou revisão manual por perfil
+- **Sua própria CA**: frotas de dispositivos diferentes podem se inscrever em CAs diferentes
+- **Um modelo de certificado opcional**: quando vinculado, o key usage, extended key usage e validade do modelo governam cada certificado emitido pelo perfil
+- **Finalidades que nenhum inscrito pode ter**: um modelo vinculado a um perfil não pode conter assinatura OCSP, carimbo de tempo, qualquer finalidade ou Smartcard Logon, e uma renovação SCEP nunca os transfere; Smartcard Logon é permitido quando o perfil valida contra o Intune, que atesta a identidade
+- **Uma senha de desafio por perfil**: armazenada criptografada, com a mesma janela de expiração do desafio global
+- **Uma política de aprovação**: auto-aprovação ou revisão manual por perfil
 
 Aponte cada frota de dispositivos, perfil MDM ou tenant para sua própria URL de perfil. O endpoint \`/scep/pkiclient.exe\` sem segmento continua servindo a configuração global inalterada.
 
 ### Senhas de Desafio
 Gerencie senhas de desafio por CA. Os dispositivos devem incluir uma senha de desafio válida em sua solicitação de inscrição para autenticação.
 
-- **Ver senha** — Mostrar o desafio atual para uma CA
-- **Regenerar** — Criar uma nova senha de desafio (invalida a anterior)
+- **Ver senha**: Mostrar o desafio atual para uma CA
+- **Regenerar**: Criar uma nova senha de desafio (invalida a anterior)
 
 ### Informações
 Exibe a URL do endpoint SCEP e instruções de integração.
@@ -136,13 +136,13 @@ Configure o perfil SCEP com:
 - Desafio: a senha do UCM
 
 ### Microsoft Intune
-O Intune não suporta uma senha de desafio estática — ele emite o seu próprio desafio cifrado por dispositivo que só a API do Intune consegue validar. Num **perfil** SCEP (não o endpoint global), ative **Validação de desafio SCEP do Microsoft Intune** e forneça o ID do locatário, ID do cliente e segredo do cliente de um registro de aplicativo no Entra:
+O Intune não suporta uma senha de desafio estática: ele emite o seu próprio desafio cifrado por dispositivo que só a API do Intune consegue validar. Num **perfil** SCEP (não o endpoint global), ative **Validação de desafio SCEP do Microsoft Intune** e forneça o ID do locatário, ID do cliente e segredo do cliente de um registro de aplicativo no Entra:
 
 1. No Microsoft Entra ID, registre um aplicativo e conceda-lhe as permissões de aplicativo **Intune API → SCEP challenge validation** (\`scep_challenge_provider\`) e **Microsoft Graph → Application.Read.All**, ambas com consentimento de administrador
 2. Insira o ID do locatário, ID do cliente e segredo do cliente no perfil e clique em **Testar conexão** para confirmar que o UCM consegue alcançar o Intune antes de salvar
 3. No Intune, aponte a URL do servidor do perfil SCEP do dispositivo para o endpoint \`/scep/<segment>/pkiclient.exe\` deste perfil
 
-Perfis com Intune ativado devem ter a **auto-aprovação** ativada — a inscrição no Intune é uma ida e volta síncrona de validação e emissão, sem fila do lado do Intune para revisão manual.
+Perfis com Intune ativado devem ter a **auto-aprovação** ativada: a inscrição no Intune é uma ida e volta síncrona de validação e emissão, sem fila do lado do Intune para revisão manual.
 `
   }
 }

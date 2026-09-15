@@ -7,8 +7,8 @@ export default {
       {
         title: 'Ciclo di vita della richiesta',
         items: [
-          { label: 'In attesa', text: 'In attesa di revisione — il certificato non può ancora essere emesso' },
-          { label: 'Approvata', text: 'Tutte le approvazioni richieste sono state ricevute — il certificato può essere emesso' },
+          { label: 'In attesa', text: 'In attesa di revisione, il certificato non può ancora essere emesso' },
+          { label: 'Approvata', text: 'Tutte le approvazioni richieste sono state ricevute, il certificato può essere emesso' },
           { label: 'Rifiutata', text: 'Qualsiasi rifiuto blocca immediatamente la richiesta' },
           { label: 'Scaduta', text: 'Nessuna decisione entro sette giorni; chiusa come scaduta e mai conteggiata tra quelle in attesa' },
         ]
@@ -34,7 +34,7 @@ export default {
       },
     ],
     tips: [
-      'Un singolo rifiuto blocca immediatamente l\'approvazione — questo è intenzionale per la sicurezza.',
+      'Un singolo rifiuto blocca immediatamente l\'approvazione: questo è intenzionale per la sicurezza.',
       'Mentre un rinnovo attende l\'approvazione, lo scheduler lascia il certificato a quella decisione, purché possa arrivare prima della scadenza del certificato.',
       'I commenti di approvazione vengono registrati nella traccia di audit per la conformità.',
     ],
@@ -44,7 +44,7 @@ export default {
     content: `
 ## Panoramica
 
-La pagina Approvazioni mostra tutte le richieste di certificato che richiedono l'approvazione manuale prima dell'emissione. I flussi di approvazione sono configurati nelle **Politiche** — quando una politica ha "Richiedi approvazione" abilitato, qualsiasi richiesta di certificato corrispondente crea una richiesta di approvazione qui.
+La pagina Approvazioni mostra tutte le richieste di certificato che richiedono l'approvazione manuale prima dell'emissione. I flussi di approvazione sono configurati nelle **Politiche**: quando una politica ha "Richiedi approvazione" abilitato, qualsiasi richiesta di certificato corrispondente crea una richiesta di approvazione qui.
 
 ## Ciclo di vita della richiesta
 
@@ -89,10 +89,10 @@ Una richiesta attende **sette giorni** una decisione. Oltre quel termine viene c
 
 1. Clicca su una richiesta in attesa per visualizzarne i dettagli
 2. Clicca **Rifiuta**
-3. Inserisci un **motivo del rifiuto** (obbligatorio) — viene registrato per la conformità audit
+3. Inserisci un **motivo del rifiuto** (obbligatorio): viene registrato per la conformità audit
 4. La richiesta viene immediatamente bloccata
 
-> ⚠ Un singolo rifiuto blocca l'intera richiesta. Questo è intenzionale — se un revisore identifica un problema, l'emissione non deve procedere.
+> ⚠ Un singolo rifiuto blocca l'intera richiesta. Questo è intenzionale: se un revisore identifica un problema, l'emissione non deve procedere.
 
 ## Cronologia delle approvazioni
 
@@ -106,15 +106,15 @@ Questa cronologia è immutabile e fa parte della traccia di audit.
 ## Filtri
 
 Usa la barra dei filtri per stato in alto per mostrare:
-- **In attesa** — Richieste in attesa della tua revisione
-- **Approvate** — Richieste approvate di recente
-- **Rifiutate** — Richieste rifiutate con motivazioni
-- **Totale** — Tutte le richieste indipendentemente dallo stato
+- **In attesa**: Richieste in attesa della tua revisione
+- **Approvate**: Richieste approvate di recente
+- **Rifiutate**: Richieste rifiutate con motivazioni
+- **Totale**: Tutte le richieste indipendentemente dallo stato
 
 ## Permessi
 
-- **read:approvals** — Visualizza le richieste di approvazione
-- **write:approvals** — Approva o rifiuta le richieste
+- **read:approvals**: Visualizza le richieste di approvazione
+- **write:approvals**: Approva o rifiuta le richieste
 
 > 💡 Configura le notifiche email nelle politiche in modo che gli approvatori vengano avvisati quando arrivano nuove richieste.
 `

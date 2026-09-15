@@ -24,11 +24,11 @@ export default {
       },
     ],
     tips: [
-      'I CSR preservano la chiave privata del richiedente — non lascia mai il suo sistema',
+      'I CSR preservano la chiave privata del richiedente: non lascia mai il suo sistema',
       'Puoi aggiungere una chiave privata a un CSR dopo la firma se necessario per l\'esportazione PKCS#12',
       'Un certificato importato per un CSR generato in UCM completa quel CSR: il record conserva la sua chiave privata, quindi il certificato viene esportato insieme a essa',
       'Usa la modalità Microsoft CA per firmare i CSR tramite AD CS quando sei connesso a una PKI Windows',
-      'In firma, usa "EKU extra" per aggiungere Microsoft RDP, smartcard logon, IPsec o qualsiasi OID — l\'EKU esistente del CSR viene ricostruito con l\'insieme unito',
+      'In firma, usa "EKU extra" per aggiungere Microsoft RDP, smartcard logon, IPsec o qualsiasi OID: l\'EKU esistente del CSR viene ricostruito con l\'insieme unito',
     ],
   },
   helpGuides: {
@@ -58,7 +58,7 @@ UCM può generare un CSR e una coppia di chiavi direttamente:
 
 Il CSR e la chiave privata vengono creati e memorizzati in UCM. Il CSR appare nella scheda In attesa pronto per la firma.
 
-> 💡 Questo è comodo quando vuoi che UCM gestisca l'intero ciclo di vita — CSR, firma e archiviazione della chiave.
+> 💡 Questo è comodo quando vuoi che UCM gestisca l'intero ciclo di vita. CSR, firma e archiviazione della chiave.
 
 ## Caricamento di un CSR
 
@@ -70,10 +70,10 @@ Il CSR e la chiave privata vengono creati e memorizzati in UCM. Il CSR appare ne
 ## Esame di un CSR
 
 Clicca su un CSR per visualizzare:
-- **Soggetto** — CN, O, OU, C, ecc.
-- **SAN** — Nomi DNS, indirizzi IP, email
-- **Info chiave** — Algoritmo, dimensione, impronta digitale della chiave pubblica
-- **Firma** — Algoritmo e validità
+- **Soggetto**: CN, O, OU, C, ecc.
+- **SAN**: Nomi DNS, indirizzi IP, email
+- **Info chiave**: Algoritmo, dimensione, impronta digitale della chiave pubblica
+- **Firma**: Algoritmo e validità
 
 ## Firma di un CSR
 

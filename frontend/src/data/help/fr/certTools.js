@@ -25,7 +25,7 @@ export default {
       },
     ],
     tips: [
-      'Le vérificateur SSL prend en charge les ports personnalisés — utilisez-le pour vérifier tout service TLS',
+      'Le vérificateur SSL prend en charge les ports personnalisés : utilisez-le pour vérifier tout service TLS',
       'Le vérificateur de correspondance de clé compare les hachages de modules pour vérifier les paires correspondantes',
       'Le convertisseur préserve la chaîne de certificats complète lors de la création de PKCS#12',
     ],
@@ -76,7 +76,7 @@ Affiche : Sujet, émetteur, SAN, validité, numéro de série, utilisation de la
 Vérifier qu'un certificat, une CSR et une clé privée correspondent :
 
 1. Collez le PEM du **certificat**
-2. Collez le PEM de la **clé privée** (optionnellement chiffrée — fournissez le mot de passe)
+2. Collez le PEM de la **clé privée** (optionnellement chiffrée : fournissez le mot de passe)
 3. Collez optionnellement le PEM de la **CSR**
 4. Cliquez sur **Vérifier**
 

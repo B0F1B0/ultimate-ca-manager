@@ -8,9 +8,9 @@ UCM uses a comprehensive testing strategy with unit tests and E2E tests.
 |-----------|-----------|-------|--------|
 | Unit Tests (Frontend) | Vitest + React Testing Library | 450 | Active |
 | Unit Tests (Backend) | pytest | 1364 | Active |
-| E2E Tests | Playwright | — | Active |
-| Linting (Frontend) | ESLint v9 | — | Active |
-| Linting (Backend) | Ruff | — | Active |
+| E2E Tests | Playwright |: | Active |
+| Linting (Frontend) | ESLint v9 |: | Active |
+| Linting (Backend) | Ruff |: | Active |
 
 **Total: 1814 tests** (450 frontend + 1364 backend)
 
@@ -74,7 +74,7 @@ pytest --cov=. --cov-report=term-missing
 | test_audit.py | 33 | Logs, export, cleanup |
 | test_acme.py | 150 | ACME server, client, domains |
 | test_crl.py | 21 | CRL generation, OCSP |
-| test_crl_aki_rfc5280.py | 7 | RFC 5280 §5.2.1 — CRL AKI = issuing CA SKI (#202/#203) |
+| test_crl_aki_rfc5280.py | 7 | RFC 5280 §5.2.1. CRL AKI = issuing CA SKI (#202/#203) |
 | test_crl_rfc5280_profile.py | 13 | IDP/FreshestCRL/reasonCode profile (#204) |
 | test_rfc5280_cert_crl_profile_gaps.py | 8 | CSR SKI/AKI, CA AIA, invalidityDate, unhold removeFromCRL |
 | test_hsm.py | 52 | HSM providers, keys |
@@ -88,9 +88,9 @@ pytest --cov=. --cov-report=term-missing
 #### Test Pattern
 
 Each test file covers 3 levels per endpoint:
-1. **Authentication** — 401 without auth
-2. **Authorization** — 403 with wrong role (viewer testing admin endpoints)
-3. **Happy path** — 200/201 with valid data
+1. **Authentication**: 401 without auth
+2. **Authorization**: 403 with wrong role (viewer testing admin endpoints)
+3. **Happy path**: 200/201 with valid data
 
 #### Test Infrastructure
 
@@ -304,8 +304,8 @@ jobs:
 | Metric | Target | Current |
 |--------|--------|---------|
 | Backend Route Coverage | 80% | ~95% (347 routes) |
-| Frontend Unit Tests | — | 450 tests passing |
-| Backend Unit Tests | — | 1364 tests passing |
+| Frontend Unit Tests |: | 450 tests passing |
+| Backend Unit Tests |: | 1364 tests passing |
 | E2E Pass Rate | 95% | Active |
 | Critical Paths | 100% | Covered |
 

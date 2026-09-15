@@ -295,7 +295,7 @@ def update_env_file(
                    "give back what was written")
         message += (
             "; previous content restored" if restored
-            else "; PREVIOUS CONTENT COULD NOT BE RESTORED — check the file by hand"
+            else "; PREVIOUS CONTENT COULD NOT BE RESTORED: check the file by hand"
         )
         return False, message, None
 

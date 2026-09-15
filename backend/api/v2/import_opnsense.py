@@ -351,7 +351,7 @@ def test_connection():
     if not verify_ssl:
         logger.warning(
             "OPNsense test connection with TLS verification DISABLED by "
-            "request — API credentials travel over a MITM-able channel"
+            "request. API credentials travel over a MITM-able channel"
         )
     
     if not all([host, api_key, api_secret]):
@@ -477,7 +477,7 @@ def import_items():
     logger.info(f"OpnSense import: host={host}, port={port}, items_count={len(items)}")
     if not verify_ssl:
         logger.warning(
-            "OPNsense import with TLS verification DISABLED by request — "
+            "OPNsense import with TLS verification DISABLED by request. "
             "API credentials and fetched private keys travel over a "
             "MITM-able channel"
         )

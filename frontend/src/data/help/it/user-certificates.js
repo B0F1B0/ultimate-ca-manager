@@ -17,7 +17,7 @@ export default {
         title: 'Azioni',
         items: [
           { label: 'Esporta', text: 'Scarica come PEM (con chiave e catena) o PKCS#12 (protetto da password)' },
-          { label: 'Revoca', text: 'Revoca con una motivazione — il certificato apparirà nella CRL' },
+          { label: 'Revoca', text: 'Revoca con una motivazione, il certificato apparirà nella CRL' },
           { label: 'Elimina', text: 'Rimuovi da UCM il certificato e la sua associazione all\'utente' },
         ]
       },
@@ -39,7 +39,7 @@ export default {
     ],
     warnings: [
       'La revoca di un certificato utente impedisce immediatamente l\'accesso mTLS con quel certificato',
-      'L\'eliminazione rimuove il certificato in modo permanente — non può essere recuperato',
+      'L\'eliminazione rimuove il certificato in modo permanente: non può essere recuperato',
     ],
   },
   helpGuides: {
@@ -49,7 +49,7 @@ export default {
 
 La pagina Certificati utente gestisce i certificati client mTLS iscritti tramite la scheda **Account → mTLS**. A differenza dei certificati normali, questi sono specificamente legati agli account utente per l'autenticazione TLS reciproca.
 
-I certificati qui presenti sono interamente gestiti da UCM — sono memorizzati nel database con le chiavi private e possono essere esportati, revocati o eliminati in qualsiasi momento.
+I certificati qui presenti sono interamente gestiti da UCM: sono memorizzati nel database con le chiavi private e possono essere esportati, revocati o eliminati in qualsiasi momento.
 
 ## Iscrivere un certificato
 
@@ -60,17 +60,17 @@ I certificati qui presenti sono interamente gestiti da UCM — sono memorizzati 
 
 ## Stato del certificato
 
-- **Valido** — Entro il periodo di validità e non revocato
-- **In scadenza** — Scadrà entro 30 giorni
-- **Scaduto** — Oltre la data "Non dopo"
-- **Revocato** — Esplicitamente revocato, pubblicato nella CRL
+- **Valido**: Entro il periodo di validità e non revocato
+- **In scadenza**: Scadrà entro 30 giorni
+- **Scaduto**: Oltre la data "Non dopo"
+- **Revocato**: Esplicitamente revocato, pubblicato nella CRL
 
 ## Esportare un certificato
 
 1. Seleziona un certificato → **Esporta**
 2. Scegli il formato:
-   - **PEM** — Certificato + chiave privata + catena CA in formato testo
-   - **PKCS#12** — Pacchetto binario, protetto da password (min. 8 caratteri)
+   - **PEM**: Certificato + chiave privata + catena CA in formato testo
+   - **PKCS#12**: Pacchetto binario, protetto da password (min. 8 caratteri)
 3. Fai clic su **Scarica**
 
 Il file esportato può essere importato in browser, sistemi operativi o client API per l'autenticazione mTLS.
@@ -107,9 +107,9 @@ L'eliminazione rimuove sia il certificato sia l'associazione utente-certificato.
 
 ### Permessi richiesti
 
-- **read:user_certificates** — Visualizzare l'elenco e i dettagli dei certificati
-- **write:user_certificates** — Revocare i certificati
-- **delete:user_certificates** — Eliminare i certificati
+- **read:user_certificates**: Visualizzare l'elenco e i dettagli dei certificati
+- **write:user_certificates**: Revocare i certificati
+- **delete:user_certificates**: Eliminare i certificati
 
 > 💡 Iscrivi i nuovi certificati mTLS dalla pagina Account. Questa pagina serve a gestire i certificati esistenti.
 `

@@ -66,7 +66,7 @@ export default function DevShowcasePage() {
     <ResponsiveLayout
       icon={PaintBrush}
       title="Component Showcase"
-      subtitle="All UI components with variants — dev only"
+      subtitle="All UI components with variants: dev only"
     >
       {/* Section Navigation */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -243,7 +243,7 @@ export default function DevShowcasePage() {
             {['default', 'elevated', 'bordered', 'soft'].map(v => (
               <Card key={v} variant={v}>
                 <Card.Header>
-                  <h3 className="font-semibold text-[var(--color-text-primary)]">Card — {v}</h3>
+                  <h3 className="font-semibold text-[var(--color-text-primary)]">Card: {v}</h3>
                 </Card.Header>
                 <Card.Body>
                   <p className="text-sm text-[var(--color-text-secondary)]">
@@ -539,7 +539,7 @@ export default function DevShowcasePage() {
             <CompactHeader
               icon={Lock}
               title="Internal Root CA"
-              subtitle="RSA 4096 — Self-signed"
+              subtitle="RSA 4096. Self-signed"
               badge={<Badge variant="success" size="sm" dot>Active</Badge>}
               iconClass="text-violet-500"
             />
@@ -799,13 +799,13 @@ export default function DevShowcasePage() {
 
           <SectionTitle title="Typography" />
           <div className="space-y-2 bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg p-4">
-            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Heading 1 — 2xl bold</h1>
-            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Heading 2 — xl semibold</h2>
-            <h3 className="text-lg font-medium text-[var(--color-text-primary)]">Heading 3 — lg medium</h3>
-            <p className="text-base text-[var(--color-text-primary)]">Body text — base</p>
-            <p className="text-sm text-[var(--color-text-secondary)]">Secondary text — sm secondary</p>
-            <p className="text-xs text-[var(--color-text-muted)]">Muted text — xs muted</p>
-            <p className="text-sm font-mono text-[var(--color-text-primary)]">Monospace — for serial numbers, fingerprints</p>
+            <h1 className="text-2xl font-bold text-[var(--color-text-primary)]">Heading 1: 2xl bold</h1>
+            <h2 className="text-xl font-semibold text-[var(--color-text-primary)]">Heading 2: xl semibold</h2>
+            <h3 className="text-lg font-medium text-[var(--color-text-primary)]">Heading 3: lg medium</h3>
+            <p className="text-base text-[var(--color-text-primary)]">Body text: base</p>
+            <p className="text-sm text-[var(--color-text-secondary)]">Secondary text: sm secondary</p>
+            <p className="text-xs text-[var(--color-text-muted)]">Muted text: xs muted</p>
+            <p className="text-sm font-mono text-[var(--color-text-primary)]">Monospace: for serial numbers, fingerprints</p>
           </div>
 
           <SectionTitle title="Spacing & Layout Reference" />

@@ -53,7 +53,7 @@ def _get_encryption_key() -> bytes:
         )
 
     logger.warning(
-        'UCM_DB_ENCRYPTION_KEY is not set — falling back to a key derived from '
+        'UCM_DB_ENCRYPTION_KEY is not set, falling back to a key derived from '
         'the machine id with a static, in-source salt. Anyone with a copy of '
         'the database and /etc/machine-id can decrypt all stored integration '
         'secrets. Set UCM_DB_ENCRYPTION_KEY (and UCM_REQUIRE_DB_ENCRYPTION_KEY=true '
@@ -201,7 +201,7 @@ def _refuse_startup_if_key_required_but_missing() -> None:
     if not os.environ.get('UCM_DB_ENCRYPTION_KEY'):
         raise RuntimeError(
             'UCM_DB_ENCRYPTION_KEY is not set and UCM_REQUIRE_DB_ENCRYPTION_KEY '
-            'is enabled — refusing to start. Set UCM_DB_ENCRYPTION_KEY to a '
+            'is enabled, refusing to start. Set UCM_DB_ENCRYPTION_KEY to a '
             'base64-encoded 32-byte Fernet key, or unset '
             'UCM_REQUIRE_DB_ENCRYPTION_KEY to fall back to the machine-id '
             'derived key.'
@@ -222,7 +222,7 @@ def _refuse_startup_if_key_required_but_missing() -> None:
         get_cipher.cache_clear()
         raise RuntimeError(
             'UCM_DB_ENCRYPTION_KEY is set but is not a usable Fernet key '
-            f'({e}) and UCM_REQUIRE_DB_ENCRYPTION_KEY is enabled — refusing '
+            f'({e}) and UCM_REQUIRE_DB_ENCRYPTION_KEY is enabled, refusing '
             'to start. Generate one with: python -c "from cryptography.fernet '
             'import Fernet; print(Fernet.generate_key().decode())"'
         ) from e

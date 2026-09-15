@@ -7,8 +7,8 @@ export default {
       {
         title: 'Modos de emisión',
         items: [
-          { label: 'Modo firma', text: 'Pegue una clave pública SSH existente para firmarla. La clave privada permanece en la máquina del usuario — UCM nunca la ve.' },
-          { label: 'Modo generación', text: 'UCM genera un nuevo par de claves y firma el certificado. Descargue la clave privada de inmediato — no podrá recuperarse posteriormente.' },
+          { label: 'Modo firma', text: 'Pegue una clave pública SSH existente para firmarla. La clave privada permanece en la máquina del usuario, UCM nunca la ve.' },
+          { label: 'Modo generación', text: 'UCM genera un nuevo par de claves y firma el certificado. Descargue la clave privada de inmediato, no podrá recuperarse posteriormente.' },
         ]
       },
       {
@@ -38,12 +38,12 @@ export default {
     ],
     tips: [
       'Use certificados efímeros (8h–24h) para el acceso de usuarios, minimizando el impacto de una clave comprometida.',
-      'El modo firma es preferible — la clave privada del usuario nunca sale de su máquina.',
+      'El modo firma es preferible: la clave privada del usuario nunca sale de su máquina.',
       'Los Key ID deben ser descriptivos (ej.: «jdoe-prod-2025») para facilitar la auditoría de registros.',
       'Para certificados de host, el principal debe coincidir con el nombre de host que usan los clientes para conectarse.',
     ],
     warnings: [
-      'En modo generación, descargue la clave privada de inmediato — no se almacena y no puede recuperarse.',
+      'En modo generación, descargue la clave privada de inmediato, no se almacena y no puede recuperarse.',
       'La revocación de un certificado solo funciona si los servidores están configurados para verificar el archivo KRL de la CA.',
     ],
   },
@@ -80,14 +80,14 @@ ssh -i ~/.ssh/id_work user@server
 ### Modo generación
 UCM genera tanto el par de claves como el certificado. Úselo cuando necesite provisionar credenciales de forma centralizada.
 
-> ⚠ **Descargue la clave privada de inmediato** — no se almacena en UCM y no puede recuperarse.
+> ⚠ **Descargue la clave privada de inmediato**: no se almacena en UCM y no puede recuperarse.
 
 **Procedimiento:**
 1. Seleccione una CA y complete los datos del certificado
 2. Elija el modo «Generar»
 3. Haga clic en **Emitir**
 4. Descargue los tres archivos:
-   - Clave privada (\`keyid\`) — **¡Guárdela de forma segura!**
+   - Clave privada (\`keyid\`): **¡Guárdela de forma segura!**
    - Certificado (\`keyid-cert.pub\`)
    - Clave pública (\`keyid.pub\`)
 
@@ -104,7 +104,7 @@ Los principals definen **quién** (certificados de usuario) o **qué** (certific
 - **Certificados de usuario**: lista de nombres de usuario con los que el titular puede iniciar sesión (ej.: \`deploy\`, \`admin\`)
 - **Certificados de host**: lista de nombres de host o IPs por los que el servidor es conocido (ej.: \`web01.example.com\`, \`10.0.1.5\`)
 
-> 💡 Si no se especifican principals, el certificado funciona para cualquier principal — lo cual suele ser demasiado permisivo.
+> 💡 Si no se especifican principals, el certificado funciona para cualquier principal: lo cual suele ser demasiado permisivo.
 
 ### Validez
 

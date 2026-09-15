@@ -13,6 +13,7 @@ from flask import Blueprint, request, jsonify, g, Response
 from sqlalchemy import or_
 from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response, no_content_response
+from utils import notices as notices_mod
 from utils.pagination import parse_request_pagination
 from utils.dn_validation import validate_dn_field
 from utils.file_validation import validate_upload, CERT_EXTENSIONS
@@ -121,19 +122,29 @@ def _csr_identity(cert):
 def _policy_rule_refusal(ca, cert, template_id, validity_days):
     """Issuance policy rules (#335) applied to a stored request: returns
     ``(refusal_message_or_None, validity_days)`` with the validity capped by
-    the applicable policies. Shared by the unit and bulk Sign CSR routes."""
+    the applicable policies. Shared by the unit and bulk Sign CSR routes.
+
+    Returns ``(refusal, validity_days, notice)``: the notice names the policy
+    that shortened the validity, so a signature honoured on other terms than
+    the ones asked for says so."""
     try:
         from services.policy_service import PolicyEvaluationService
         csr_cn, csr_dns, key_label = _csr_identity(cert)
+        requested = validity_days
         policies = PolicyEvaluationService.applicable_policies(ca.id, template_id, csr_cn, csr_dns)
-        violations, validity_days = PolicyEvaluationService.enforce_rules(
+        violations, validity_days, capped_by = PolicyEvaluationService.enforce_rules(
             policies, key_type=key_label, dns_name_count=len(set(csr_dns)),
             validity_days=validity_days)
     except (ValueError, TypeError) as e:
-        return f'Invalid CSR: {e}', validity_days
+        return f'Invalid CSR: {e}', validity_days, None
     if violations:
-        return 'Policy violation: ' + '; '.join(violations), validity_days
-    return None, validity_days
+        return 'Policy violation: ' + '; '.join(violations), validity_days, None
+    notice = None
+    if capped_by and validity_days < requested:
+        notice = notices_mod.validity_shortened(
+            requested, validity_days,
+            notices_mod.policy_validity_reason(capped_by, validity_days))
+    return None, validity_days, notice
 
 
 def _approval_for_csr(user, ca, cert, data, validity_days, cert_type, extra_ekus):
@@ -851,7 +862,8 @@ def sign_csr(csr_id):
     if ca.revoked_in_chain:
         return error_response('CA is revoked and can no longer sign', 400)
 
-    refusal, validity_days = _policy_rule_refusal(ca, cert, data.get('template_id'), validity_days)
+    refusal, validity_days, validity_notice = _policy_rule_refusal(
+        ca, cert, data.get('template_id'), validity_days)
     if refusal:
         return error_response(refusal, 400)
     # An issuance policy that requires approval binds this path as it binds
@@ -868,6 +880,7 @@ def sign_csr(csr_id):
                                 message='CSR signing submitted for approval')
 
     # Clamp validity to CA expiration
+    ca_clamp_notice = None
     try:
         from cryptography import x509 as _x509
         ca_pem = base64.b64decode(ca.crt) if ca.crt else None
@@ -878,6 +891,9 @@ def sign_csr(csr_id):
             if max_days < 1:
                 return error_response('CA is expired', 400)
             if validity_days > max_days:
+                ca_clamp_notice = notices_mod.validity_shortened(
+                    validity_days, max_days,
+                    notices_mod.issuer_expiry_reason(ca_exp))
                 validity_days = max_days
     except Exception as e:
         logger.warning(f"Could not clamp validity to CA expiration: {e}")
@@ -915,7 +931,9 @@ def sign_csr(csr_id):
             msg += '; the CA holds no private key (certificate only), import its key to let it sign'
         return success_response(
             data=signed_result.to_dict(),
-            message=msg
+            message=msg,
+            meta=notices_mod.meta_with_notices(
+                notices_mod.collect(validity_notice, ca_clamp_notice)),
         )
     except ValueError as e:
         if 'another request' in str(e):
@@ -957,6 +975,7 @@ def bulk_sign_csrs():
         return error_response('CA not found or not valid for signing', 404)
 
     # Clamp validity to CA expiration
+    bulk_clamp_notice = None
     try:
         ca_pem = base64.b64decode(ca.crt)
         ca_cert = x509.load_pem_x509_certificate(ca_pem)
@@ -965,6 +984,9 @@ def bulk_sign_csrs():
         if max_days < 1:
             return error_response('CA is expired', 400)
         if validity_days > max_days:
+            bulk_clamp_notice = notices_mod.validity_shortened(
+                validity_days, max_days,
+                notices_mod.issuer_expiry_reason(ca_exp))
             validity_days = max_days
     except Exception as e:
         logger.warning(f"Could not clamp validity to CA expiration: {e}")
@@ -983,7 +1005,8 @@ def bulk_sign_csrs():
             if cert.crt:
                 results['failed'].append({'id': csr_id, 'error': 'Already signed'})
                 continue
-            refusal, item_validity = _policy_rule_refusal(ca, cert, data.get('template_id'), validity_days)
+            refusal, item_validity, _item_notice = _policy_rule_refusal(
+                ca, cert, data.get('template_id'), validity_days)
             if refusal:
                 results['failed'].append({'id': csr_id, 'error': refusal})
                 continue
@@ -1016,7 +1039,10 @@ def bulk_sign_csrs():
         success=True
     )
 
-    return success_response(data=results, message=f'{len(results["success"])} CSRs signed')
+    return success_response(
+        data=results, message=f'{len(results["success"])} CSRs signed',
+        meta=notices_mod.meta_with_notices(
+            notices_mod.collect(bulk_clamp_notice)))
 
 
 @bp.route('/api/v2/csrs/bulk/delete', methods=['POST'])

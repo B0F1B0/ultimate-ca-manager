@@ -212,7 +212,7 @@ class AcmePreflightService:
             steps.append(_step(
                 'challenge_preview', 'Challenge preview',
                 True,
-                'Skipped — custom CA has no staging endpoint; connectivity validated only',
+                'Skipped: custom CA has no staging endpoint; connectivity validated only',
             ))
         elif can_create_order:
             try:
@@ -311,7 +311,7 @@ class AcmePreflightService:
             steps.append(_step(
                 'challenge_preview', 'Challenge preview',
                 True,
-                'Validation-only mode — no staging order created',
+                'Validation-only mode, no staging order created',
             ))
 
         return {

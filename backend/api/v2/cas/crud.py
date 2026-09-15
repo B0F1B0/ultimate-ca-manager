@@ -496,7 +496,7 @@ def create_ca():
             emit_ca_created(ca_dict, actor=username)
             return created_response(
                 data=ca_dict,
-                message='CA created — awaiting certificate from external CA'
+                message='CA created, awaiting certificate from external CA'
             )
 
         raw_eku = data.get('extendedKeyUsage')
@@ -949,7 +949,7 @@ def take_ca_offline(ca_id):
 
     if ca.is_pending:
         return error_response(
-            'Cannot take a pending CA offline — install its certificate first', 409
+            'Cannot take a pending CA offline: install its certificate first', 409
         )
 
     if not ca.prv:
@@ -1085,7 +1085,7 @@ def restore_ca(ca_id):
         if mode == 'password_protected':
             if not ca.prv:
                 return error_response(
-                    'CA has no in-DB encrypted key — was it taken offline as '
+                    'CA has no in-DB encrypted key. Was it taken offline as '
                     'file_exported? Use the file upload flow.',
                     409
                 )

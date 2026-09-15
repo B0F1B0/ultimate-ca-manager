@@ -58,9 +58,9 @@ Gerencie seu perfil pessoal, configurações de segurança e chaves de API.
 
 ## Perfil
 
-- **Nome Completo** — Seu nome de exibição mostrado em todo o UCM
-- **E-mail** — Usado para notificações, recuperação de senha e registro ACME
-- **Informações da Conta** — Data de criação, data do último login, total de logins
+- **Nome Completo**: Seu nome de exibição mostrado em todo o UCM
+- **E-mail**: Usado para notificações, recuperação de senha e registro ACME
+- **Informações da Conta**: Data de criação, data do último login, total de logins
 
 ## Segurança
 
@@ -73,7 +73,7 @@ Adicione uma senha única baseada em tempo usando qualquer aplicativo autenticad
 1. Clique em **Ativar 2FA**
 2. Escaneie o QR code com seu aplicativo autenticador (Google Authenticator, Authy, 1Password, etc.)
 3. Digite o código de 6 dígitos para confirmar
-4. Salve os **códigos de recuperação** — eles são mostrados apenas uma vez
+4. Salve os **códigos de recuperação**: eles são mostrados apenas uma vez
 
 > ⚠ Se você perder acesso ao seu autenticador e códigos de recuperação, um administrador deverá desativar seu 2FA.
 
@@ -102,7 +102,7 @@ Gerencie certificados de cliente para autenticação TLS mútua:
 2. Digite um **nome** (descritivo, ex.: "Pipeline CI/CD")
 3. Opcionalmente defina uma **data de expiração**
 4. Clique em **Criar**
-5. Copie a chave imediatamente — ela é mostrada apenas uma vez
+5. Copie a chave imediatamente: ela é mostrada apenas uma vez
 
 ### Usando Chaves de API
 Inclua a chave no cabeçalho \`X-API-Key\`:

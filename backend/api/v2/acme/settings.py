@@ -104,7 +104,7 @@ def get_acme_settings():
     ca_id = ca_id_cfg.value if ca_id_cfg else None
 
     # Parse ToS config
-    terms_of_service = {'title': 'Terms of Service', 'body': 'By using this ACME server, you agree to these terms.\n\n1. No abusive or unlawful use.\n2. Rate limits apply — excessive requests may be temporarily blocked.\n3. Accounts that violate these terms may be revoked.'}
+    terms_of_service = {'title': 'Terms of Service', 'body': 'By using this ACME server, you agree to these terms.\n\n1. No abusive or unlawful use.\n2. Rate limits apply: excessive requests may be temporarily blocked.\n3. Accounts that violate these terms may be revoked.'}
     if tos_cfg and tos_cfg.value:
         try:
             parsed = json.loads(tos_cfg.value)

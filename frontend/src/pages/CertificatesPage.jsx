@@ -19,6 +19,7 @@ import {
 import { ExportModal } from '../components/ExportModal'
 import { RevokeCertificateModal } from '../components/RevokeCertificateModal'
 import { SmartImportModal } from '../components/SmartImport'
+import { showNotices } from '../lib/notices'
 import { certificatesService, casService, truststoreService } from '../services'
 import { useNotification, useMobile, useWindowManager } from '../contexts'
 import { usePermission, useRecentHistory, useFavorites, useWebSocket, usePersistedState } from '../hooks'
@@ -267,6 +268,10 @@ export default function CertificatesPage() {
   // Revoke certificate
   // Revocation asks for the RFC 5280 reason (#334); the dialog is rendered below
   const [revokingCert, setRevokingCert] = useState(null)
+  // Set when the operator asked to delete a still-valid certificate and
+  // accepted to revoke it first: the deletion resumes once the revocation
+  // is through.
+  const [deleteAfterRevoke, setDeleteAfterRevoke] = useState(false)
   const [revoking, setRevoking] = useState(false)
   const handleRevoke = (id) => {
     const cert = certificates.find(c => c.id === id) || (selectedCert?.id === id ? selectedCert : null)
@@ -278,8 +283,18 @@ export default function CertificatesPage() {
     try {
       muteToasts()
       await certificatesService.revoke(revokingCert.id, reason)
+      const alsoDelete = deleteAfterRevoke ? revokingCert.id : null
       showSuccess(t('messages.success.other.revoked'))
       setRevokingCert(null)
+      setDeleteAfterRevoke(false)
+      if (alsoDelete) {
+        try {
+          await certificatesService.delete(alsoDelete)
+          showSuccess(t('messages.success.delete.certificate'))
+        } catch (error) {
+          showError(error.message || t('messages.errors.deleteFailed.certificate'))
+        }
+      }
       loadData()
       setSelectedCert(null)
     } catch {
@@ -311,10 +326,11 @@ export default function CertificatesPage() {
         return
       }
       if (res?.meta?.msca_status === 'pending') {
-        showSuccess(t('certificates.renewPendingMsca', 'Renewal submitted to the Microsoft CA — pending approval'))
+        showSuccess(t('certificates.renewPendingMsca', 'Renewal submitted to the Microsoft CA: pending approval'))
       } else {
         showSuccess(t('notifications.certificateIssued', { name: '' }).replace(': ', ''))
       }
+      showNotices(res, showWarning)
       loadData()
       setSelectedCert(null)
     } catch (error) {
@@ -341,6 +357,22 @@ export default function CertificatesPage() {
 
   // Delete certificate
   const handleDelete = async (id) => {
+    // A certificate still trusted by relying parties has to be revoked first,
+    // or it vanishes from UCM while staying valid everywhere else. Rather than
+    // let the server refuse after the fact, say so and offer to do both.
+    const cert = certificates.find(c => c.id === id) || (selectedCert?.id === id ? selectedCert : null)
+    const status = cert?.revoked ? 'revoked' : cert?.status
+    if (cert && status !== 'revoked' && status !== 'expired') {
+      const revokeFirst = await showConfirm(t('certificates.deleteNeedsRevoke'), {
+        title: t('common.deleteCertificate'),
+        confirmText: t('certificates.revokeThenDelete'),
+        variant: 'danger'
+      })
+      if (!revokeFirst) return
+      setDeleteAfterRevoke(true)
+      setRevokingCert(cert)
+      return
+    }
     const confirmed = await showConfirm(t('messages.confirm.delete.certificate'), {
       title: t('common.deleteCertificate'),
       confirmText: t('common.delete'),
@@ -746,6 +778,7 @@ export default function CertificatesPage() {
                 showWarning(t('certificates.approvalRequired', { policy: response.data.policy_name }))
               } else {
                 showSuccess(t('messages.success.create.certificate'))
+                showNotices(response, showWarning)
               }
               setShowIssueModal(false)
               setIssueInitialData(null)
@@ -792,7 +825,7 @@ export default function CertificatesPage() {
       {/* Row Export Modal */}
       <RevokeCertificateModal
         open={!!revokingCert}
-        onClose={() => setRevokingCert(null)}
+        onClose={() => { setRevokingCert(null); setDeleteAfterRevoke(false) }}
         onConfirm={handleRevokeConfirm}
         certificate={revokingCert}
         loading={revoking}

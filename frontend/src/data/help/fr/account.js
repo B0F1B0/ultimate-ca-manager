@@ -58,9 +58,9 @@ Gérez votre profil personnel, vos paramètres de sécurité et vos clés API.
 
 ## Profil
 
-- **Nom complet** — Votre nom d'affichage affiché dans UCM
-- **E-mail** — Utilisé pour les notifications, la récupération de mot de passe et l'enregistrement ACME
-- **Infos du compte** — Date de création, horodatage de la dernière connexion, nombre total de connexions
+- **Nom complet** : Votre nom d'affichage affiché dans UCM
+- **E-mail** : Utilisé pour les notifications, la récupération de mot de passe et l'enregistrement ACME
+- **Infos du compte** : Date de création, horodatage de la dernière connexion, nombre total de connexions
 
 ## Sécurité
 
@@ -73,7 +73,7 @@ Ajoutez un mot de passe à usage unique basé sur le temps à l'aide de n'import
 1. Cliquez sur **Activer la 2FA**
 2. Scannez le code QR avec votre application d'authentification (Google Authenticator, Authy, 1Password, etc.)
 3. Entrez le code à 6 chiffres pour confirmer
-4. Sauvegardez les **codes de récupération** — ils ne sont affichés qu'une seule fois
+4. Sauvegardez les **codes de récupération** : ils ne sont affichés qu'une seule fois
 
 > ⚠ Si vous perdez l'accès à votre application d'authentification et aux codes de récupération, un administrateur devra désactiver votre 2FA.
 
@@ -102,7 +102,7 @@ Gérez les certificats client pour l'authentification TLS mutuel :
 2. Entrez un **nom** (descriptif, par ex. « Pipeline CI/CD »)
 3. Définissez optionnellement une **date d'expiration**
 4. Cliquez sur **Créer**
-5. Copiez la clé immédiatement — elle n'est affichée qu'une seule fois
+5. Copiez la clé immédiatement : elle n'est affichée qu'une seule fois
 
 ### Utiliser les clés API
 Incluez la clé dans l'en-tête \`X-API-Key\` :

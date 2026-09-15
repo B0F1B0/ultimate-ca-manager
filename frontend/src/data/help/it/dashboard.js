@@ -22,7 +22,7 @@ export default {
     tips: [
       'Trascina i widget per riorganizzare il layout della dashboard',
       'Clicca l\'icona dell\'occhio nell\'intestazione per mostrare/nascondere widget specifici',
-      'La dashboard si aggiorna in tempo reale tramite WebSocket — non è necessario aggiornare manualmente',
+      'La dashboard si aggiorna in tempo reale tramite WebSocket: non è necessario aggiornare manualmente',
       'Il layout viene salvato per utente e persiste tra le sessioni',
     ],
   },
@@ -37,20 +37,20 @@ La Dashboard è il tuo hub di monitoraggio centrale. Mostra metriche in tempo re
 
 ### Scheda statistiche
 Mostra quattro contatori principali:
-- **Totale CA** — Autorità di certificazione Root e Intermedie
-- **Certificati attivi** — Certificati validi e non revocati
-- **CSR in attesa** — Richieste di firma certificato in attesa di approvazione
-- **In scadenza** — Certificati in scadenza entro 30 giorni
+- **Totale CA**: Autorità di certificazione Root e Intermedie
+- **Certificati attivi**: Certificati validi e non revocati
+- **CSR in attesa**: Richieste di firma certificato in attesa di approvazione
+- **In scadenza**: Certificati in scadenza entro 30 giorni
 
 ### Tendenza certificati
 Un grafico a linee che mostra le emissioni di certificati nel tempo. Passa il mouse sui punti dati per vedere i conteggi esatti.
 
 ### Distribuzione stati
 Grafico a torta che mostra la ripartizione degli stati dei certificati:
-- **Valido** — Entro il periodo di validità e non revocato
-- **In scadenza** — Scade entro 30 giorni
-- **Scaduto** — Oltre la data "Non dopo"
-- **Revocato** — Esplicitamente revocato
+- **Valido**: Entro il periodo di validità e non revocato
+- **In scadenza**: Scade entro 30 giorni
+- **Scaduto**: Oltre la data "Non dopo"
+- **Revocato**: Esplicitamente revocato
 
 ### Prossima scadenza
 Elenca i certificati con scadenza più imminente. Clicca su un certificato per visualizzarne i dettagli. Configura la soglia in **Impostazioni → Generale**.
@@ -86,7 +86,7 @@ Clicca l'**icona dell'occhio** nell'intestazione della pagina per attivare/disat
 La configurazione del layout viene salvata per utente nel browser. Persiste tra le sessioni e i dispositivi che condividono lo stesso profilo del browser.
 
 ## Aggiornamenti in tempo reale
-La dashboard riceve aggiornamenti in tempo reale tramite WebSocket. Non è necessario aggiornare manualmente — nuovi certificati, cambi di stato e voci di attività appaiono automaticamente.
+La dashboard riceve aggiornamenti in tempo reale tramite WebSocket. Non è necessario aggiornare manualmente: nuovi certificati, cambi di stato e voci di attività appaiono automaticamente.
 
 > 💡 Se il WebSocket è disconnesso, appare un indicatore giallo nella barra laterale. I dati verranno aggiornati alla riconnessione.
 `

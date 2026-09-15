@@ -29,7 +29,7 @@ export default {
       'Le voci del log includono lo User Agent per l\'identificazione delle applicazioni client',
     ],
     warnings: [
-      'La pulizia dei log è irreversibile — i dati esportati non possono essere reimportati',
+      'La pulizia dei log è irreversibile: i dati esportati non possono essere reimportati',
     ],
   },
   helpGuides: {
@@ -37,19 +37,19 @@ export default {
     content: `
 ## Panoramica
 
-Traccia di audit completa di tutte le operazioni in UCM. Ogni azione — emissione certificato, revoca, accesso utente, modifica impostazione — viene registrata con dettagli su chi, cosa, quando e dove.
+Traccia di audit completa di tutte le operazioni in UCM. Ogni azione: emissione certificato, revoca, accesso utente, modifica impostazione, viene registrata con dettagli su chi, cosa, quando e dove.
 
 ## Dettagli delle voci del log
 
 Ogni voce del log registra:
-- **Timestamp** — Quando l'azione è avvenuta
-- **Utente** — Chi ha eseguito l'azione
-- **Azione** — Cosa è stato fatto (crea, aggiorna, elimina, accesso, ecc.)
-- **Risorsa** — Cosa è stato interessato (certificato, CA, utente, ecc.)
-- **Stato** — Successo o fallimento
-- **Indirizzo IP** — IP di origine della richiesta
-- **User Agent** — Identificativo dell'applicazione client
-- **Dettagli** — Contesto aggiuntivo (messaggi di errore, valori modificati)
+- **Timestamp**: Quando l'azione è avvenuta
+- **Utente**: Chi ha eseguito l'azione
+- **Azione**: Cosa è stato fatto (crea, aggiorna, elimina, accesso, ecc.)
+- **Risorsa**: Cosa è stato interessato (certificato, CA, utente, ecc.)
+- **Stato**: Successo o fallimento
+- **Indirizzo IP**: IP di origine della richiesta
+- **User Agent**: Identificativo dell'applicazione client
+- **Dettagli**: Contesto aggiuntivo (messaggi di errore, valori modificati)
 
 ## Filtri
 
@@ -64,8 +64,8 @@ Filtra per categoria di operazione:
 Mostra solo le azioni eseguite da un utente specifico.
 
 ### Per stato
-- **Successo** — Operazioni completate con successo
-- **Fallito** — Operazioni fallite (errori di autenticazione, permesso negato, errori)
+- **Successo**: Operazioni completate con successo
+- **Fallito**: Operazioni fallite (errori di autenticazione, permesso negato, errori)
 
 ### Per intervallo date
 Imposta le date **Da** e **A** per restringere la finestra temporale.
@@ -76,8 +76,8 @@ Ricerca libera su tutti i campi del log.
 ## Esportazione
 
 Esporta i log filtrati in:
-- **JSON** — Leggibile dalle macchine, include tutti i campi
-- **CSV** — Compatibile con i fogli di calcolo, include i campi principali
+- **JSON**: Leggibile dalle macchine, include tutti i campi
+- **CSV**: Compatibile con i fogli di calcolo, include i campi principali
 
 Le esportazioni includono solo i risultati attualmente filtrati.
 
