@@ -7,7 +7,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
-## [Unreleased]
+## [2.230] - 2026-09-15
 
 ### Added
 - Certificate exports in PEM, PKCS#7, PKCS#12/PFX and JKS now omit the self-signed Root CA by default while retaining intermediate certificates, with an explicit **Include Root CA** option for packaging and import use cases. The option is also honored by account and user-certificate exports; deployment fullchains retain their previous complete-chain behavior. Issuer reconstruction now normalizes AKI/SKI identifiers and verifies signatures, so homonymous CAs and self-issued rollover certificates cannot produce the wrong chain
