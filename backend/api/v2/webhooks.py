@@ -409,10 +409,21 @@ def update_webhook(endpoint_id):
 @bp.route('/api/v2/webhooks/<int:endpoint_id>', methods=['DELETE'])
 @require_auth(['delete:settings'])
 def delete_webhook(endpoint_id):
-    """Delete webhook endpoint"""
+    """Delete webhook endpoint, and the delivery history that belongs to it.
+
+    `endpoint_id` on the delivery rows is a plain Integer with no foreign key,
+    so nothing cascades: the history used to stay behind, pointing at an id
+    that no longer names anything, and nothing ever deleted it.
+    """
+    from services.delivery_retention import delete_endpoint_deliveries
+
     endpoint = db.get_or_404(WebhookEndpoint, endpoint_id)
+    removed = delete_endpoint_deliveries(endpoint_id)
     db.session.delete(endpoint)
     ok, _err = safe_commit(logger, "Failed to delete webhook")
+    if ok and removed:
+        logger.info('Deleted webhook %s with %d delivery row(s)',
+                    endpoint_id, removed)
     if not ok:
         return _err
     return no_content_response()

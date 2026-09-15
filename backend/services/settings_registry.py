@@ -194,6 +194,21 @@ SETTINGS = {
         'services/acme/acme_client_service registers with this when the '
         'operator set no address; readers that can refuse keep treating an '
         'absent row as "not configured"'),
+
+    # --- how long delivery history is kept --------------------------------
+    # Two windows, because the two kinds of row answer different questions.
+    # Zero or less keeps that kind for ever, which is how one window is
+    # turned off without turning the task off.
+    'deliveries.retention.succeeded_days': Setting(
+        30, integer,
+        'services/delivery_retention: a delivered row is history; the '
+        'operator reads the endpoint, not the thirty-first copy of a '
+        'successful POST'),
+    'deliveries.retention.failed_days': Setting(
+        90, integer,
+        'services/delivery_retention: a failed row is what gets opened when '
+        'someone asks why a notification never arrived, so it outlives the '
+        'successful ones'),
 }
 
 

@@ -321,7 +321,9 @@ def delete_binding(binding_id):
         return error_response('Deploy binding not found', 404)
     target_name = binding.target.name if binding.target else '?'
     try:
-        DeployDelivery.query.filter_by(binding_id=binding.id).delete(synchronize_session=False)
+        # Same helper as the webhook route, which had no such line at all.
+        from services.delivery_retention import delete_binding_deliveries
+        delete_binding_deliveries(binding.id)
         target_id = binding.target_id
         db.session.delete(binding)
         ok, err = safe_commit(logger, 'Failed to delete deploy binding')

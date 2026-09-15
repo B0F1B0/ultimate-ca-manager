@@ -572,6 +572,19 @@ def create_app(config_name=None):
         except ImportError:
             pass
 
+        # Delivery history does not grow for ever (webhooks, deployments,
+        # notifications) — every 6 hours, same cadence as the ACME purge
+        try:
+            from services.delivery_retention import scheduled_purge as _delivery_purge
+            scheduler.register_task(
+                name="delivery_retention",
+                func=_delivery_purge,
+                interval=21600,
+                description="Delete delivery history past its retention window"
+            )
+        except ImportError:
+            pass
+
         # Expire stale approval requests (hourly)
         try:
             from services.approval_gate import scheduled_expiry
