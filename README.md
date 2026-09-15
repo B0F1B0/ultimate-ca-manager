@@ -44,7 +44,7 @@
 - **HSM** -- SoftHSM included, PKCS#11, Azure Key Vault, Google Cloud KMS, OpenBao/Vault Transit; **HSM-backed CAs** with non-exportable signing keys
 - **Kubernetes / cert-manager** -- Reference manifests for ClusterIssuer (HTTP-01 + DNS-01 with EAB), sample Certificate, Secret template under `examples/kubernetes/cert-manager/`
 - **DNS Providers** -- Cloudflare, Route53, Azure DNS and more for ACME DNS-01 challenges
-- **Webhooks** -- Event-driven notifications for certificate lifecycle events (15+ event types), **per-endpoint delivery history with manual retry**, durable async delivery queue with exponential backoff
+- **Webhooks** -- Event-driven notifications for certificate lifecycle events (15+ event types), **per-endpoint delivery history with manual retry**, durable async delivery queue with exponential backoff, and a retention window on the history so it does not grow without end
 
 ### Security & Access
 - **Authentication** -- Password, WebAuthn/FIDO2, TOTP 2FA, mTLS, API keys
