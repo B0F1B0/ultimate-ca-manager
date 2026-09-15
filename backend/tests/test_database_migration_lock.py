@@ -39,22 +39,99 @@ sys.stdout.flush()
 """
 
 
+# A child that takes the lock and never gives it back when asked.
+_STUBBORN = """
+import sys, time
+from services.database_admin.lock import database_migration_lock
+with database_migration_lock(purpose='stubborn'):
+    sys.stdout.write('locked\\n')
+    sys.stdout.flush()
+    time.sleep(300)
+"""
+
+
+def _spawn(program):
+    env = dict(os.environ, PYTHONPATH=BACKEND_DIR, DATA_DIR=str(DATA_DIR))
+    return subprocess.Popen(
+        [sys.executable, '-c', program], cwd=BACKEND_DIR, env=env,
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+
+
+def _stop_holder(child, grace=10):
+    """End the child, whatever state it is in.
+
+    This lock lives in the worker's data directory, not in a per-test
+    temporary one, so a child left alive holds it for every later test in
+    this worker: the next restore or migration is refused with a 409 and the
+    test that expected it to run fails, in whichever file happens to come
+    next. Asking politely is an optimisation; the kill is the guarantee.
+    """
+    try:
+        if child.poll() is None:
+            child.stdin.write('go\n')
+            child.stdin.flush()
+    except (BrokenPipeError, OSError, ValueError):
+        pass
+    try:
+        child.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        child.kill()
+        child.wait(timeout=grace)
+    finally:
+        for stream in (child.stdin, child.stdout):
+            try:
+                if stream is not None:
+                    stream.close()
+            except OSError:
+                pass
+
+
 @pytest.fixture
 def holder():
     """A separate process holding the lock for the duration of the test."""
-    env = dict(os.environ, PYTHONPATH=BACKEND_DIR, DATA_DIR=str(DATA_DIR))
-    child = subprocess.Popen(
-        [sys.executable, '-c', _HOLDER], cwd=BACKEND_DIR, env=env,
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+    child = _spawn(_HOLDER)
     try:
         assert child.stdout.readline().strip() == 'locked', \
             'the child never took the lock'
         yield child
     finally:
-        if child.poll() is None:
-            child.stdin.write('go\n')
-            child.stdin.flush()
-        child.wait(timeout=10)
+        _stop_holder(child)
+
+
+class TestTheHolderNeverOutlivesItsTest:
+    """The lock is the worker's, not the test's.
+
+    A child left holding it refuses every later restore and migration in this
+    worker, which reads as an unrelated test failing at random. This is the
+    only guard against that, so it is exercised against a child that ignores
+    the request to let go.
+    """
+
+    def test_a_child_that_ignores_the_request_is_killed(self):
+        child = _spawn(_STUBBORN)
+        assert child.stdout.readline().strip() == 'locked'
+
+        _stop_holder(child, grace=0.5)
+
+        assert child.poll() is not None, 'the child is still running'
+
+    def test_and_the_lock_is_free_afterwards(self):
+        child = _spawn(_STUBBORN)
+        assert child.stdout.readline().strip() == 'locked'
+
+        _stop_holder(child, grace=0.5)
+
+        # The point of the kill: the next caller gets the lock.
+        with database_migration_lock(purpose='after the holder'):
+            pass
+
+    def test_a_child_that_answers_is_not_killed_for_nothing(self):
+        child = _spawn(_HOLDER)
+        assert child.stdout.readline().strip() == 'locked'
+
+        _stop_holder(child)
+
+        assert child.returncode == 0, 'a cooperative child was killed'
 
 
 class TestOnlyOneMigrationAtATime:
