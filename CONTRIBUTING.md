@@ -16,16 +16,21 @@ usually where the answer is.
 
 ## Contributor licence agreement
 
-Your first pull request has to carry your signature of the [CLA](CLA-v1.0.md). It is one
-line added to `signatures/cla-v1.md`, in that same pull request:
+Your first pull request has to carry your signature of the [CLA](CLA.md). It is one
+line added to `signatures/cla-v1.1.md`, in that same pull request:
 
 ```
-| your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.0 |
+| your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.1 |
 ```
 
 A check on the pull request tells you if an author is missing, co-authors included.
 You are asked once, and the signature covers everything you have contributed, before
 and after.
+
+In return, section 8 of the agreement grants you a commercial licence of your own:
+you may host, operate, support or integrate UCM for others, for a fee, without
+publishing your modifications and without owing the project anything. It is personal
+to you and does not cover selling UCM itself.
 
 You keep the copyright on your work. The agreement grants a licence and, crucially,
 the right to sublicense: UCM goes out under the free licence in [LICENSE](LICENSE)
@@ -79,6 +84,6 @@ for how to report one privately.
 
 ## Licence
 
-Contributions are accepted under the terms of the [CLA](CLA-v1.0.md) and distributed
+Contributions are accepted under the terms of the [CLA](CLA.md) and distributed
 under the licence in [LICENSE](LICENSE), and under the commercial licence for those
 who hold one. Questions: <licensing@ucm.tools>

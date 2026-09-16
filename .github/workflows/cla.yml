@@ -42,9 +42,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          AGREEMENT=CLA-v1.0.md
-          SIGNATURES=signatures/cla-v1.md
-          STATEMENT='I have read and agree to the UCM CLA v1.0'
+          SIGNATURES=signatures/cla-v1.1.md
+          STATEMENT='I have read and agree to the UCM CLA v1.1'
+          # Superseded versions stay in the tree and stay immutable too.
+          FROZEN='CLA-v1.0.md CLA-v1.1.md'
           # Accounts that never sign: the maintainer, and bots whose commits are
           # generated rather than authored. Named one by one on purpose: a wildcard
           # such as *[bot] would exempt any account someone chooses to call a bot.
@@ -58,19 +59,22 @@ jobs:
           }
           at_ref "$SIGNATURES" "refs/pull/$PR/head" > sig-pr.txt
           at_ref "$SIGNATURES" "$BASE_REF"          > sig-base.txt
-          at_ref "$AGREEMENT"  "refs/pull/$PR/head" > cla-pr.txt
-          at_ref "$AGREEMENT"  "$BASE_REF"          > cla-base.txt
-
           fail=0
 
-          # The agreement is immutable once published: changing its terms means a new
-          # version, with its own signature list. A pull request that edits it is
-          # rejected here rather than noticed later.
-          if [ -s cla-base.txt ] && ! cmp -s cla-base.txt cla-pr.txt; then
-            echo "::error::$AGREEMENT is modified by this pull request. A signed"\
-                 "agreement cannot change: add CLA-v2.0.md and its own signature file."
-            fail=1
-          fi
+          # An agreement is immutable once published: changing its terms means a new
+          # version, with its own signature list. A pull request that edits one is
+          # rejected here rather than noticed later. Every published version is
+          # checked, not only the one in force: an old text still binds whoever
+          # signed it.
+          for doc in $FROZEN; do
+            at_ref "$doc" "refs/pull/$PR/head" > cla-pr.txt
+            at_ref "$doc" "$BASE_REF"          > cla-base.txt
+            if [ -s cla-base.txt ] && ! cmp -s cla-base.txt cla-pr.txt; then
+              echo "::error::$doc is modified by this pull request. A published"\
+                   "agreement cannot change: add a new version with its own signature file."
+              fail=1
+            fi
+          done
 
           # Rows carrying the exact statement, lower-cased, compared literally: the
           # file is contributor-supplied, so a name never acts as a pattern.
@@ -155,9 +159,9 @@ jobs:
           contributor licence agreement.
 
           Signing takes one line. In this same pull request, add yourself to the end
-          of the table in signatures/cla-v1.md, keeping the wording exactly:
+          of the table in signatures/cla-v1.1.md, keeping the wording exactly:
 
-              | your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.0 |
+              | your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.1 |
 
           A co-author, or an author whose commit email is not linked to a GitHub
           account, signs under the exact name or address that appears on the commit.
@@ -167,7 +171,7 @@ jobs:
           licence, which is what funds the development. You are asked once, and it
           covers everything you have contributed, before and after.
 
-          The agreement: https://github.com/NeySlim/ultimate-ca-manager/blob/main/CLA-v1.0.md
+          The agreement: https://github.com/NeySlim/ultimate-ca-manager/blob/main/CLA-v1.1.md
 
           MESSAGE
           exit 1
