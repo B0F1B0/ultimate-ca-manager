@@ -219,10 +219,10 @@ Docker: data at `/opt/ucm/data/` (mount as volume), config via environment varia
 
 ## Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/my-feature`)
-3. Commit and push
-4. Open Pull Request
+Pull requests target `dev`, and the first one asks you to sign the
+[CLA](CLA-v1.0.md) once. See [CONTRIBUTING.md](CONTRIBUTING.md) for the rest: how to
+report a bug usefully, what a reviewable pull request looks like, and the rules on
+tests, translations and migrations.
 
 ---
 

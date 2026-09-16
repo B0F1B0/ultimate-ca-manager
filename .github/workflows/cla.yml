@@ -1,0 +1,173 @@
+name: CLA
+
+# Reports which authors of a pull request have signed the contributor licence
+# agreement, and refuses changes to the agreement or to existing signatures.
+#
+# What this is: an aid to the reviewer, so an unsigned contribution is not merged by
+# inattention. It reads only, and never writes to a branch.
+#
+# What this is not: proof of who signed. The author of a git commit is declarative,
+# so without GPG or SSH signatures anyone can write a commit under another name, and
+# anyone can type another person's name into the signature file. A green check means
+# "every author named here appears in the signature file", not "these people
+# consented". The evidence that a given person agreed is the public, timestamped
+# trail of their own pull request, not this job and not the merge.
+#
+# pull_request_target runs the copy of this file on the default branch, so a pull
+# request cannot edit the check that judges it. That is also why the check only
+# starts working once this file has reached the default branch. No code from the
+# pull request is checked out or executed: everything is read through the API, and
+# a fork's content is read from refs/pull/N/head on the base repository, which the
+# base token can always reach.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  signed:
+    name: Contributors have signed the CLA
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check signatures
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+
+          AGREEMENT=CLA-v1.0.md
+          SIGNATURES=signatures/cla-v1.md
+          STATEMENT='I have read and agree to the UCM CLA v1.0'
+          # Accounts that never sign: the maintainer, and bots whose commits are
+          # generated rather than authored. Named one by one on purpose: a wildcard
+          # such as *[bot] would exempt any account someone chooses to call a bot.
+          EXEMPT='neyslim dependabot[bot] github-actions[bot] renovate[bot] copilot'
+
+          # refs/pull/N/head exists on the base repository for every pull request,
+          # fork or not, so one token reaches both sides.
+          at_ref() {
+            gh api "repos/$REPO/contents/$1?ref=$2" --jq '.content' 2>/dev/null \
+              | base64 -d 2>/dev/null || true
+          }
+          at_ref "$SIGNATURES" "refs/pull/$PR/head" > sig-pr.txt
+          at_ref "$SIGNATURES" "$BASE_REF"          > sig-base.txt
+          at_ref "$AGREEMENT"  "refs/pull/$PR/head" > cla-pr.txt
+          at_ref "$AGREEMENT"  "$BASE_REF"          > cla-base.txt
+
+          fail=0
+
+          # The agreement is immutable once published: changing its terms means a new
+          # version, with its own signature list. A pull request that edits it is
+          # rejected here rather than noticed later.
+          if [ -s cla-base.txt ] && ! cmp -s cla-base.txt cla-pr.txt; then
+            echo "::error::$AGREEMENT is modified by this pull request. A signed"\
+                 "agreement cannot change: add CLA-v2.0.md and its own signature file."
+            fail=1
+          fi
+
+          # Rows carrying the exact statement, lower-cased, compared literally: the
+          # file is contributor-supplied, so a name never acts as a pattern.
+          signatories() {
+            awk -F'|' -v want="$STATEMENT" '
+              NF >= 4 {
+                who = $2; stmt = $4
+                gsub(/^[ \t]+|[ \t]+$/, "", who)
+                gsub(/^[ \t]+|[ \t]+$/, "", stmt)
+                if (stmt == want && who != "" && who !~ /^-+$/ && tolower(who) != "github username")
+                  print tolower(who)
+              }' "$1" | sort -u
+          }
+          signatories sig-base.txt > signed-base.txt
+          { signatories sig-pr.txt; cat signed-base.txt; } | sort -u > signed.txt
+
+          # An existing signature is never removed or reworded by someone else.
+          if [ -s signed-base.txt ]; then
+            dropped=$(comm -23 signed-base.txt <(signatories sig-pr.txt) | tr '\n' ' ')
+            if [ -n "${dropped// /}" ]; then
+              echo "::error::This pull request removes signatures on file: $dropped"
+              fail=1
+            fi
+          fi
+
+          echo "Signatories on file: $(wc -l < signed.txt)"
+
+          is_signed() {
+            local who low
+            who="$1"
+            low=$(printf '%s' "$who" | tr '[:upper:]' '[:lower:]')
+            case " $EXEMPT " in *" $low "*) return 0 ;; esac
+            grep -Fxq "$low" signed.txt
+          }
+
+          missing=""
+
+          # Accounts GitHub attributes a commit to, plus the pull request author.
+          {
+            gh pr view "$PR" --repo "$REPO" --json author --jq '.author.login'
+            gh api "repos/$REPO/pulls/$PR/commits" --paginate --jq '.[] | .author.login // empty'
+          } | sort -u > authors.txt
+          while read -r who; do
+            [ -z "$who" ] && continue
+            is_signed "$who" || missing="$missing $who"
+          done < authors.txt
+
+          # Commits whose email belongs to no GitHub account. They cannot be matched
+          # to a username, so the name on the commit has to be in the file.
+          gh api "repos/$REPO/pulls/$PR/commits" --paginate \
+            --jq '.[] | select(.author == null) | .commit.author.name' | sort -u > unlinked.txt
+          while read -r who; do
+            [ -z "$who" ] && continue
+            is_signed "$who" || missing="$missing \"$who\"(no linked account)"
+          done < unlinked.txt
+
+          # Co-authors hold copyright on what they wrote, so they are checked too.
+          # The trailer is free text: both the name and the address are looked up,
+          # literally, and either one being on file is enough.
+          gh api "repos/$REPO/pulls/$PR/commits" --paginate --jq '.[] | .commit.message' \
+            | grep -oiP '^Co-authored-by:\s*\K.*' | sort -u > coauthors.txt
+          while read -r line; do
+            [ -z "$line" ] && continue
+            name=${line%%<*}
+            name=$(printf '%s' "$name" | sed 's/[[:space:]]*$//')
+            mail=$(printf '%s' "$line" | sed -n 's/.*<\(.*\)>.*/\1/p')
+            if ! { [ -n "$name" ] && is_signed "$name"; } \
+              && ! { [ -n "$mail" ] && is_signed "$mail"; }; then
+              missing="$missing \"$line\"(co-author)"
+            fi
+          done < coauthors.txt
+
+          if [ -z "$missing" ] && [ "$fail" -eq 0 ]; then
+            echo "Every author named in this pull request appears in the signature file."
+            exit 0
+          fi
+
+          [ -n "$missing" ] && echo "::error::No signature on file for:$missing"
+          cat <<'MESSAGE'
+
+          This pull request should not be merged until every author has signed the
+          contributor licence agreement.
+
+          Signing takes one line. In this same pull request, add yourself to the end
+          of the table in signatures/cla-v1.md, keeping the wording exactly:
+
+              | your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.0 |
+
+          A co-author, or an author whose commit email is not linked to a GitHub
+          account, signs under the exact name or address that appears on the commit.
+
+          You keep the copyright on your work. The agreement lets the project
+          distribute it under its free licence and, separately, under a commercial
+          licence, which is what funds the development. You are asked once, and it
+          covers everything you have contributed, before and after.
+
+          The agreement: https://github.com/NeySlim/ultimate-ca-manager/blob/main/CLA-v1.0.md
+
+          MESSAGE
+          exit 1
