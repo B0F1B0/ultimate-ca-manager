@@ -11,6 +11,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ### Fixed
 - Three counters sat on zero whatever the data said: the number of users on the audit page, the certificates of each SSH CA, and the orders of each ACME account on the dashboard. Each tile read a field the API never sent, and each now reads a field it answers.
+- The packages declared a licence the project does not have: the RPM named only BSD-3-Clause without the Commons Clause that goes with it, and the frontend package declared ISC, which it never was. The LICENSE file also called the result "open source", which a clause restricting sale is not.
 
 ---
 
