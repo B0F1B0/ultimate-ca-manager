@@ -24,6 +24,14 @@ from . import bp, logger, resolve_acme_account
 def list_acme_accounts():
     """List ACME accounts"""
     accounts = AcmeAccount.query.order_by(AcmeAccount.created_at.desc()).limit(100).all()
+
+    # One grouped count rather than one query per account.
+    order_counts = dict(
+        db.session.query(AcmeOrder.account_id, db.func.count(AcmeOrder.id))
+        .group_by(AcmeOrder.account_id)
+        .all()
+    )
+
     data = []
     for acc in accounts:
         data.append({
@@ -33,6 +41,7 @@ def list_acme_accounts():
             'contact': acc.contact_list,
             'terms_of_service_agreed': acc.terms_of_service_agreed,
             'jwk_thumbprint': acc.jwk_thumbprint,
+            'orders_count': order_counts.get(acc.account_id, 0),
             'created_at': utc_isoformat(acc.created_at)
         })
 

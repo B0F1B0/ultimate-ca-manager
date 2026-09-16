@@ -116,6 +116,11 @@ class AuditQueryMixin:
             db.desc('count')
         ).limit(10).all()
 
+        # top_users is capped at 10, so it cannot stand in for the total.
+        unique_users = db.session.query(
+            db.func.count(db.distinct(AuditLog.username))
+        ).filter(AuditLog.timestamp >= since).scalar() or 0
+
         recent_failures = AuditLog.query.filter(
             AuditLog.timestamp >= since,
             AuditLog.success == False
@@ -129,6 +134,7 @@ class AuditQueryMixin:
             'success_rate': round(success_count / total * 100, 1) if total > 0 else 100,
             'top_actions': [{'action': a, 'count': c} for a, c in top_actions],
             'top_users': [{'username': u, 'count': c} for u, c in top_users],
+            'unique_users': unique_users,
             'recent_failures': [f.to_dict() for f in recent_failures]
         }
 

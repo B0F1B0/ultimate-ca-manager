@@ -7,6 +7,13 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Three counters sat on zero whatever the data said: the number of users on the audit page, the certificates of each SSH CA, and the orders of each ACME account on the dashboard. Each tile read a field the API never sent, and each now reads a field it answers.
+
+---
+
 ## [2.231] - 2026-09-15
 
 ### Changed

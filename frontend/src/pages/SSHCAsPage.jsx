@@ -230,7 +230,7 @@ export default function SSHCAsPage() {
   const stats = useMemo(() => {
     const userCAs = sshCas.filter(ca => ca.ca_type === 'user').length
     const hostCAs = sshCas.filter(ca => ca.ca_type === 'host').length
-    const totalCerts = sshCas.reduce((acc, ca) => acc + (ca.certificate_count || 0), 0)
+    const totalCerts = sshCas.reduce((acc, ca) => acc + (ca.cert_count || 0), 0)
     return [
       { icon: Key, label: t('sshCas.stats.total'), value: sshCas.length, variant: 'primary' },
       { icon: User, label: t('sshCas.stats.userCas'), value: userCAs, variant: 'teal' },
@@ -321,7 +321,7 @@ export default function SSHCAsPage() {
       )
     },
     {
-      key: 'certificate_count',
+      key: 'cert_count',
       header: t('sshCas.stats.certificates'),
       priority: 3,
       hideOnMobile: true,
@@ -364,7 +364,7 @@ export default function SSHCAsPage() {
         icon={selectedCA.ca_type === 'user' ? User : ShieldCheck}
         iconClass={selectedCA.ca_type === 'user' ? 'icon-bg-teal' : 'icon-bg-violet'}
         title={selectedCA.descr || t('common.unnamed')}
-        subtitle={t('sshCas.stats.certificates') + ': ' + (selectedCA.certificate_count || 0)}
+        subtitle={t('sshCas.stats.certificates') + ': ' + (selectedCA.cert_count || 0)}
         badge={
           <Badge variant={selectedCA.ca_type === 'user' ? 'teal' : 'violet'} size="sm">
             {selectedCA.ca_type === 'user' ? t('sshCas.typeUser') : t('sshCas.typeHost')}
