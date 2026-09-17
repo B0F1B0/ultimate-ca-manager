@@ -16,12 +16,15 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-// Mock ResizeObserver
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}))
+// Mock ResizeObserver. A class, not an arrow returning an object: the real one is
+// called with `new`, and a mock that cannot be constructed fails only in the
+// components that observe something.
+global.ResizeObserver = class ResizeObserver {
+  constructor(callback) { this.callback = callback }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
 
 // Mock IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({

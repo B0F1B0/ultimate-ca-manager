@@ -11,6 +11,9 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ### Fixed
 - Three counters sat on zero whatever the data said: the number of users on the audit page, the certificates of each SSH CA, and the orders of each ACME account on the dashboard. Each tile read a field the API never sent, and each now reads a field it answers.
+- The buttons on an ACME domain row were cut off on anything but a very wide window, and on a tablet they were not drawn at all. They were an ordinary column, so the table sized them from a guess made on the name of the key and hid what did not fit, while the card view drops plain columns entirely. They are row actions now: a column of their own, sized by the buttons it holds, and a menu on the card. The card shows the approval state too, which it used to leave out (#355, reported by @dogarethebest).
+- That column was one pixel wide on every list, not just this one, because the data columns shared the whole width and left nothing for it. The buttons were drawn over the last column. Lists now reserve it, and the ACME domain columns, sized by the same guesswork, no longer cut their status badges either.
+- A list sits flush against the edges and a card view keeps its margin, rather than each tab deciding for itself.
 - The packages declared a licence the project does not have: the RPM named only BSD-3-Clause without the Commons Clause that goes with it, and the frontend package declared ISC, which it never was. The LICENSE file also called the result "open source", which a clause restricting sale is not.
 
 ---

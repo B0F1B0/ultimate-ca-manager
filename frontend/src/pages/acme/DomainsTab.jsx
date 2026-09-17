@@ -6,7 +6,7 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
   const { t } = useTranslation()
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="space-y-4">
       <HelpCard variant="info" title={t('acme.domainsHelp')} compact>
         {t('acme.domainsHelpDesc')}
       </HelpCard>
@@ -33,6 +33,8 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
           columns={[
             {
               key: 'domain',
+              priority: 1,  // card view: what identifies the row
+              size: 3,  // a domain name can be long
               label: t('acme.domain'),
               sortable: true,
               render: (val) => (
@@ -41,6 +43,8 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
             },
             {
               key: 'dns_provider_name',
+              priority: 2,  // card view: what tells two domains apart
+              size: 2,  // a short provider name
               label: t('acme.provider'),
               sortable: true,
               render: (val, row) => (
@@ -52,6 +56,8 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
             },
             {
               key: 'issuing_ca_name',
+              priority: 4,  // card view: usually 'Default', table only
+              size: 2.5,  // a CA name, or 'Default'
               label: t('acme.issuingCA'),
               sortable: true,
               render: (val) => (
@@ -62,6 +68,8 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
             },
             {
               key: 'is_wildcard_allowed',
+              priority: 5,  // card view: table only
+              width: '92px',  // a Yes/No badge under an 8-letter header
               label: t('acme.wildcard'),
               render: (val) => (
                 <Badge variant={val ? 'success' : 'secondary'}>
@@ -71,6 +79,8 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
             },
             {
               key: 'auto_approve',
+              priority: 3,  // card view: the state worth seeing at a glance
+              width: '116px',  // a short badge under a 12-letter header
               label: t('acme.autoApprove'),
               render: (val) => (
                 <Badge variant={val ? 'success' : 'warning'}>
@@ -78,43 +88,11 @@ export default function DomainsTab({ acmeDomains, dnsProviders, cas, onAdd, onEd
                 </Badge>
               )
             },
-            {
-              key: 'actions',
-              label: '',
-              render: (_, row) => (
-                <div className="flex items-center gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => { e.stopPropagation(); onTest(row) }}
-                    title={t('acme.testDnsAccess')}
-                  >
-                    <Play size={14} />
-                  </Button>
-                  {canWrite && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); onEdit(row) }}
-                      title={t('common.edit')}
-                    >
-                      <Gear size={14} />
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => { e.stopPropagation(); onDelete(row) }}
-                      title={t('common.delete')}
-                      className="text-status-error hover:text-status-error"
-                    >
-                      <Trash size={14} />
-                    </Button>
-                  )}
-                </div>
-              )
-            }
+          ]}
+          rowActions={(row) => [
+            { label: t('acme.testDnsAccess'), icon: Play, onClick: () => onTest(row) },
+            ...(canWrite ? [{ label: t('common.edit'), icon: Gear, onClick: () => onEdit(row) }] : []),
+            ...(canDelete ? [{ label: t('common.delete'), icon: Trash, variant: 'danger', onClick: () => onDelete(row) }] : []),
           ]}
           onRowClick={(row) => onEdit(row)}
           emptyMessage={t('acme.noDomains')}

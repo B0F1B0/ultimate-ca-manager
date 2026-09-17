@@ -1225,6 +1225,35 @@ function DesktopTable({
   // Each column gets a "size" weight. Total weights are summed and each column
   // gets a percentage of the available space. This is how TanStack Table works.
   // User-resized columns use exact px widths, remaining space is redistributed.
+  // Width of the row-actions column, from what it actually holds: each button is
+  // w-6 with a gap-0.5 between them, inside a px-2 cell. Without reserving it the
+  // data columns take the whole 100% and the buttons overlap the last one.
+  const actionsWidth = (() => {
+    if (!rowActions) return 0
+    const counts = data.slice(0, 20).map(r => rowActions(r)?.length || 0)
+    const n = counts.length ? Math.max(...counts) : 0
+    return n ? n * 24 + (n - 1) * 2 + 16 : 0
+  })()
+
+  // That width has to become a percentage: under table-layout:fixed a column width
+  // given as calc() mixing % and px is dropped, and every column ends up equal.
+  const [tableWidth, setTableWidth] = useState(0)
+  useEffect(() => {
+    const el = tableRef.current
+    if (!el || !actionsWidth || typeof ResizeObserver === 'undefined') return
+    const measure = () => setTableWidth(el.clientWidth)
+    measure()
+    let ro
+    try {
+      ro = new ResizeObserver(measure)
+      ro.observe(el)
+    } catch {
+      return   // no usable observer: the one measurement above still holds
+    }
+    return () => ro.disconnect()
+  }, [actionsWidth])
+  const actionsShare = tableWidth > actionsWidth ? actionsWidth / tableWidth : 0
+
   const getColStyle = (col) => {
     // User-resized: use exact px width
     if (columnWidths[col.key]) {
@@ -1239,7 +1268,8 @@ function DesktopTable({
       return sum + (c.size || getDefaultColumnSize(c))
     }, 0)
     if (totalSize > 0) {
-      return { width: `${((size / totalSize) * 100).toFixed(1)}%` }
+      const ratio = (size / totalSize) * (1 - actionsShare)
+      return { width: `${(ratio * 100).toFixed(2)}%` }
     }
     return {}
   }
@@ -1360,7 +1390,9 @@ function DesktopTable({
                 </th>
               )
             })}
-            {rowActions && <th className="w-px whitespace-nowrap" />}
+            {rowActions && (
+              <th className="whitespace-nowrap" style={{ width: `${actionsWidth}px` }} />
+            )}
           </tr>
         </thead>
         
@@ -1515,7 +1547,7 @@ function MobileCardList({
   }
   
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-auto p-3">
       {/* Select all for mobile multi-select */}
       {multiSelect && (
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border">

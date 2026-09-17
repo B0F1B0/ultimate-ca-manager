@@ -161,7 +161,7 @@ export default function EabTab({ eabRequired, onToggleEabRequired, showCreateMod
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="p-4 space-y-4">
         <Card>
           <div className="p-4 flex items-center justify-between gap-4">
             <div className="flex items-start gap-3 min-w-0">

@@ -34,35 +34,10 @@ export default function LocalDomainsTab({ localDomains, cas, onAdd, onEdit, onDe
             </Badge>
           )
         },
-        {
-          key: 'actions',
-          label: '',
-          render: (_, row) => (
-            <div className="flex items-center gap-1">
-              {canWrite && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); onEdit(row) }}
-                  title={t('common.edit')}
-                >
-                  <PencilSimple size={14} />
-                </Button>
-              )}
-              {canDelete && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => { e.stopPropagation(); onDelete(row) }}
-                  title={t('common.delete')}
-                  className="text-status-error hover:text-status-error"
-                >
-                  <Trash size={14} />
-                </Button>
-              )}
-            </div>
-          )
-        }
+      ]}
+      rowActions={(row) => [
+        ...(canWrite ? [{ label: t('common.edit'), icon: PencilSimple, onClick: () => onEdit(row) }] : []),
+        ...(canDelete ? [{ label: t('common.delete'), icon: Trash, variant: 'danger', onClick: () => onDelete(row) }] : []),
       ]}
       emptyState={{
         icon: GlobeHemisphereWest,
