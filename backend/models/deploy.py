@@ -85,6 +85,10 @@ class DeployBinding(db.Model):
     cert_path = db.Column(db.String(512))
     key_path = db.Column(db.String(512))
     fullchain_path = db.Column(db.String(512))
+    # Trusted roots are normally installed separately and should not be sent
+    # in a TLS server's fullchain. Keep the exceptional legacy behaviour as
+    # an explicit per-binding choice.
+    include_root = db.Column(db.Boolean, nullable=False, default=False)
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -101,6 +105,7 @@ class DeployBinding(db.Model):
             'cert_path': self.cert_path,
             'key_path': self.key_path,
             'fullchain_path': self.fullchain_path,
+            'include_root': self.include_root,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,

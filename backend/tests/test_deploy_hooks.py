@@ -182,6 +182,23 @@ class TestBindings:
         assert len(listed) == 1
         # attaching queues the initial push (F-07) — it shows as last delivery
         assert listed[0]['last_delivery']['event_type'] == 'initial'
+        assert binding['include_root'] is False
+
+    def test_include_root_is_stored_and_requires_boolean(self, auth_client, create_cert):
+        target = _create_target(auth_client)
+        cert = create_cert()
+        binding = _create_binding(
+            auth_client, target['id'], cert['id'], include_root=True)
+        assert binding['include_root'] is True
+        updated = assert_success(patch_json(
+            auth_client, f"{BASE}/bindings/{binding['id']}", {'include_root': False}))
+        assert updated['include_root'] is False
+
+        other_target = _create_target(auth_client)
+        r = post_json(auth_client, f'{BASE}/bindings', {
+            'target_id': other_target['id'], 'certificate_id': cert['id'],
+            'fullchain_path': '/etc/ssl/fullchain.pem', 'include_root': 'false'})
+        assert_error(r, 400)
 
     def test_requires_absolute_path(self, auth_client, create_cert):
         target = _create_target(auth_client)
@@ -386,8 +403,8 @@ class TestProcessing:
 
 
 class TestFileResolution:
-    def test_fullchain_includes_issuer(self, app, create_cert):
-        """The fullchain file must carry the leaf plus its issuing CA chain."""
+    def test_fullchain_omits_root_by_default(self, app, create_cert):
+        """A leaf issued directly by a root deploys without that trust anchor."""
         cert = create_cert()
         from models import db, Certificate, DeployBinding
         from services.deploy import DeployService
@@ -395,6 +412,19 @@ class TestFileResolution:
             c = db.session.get(Certificate, cert['id'])
             binding = DeployBinding(target_id=0, certificate_id=c.id,
                                     fullchain_path='/etc/ssl/fullchain.pem')
+            files = DeployService.resolve_files(binding, c)
+            content = files[0][1].decode()
+            assert content.count('BEGIN CERTIFICATE') == 1
+
+    def test_fullchain_can_include_root_explicitly(self, app, create_cert):
+        cert = create_cert()
+        from models import db, Certificate, DeployBinding
+        from services.deploy import DeployService
+        with app.app_context():
+            c = db.session.get(Certificate, cert['id'])
+            binding = DeployBinding(target_id=0, certificate_id=c.id,
+                                    fullchain_path='/etc/ssl/fullchain.pem',
+                                    include_root=True)
             files = DeployService.resolve_files(binding, c)
             content = files[0][1].decode()
             assert content.count('BEGIN CERTIFICATE') >= 2

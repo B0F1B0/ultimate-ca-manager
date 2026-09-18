@@ -29,7 +29,9 @@ export function CertDeploySection({ certificate }) {
   const [addOpen, setAddOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deploying, setDeploying] = useState(null)
-  const [form, setForm] = useState({ target_id: '', cert_path: '', key_path: '', fullchain_path: '' })
+  const [form, setForm] = useState({
+    target_id: '', cert_path: '', key_path: '', fullchain_path: '', include_root: false,
+  })
 
   const allowed = hasPermission('read:deploy')
   const eligible = allowed && !!certificate?.id
@@ -54,7 +56,7 @@ export function CertDeploySection({ certificate }) {
       const bound = new Set(bindings.map(b => b.target_id))
       setTargets(all.filter(target => target.enabled && !bound.has(target.id)))
     } catch { setTargets([]) }
-    setForm({ target_id: '', cert_path: '', key_path: '', fullchain_path: '' })
+    setForm({ target_id: '', cert_path: '', key_path: '', fullchain_path: '', include_root: false })
     setAddOpen(true)
   }
 
@@ -68,6 +70,7 @@ export function CertDeploySection({ certificate }) {
         cert_path: form.cert_path.trim() || undefined,
         key_path: form.key_path.trim() || undefined,
         fullchain_path: form.fullchain_path.trim() || undefined,
+        include_root: Boolean(form.fullchain_path.trim() && form.include_root),
       })
       showSuccess(t('deploy.bindingCreated'))
       setAddOpen(false)
@@ -204,6 +207,17 @@ export function CertDeploySection({ certificate }) {
             <input className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm font-mono text-text-primary focus:outline-none focus:border-accent-primary"
                    placeholder="/etc/ssl/certs/app-fullchain.pem" value={form.fullchain_path} onChange={field('fullchain_path')} />
           </div>
+          {form.fullchain_path.trim() && (
+            <label className="flex items-start gap-3 p-3 bg-bg-tertiary border border-border rounded-md cursor-pointer">
+              <input type="checkbox" className="mt-0.5 w-4 h-4 accent-accent-primary"
+                     checked={form.include_root}
+                     onChange={(e) => setForm({ ...form, include_root: e.target.checked })} />
+              <div>
+                <div className="text-sm text-text-primary">{t('export.includeRoot')}</div>
+                <div className="text-xs text-text-tertiary">{t('export.includeRootDesc')}</div>
+              </div>
+            </label>
+          )}
           <p className="text-2xs text-text-tertiary">{t('deploy.pathsHint')}</p>
           <div className="flex justify-end gap-2 pt-3 border-t border-border">
             <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
