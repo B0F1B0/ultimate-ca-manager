@@ -815,7 +815,7 @@ export const helpContent = {
         title: 'Sources',
         icon: Stack,
         items: [
-          { label: 'Application', text: 'UCM\'s own log. Only this source carries components, which nest under it in the source list' },
+          { label: 'Application', text: 'UCM\'s own log. Only this source carries components' },
           { label: 'Access', text: 'Gunicorn access log: HTTP requests and status codes, native installs only' },
           { label: 'Errors', text: 'Gunicorn error log: worker startup and unhandled tracebacks, native installs only' },
           { label: 'Journal', text: 'The systemd unit journal, where the service user can read it' },
@@ -825,19 +825,21 @@ export const helpContent = {
         title: 'Filters',
         icon: ListChecks,
         items: [
-          { label: 'Source', text: 'Which log, or which component within the application log. Only sources this deployment actually has are offered' },
+          { label: 'Source', text: 'Which log to read. Only sources this deployment actually has are offered' },
+          { label: 'Component', text: 'One subsystem of the application log, or all of them. Every subsystem is listed, not only those on screen' },
           { label: 'Log level', text: 'A floor, not an exact match: WARNING shows warnings, errors and critical' },
           { label: 'Search', text: 'Case-insensitive, across the message and the component name' },
+          { label: 'Exclude', text: 'Drops the lines that match: the quickest way to silence a heartbeat' },
+          { label: 'Regular expressions', text: 'Treats search and exclude as patterns; a half-written one matches nothing rather than failing' },
           { label: 'Date', text: 'A From/To window, applied on the server' },
-          { label: 'Lines', text: 'How many matching lines to return, newest last' },
+          { label: 'Lines', text: 'How many matching lines to return, newest first' },
         ]
       },
       {
         title: 'Live logs',
         icon: ArrowClockwise,
         items: [
-          'Polls every five seconds and keeps the newest line in view',
-          'Scrolling up into history stops it following, so reading is never interrupted',
+          'Polls every five seconds; the newest line is the first row',
           'Clears the date window, which asks the opposite question',
         ]
       },
@@ -845,11 +847,11 @@ export const helpContent = {
     tips: [
       'Timestamps are written in the server\'s local time with no offset in the line; the zone is named at the foot of the page',
       'A line that matches no known format is still shown, with no level, rather than hidden',
-      'A traceback is one entry, not one per line: select it to read the whole thing',
+      'A traceback is one entry, not one line each: the message cell wraps to show it whole',
       'Secrets are redacted server-side before anything leaves the process',
     ],
     warnings: [
-      'The component list reflects only what appears in the lines currently read, not every subsystem UCM has',
+      'A component that has logged nothing recently is still listed, so picking one can come back empty',
       'Reading this log is admin-only, and is deliberately not audited: the audit trail echoes to this same log, so recording every read would bury the lines it exists to surface',
     ],
     related: ['auditLogs', 'settings'],

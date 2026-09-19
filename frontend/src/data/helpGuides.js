@@ -1669,6 +1669,73 @@ The most permissive rule wins (additive model, no deny rules).
   },
 
   // ===================================================================
+  systemLogs: {
+    title: 'System Logs',
+    content: `
+## Overview
+
+Reads back what UCM itself wrote, without shell access to the host. It is the log that explains a failure no record was ever created for: a SCEP enrolment refused during validation is rejected before a request row exists, so it appears here and nowhere else.
+
+Lines are shown newest first, and every filter is applied on the server, so a filter never hides lines that were simply not fetched.
+
+## Sources
+
+**Source** and **Component** live in the Filters panel: pick the log, then narrow it to one subsystem.
+
+- **Application**: UCM's own log. This is the only source with components.
+- **Access**: the gunicorn access log — HTTP requests and status codes. Native installs only.
+- **Errors**: the gunicorn error log — worker startup and unhandled tracebacks. Native installs only.
+- **Journal**: the systemd unit journal, where the service user is able to read it.
+
+Only sources this deployment actually has are offered. A source with nothing behind it is left out rather than shown empty.
+
+### Components
+
+**All components** is the whole application log. The list holds every subsystem UCM can log from — \`services\`, \`api\`, \`utils\`, \`security\` and the rest — whether or not it has logged recently, plus the specific loggers the lines on screen came from.
+
+Choosing one takes everything beneath it. \`services\` matches \`services.scep.scep_service\` and every other service; \`services.scep\` narrows to the SCEP subtree.
+
+## Filtering
+
+### Log level
+A floor, not an exact match. **WARNING** shows warnings, errors and critical. **DEBUG** shows everything.
+
+A record whose level could not be read is never hidden by this filter: its severity is unknown, and guessing it would hide the lines most worth seeing.
+
+### Search and Exclude
+Both match the message and the component name, and both are case-insensitive. **Exclude** removes what matches — the quickest way to silence a heartbeat that repeats every minute and buries the one error.
+
+Turn on **Regular expressions** to treat both as patterns. A half-written pattern matches nothing rather than failing the request.
+
+### Date
+A **From**/**To** window, applied on the server. Unlike the level floor, a record carrying no timestamp is left out when a bound is set: a window asks for an instant, and such a record has none.
+
+### Lines
+How many matching lines to return, from 100 to 5000. The footer says when older lines were left off, and how many matched in total.
+
+## Live logs
+
+Polls every five seconds. It clears the date window, which asks the opposite question, and is the quickest way to watch an enrolment or a renewal as it happens.
+
+## Copy
+
+**Copy all** takes every line on screen. Tick the box beside any line and it becomes **Copy selected**. Both copy in the log's own shape — time, level, component, message — so what lands on the clipboard reads as a log and can be pasted into an issue.
+
+## Reading the footer
+
+The foot of the page names the file being read, the time zone its timestamps are written in, and whether anything was cut:
+
+- **Showing the N most recent of M matching lines** — more matched than the **Lines** setting allows. Raise it to see further back.
+- **Only the most recent part of the file was scanned** — the file is larger than the window the reader scans, so older lines are out of reach at any line count.
+
+Timestamps carry no offset of their own; they are the server's local time, and the zone is named beside the path.
+
+## Access
+
+Reading this log requires administrator rights. It is deliberately not audited: the audit trail is written to this same log, so recording every read would bury the lines the page exists to surface. The diagnostic bundle in **Settings → About** is audited, being a rare and deliberate act that leaves with a copy of the file.
+`
+  },
+
   auditLogs: {
     title: 'Audit Logs',
     content: `
