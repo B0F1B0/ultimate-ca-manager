@@ -1,9 +1,6 @@
-"""The migration runner a test builds the app with must only ever see the
-test's own database. settings.py loads /etc/ucm/ucm.env at import and
-create_app() gives the runner whatever DATABASE_PATH says, so on a machine
-that runs UCM as a service, an unpinned test suite migrated the live database
-(migrations 088 and 089 landed there from pytest runs, not from the service).
-"""
+"""create_app() resolves the migration runner's target from the environment,
+not from the in-memory test config: it must only ever see the test's own
+database, whatever /etc/ucm/ucm.env names on this machine."""
 import os
 from pathlib import Path
 

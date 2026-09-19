@@ -82,11 +82,9 @@ if 'DATA_DIR' not in os.environ or _xdist_worker:
     os.environ['DATA_DIR'] = _tmp_data_dir
     atexit.register(shutil.rmtree, _tmp_data_dir, ignore_errors=True)
 
-# The same file names the live database (DATABASE_PATH, or DATABASE_URL on a
-# PostgreSQL install), and create_app() hands the migration runner whatever
-# they say while the app itself runs in memory: every test building the app
-# then migrates this machine's production database. Pinned here, before
-# settings.py loads the file, for the same reason as DATA_DIR above.
+# ucm.env also names the live database, and create_app() hands the migration
+# runner whatever DATABASE_PATH / DATABASE_URL say while the app itself runs
+# in memory. Pinned before settings.py loads the file, like DATA_DIR above.
 if 'DATABASE_PATH' not in os.environ or _xdist_worker:
     os.environ['DATABASE_PATH'] = os.path.join(os.environ['DATA_DIR'], 'ucm.db')
 os.environ.setdefault('DATABASE_URL', '')
