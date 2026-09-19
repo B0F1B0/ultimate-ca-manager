@@ -73,7 +73,7 @@ _add(r'-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----',
      '[redacted-private-key]', flags=re.DOTALL)
 
 
-def _redact(text: str) -> str:
+def redact(text: str) -> str:
     """Apply every sanitisation pattern to ``text`` and return the redacted copy."""
     for pat, repl in _PATTERNS:
         text = pat.sub(repl, text)
@@ -99,7 +99,7 @@ def _tail_bytes(path: Path, max_bytes: int) -> Optional[bytes]:
         return None
 
 
-def _collect_journal() -> Optional[bytes]:
+def collect_journal() -> Optional[bytes]:
     """Return the last ``MAX_JOURNAL_LINES`` lines of the ucm unit journal.
 
     Skipped on Docker (no systemd journal) and when journalctl is missing.
@@ -167,22 +167,26 @@ def build_bundle() -> bytes:
     """Assemble the diagnostic bundle and return it as ZIP bytes."""
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        # primary logs
-        for fname, cap in (('ucm.log', MAX_BYTES_PER_FILE),
-                           ('error.log', MAX_BYTES_PER_FILE),
-                           ('access.log', MAX_BYTES_ACCESS)):
-            raw = _tail_bytes(LOG_DIR / fname, cap)
+        # primary logs. The application log is taken from the path the logging
+        # setup actually chose, so the bundle is not empty on Docker (which
+        # writes nothing under LOG_DIR) or wherever that path was unwritable.
+        from utils.app_log import resolved_path
+        app_log = resolved_path() or (LOG_DIR / 'ucm.log')
+        for path, arcname, cap in ((app_log, 'ucm.log', MAX_BYTES_PER_FILE),
+                                   (LOG_DIR / 'error.log', 'error.log', MAX_BYTES_PER_FILE),
+                                   (LOG_DIR / 'access.log', 'access.log', MAX_BYTES_ACCESS)):
+            raw = _tail_bytes(path, cap)
             if raw is None:
                 continue
             text = raw.decode('utf-8', errors='replace')
-            zf.writestr(fname, _redact(text))
+            zf.writestr(arcname, redact(text))
         # journal (systemd only)
-        jraw = _collect_journal()
+        jraw = collect_journal()
         if jraw:
-            zf.writestr('journal.log', _redact(jraw.decode('utf-8', errors='replace')))
+            zf.writestr('journal.log', redact(jraw.decode('utf-8', errors='replace')))
         # diagnostic
         try:
-            zf.writestr('system.txt', _redact(_system_diagnostic()))
+            zf.writestr('system.txt', redact(_system_diagnostic()))
         except Exception as exc:  # noqa: BLE001 — never break the download over the diagnostic
             logger.warning('log_bundle: diagnostic failed: %s', exc)
     data = buf.getvalue()

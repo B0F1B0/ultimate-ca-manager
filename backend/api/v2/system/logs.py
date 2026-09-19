@@ -1,19 +1,22 @@
-"""System diagnostic log bundle download.
+"""System log access: the diagnostic bundle download, and reading the tail of
+the application log for the log viewer.
 
-Returns a ZIP of the most relevant UCM logs (ucm.log, error.log, access.log,
-the last lines of the systemd journal when running under systemd) plus a small
-secret-free ``system.txt`` diagnostic. Sensitive tokens are redacted before
-packaging. Admin-only (``admin:system``).
+The bundle returns a ZIP of the most relevant UCM logs (ucm.log, error.log,
+access.log, the last lines of the systemd journal when running under systemd)
+plus a small secret-free ``system.txt`` diagnostic. The reader returns the same
+application log as records. Sensitive tokens are redacted on both paths, and
+both are admin-only (``admin:system``).
 """
 from . import bp
 
 import logging
 
 from auth.unified import require_auth
-from flask import Response
+from flask import Response, request
 from services.audit_service import AuditService
 from services.log_bundle import build_bundle, bundle_filename
-from utils.response import error_response
+from services.log_reader import DEFAULT_LINES, LEVELS, MAX_LINES, SOURCES, read
+from utils.response import error_response, success_response
 from utils.trusted_proxy import client_ip
 
 logger = logging.getLogger(__name__)
@@ -47,3 +50,41 @@ def download_log_bundle():
             'X-Content-Type-Options': 'nosniff',
         },
     )
+
+
+@bp.route('/api/v2/system/logs', methods=['GET'])
+@require_auth(['admin:system'])
+def read_application_log():
+    """Read the tail of the application log."""
+    try:
+        lines = int(request.args.get('lines', DEFAULT_LINES))
+    except (TypeError, ValueError):
+        return error_response('lines must be an integer', 400)
+    if lines < 1 or lines > MAX_LINES:
+        return error_response(f'lines must be between 1 and {MAX_LINES}', 400)
+
+    level = request.args.get('level') or None
+    if level and level.upper() not in LEVELS:
+        return error_response(f'level must be one of {", ".join(LEVELS)}', 400)
+
+    source = request.args.get('source') or 'app'
+    if source not in SOURCES:
+        return error_response(f'source must be one of {", ".join(SOURCES)}', 400)
+
+    try:
+        data = read(lines=lines, level=level, query=request.args.get('q'), source=source)
+    except OSError as exc:
+        logger.error('Application log read failed: %s', exc)
+        return error_response('Failed to read the application log', 500)
+
+    # Audited like the bundle download: reading the log is a privileged read,
+    # and the trail of who looked is worth more than the rows it costs.
+    AuditService.log_action(
+        action='application_log_read',
+        resource_type='system',
+        resource_name='Application log',
+        details=f'Application log ({source}) read from {client_ip()}',
+        success=True,
+    )
+
+    return success_response(data=data)
