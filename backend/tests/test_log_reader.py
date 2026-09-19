@@ -193,3 +193,36 @@ class TestSources:
 def test_the_reader_and_the_bundle_share_one_journal_collector():
     from services import log_bundle
     assert log_reader.collect_journal is log_bundle.collect_journal
+
+
+class TestEmptyJournal:
+    """journalctl answers `-- No entries --` on stdout with a zero exit status
+    when the unit has never logged, or when the service user cannot read the
+    system journal. Offering that as a source shows a Journal pane whose only
+    line says there is no journal."""
+
+    @pytest.fixture(autouse=True)
+    def only_the_app_log(self, monkeypatch, tmp_path, log_file):
+        monkeypatch.setattr(log_reader, 'LOG_DIR', tmp_path)
+        log_file.write_text(FORMATTED)
+
+    def test_the_no_entries_marker_is_not_content(self, monkeypatch):
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: b'-- No entries --\n')
+        assert log_reader.journal_text() is None
+        assert log_reader.JOURNAL not in log_reader.available_sources()
+
+    def test_the_marker_is_matched_whatever_its_casing_and_spacing(self, monkeypatch):
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: b'  --  no entries  --  \n\n')
+        assert log_reader.journal_text() is None
+
+    def test_a_journal_with_real_lines_is_offered(self, monkeypatch):
+        monkeypatch.setattr(
+            log_reader, 'collect_journal',
+            lambda: b'-- No entries --\n2026-09-19T13:41:36+0000 host ucm[1]: started\n')
+        assert log_reader.JOURNAL in log_reader.available_sources()
+
+    def test_reading_an_empty_journal_reports_absence(self, monkeypatch):
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: b'-- No entries --\n')
+        result = log_reader.read(source=log_reader.JOURNAL)
+        assert result['exists'] is False
+        assert result['lines'] == []

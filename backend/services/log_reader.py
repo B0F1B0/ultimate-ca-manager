@@ -37,6 +37,12 @@ MAX_LINES = 2000
 # which is far more than any request needs and more than is worth decoding.
 MAX_TAIL_BYTES = 2 * 1024 * 1024
 
+# journalctl answers with this, on stdout and with a zero exit status, when the
+# unit has no entries — which is every host where the service has never run, and
+# every host whose service user cannot read the system journal. Treating it as
+# content offered a Journal source whose only line said there was none.
+_JOURNAL_EMPTY = re.compile(r'^\s*--\s*no entries\s*--\s*$', re.IGNORECASE)
+
 # '%(asctime)s [%(name)s] %(levelname)s %(message)s' with a second-resolution
 # asctime, as configured in app.py.
 _RECORD = re.compile(
@@ -121,6 +127,17 @@ def source_path(source: str) -> Optional[Path]:
     return None
 
 
+def journal_text() -> Optional[str]:
+    """The unit journal as text, or None when it holds nothing to show."""
+    raw = collect_journal()
+    if raw is None:
+        return None
+    text = raw.decode('utf-8', errors='replace')
+    if any(line.strip() and not _JOURNAL_EMPTY.match(line) for line in text.splitlines()):
+        return text
+    return None
+
+
 def available_sources() -> list[str]:
     """The sources this deployment can actually serve.
 
@@ -132,7 +149,7 @@ def available_sources() -> list[str]:
     available = []
     for source in SOURCES:
         if source == JOURNAL:
-            if collect_journal() is not None:
+            if journal_text() is not None:
                 available.append(source)
             continue
         path = source_path(source)
@@ -151,10 +168,10 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
              'lines': [], 'truncated': False, 'available_sources': available_sources()}
 
     if source == JOURNAL:
-        raw = collect_journal()
-        if raw is None:
+        text = journal_text()
+        if text is None:
             return empty
-        text, truncated = raw.decode('utf-8', errors='replace'), False
+        truncated = False
         path = None
     else:
         path = source_path(source)
