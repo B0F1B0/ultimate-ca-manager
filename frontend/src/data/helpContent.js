@@ -806,6 +806,55 @@ export const helpContent = {
   },
 
   // ===== AUDIT LOGS =====
+  systemLogs: {
+    title: 'System Logs',
+    subtitle: 'The server\'s own application log',
+    overview: 'Reads back what UCM itself wrote, without shell access to the host. This is the log that explains a protocol failure the request never reached a record for: a SCEP enrolment refused during validation is rejected before a request row exists, so it appears here and nowhere else.',
+    sections: [
+      {
+        title: 'Sources',
+        icon: Stack,
+        items: [
+          { label: 'Application', text: 'UCM\'s own log. Only this source carries components, which nest under it in the source list' },
+          { label: 'Access', text: 'Gunicorn access log: HTTP requests and status codes, native installs only' },
+          { label: 'Errors', text: 'Gunicorn error log: worker startup and unhandled tracebacks, native installs only' },
+          { label: 'Journal', text: 'The systemd unit journal, where the service user can read it' },
+        ]
+      },
+      {
+        title: 'Filters',
+        icon: ListChecks,
+        items: [
+          { label: 'Source', text: 'Which log, or which component within the application log. Only sources this deployment actually has are offered' },
+          { label: 'Log level', text: 'A floor, not an exact match: WARNING shows warnings, errors and critical' },
+          { label: 'Search', text: 'Case-insensitive, across the message and the component name' },
+          { label: 'Date', text: 'A From/To window, applied on the server' },
+          { label: 'Lines', text: 'How many matching lines to return, newest last' },
+        ]
+      },
+      {
+        title: 'Live logs',
+        icon: ArrowClockwise,
+        items: [
+          'Polls every five seconds and keeps the newest line in view',
+          'Scrolling up into history stops it following, so reading is never interrupted',
+          'Clears the date window, which asks the opposite question',
+        ]
+      },
+    ],
+    tips: [
+      'Timestamps are written in the server\'s local time with no offset in the line; the zone is named at the foot of the page',
+      'A line that matches no known format is still shown, with no level, rather than hidden',
+      'A traceback is one entry, not one per line: select it to read the whole thing',
+      'Secrets are redacted server-side before anything leaves the process',
+    ],
+    warnings: [
+      'The component list reflects only what appears in the lines currently read, not every subsystem UCM has',
+      'Reading this log is admin-only, and is deliberately not audited: the audit trail echoes to this same log, so recording every read would bury the lines it exists to surface',
+    ],
+    related: ['auditLogs', 'settings'],
+  },
+
   auditLogs: {
     title: 'Audit Logs',
     subtitle: 'Activity tracking and compliance',
