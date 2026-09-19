@@ -668,3 +668,68 @@ class TestTheJournalIsNotProbedOnEveryRequest:
         assert log_reader.JOURNAL in log_reader.read()['available_sources']
 
 
+class TestRedactionCoversUcmsOwnSecrets:
+    """The viewer's help promises redaction server-side, and the names UCM's own
+    settings use are prefixed ones: `\b` is not a boundary after an underscore,
+    so every one of these went out in full."""
+
+    # The names UCM's own settings and provider credential schemas use, which
+    # is the list this was checked against rather than a list of likely ones.
+    NAMES = [
+        'password', 'bind_password', 'ldap_bind_password', 'smtp_password',
+        'winrm_password', 'xcep_password', 'wstep_password', 'backup_password',
+        'new_password', 'challenge_password', 'passphrase',
+        'secret', 'client_secret', 'intune_client_secret', 'api_secret',
+        'smtp_oauth_client_secret', 'shared_secret',
+        'token', 'api_token', 'auth_token', 'access_token', 'metrics_token',
+        'api_key', 'api_keys', 'secret_key', 'secret_api_key',
+        'aws_secret_access_key', 'hmac', 'hmac_key', 'eab_hmac_key',
+        'proxy_eab_hmac_key', 'master_key', 'encryption_key', 'consumer_key',
+        'application_key', 'user_pin',
+    ]
+
+    @pytest.mark.parametrize('name', NAMES)
+    @pytest.mark.parametrize('form', ['{name}={secret}', '{name}: {secret}',
+                                      '"{name}": "{secret}"'])
+    def test_no_setting_of_ours_leaves_in_the_clear(self, name, form):
+        line = form.format(name=name, secret='S3cretValue')
+        redacted = log_reader.redact(line)
+        assert 'S3cretValue' not in redacted, line
+        assert '[redacted]' in redacted, line
+
+    @pytest.mark.parametrize('line, secret', [
+        ('{"password": "hunter 2", "user": "alice"}', 'hunter 2'),       # a value with a space
+        ('Cookie: ucm_session=abc123; theme=dark', 'abc123'),
+        ('Set-Cookie: ucm_session=zzz999; HttpOnly', 'zzz999'),
+        ('proxy https://alice:proxyPass4@proxy.example:3128/', 'proxyPass4'),
+        ('postgresql://ucm:dbPass5@db.example/ucm', 'dbPass5'),
+    ])
+    def test_the_secret_does_not_reach_the_reader(self, line, secret):
+        redacted = log_reader.redact(line)
+        assert secret not in redacted
+        assert '[redacted]' in redacted
+
+    @pytest.mark.parametrize('line', [
+        'password_set=false', 'password_protected=true', 'min_password_length=8',
+        'password_require_uppercase=true', 'token_label=ucm-hsm',
+        'id_token_verify=true', 'pinned_subject_fields=CN',
+        'smtp_oauth_token_url=https://login.example/oauth2/token',
+        'key_type=RSA', 'key_size=4096', 'has_private_key=False',
+        'public_key=MIIBIjAN', 'key_usage=digitalSignature', 'hsm_key_id=42',
+    ])
+    def test_a_setting_that_only_reads_like_a_secret_stays_legible(self, line):
+        """Redaction that eats the diagnostics is no more use than redaction
+        that misses: neither leaves anything to read."""
+        assert log_reader.redact(line) == line
+
+    def test_a_cookie_header_goes_whole_and_not_to_the_first_semicolon(self):
+        """A jar holds several; stopping at the separator leaves the rest."""
+        assert 'theme=dark' not in log_reader.redact('Cookie: s=abc123; theme=dark')
+
+    def test_an_ordinary_line_is_left_alone(self):
+        line = '2026-09-19 13:41:36 [api] INFO password policy updated by alice'
+        assert log_reader.redact(line) == line
+
+    def test_the_line_around_the_secret_survives_it(self):
+        redacted = log_reader.redact('client_secret=abc123 tenant=contoso')
+        assert redacted == 'client_secret=[redacted] tenant=contoso'

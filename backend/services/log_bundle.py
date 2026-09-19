@@ -15,8 +15,14 @@ Contents:
 Sanitisation (defence in depth — logs should never contain secrets, but a
 redaction pass guards against accidental leakage):
   - RFC 6750 Bearer tokens:  `Authorization: Bearer xxx` → `Authorization: Bearer [redacted]`
-  - `password=...`, `pass=...`, `pwd=...` query-param style assignments
-  - `token=...` query-param style assignments
+  - `password=...`, `pass=...`, `pwd=...`, `passphrase=...`, `secret=...`,
+    `pin=...` assignments, including the names UCM's own settings and provider
+    credential schemas use (`client_secret`, `challenge_password`,
+    `bind_password`, `secret_key`, `eab_hmac_key`, `user_pin`), in the
+    query-string, JSON and quoted forms
+  - `token=...`, `api_key=...` and the other key names that carry a secret
+  - `Cookie:` / `Set-Cookie:` header values
+  - the password in a URL's userinfo (`https://user:pw@host`)
   - PEM private key blocks (BEGIN ... PRIVATE KEY ... END ... PRIVATE KEY)
   - Long JWT-like strings (three base64 segments separated by dots)
 
@@ -61,11 +67,42 @@ def _add(pattern: str, repl: str, flags: int = 0) -> None:
 _add(r'(?i)(authorization\s*[:=]\s*)([A-Za-z]+)\s+([^\s,;]+)', r'\1\2 [redacted]')
 # Bare `Bearer <token>` (in JSON payloads / logs).
 _add(r'(?i)\b(bearer)\s+([A-Za-z0-9_\-=\.]+)', r'\1 [redacted]')
-# `password=secret`, `pass=`, `pwd=`, `passwd=`  (query string / config style)
-_add(r'(?i)\b(pass(word|wd)?|secret)\s*[:=]\s*([^\s,;&]+)', r'\1=[redacted]')
+# `password=secret`, `pass=`, `pwd=`, `passwd=`, `secret=`, in the query-string,
+# config and JSON forms.
+#
+# The boundary is a lookbehind and not `\b`, because `\b` does not match after
+# an underscore: with it, UCM's own secrets went through untouched, every one of
+# them being a prefixed name — `client_secret` (Intune), `challenge_password`
+# (SCEP), `bind_password` (LDAP), `smtp_password`. The optional quote around the
+# separator is what catches `"password": "..."` in a logged JSON body.
+#
+# The names are UCM's own, read off the settings and the provider credential
+# schemas: `secret_key`, `eab_hmac_key`, `user_pin` and `passphrase` all went
+# out in full before this list was checked against them. A name is matched only
+# where a separator follows it, which is what keeps `password_set=true`,
+# `min_password_length=8`, `token_label=ucm-hsm` and `token_url=...` readable:
+# redaction that eats the diagnostics is no more use than redaction that misses.
+_SECRET_NAME = (r'pass(?:word|wd|phrase)?'
+                r'|(?:secret|hmac|master|encryption|consumer|application|account)'
+                r'(?:[_-][a-z0-9]+)?[_-]?keys?'
+                r'|secret|hmac|pin')
+_TOKEN_NAME = r'tokens?|api[_-]?keys?|access[_-]?tokens?|refresh[_-]?tokens?'
+# A quoted value is taken whole: stopping at the first space left the tail of
+# `"password": "hunter 2"` in the file.
+_VALUE = r'(?:"[^"]*"|\'[^\']*\'|[^\s,;&"\']+)'
+_ASSIGNMENT = r'(?i)((?<![A-Za-z0-9])(?:%s)["\']?\s*[:=]\s*)' + _VALUE
+_add(_ASSIGNMENT % _SECRET_NAME, r'\1[redacted]')
 # `token=...` (API tokens in URLs / config)
-_add(r'(?i)\b(token|api[_-]?key|access[_-]?token|refresh[_-]?token)\s*[:=]\s*([^\s,;&]+)',
-     r'\1=[redacted]')
+_add(_ASSIGNMENT % _TOKEN_NAME, r'\1[redacted]')
+# `Cookie: session=...` and its reply. A session cookie is a credential for as
+# long as the session lives, and the value is the whole of what follows.
+# Everything to the end of the line goes, not the first value: a cookie header
+# carries several, separated by the `;` that bounds every other pattern here,
+# and stopping at it would redact the session and leave the rest of the jar.
+_add(r'(?i)((?:set-)?cookie\s*[:=]\s*).+', r'\1[redacted]')
+# `https://user:pw@host` — a password in the authority of a URL, which is how a
+# proxy, an LDAP or a database URL carries one.
+_add(r'(?i)\b([a-z][a-z0-9+.\-]*://[^\s:/@]+):[^\s/@]+@', r'\1:[redacted]@')
 # JWT-ish: three base64url segments separated by dots, middle one reasonably long.
 _add(r'\beyJ[A-Za-z0-9_\-=]{6,}\.[A-Za-z0-9_\-=]{6,}\.[A-Za-z0-9_\-=]{6,}\b', '[redacted-jwt]')
 # Whole PEM private-key blocks (RSA, EC, OPENSSH, ENCRYPTED, ...).
