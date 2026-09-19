@@ -44,6 +44,8 @@ def oaep_parameters(params) -> tuple[str, str, bytes]:
     mgf = params["mask_gen_algorithm"]
     if mgf["algorithm"].native != "mgf1":
         raise ValueError("Unsupported OAEP mask generation function")
+    if not getattr(mgf["parameters"], "contents", b""):
+        raise ValueError("OAEP MGF1 without a digest")
     mgf_hash = mgf["parameters"]["algorithm"].native
     source = params["p_source_algorithm"]
     if source["algorithm"].native != "p_specified":
@@ -89,7 +91,8 @@ def select_response_key_transport(encrypted_bytes: bytes) -> tuple:
         algorithm = recipient_info.chosen['key_encryption_algorithm']
         if algorithm['algorithm'].native == RSAES_OAEP:
             hash_name, _mgf_hash, _label = oaep_parameters(algorithm['parameters'])
-            return (RSAES_OAEP, hash_name)
+            if hash_name in _OAEP_HASHES:
+                return (RSAES_OAEP, hash_name)
         return DEFAULT_KEY_TRANSPORT
     return DEFAULT_KEY_TRANSPORT
 _CONTENT_ENCRYPTION = {

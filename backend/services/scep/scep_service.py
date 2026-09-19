@@ -568,7 +568,7 @@ class SCEPService:
                 # The certificate issued for this transaction pairs with one
                 # key only: another key is a new enrollment mislabelled, and
                 # the device could never install what a replay would return.
-                if not self._issued_for_same_key(existing, csr):
+                if not self._same_key_as_existing(existing, csr):
                     logger.warning(
                         "SCEP: transactionID %s already issued for another key "
                         "(ca=%s), refusing the replay", transaction_id, self.ca_refid,
@@ -1087,18 +1087,18 @@ class SCEPService:
         return None
 
     @staticmethod
-    def _issued_for_same_key(existing: SCEPRequest, csr) -> bool:
-        if existing.status != "approved" or not existing.cert_refid:
+    def _same_key_as_existing(existing: SCEPRequest, csr) -> bool:
+        """The stored CSR is what gets signed, whether the request is still
+        pending or already issued: its key is the transaction's key."""
+        try:
+            stored = x509.load_der_x509_csr(
+                base64.b64decode(existing.csr), default_backend()
+            )
+        except Exception:
             return True
-        cert = Certificate.query.filter_by(refid=existing.cert_refid).first()
-        if not cert or not cert.crt:
-            return True
-        issued = x509.load_pem_x509_certificate(
-            base64.b64decode(cert.crt), default_backend()
-        )
         spki = serialization.PublicFormat.SubjectPublicKeyInfo
         der = serialization.Encoding.DER
-        return issued.public_key().public_bytes(der, spki) == \
+        return stored.public_key().public_bytes(der, spki) == \
             csr.public_key().public_bytes(der, spki)
 
     def _status_for_existing(

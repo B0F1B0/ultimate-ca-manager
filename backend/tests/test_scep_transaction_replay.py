@@ -64,3 +64,28 @@ def test_same_transaction_with_another_key_is_refused(app, scep_ca):
         response, _ = _process(ca, _enroll_request(ca_cert, first))
         assert _response_attributes(response)[PKI_STATUS_OID] == '0'   # same key: replay ok
         assert Certificate.query.count() == issued
+
+
+def test_pending_transaction_with_another_key_is_refused(app, scep_ca):
+    """Manual approval: the first key's request waits, another key on the same
+    transaction must not be told to wait for a certificate it can never use."""
+    with app.app_context():
+        ca, ca_cert, _ = _load_ca_material(scep_ca['id'])
+        first = _client_identity('pending device')
+        response, _ = SCEPService(ca.refid, challenge_password=CHALLENGE,
+                                  auto_approve=False).process_pkcs_req(
+            _enroll_request(ca_cert, first), '127.0.0.1')
+        assert _response_attributes(response)[PKI_STATUS_OID] == '3'   # PENDING
+
+        other = _client_identity('pending device')
+        response, _ = SCEPService(ca.refid, challenge_password=CHALLENGE,
+                                  auto_approve=False).process_pkcs_req(
+            _enroll_request(ca_cert, other), '127.0.0.1')
+        attrs = _response_attributes(response)
+        assert attrs[PKI_STATUS_OID] == '2'
+        assert attrs[FAIL_INFO_OID] == '2'
+
+        response, _ = SCEPService(ca.refid, challenge_password=CHALLENGE,
+                                  auto_approve=False).process_pkcs_req(
+            _enroll_request(ca_cert, first), '127.0.0.1')
+        assert _response_attributes(response)[PKI_STATUS_OID] == '3'   # same key still waits
