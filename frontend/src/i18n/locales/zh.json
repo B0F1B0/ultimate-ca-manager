@@ -1952,7 +1952,7 @@
     "certPath": "证书路径",
     "keyPath": "私钥路径",
     "fullchainPath": "完整证书链路径",
-    "rootIncluded": "包含根 CA",
+    "rootIncluded": "包含根CA",
     "pathsHint": "目标上的绝对路径；至少需要填写一个。文件以原子方式写入（证书/证书链 0644，私钥 0600）。",
     "noKeyInUcm": "UCM 未持有此证书的私钥。",
     "bindingCreated": "目标已关联",

@@ -1628,7 +1628,7 @@
     "certPath": "Chemin du certificat",
     "keyPath": "Chemin de la clé privée",
     "fullchainPath": "Chemin de la chaîne complète",
-    "rootIncluded": "Racine incluse",
+    "rootIncluded": "AC racine incluse",
     "pathsHint": "Chemins absolus sur la cible ; au moins un est requis. Les fichiers sont écrits de façon atomique (certificat/chaîne 0644, clé 0600).",
     "noKeyInUcm": "UCM ne détient pas la clé privée de ce certificat.",
     "bindingCreated": "Cible attachée",
