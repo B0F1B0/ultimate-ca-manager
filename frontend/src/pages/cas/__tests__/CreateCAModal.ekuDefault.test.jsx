@@ -1,7 +1,7 @@
 /**
  * CreateCAModal — an intermediate CA carries no EKU unless the operator asks
  * for one (#228 follow-up). A serverAuth-only issuing CA makes OpenSSL-based
- * validators reject every clientAuth leaf beneath it, the very defect v2.197
+ * validators reject every clientAuth leaf beneath it, the very defect v2.196
  * closed on the API path.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'

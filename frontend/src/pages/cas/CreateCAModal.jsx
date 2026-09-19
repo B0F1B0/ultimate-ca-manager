@@ -156,7 +156,7 @@ export function CreateCAModal({ open, onClose, cas, onSuccess }) {
 
   // Apply RFC 5280 defaults when CA type changes. No EKU on any CA unless
   // asked for: a serverAuth-only issuing CA invalidates every clientAuth
-  // leaf beneath it for OpenSSL-based validators (the v2.197 API default).
+  // leaf beneath it for OpenSSL-based validators (the v2.196 API default).
   useEffect(() => {
     setCreateFormKeyUsage(createFormType === 'root' ? ROOT_KEY_USAGE : INTERMEDIATE_KEY_USAGE)
     setCreateFormEkuServerAuth(false)
