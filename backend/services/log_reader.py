@@ -15,6 +15,8 @@ as an instant would attach a timezone the line never carried.
 """
 from __future__ import annotations
 
+import functools
+import logging
 import re
 from datetime import datetime
 from pathlib import Path
@@ -136,11 +138,35 @@ def _at_least(level: Optional[str]) -> set[str]:
     return set(LEVELS[LEVELS.index(level.upper()):])
 
 
+def _matcher(pattern: Optional[str], regex: bool):
+    """A predicate over a record's message and logger, or None for no pattern.
+
+    A bad regex matches nothing rather than raising: the reader is typing, and
+    half-written brackets should not empty the page with a 400.
+    """
+    if not pattern:
+        return None
+    if regex:
+        try:
+            compiled = re.compile(pattern, re.IGNORECASE)
+        except re.error:
+            return lambda record: False
+        return lambda record: bool(
+            compiled.search(record['message']) or compiled.search(record['logger'] or '')
+        )
+    needle = pattern.lower()
+    return lambda record: (
+        needle in record['message'].lower() or needle in (record['logger'] or '').lower()
+    )
+
+
 def filter_records(records: list[dict], level: Optional[str] = None,
                    query: Optional[str] = None,
                    logger: Optional[str] = None,
                    since: Optional[str] = None,
-                   until: Optional[str] = None) -> list[dict]:
+                   until: Optional[str] = None,
+                   exclude: Optional[str] = None,
+                   regex: bool = False) -> list[dict]:
     """Apply the level floor, the component and the substring search.
 
     A record with no level is never filtered out by the level floor: its
@@ -150,7 +176,8 @@ def filter_records(records: list[dict], level: Optional[str] = None,
     operator picking a subsystem means the subtree.
     """
     wanted = _at_least(level)
-    needle = (query or '').lower()
+    include = _matcher(query, regex)
+    omit = _matcher(exclude, regex)
     prefix = (logger or '').strip()
     start, end = _parse_bound(since), _parse_bound(until)
 
@@ -172,19 +199,49 @@ def filter_records(records: list[dict], level: Optional[str] = None,
         and (not prefix
              or record['logger'] == prefix
              or (record['logger'] or '').startswith(prefix + '.'))
-        and (not needle
-             or needle in record['message'].lower()
-             or needle in (record['logger'] or '').lower())
+        and (include is None or include(record))
+        and (omit is None or not omit(record))
     ]
 
 
-def components(records: list[dict]) -> list[str]:
-    """The logger names present, plus every parent that groups more than one.
+@functools.lru_cache(maxsize=1)
+def _own_top_level() -> frozenset:
+    """UCM's own top-level module names, read from the tree rather than listed.
 
-    A flat list of forty dotted names is not a usable dropdown, so the parents
-    that actually branch are offered alongside the leaves: `services.scep`
-    appears when `services.scep.scep_service` and `services.scep.intune_client`
-    both do, and a parent with a single child would only duplicate it.
+    A hand-kept list would drift the first time a package was added.
+    """
+    root = Path(__file__).resolve().parent.parent
+    names = {p.name for p in root.iterdir() if p.is_dir() and (p / '__init__.py').is_file()}
+    names |= {p.stem for p in root.glob('*.py')}
+    return frozenset(names)
+
+
+def subsystems() -> list[str]:
+    """The subsystems UCM can log from, whether or not they have lately.
+
+    Built only from the lines read, the list left a quiet subsystem impossible
+    to select — you could not ask for SCEP until SCEP had already said
+    something. Every module creates its logger when it is imported, so the
+    running process knows them all. Only the top level is offered: filtering is
+    by subtree, so `services` reaches all of them, and the 319 leaf names are
+    not a list anyone could use in a dropdown without a search box.
+    """
+    own = _own_top_level()
+    return sorted({
+        name.split('.')[0]
+        for name, logger in logging.Logger.manager.loggerDict.items()
+        if not isinstance(logger, logging.PlaceHolder) and name.split('.')[0] in own
+    })
+
+
+def components(records: list[dict]) -> list[str]:
+    """Every subsystem, plus the specific loggers the read lines came from.
+
+    The subsystems make a quiet one selectable; the leaves let a reader narrow
+    to exactly the line they are looking at. Parents that actually branch are
+    offered too: `services.scep` appears when `services.scep.scep_service` and
+    `services.scep.intune_client` both do, and a parent with a single child
+    would only duplicate it.
     """
     leaves = {r['logger'] for r in records if r['logger']}
     children: dict[str, set] = {}
@@ -195,7 +252,7 @@ def components(records: list[dict]) -> list[str]:
                 '.'.join(parts[:depth + 1])
             )
     branching = {p for p, kids in children.items() if len(kids) > 1}
-    return sorted(leaves | branching)
+    return sorted(leaves | branching | set(subsystems()))
 
 
 def source_path(source: str) -> Optional[Path]:
@@ -252,7 +309,8 @@ def level_counts(records: list[dict]) -> dict:
 def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
          query: Optional[str] = None, source: str = APP,
          logger: Optional[str] = None, since: Optional[str] = None,
-         until: Optional[str] = None) -> dict:
+         until: Optional[str] = None, exclude: Optional[str] = None,
+         regex: bool = False) -> dict:
     """Read the tail of one log source as filtered records."""
     if source not in SOURCES:
         source = APP
@@ -277,7 +335,7 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
 
     parsed = parse(redact(text))
     records = filter_records(parsed, level=level, query=query, logger=logger,
-                             since=since, until=until)
+                             since=since, until=until, exclude=exclude, regex=regex)
     # Counted before the line cap: the summary describes what the filters
     # matched, not the tail of it that fitted.
     matched, levels = len(records), level_counts(records)

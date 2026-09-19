@@ -7,6 +7,8 @@ A line matching nothing at all is still returned: those are usually the ones
 being looked for, and a level filter cannot judge a severity it never saw.
 """
 
+import logging
+
 import pytest
 
 from services import log_reader
@@ -209,7 +211,6 @@ def test_the_reader_and_the_bundle_share_one_journal_collector():
     from services import log_bundle
     assert log_reader.collect_journal is log_bundle.collect_journal
 
-
 class TestEmptyJournal:
     """journalctl answers `-- No entries --` on stdout with a zero exit status
     when the unit has never logged, or when the service user cannot read the
@@ -369,3 +370,86 @@ class TestSummaryCounts:
         assert result['matched'] == 1
         assert result['levels']['ERROR'] == 1
         assert result['levels']['INFO'] == 0
+
+
+class TestSubsystemsAreAlwaysOffered:
+    """Built only from the lines read, the component list left a quiet
+    subsystem impossible to select: you could not ask for SCEP until SCEP had
+    already said something."""
+
+    def test_the_backend_tree_decides_what_counts_as_ours(self):
+        own = log_reader._own_top_level()
+        for package in ('services', 'api', 'utils', 'security'):
+            assert package in own
+        for stranger in ('sqlalchemy', 'urllib3', 'flask'):
+            assert stranger not in own
+
+    def test_third_party_loggers_are_not_offered(self):
+        logging.getLogger('sqlalchemy.engine.Engine')
+        logging.getLogger('urllib3.connectionpool')
+        offered = log_reader.subsystems()
+        assert 'sqlalchemy' not in offered
+        assert 'urllib3' not in offered
+
+    def test_a_subsystem_is_offered_before_it_has_logged(self, log_file):
+        """The loggers registered are the modules imported, so the test creates
+        its own rather than assuming which of UCM's the test run happened to
+        import. Under gunicorn the app is preloaded, so all of them are."""
+        logging.getLogger('services.quiet_subsystem_for_test')
+        logging.getLogger('api.quiet_subsystem_for_test')
+        log_file.write_text(FORMATTED)
+        offered = log_reader.read()['components']
+        assert 'services' in offered          # selectable though it is quiet
+        assert 'api' in offered
+
+    def test_the_lines_read_still_contribute_their_own_loggers(self, log_file):
+        log_file.write_text(FORMATTED)
+        offered = log_reader.read()['components']
+        assert 'services.scep.scep_service' in offered
+        assert 'api.v2.system.logs' in offered
+
+    def test_picking_a_subsystem_takes_everything_under_it(self):
+        records = [
+            {'ts': 't', 'logger': 'services.scep.scep_service', 'level': 'INFO', 'message': 'a'},
+            {'ts': 't', 'logger': 'services.acme.client', 'level': 'INFO', 'message': 'b'},
+            {'ts': 't', 'logger': 'api.v2.system.logs', 'level': 'INFO', 'message': 'c'},
+        ]
+        kept = log_reader.filter_records(records, logger='services')
+        assert [r['message'] for r in kept] == ['a', 'b']
+
+
+class TestAdvancedMatching:
+    """Triage is as much about hiding the noise as finding the line: the
+    heartbeat that repeats every minute is what buries the one error."""
+
+    RECORDS = [
+        {'ts': 't', 'logger': 'services.scheduler_service', 'level': 'INFO',
+         'message': "Task 'discovery_scan' completed successfully"},
+        {'ts': 't', 'logger': 'services.scep', 'level': 'ERROR', 'message': 'failInfo=1'},
+        {'ts': 't', 'logger': 'api.v2', 'level': 'INFO', 'message': 'login ok'},
+    ]
+
+    def _messages(self, **kw):
+        return [r['message'] for r in log_reader.filter_records(self.RECORDS, **kw)]
+
+    def test_exclude_hides_the_lines_that_match_it(self):
+        assert self._messages(exclude='completed successfully') == ['failInfo=1', 'login ok']
+
+    def test_exclude_reads_the_logger_name_too(self):
+        assert self._messages(exclude='scheduler') == ['failInfo=1', 'login ok']
+
+    def test_include_and_exclude_compose(self):
+        assert self._messages(query='services', exclude='scheduler') == ['failInfo=1']
+
+    def test_regex_applies_to_both_patterns(self):
+        assert self._messages(query=r'fail\w+=\d', regex=True) == ['failInfo=1']
+        assert self._messages(exclude=r'^Task', regex=True) == ['failInfo=1', 'login ok']
+
+    def test_a_half_written_regex_matches_nothing_rather_than_raising(self):
+        """The reader is typing; an unbalanced bracket should not 500."""
+        assert self._messages(query='[unclosed', regex=True) == []
+        assert self._messages(exclude='[unclosed', regex=True) == [r['message'] for r in self.RECORDS]
+
+    def test_without_the_flag_a_regex_is_read_literally(self):
+        assert self._messages(query=r'fail\w+=\d') == []
+        assert self._messages(query='failInfo=1') == ['failInfo=1']

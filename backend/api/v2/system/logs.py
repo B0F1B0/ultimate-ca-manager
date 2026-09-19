@@ -74,7 +74,9 @@ def read_application_log():
     try:
         data = read(lines=lines, level=level, query=request.args.get('q'),
                     source=source, logger=request.args.get('component'),
-                    since=request.args.get('since'), until=request.args.get('until'))
+                    since=request.args.get('since'), until=request.args.get('until'),
+                    exclude=request.args.get('exclude'),
+                    regex=str(request.args.get('regex', '')).lower() in ('1', 'true', 'yes'))
     except OSError as exc:
         logger.error('Application log read failed: %s', exc)
         return error_response('Failed to read the application log', 500)
