@@ -72,7 +72,8 @@ def read_application_log():
         return error_response(f'source must be one of {", ".join(SOURCES)}', 400)
 
     try:
-        data = read(lines=lines, level=level, query=request.args.get('q'), source=source)
+        data = read(lines=lines, level=level, query=request.args.get('q'),
+                    source=source, logger=request.args.get('component'))
     except OSError as exc:
         logger.error('Application log read failed: %s', exc)
         return error_response('Failed to read the application log', 500)

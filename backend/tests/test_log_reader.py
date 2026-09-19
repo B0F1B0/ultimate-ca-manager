@@ -226,3 +226,48 @@ class TestEmptyJournal:
         result = log_reader.read(source=log_reader.JOURNAL)
         assert result['exists'] is False
         assert result['lines'] == []
+
+
+class TestComponents:
+    """The logger name is the subsystem that wrote the line, and it is a dotted
+    hierarchy. An operator narrowing to `services.scep` means the subtree, and
+    a dropdown of every leaf name is not a usable list."""
+
+    RECORDS = [
+        {'ts': 't', 'logger': 'services.scep.scep_service', 'level': 'INFO', 'message': 'a'},
+        {'ts': 't', 'logger': 'services.scep.intune_client', 'level': 'INFO', 'message': 'b'},
+        {'ts': 't', 'logger': 'api.v2.system.logs', 'level': 'INFO', 'message': 'c'},
+        {'ts': None, 'logger': None, 'level': None, 'message': 'orphan'},
+    ]
+
+    def test_a_branching_parent_is_offered_beside_its_leaves(self):
+        offered = log_reader.components(self.RECORDS)
+        assert 'services.scep' in offered
+        assert 'services.scep.scep_service' in offered
+        assert 'services.scep.intune_client' in offered
+
+    def test_a_parent_with_one_child_is_not_offered_twice(self):
+        offered = log_reader.components(self.RECORDS)
+        assert 'api.v2' not in offered
+        assert 'api.v2.system.logs' in offered
+
+    def test_records_without_a_logger_contribute_nothing(self):
+        assert None not in log_reader.components(self.RECORDS)
+
+    def test_filtering_on_a_parent_takes_the_whole_subtree(self):
+        kept = log_reader.filter_records(self.RECORDS, logger='services.scep')
+        assert [r['message'] for r in kept] == ['a', 'b']
+
+    def test_filtering_on_a_leaf_takes_only_that_leaf(self):
+        kept = log_reader.filter_records(self.RECORDS, logger='services.scep.intune_client')
+        assert [r['message'] for r in kept] == ['b']
+
+    def test_a_prefix_that_is_not_a_name_boundary_does_not_match(self):
+        assert log_reader.filter_records(self.RECORDS, logger='services.sce') == []
+
+    def test_the_components_offered_ignore_the_active_filters(self, log_file):
+        """Choosing a component must not empty the list it was chosen from."""
+        log_file.write_text(FORMATTED)
+        result = log_reader.read(logger='services.scep.scep_service')
+        assert len(result['lines']) == 1
+        assert 'api.v2.system.logs' in result['components']

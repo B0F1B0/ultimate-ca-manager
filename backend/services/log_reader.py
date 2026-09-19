@@ -99,21 +99,49 @@ def _at_least(level: Optional[str]) -> set[str]:
 
 
 def filter_records(records: list[dict], level: Optional[str] = None,
-                   query: Optional[str] = None) -> list[dict]:
-    """Apply the level floor and the substring search.
+                   query: Optional[str] = None,
+                   logger: Optional[str] = None) -> list[dict]:
+    """Apply the level floor, the component and the substring search.
 
     A record with no level is never filtered out by the level floor: its
-    severity is unknown, and guessing it silently would hide it.
+    severity is unknown, and guessing it silently would hide it. The component
+    filter matches a logger and everything below it, so `services.scep` covers
+    `services.scep.scep_service` — the dotted names are a hierarchy and an
+    operator picking a subsystem means the subtree.
     """
     wanted = _at_least(level)
     needle = (query or '').lower()
+    prefix = (logger or '').strip()
     return [
         record for record in records
         if (record['level'] is None or record['level'] in wanted)
+        and (not prefix
+             or record['logger'] == prefix
+             or (record['logger'] or '').startswith(prefix + '.'))
         and (not needle
              or needle in record['message'].lower()
              or needle in (record['logger'] or '').lower())
     ]
+
+
+def components(records: list[dict]) -> list[str]:
+    """The logger names present, plus every parent that groups more than one.
+
+    A flat list of forty dotted names is not a usable dropdown, so the parents
+    that actually branch are offered alongside the leaves: `services.scep`
+    appears when `services.scep.scep_service` and `services.scep.intune_client`
+    both do, and a parent with a single child would only duplicate it.
+    """
+    leaves = {r['logger'] for r in records if r['logger']}
+    children: dict[str, set] = {}
+    for name in leaves:
+        parts = name.split('.')
+        for depth in range(1, len(parts)):
+            children.setdefault('.'.join(parts[:depth]), set()).add(
+                '.'.join(parts[:depth + 1])
+            )
+    branching = {p for p, kids in children.items() if len(kids) > 1}
+    return sorted(leaves | branching)
 
 
 def source_path(source: str) -> Optional[Path]:
@@ -159,13 +187,15 @@ def available_sources() -> list[str]:
 
 
 def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
-         query: Optional[str] = None, source: str = APP) -> dict:
+         query: Optional[str] = None, source: str = APP,
+         logger: Optional[str] = None) -> dict:
     """Read the tail of one log source as filtered records."""
     if source not in SOURCES:
         source = APP
     count = max(1, min(int(lines), MAX_LINES))
     empty = {'source': source, 'path': None, 'exists': False,
-             'lines': [], 'truncated': False, 'available_sources': available_sources()}
+             'lines': [], 'truncated': False, 'components': [],
+             'available_sources': available_sources()}
 
     if source == JOURNAL:
         text = journal_text()
@@ -179,10 +209,14 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
             return {**empty, 'path': str(path) if path else None}
         text, truncated = _tail_text(path)
 
-    records = filter_records(parse(redact(text)), level=level, query=query)
+    parsed = parse(redact(text))
+    records = filter_records(parsed, level=level, query=query, logger=logger)
     if len(records) > count:
         records = records[-count:]
         truncated = True
+    # Offered from everything read, not from what survived the filters, so
+    # choosing a component never empties the list you chose it from.
     return {'source': source, 'path': str(path) if path else None, 'exists': True,
             'lines': records, 'truncated': truncated,
+            'components': components(parsed),
             'available_sources': empty['available_sources']}
