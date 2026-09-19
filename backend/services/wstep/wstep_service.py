@@ -14,12 +14,12 @@ import base64
 import logging
 
 from cryptography import x509
-from utils.csr_extensions import csr_extensions
 from cryptography.hazmat.primitives.serialization import Encoding
 from cryptography.x509.oid import NameOID
 
 from models import Certificate
 from services.ca_service import CAService
+from utils.csr_extensions import extensions_of
 from utils.datetime_utils import utc_now
 from utils.csr_diagnostics import WEAK_CSR_HASH_ALGORITHMS, weak_csr_hash_algorithm
 from utils.key_type import validate_enrollment_public_key
@@ -215,17 +215,11 @@ def _verify_pkcs7_pop(csr, outer_signed_data):
     return None
 
 
-def _extensions(cert_or_csr):
-    """Extensions of a certificate, or of a CSR read the Windows-tolerant way."""
-    if isinstance(cert_or_csr, x509.CertificateSigningRequest):
-        return csr_extensions(cert_or_csr)
-    return cert_or_csr.extensions
-
 def _san_values(cert_or_csr):
     """SAN entries as a set of (type, value) pairs — mirrors EST's
     ``_san_values``, order/criticality irrelevant to identity match."""
     try:
-        ext = _extensions(cert_or_csr).get_extension_for_class(x509.SubjectAlternativeName)
+        ext = extensions_of(cert_or_csr).get_extension_for_class(x509.SubjectAlternativeName)
     except x509.ExtensionNotFound:
         return None
     return {(type(name).__name__, str(getattr(name, 'value', name))) for name in ext.value}
@@ -288,7 +282,7 @@ def _match_template(ca, csr):
     try:
         csr_eku = {
             oid.dotted_string
-            for oid in csr_extensions(csr).get_extension_for_class(x509.ExtendedKeyUsage).value
+            for oid in extensions_of(csr).get_extension_for_class(x509.ExtendedKeyUsage).value
         }
     except x509.ExtensionNotFound:
         csr_eku = set()

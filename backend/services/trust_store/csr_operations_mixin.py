@@ -7,6 +7,7 @@ from datetime import timedelta
 from typing import List, Optional, Tuple
 
 from cryptography import x509
+from utils.csr_extensions import csr_extensions
 from utils.eku_validation import add_ocsp_nocheck_if_responder
 from cryptography.x509.oid import NameOID, ExtensionOID
 from cryptography.hazmat.primitives import hashes, serialization
@@ -633,6 +634,7 @@ class CSROperationsMixin:
 
         # Load CSR
         csr = x509.load_pem_x509_csr(csr_pem, default_backend())
+        csr_exts = csr_extensions(csr)
         if require_pop and not csr.is_signature_valid:
             raise ValueError("CSR has invalid signature")
 
@@ -650,7 +652,7 @@ class CSROperationsMixin:
         subject = override_subject if override_subject is not None else csr.subject
         if not list(subject):
             try:
-                san_ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+                san_ext = csr_exts.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
                 for name in san_ext.value:
                     if isinstance(name, x509.DNSName):
                         subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, name.value)])
@@ -667,7 +669,7 @@ class CSROperationsMixin:
         # the name that will actually land on the certificate, not an empty
         # list just because the CSR itself omitted SAN.
         try:
-            san_ext = csr.extensions.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+            san_ext = csr_exts.get_extension_for_oid(ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
             csr_sans = list(san_ext.value)
             has_csr_san = True
         except x509.ExtensionNotFound:
@@ -705,7 +707,7 @@ class CSROperationsMixin:
         # CA-only constraints from an enrollee CSR must never reach a leaf.
         issuing_ca = cert_type == 'intermediate_ca'
         try:
-            csr_basic_constraints = csr.extensions.get_extension_for_oid(
+            csr_basic_constraints = csr_exts.get_extension_for_oid(
                 ExtensionOID.BASIC_CONSTRAINTS
             )
         except x509.ExtensionNotFound:
@@ -732,7 +734,7 @@ class CSROperationsMixin:
             ExtensionOID.SUBJECT_KEY_IDENTIFIER,
             ExtensionOID.AUTHORITY_KEY_IDENTIFIER,
         }
-        for extension in csr.extensions:
+        for extension in csr_exts:
             if extension.oid in skip_from_csr:
                 continue
             if not issuing_ca and extension.oid not in _LEAF_CSR_COPYABLE_EXTENSION_OIDS:
@@ -819,7 +821,7 @@ class CSROperationsMixin:
 
         # Add basic extensions if not in CSR
         try:
-            csr.extensions.get_extension_for_oid(ExtensionOID.BASIC_CONSTRAINTS)
+            csr_exts.get_extension_for_oid(ExtensionOID.BASIC_CONSTRAINTS)
         except x509.ExtensionNotFound:
             if cert_type == 'intermediate_ca':
                 # Route the default through the same clamp as a CSR-supplied
@@ -848,7 +850,7 @@ class CSROperationsMixin:
             has_key_usage = True
         else:
             try:
-                csr.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE)
+                csr_exts.get_extension_for_oid(ExtensionOID.KEY_USAGE)
                 has_key_usage = True
             except x509.ExtensionNotFound:
                 has_key_usage = False
@@ -886,7 +888,7 @@ class CSROperationsMixin:
         extra_oids = to_object_identifiers(extra_oid_strs)
 
         try:
-            existing_eku = csr.extensions.get_extension_for_oid(ExtensionOID.EXTENDED_KEY_USAGE)
+            existing_eku = csr_exts.get_extension_for_oid(ExtensionOID.EXTENDED_KEY_USAGE)
             csr_has_eku = True
         except x509.ExtensionNotFound:
             existing_eku = None
@@ -979,7 +981,7 @@ class CSROperationsMixin:
             if not issuing_ca:
                 return False
             try:
-                csr.extensions.get_extension_for_oid(oid)
+                csr_exts.get_extension_for_oid(oid)
                 return True
             except x509.ExtensionNotFound:
                 return False
