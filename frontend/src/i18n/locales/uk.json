@@ -5096,6 +5096,9 @@
     "sourceApp": "Застосунок",
     "sourceAccess": "Доступ",
     "sourceError": "Помилки",
-    "sourceJournal": "Journal"
+    "sourceJournal": "Journal",
+    "component": "Компонент",
+    "allComponents": "Усі компоненти",
+    "follow": "Стежити"
   }
 }

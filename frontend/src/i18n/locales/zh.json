@@ -5096,6 +5096,9 @@
     "sourceApp": "应用程序",
     "sourceAccess": "访问",
     "sourceError": "错误",
-    "sourceJournal": "Journal"
+    "sourceJournal": "Journal",
+    "component": "组件",
+    "allComponents": "所有组件",
+    "follow": "跟随"
   }
 }

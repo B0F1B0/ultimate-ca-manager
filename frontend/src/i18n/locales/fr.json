@@ -5099,6 +5099,9 @@
     "sourceApp": "Application",
     "sourceAccess": "Accès",
     "sourceError": "Erreurs",
-    "sourceJournal": "Journal"
+    "sourceJournal": "Journal",
+    "component": "Composant",
+    "allComponents": "Tous les composants",
+    "follow": "Suivre"
   }
 }

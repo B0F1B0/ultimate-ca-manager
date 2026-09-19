@@ -5096,6 +5096,9 @@
     "sourceApp": "アプリケーション",
     "sourceAccess": "アクセス",
     "sourceError": "エラー",
-    "sourceJournal": "ジャーナル"
+    "sourceJournal": "ジャーナル",
+    "component": "コンポーネント",
+    "allComponents": "すべてのコンポーネント",
+    "follow": "追従"
   }
 }
