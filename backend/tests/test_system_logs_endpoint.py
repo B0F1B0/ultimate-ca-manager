@@ -78,15 +78,34 @@ class TestRequestValidation:
         assert _get(auth_client, '?level=warning').status_code == 200
 
 
-def test_every_read_is_audited(app, auth_client, log_file):
+def test_a_read_leaves_no_audit_entry(app, auth_client, log_file):
+    """AuditService echoes every entry to the application logger, so auditing a
+    read of that log writes a line into the log being read, which the next read
+    shows, for ever. Following a log polls, so the viewer would bury the lines
+    it exists to surface under a record of itself."""
     with app.app_context():
-        before = AuditLog.query.filter_by(action='application_log_read').count()
+        before = AuditLog.query.count()
 
+    assert _get(auth_client).status_code == 200
     assert _get(auth_client).status_code == 200
 
     with app.app_context():
         db.session.expire_all()
-        after = AuditLog.query.filter_by(action='application_log_read').count()
+        assert AuditLog.query.filter_by(action='application_log_read').count() == 0
+        assert AuditLog.query.count() == before
+
+
+def test_the_bundle_download_is_still_audited(app, auth_client):
+    """The rare, deliberate action that leaves with a copy of the file keeps its
+    trail — only the routine read was dropped."""
+    with app.app_context():
+        before = AuditLog.query.filter_by(action='log_bundle_downloaded').count()
+
+    assert auth_client.get('/api/v2/system/logs/bundle').status_code == 200
+
+    with app.app_context():
+        db.session.expire_all()
+        after = AuditLog.query.filter_by(action='log_bundle_downloaded').count()
     assert after == before + 1
 
 

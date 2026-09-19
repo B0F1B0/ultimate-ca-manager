@@ -73,19 +73,16 @@ def read_application_log():
 
     try:
         data = read(lines=lines, level=level, query=request.args.get('q'),
-                    source=source, logger=request.args.get('component'))
+                    source=source, logger=request.args.get('component'),
+                    since=request.args.get('since'), until=request.args.get('until'))
     except OSError as exc:
         logger.error('Application log read failed: %s', exc)
         return error_response('Failed to read the application log', 500)
 
-    # Audited like the bundle download: reading the log is a privileged read,
-    # and the trail of who looked is worth more than the rows it costs.
-    AuditService.log_action(
-        action='application_log_read',
-        resource_type='system',
-        resource_name='Application log',
-        details=f'Application log ({source}) read from {client_ip()}',
-        success=True,
-    )
-
+    # Deliberately not audited, unlike the bundle download. AuditService echoes
+    # every entry to the application logger, so auditing a read of that log
+    # writes a line into the log being read — which the next read shows, for
+    # ever. Following a log polls, so the viewer would bury the lines it exists
+    # to surface under a record of itself. The bundle download stays audited:
+    # it is rare, deliberate, and leaves with a copy of the file.
     return success_response(data=data)

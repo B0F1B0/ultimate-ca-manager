@@ -111,8 +111,23 @@ class TestRead:
         monkeypatch.setattr(log_reader, 'MAX_TAIL_BYTES', 200)
         log_file.write_text(FORMATTED * 40)
         result = log_reader.read(lines=log_reader.MAX_LINES)
-        assert result['truncated'] is True
+        assert result['scan_truncated'] is True
         assert len(result['lines']) < 120
+
+    def test_the_two_cuts_are_reported_apart(self, log_file):
+        """The line cap is what the reader chose and can raise; the byte cap is
+        how far back the file was read at all. Reporting one number for both
+        leaves no way to know which one to change."""
+        log_file.write_text(FORMATTED * 30)   # 90 records, well under the byte cap
+        result = log_reader.read(lines=10)
+        assert result['truncated'] is True         # the line cap cut it
+        assert result['scan_truncated'] is False   # the whole file was read
+
+    def test_neither_cut_is_claimed_when_everything_fitted(self, log_file):
+        log_file.write_text(FORMATTED)
+        result = log_reader.read(lines=log_reader.MAX_LINES)
+        assert result['truncated'] is False
+        assert result['scan_truncated'] is False
 
     def test_a_request_beyond_the_cap_is_clamped(self, log_file):
         log_file.write_text(FORMATTED)
@@ -271,3 +286,86 @@ class TestComponents:
         result = log_reader.read(logger='services.scep.scep_service')
         assert len(result['lines']) == 1
         assert 'api.v2.system.logs' in result['components']
+
+
+class TestTimeRange:
+    """A reader narrowing to the minute an incident happened should not have to
+    scroll. The bounds are read in the log's own format, which is the server's
+    local time with no zone — the same instants the lines carry."""
+
+    RECORDS = [
+        {'ts': '2026-09-19 10:00:00', 'logger': 'a', 'level': 'INFO', 'message': 'early'},
+        {'ts': '2026-09-19 12:30:00', 'logger': 'a', 'level': 'INFO', 'message': 'middle'},
+        {'ts': '2026-09-19 15:00:00', 'logger': 'a', 'level': 'INFO', 'message': 'late'},
+        {'ts': None, 'logger': None, 'level': None, 'message': 'timeless'},
+    ]
+
+    def _messages(self, **kw):
+        return [r['message'] for r in log_reader.filter_records(self.RECORDS, **kw)]
+
+    def test_since_keeps_that_instant_and_later(self):
+        assert self._messages(since='2026-09-19 12:30:00') == ['middle', 'late']
+
+    def test_until_keeps_that_instant_and_earlier(self):
+        assert self._messages(until='2026-09-19 12:30:00') == ['early', 'middle']
+
+    def test_both_bounds_make_a_window(self):
+        assert self._messages(since='2026-09-19 11:00', until='2026-09-19 13:00') == ['middle']
+
+    def test_a_date_alone_is_read_as_its_midnight(self):
+        assert self._messages(since='2026-09-19') == ['early', 'middle', 'late']
+
+    def test_the_browser_datetime_local_form_is_accepted(self):
+        assert self._messages(since='2026-09-19T12:30') == ['middle', 'late']
+
+    def test_an_unreadable_bound_is_ignored_rather_than_emptying_the_view(self):
+        assert self._messages(since='not a time') == ['early', 'middle', 'late', 'timeless']
+
+    def test_a_record_with_no_time_cannot_answer_a_time_question(self):
+        """Unlike the level floor, which keeps records of unknown severity: a
+        window asks for an instant, and this record has none."""
+        assert 'timeless' not in self._messages(since='2026-09-19 00:00:00')
+
+    def test_no_bounds_keeps_everything_including_the_timeless_one(self):
+        assert self._messages() == ['early', 'middle', 'late', 'timeless']
+
+
+def test_the_timezone_the_lines_are_written_in_is_reported(log_file):
+    """asctime is local time with no offset, so the reader is told which zone."""
+    log_file.write_text(FORMATTED)
+    tz = log_reader.read()['timezone']
+    assert set(tz) == {'name', 'offset'}
+    assert tz['offset'] == '' or __import__('re').match(r'^[+-]\d{2}:\d{2}$', tz['offset'])
+
+
+class TestSummaryCounts:
+    """The summary describes what the filters matched, not the tail of it that
+    fitted on screen — otherwise raising the line count would appear to change
+    how many errors the server had."""
+
+    def test_counts_every_level_including_the_unknown_ones(self):
+        records = [
+            {'ts': 't', 'logger': 'a', 'level': 'ERROR', 'message': '1'},
+            {'ts': 't', 'logger': 'a', 'level': 'ERROR', 'message': '2'},
+            {'ts': 't', 'logger': 'a', 'level': 'INFO', 'message': '3'},
+            {'ts': None, 'logger': None, 'level': None, 'message': 'orphan'},
+        ]
+        counts = log_reader.level_counts(records)
+        assert counts['ERROR'] == 2
+        assert counts['INFO'] == 1
+        assert counts['UNKNOWN'] == 1
+        assert counts['DEBUG'] == 0
+
+    def test_matched_is_counted_before_the_line_cap(self, log_file):
+        log_file.write_text(FORMATTED * 30)   # 90 records
+        result = log_reader.read(lines=10)
+        assert len(result['lines']) == 10
+        assert result['matched'] == 90
+        assert result['truncated'] is True
+
+    def test_the_counts_describe_the_filtered_set(self, log_file):
+        log_file.write_text(FORMATTED)
+        result = log_reader.read(level='ERROR')
+        assert result['matched'] == 1
+        assert result['levels']['ERROR'] == 1
+        assert result['levels']['INFO'] == 0

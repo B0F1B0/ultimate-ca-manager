@@ -16,6 +16,7 @@ as an instant would attach a timezone the line never carried.
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -24,6 +25,8 @@ from utils.app_log import resolved_path
 
 LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
+TS_FORMAT = '%Y-%m-%d %H:%M:%S'
+
 APP = 'app'
 ACCESS = 'access'
 ERROR = 'error'
@@ -31,7 +34,7 @@ JOURNAL = 'journal'
 SOURCES = (APP, ACCESS, ERROR, JOURNAL)
 
 DEFAULT_LINES = 200
-MAX_LINES = 2000
+MAX_LINES = 5000
 
 # Read a bounded tail rather than the file: rotation caps it at ten megabytes,
 # which is far more than any request needs and more than is worth decoding.
@@ -91,6 +94,41 @@ def parse(text: str) -> list[dict]:
     return records
 
 
+def server_timezone() -> dict:
+    """The zone the timestamps are written in, so a reader is not left guessing.
+
+    ``logging.Formatter`` renders ``asctime`` in the server's local time with no
+    zone and no offset. Every line in this log is therefore in whatever zone the
+    server happens to be in, which is not necessarily the reader's.
+    """
+    local = datetime.now().astimezone()
+    offset = local.strftime('%z')
+    return {
+        'name': local.tzname() or '',
+        'offset': f'{offset[:3]}:{offset[3:]}' if offset else '',
+    }
+
+
+def _parse_bound(value: Optional[str]) -> Optional[datetime]:
+    """Read a time bound, tolerating the forms a browser's datetime-local sends."""
+    if not value:
+        return None
+    text = value.strip().replace('T', ' ')
+    for fmt in (TS_FORMAT, '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _record_time(record: dict) -> Optional[datetime]:
+    try:
+        return datetime.strptime(record['ts'], TS_FORMAT) if record['ts'] else None
+    except ValueError:
+        return None
+
+
 def _at_least(level: Optional[str]) -> set[str]:
     """Levels at or above ``level``; every level when it is not one of ours."""
     if level is None or level.upper() not in LEVELS:
@@ -100,7 +138,9 @@ def _at_least(level: Optional[str]) -> set[str]:
 
 def filter_records(records: list[dict], level: Optional[str] = None,
                    query: Optional[str] = None,
-                   logger: Optional[str] = None) -> list[dict]:
+                   logger: Optional[str] = None,
+                   since: Optional[str] = None,
+                   until: Optional[str] = None) -> list[dict]:
     """Apply the level floor, the component and the substring search.
 
     A record with no level is never filtered out by the level floor: its
@@ -112,9 +152,23 @@ def filter_records(records: list[dict], level: Optional[str] = None,
     wanted = _at_least(level)
     needle = (query or '').lower()
     prefix = (logger or '').strip()
+    start, end = _parse_bound(since), _parse_bound(until)
+
+    def within(record):
+        # A bound asks for records between two instants, so one carrying no
+        # instant cannot answer — unlike the level floor, which keeps records of
+        # unknown severity rather than guess at them.
+        if start is None and end is None:
+            return True
+        moment = _record_time(record)
+        if moment is None:
+            return False
+        return (start is None or moment >= start) and (end is None or moment <= end)
+
     return [
         record for record in records
-        if (record['level'] is None or record['level'] in wanted)
+        if within(record)
+        and (record['level'] is None or record['level'] in wanted)
         and (not prefix
              or record['logger'] == prefix
              or (record['logger'] or '').startswith(prefix + '.'))
@@ -186,37 +240,57 @@ def available_sources() -> list[str]:
     return available
 
 
+def level_counts(records: list[dict]) -> dict:
+    """How many records carry each level, so a summary need not re-scan."""
+    counts = {level: 0 for level in LEVELS}
+    counts['UNKNOWN'] = 0
+    for record in records:
+        counts[record['level'] if record['level'] in counts else 'UNKNOWN'] += 1
+    return counts
+
+
 def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
          query: Optional[str] = None, source: str = APP,
-         logger: Optional[str] = None) -> dict:
+         logger: Optional[str] = None, since: Optional[str] = None,
+         until: Optional[str] = None) -> dict:
     """Read the tail of one log source as filtered records."""
     if source not in SOURCES:
         source = APP
     count = max(1, min(int(lines), MAX_LINES))
     empty = {'source': source, 'path': None, 'exists': False,
-             'lines': [], 'truncated': False, 'components': [],
+             'lines': [], 'truncated': False, 'scan_truncated': False,
+             'components': [], 'matched': 0, 'levels': level_counts([]),
+             'timezone': server_timezone(),
              'available_sources': available_sources()}
 
     if source == JOURNAL:
         text = journal_text()
         if text is None:
             return empty
-        truncated = False
+        scan_truncated = False
         path = None
     else:
         path = source_path(source)
         if path is None or not path.is_file():
             return {**empty, 'path': str(path) if path else None}
-        text, truncated = _tail_text(path)
+        text, scan_truncated = _tail_text(path)
 
     parsed = parse(redact(text))
-    records = filter_records(parsed, level=level, query=query, logger=logger)
+    records = filter_records(parsed, level=level, query=query, logger=logger,
+                             since=since, until=until)
+    # Counted before the line cap: the summary describes what the filters
+    # matched, not the tail of it that fitted.
+    matched, levels = len(records), level_counts(records)
     if len(records) > count:
         records = records[-count:]
-        truncated = True
     # Offered from everything read, not from what survived the filters, so
     # choosing a component never empties the list you chose it from.
+    # Two different cuts, reported apart: the line cap is what the reader chose
+    # and can raise, the byte cap is how far back the file was read at all.
     return {'source': source, 'path': str(path) if path else None, 'exists': True,
-            'lines': records, 'truncated': truncated,
+            'lines': records, 'truncated': matched > len(records),
+            'scan_truncated': scan_truncated,
             'components': components(parsed),
+            'matched': matched, 'levels': levels,
+            'timezone': empty['timezone'],
             'available_sources': empty['available_sources']}
