@@ -207,6 +207,23 @@ class TestSources:
         assert 'deadbeef' not in message
 
 
+    def test_gunicorn_logs_follow_the_env_vars_gunicorn_itself_reads(self, tmp_path, monkeypatch):
+        """An install that moves the access log must not read as not having one."""
+        access = tmp_path / 'somewhere' / 'access.log'
+        access.parent.mkdir()
+        access.write_text('127.0.0.1 - - "GET /api/v2/health HTTP/1.1" 200\n')
+        monkeypatch.setenv('ACCESS_LOG', str(access))
+
+        assert log_reader.source_path('access') == access
+        assert 'access' in log_reader.available_sources()
+
+    def test_gunicorn_logs_fall_back_to_the_log_dir(self, monkeypatch):
+        monkeypatch.delenv('ACCESS_LOG', raising=False)
+        monkeypatch.delenv('ERROR_LOG', raising=False)
+
+        assert log_reader.source_path('access') == log_reader.LOG_DIR / 'access.log'
+        assert log_reader.source_path('error') == log_reader.LOG_DIR / 'error.log'
+
 def test_the_reader_and_the_bundle_share_one_journal_collector():
     from services import log_bundle
     assert log_reader.collect_journal is log_bundle.collect_journal

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import os
 import re
 from datetime import datetime
 from pathlib import Path
@@ -259,10 +260,12 @@ def source_path(source: str) -> Optional[Path]:
     """The file a source reads, or None for one that is not a file."""
     if source == APP:
         return resolved_path()
+    # gunicorn takes these two from the environment, so the reader has to as
+    # well: an install that moves them would otherwise read as not having them.
     if source == ACCESS:
-        return LOG_DIR / 'access.log'
+        return Path(os.environ.get('ACCESS_LOG') or LOG_DIR / 'access.log')
     if source == ERROR:
-        return LOG_DIR / 'error.log'
+        return Path(os.environ.get('ERROR_LOG') or LOG_DIR / 'error.log')
     return None
 
 
