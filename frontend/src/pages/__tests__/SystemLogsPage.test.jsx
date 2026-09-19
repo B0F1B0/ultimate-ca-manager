@@ -1,10 +1,10 @@
 /**
  * SystemLogsPage — every filter reaches the server rather than being applied in
  * the browser, so a filter never hides lines that were simply never fetched.
- * The component list is offered from everything read, not from what survived
- * the filters, so narrowing to one subsystem cannot empty the list it came
- * from. A deployment with no log file says so instead of looking like an empty
- * log.
+ * The component list and the counts are built from everything read, not from
+ * what survived the filters, so narrowing can neither empty the list it came
+ * from nor appear to change how many errors the server had. A deployment with
+ * no log file says so instead of looking like an empty log.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
@@ -13,50 +13,94 @@ const mocks = vi.hoisted(() => ({
   getApplicationLog: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
+  writeText: vi.fn(() => Promise.resolve()),
 }))
 
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key) => key }),
-}))
-
+vi.mock('react-i18next', () => ({ useTranslation: () => ({ t: (key) => key }) }))
 vi.mock('../../services', () => ({
   systemService: { getApplicationLog: mocks.getApplicationLog },
 }))
-
 vi.mock('../../contexts', () => ({
   useNotification: () => ({ showError: mocks.showError, showSuccess: mocks.showSuccess }),
 }))
+vi.mock('../../lib/utils', () => ({ extractData: (r) => r?.data ?? r }))
 
-vi.mock('../../lib/utils', () => ({
-  extractData: (r) => r?.data ?? r,
-  cn: (...a) => a.filter(Boolean).join(' '),
-}))
-
-// The layout is exercised by its own tests; here it only has to surface the
-// filters it is handed, so each one can be driven by its label.
+// Both layout pieces have their own tests. Here they only surface what the page
+// hands them, so each control can be driven by the label the page gave it.
 vi.mock('../../components/ui/responsive', () => ({
-  ResponsiveLayout: ({ title, actions, filters = [], children }) => (
+  ResponsiveLayout: ({ title, stats = [], slideOverOpen, slideOverContent, children }) => (
     <div>
       <h1>{title}</h1>
-      {filters.map((f) => (
+      <ul aria-label="stats">
+        {stats.map((s) => <li key={s.label}>{`${s.label}=${s.value}`}</li>)}
+      </ul>
+      {children}
+      {slideOverOpen && <aside aria-label="slideover">{slideOverContent}</aside>}
+    </div>
+  ),
+  ResponsiveDataTable: ({
+    data = [], columns = [], externalSearch, onSearchChange, searchPlaceholder,
+    toolbarFilters = [], toolbarActions, emptyState,
+    multiSelect, selectedIds, onSelectionChange, bulkActions,
+  }) => (
+    <div>
+      <input
+        aria-label={searchPlaceholder}
+        value={externalSearch ?? ''}
+        onChange={(e) => onSearchChange?.(e.target.value)}
+      />
+      {toolbarFilters.map((f) => (
         <select
           key={f.key}
           aria-label={f.label}
           value={f.value ?? ''}
           onChange={(e) => f.onChange?.(e.target.value)}
         >
-          {(f.options || []).map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
+          {/* FilterSelect always prepends this cleared entry */}
+          <option value="">{f.allLabel ?? f.placeholder}</option>
+          {(f.options || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       ))}
-      <div>{actions}</div>
-      {children}
+      <div>{toolbarActions}</div>
+      {multiSelect && (
+        <div>
+          {data.map((row) => (
+            <input
+              key={row.id}
+              type="checkbox"
+              aria-label={`select-${row.id}`}
+              checked={selectedIds?.has(row.id) || false}
+              onChange={(e) => {
+                const next = new Set(selectedIds)
+                if (e.target.checked) next.add(row.id)
+                else next.delete(row.id)
+                onSelectionChange(next)
+              }}
+            />
+          ))}
+          {selectedIds?.size > 0 && bulkActions}
+        </div>
+      )}
+      {data.length === 0 ? (
+        <p>{emptyState?.title}</p>
+      ) : (
+        <table>
+          <thead><tr>{columns.map((c) => <th key={c.key}>{c.header}</th>)}</tr></thead>
+          <tbody>
+            {data.map((row) => (
+              <tr key={row.id}>
+                {columns.map((c) => <td key={c.key}>{c.render(row[c.key], row)}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
   ),
 }))
 
 vi.mock('../../components', () => ({
+  Badge: ({ children }) => <span>{children}</span>,
   Button: ({ children, loading: _loading, ...props }) => <button {...props}>{children}</button>,
   Input: ({ label, ...props }) => <input aria-label={label || props.placeholder} {...props} />,
   Select: ({ label, options = [], value, onChange }) => (
@@ -64,7 +108,6 @@ vi.mock('../../components', () => ({
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   ),
-  LoadingSpinner: () => <div>loading</div>,
 }))
 
 vi.mock('../../components/ui/ToggleSwitch', () => ({
@@ -83,10 +126,14 @@ const LINES = [
 const DEFAULT_DATA = {
   source: 'app', exists: true, lines: LINES, truncated: false, path: '/x/ucm.log',
   available_sources: ['app', 'access'], components: ['api.v2', 'services.scep'],
+  matched: 1193, levels: { DEBUG: 0, INFO: 1, WARNING: 13, ERROR: 5, CRITICAL: 1, UNKNOWN: 0 },
+  timezone: { name: 'CEST', offset: '+02:00' },
 }
 
 async function renderPage(data = DEFAULT_DATA) {
-  mocks.getApplicationLog.mockResolvedValue({ data })
+  // A fresh object per call, as a real fetch gives: one shared reference makes
+  // React bail out of the re-render and hides the effects under test.
+  mocks.getApplicationLog.mockImplementation(async () => ({ data: { ...data } }))
   render(<SystemLogsPage />)
   await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenCalled())
 }
@@ -94,17 +141,23 @@ async function renderPage(data = DEFAULT_DATA) {
 const BASE = { source: 'app', level: 'INFO', lines: 200 }
 
 describe('SystemLogsPage', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.assign(navigator, { clipboard: { writeText: mocks.writeText } })
+  })
   afterEach(() => vi.useRealTimers())
 
-  it('renders each record as its own row with its parts split out', async () => {
+  it('heads the table with the column names', async () => {
     await renderPage()
-    const row = (await screen.findByText('failInfo=1')).closest('div')
-    expect(row).toHaveTextContent('2026-09-19 13:41:36')
-    expect(row).toHaveTextContent('WARNING')
-    expect(row).toHaveTextContent('services.scep')
-    // the parts are separate cells, not one concatenated line
-    expect(row.querySelectorAll('span').length).toBe(4)
+    expect([...document.querySelectorAll('th')].map((h) => h.textContent))
+      .toEqual(['logs.time', 'logs.levelShort', 'logs.component', 'logs.message'])
+  })
+
+  it('renders each record as a row with its parts in their own cells', async () => {
+    await renderPage()
+    const row = (await screen.findByText('failInfo=1')).closest('tr')
+    expect([...row.querySelectorAll('td')].map((c) => c.textContent.trim()))
+      .toEqual(['2026-09-19 13:41:36', 'WARNING', 'services.scep', 'failInfo=1'])
   })
 
   it('marks a record that carries no level rather than dropping it', async () => {
@@ -112,8 +165,17 @@ describe('SystemLogsPage', () => {
       ...DEFAULT_DATA,
       lines: [{ ts: null, logger: null, level: null, message: 'GET /api 200' }],
     })
-    expect(await screen.findByText('GET /api 200')).toBeInTheDocument()
-    expect(screen.getByText('—')).toBeInTheDocument()
+    const row = (await screen.findByText('GET /api 200')).closest('tr')
+    expect(row.querySelectorAll('td')[1].textContent).toBe('—')
+  })
+
+  it('summarises what the filters matched, not the page of it on screen', async () => {
+    await renderPage()
+    const stats = [...screen.getByLabelText('stats').children].map((li) => li.textContent)
+    expect(stats).toContain('common.total=1193')
+    expect(stats).toContain('logs.errors=6')        // ERROR + CRITICAL
+    expect(stats).toContain('logs.warnings=13')
+    expect(stats).toContain('logs.components=2')
   })
 
   it('asks the server for the application log, INFO and 200 lines by default', async () => {
@@ -121,29 +183,40 @@ describe('SystemLogsPage', () => {
     expect(mocks.getApplicationLog).toHaveBeenCalledWith(BASE)
   })
 
-  it('offers only the sources this deployment reported', async () => {
+  it('makes the cleared source entry mean the unfiltered application log', async () => {
     await renderPage()
-    const opts = [...screen.getByLabelText('logs.source').options].map((o) => o.value)
-    expect(opts).toEqual(['app', 'access'])
+    const select = screen.getByLabelText('logs.source')
+    expect(select.value).toBe('')
+    // no second entry for the application log itself — the cleared one is it
+    expect([...select.options].map((o) => o.value))
+      .toEqual(['', 'app:api.v2', 'app:services.scep', 'access'])
   })
 
-  it('offers the components the server found, with an all-components default', async () => {
+  it('splits a nested choice back into a source and a component', async () => {
     await renderPage()
-    const opts = [...screen.getByLabelText('logs.component').options].map((o) => o.value)
-    expect(opts).toEqual(['', 'api.v2', 'services.scep'])
-  })
-
-  it('sends the component to the server, and omits it when set back to all', async () => {
-    await renderPage()
-    fireEvent.change(screen.getByLabelText('logs.component'), { target: { value: 'services.scep' } })
+    fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: 'app:services.scep' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, component: 'services.scep' }))
 
-    fireEvent.change(screen.getByLabelText('logs.component'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: 'access' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, source: 'access' }))
+
+    fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: '' } })
     await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenLastCalledWith(BASE))
   })
 
-  it('refetches when the source, level or line count changes', async () => {
+  it('reads every level when the floor is cleared', async () => {
+    await renderPage()
+    const select = screen.getByLabelText('logs.level')
+    expect([...select.options].map((o) => o.value))
+      .toEqual(['', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
+    fireEvent.change(select, { target: { value: '' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, level: 'DEBUG' }))
+  })
+
+  it('refetches when the level or line count changes', async () => {
     await renderPage()
     fireEvent.change(screen.getByLabelText('logs.level'), { target: { value: 'ERROR' } })
     await waitFor(() => expect(mocks.getApplicationLog)
@@ -157,12 +230,30 @@ describe('SystemLogsPage', () => {
   it('sends the search term to the server rather than filtering locally', async () => {
     await renderPage()
     fireEvent.change(screen.getByLabelText('logs.searchPlaceholder'), { target: { value: 'scep' } })
-    fireEvent.click(screen.getByRole('button', { name: /common\.search/ }))
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, q: 'scep' }))
   })
 
-  it('polls while following, and stops when switched off', async () => {
+  it('sends a time window from the date panel', async () => {
+    await renderPage()
+    fireEvent.click(screen.getByText('common.date'))
+    fireEvent.change(await screen.findByLabelText('logs.from'), { target: { value: '2026-09-19T12:30' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, since: '2026-09-19T12:30' }))
+  })
+
+  it('clears the time window when live logs is switched on', async () => {
+    await renderPage()
+    fireEvent.click(screen.getByText('common.date'))
+    fireEvent.change(await screen.findByLabelText('logs.from'), { target: { value: '2026-09-19T12:30' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, since: '2026-09-19T12:30' }))
+
+    fireEvent.click(screen.getByLabelText('logs.follow'))
+    await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenLastCalledWith(BASE))
+  })
+
+  it('polls while live, and stops when switched off', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     await renderPage()
     const before = mocks.getApplicationLog.mock.calls.length
@@ -187,6 +278,33 @@ describe('SystemLogsPage', () => {
     expect(mocks.showError).not.toHaveBeenCalled()
   })
 
+  it('lists the newest line first, so page one is the recent one', async () => {
+    await renderPage()
+    const first = document.querySelector('tbody tr')
+    expect(first.querySelectorAll('td')[0].textContent).toBe('2026-09-19 13:41:37')
+  })
+
+  it("copies every line in the log's own shape, newest first as shown", async () => {
+    await renderPage()
+    fireEvent.click(screen.getByText('logs.copyAll'))
+    await waitFor(() => expect(mocks.writeText).toHaveBeenCalled())
+    expect(mocks.writeText.mock.calls[0][0]).toBe(
+      '2026-09-19 13:41:37 INFO [api.v2] log read\n'
+      + '2026-09-19 13:41:36 WARNING [services.scep] failInfo=1',
+    )
+  })
+
+  it('copies only the ticked lines once any are ticked', async () => {
+    await renderPage()
+    expect(screen.queryByText('logs.copySelected')).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('select-0'))
+    fireEvent.click(screen.getByText('logs.copySelected'))
+    await waitFor(() => expect(mocks.writeText).toHaveBeenCalled())
+    expect(mocks.writeText.mock.calls[0][0])
+      .toBe('2026-09-19 13:41:36 WARNING [services.scep] failInfo=1')
+  })
+
   it('says the log is unavailable rather than showing an empty log', async () => {
     await renderPage({ ...DEFAULT_DATA, exists: false, lines: [], path: null })
     expect(await screen.findByText('logs.unavailable')).toBeInTheDocument()
@@ -197,14 +315,15 @@ describe('SystemLogsPage', () => {
     expect(await screen.findByText('logs.empty')).toBeInTheDocument()
   })
 
-  it('warns when older lines were left off', async () => {
-    await renderPage({ ...DEFAULT_DATA, truncated: true })
-    expect(await screen.findByText('logs.truncated')).toBeInTheDocument()
+  it('names the file and the zone the timestamps are written in', async () => {
+    await renderPage()
+    expect(await screen.findByText(/\/x\/ucm\.log/)).toBeInTheDocument()
+    expect(screen.getByText(/logs\.serverTime \(CEST \+02:00\)/)).toBeInTheDocument()
   })
 
-  it('shows which file is being read', async () => {
-    await renderPage()
-    expect(await screen.findByText('/x/ucm.log')).toBeInTheDocument()
+  it('says when older lines were left off', async () => {
+    await renderPage({ ...DEFAULT_DATA, truncated: true })
+    expect(await screen.findByText(/logs\.truncated/)).toBeInTheDocument()
   })
 
   it('reports a failed manual read instead of rendering a blank page', async () => {
