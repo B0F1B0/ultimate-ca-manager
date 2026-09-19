@@ -190,12 +190,23 @@ class TestSources:
         assert 'GET /api' in result['lines'][0]['message']
 
     def test_reads_the_journal(self, monkeypatch, tmp_path, log_file, no_journal):
+        """Two lines, not one, and the records are read rather than counted: on
+        a single line a parser that folds every line into the one above it
+        looks exactly like a parser that works."""
         monkeypatch.setattr(log_reader, 'LOG_DIR', tmp_path)
-        monkeypatch.setattr(log_reader, 'collect_journal',
-                            lambda: b'2026-09-19T13:41:36+0000 host ucm[1]: started\n')
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: (
+            b'2026-09-19T13:41:36+0000 host ucm[1]: started\n'
+            b'2026-09-19T13:41:37+0000 host ucm[1]: listening on 8443\n'
+        ))
         result = log_reader.read(source=log_reader.JOURNAL)
         assert result['exists'] is True
         assert result['path'] is None
+        assert [line['message'] for line in result['lines']] == [
+            'started', 'listening on 8443',
+        ]
+        assert [line['ts'] for line in result['lines']] == [
+            '2026-09-19 13:41:36', '2026-09-19 13:41:37',
+        ]
         assert 'started' in result['lines'][0]['message']
 
     def test_an_unavailable_journal_reports_absence(self, monkeypatch, tmp_path, log_file, no_journal):
