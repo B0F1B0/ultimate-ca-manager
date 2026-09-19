@@ -12,6 +12,7 @@ from services.scep.crypto_helpers import (
     AES128_CBC,
     create_degenerate_pkcs7,
     create_signed_pkcs7,
+    DEFAULT_KEY_TRANSPORT,
     encrypt_for_client,
 )
 
@@ -107,6 +108,7 @@ def build_cert_rep_success(
     ca_key,
     challenge_password: Optional[str | bytes] = None,
     content_encryption_algorithm: str = AES128_CBC,
+    key_transport: tuple = DEFAULT_KEY_TRANSPORT,
 ) -> bytes:
     """Create a successful CertRep encrypted for the SCEP client."""
     pkcs7_data = create_degenerate_pkcs7([cert, ca_cert])
@@ -115,6 +117,7 @@ def build_cert_rep_success(
         recipient_cert,
         password=challenge_password,
         content_encryption_algorithm=content_encryption_algorithm,
+        key_transport=key_transport,
     )
     return build_cert_rep(
         STATUS_SUCCESS, encrypted_data, transaction_id, sender_nonce, ca_key, ca_cert
@@ -130,6 +133,7 @@ def build_crl_rep_success(
     ca_key,
     challenge_password: Optional[str | bytes] = None,
     content_encryption_algorithm: str = AES128_CBC,
+    key_transport: tuple = DEFAULT_KEY_TRANSPORT,
 ) -> bytes:
     """Create a successful CertRep carrying only the requested CRL."""
     pkcs7_data = create_degenerate_pkcs7([], crls=[crl])
@@ -138,6 +142,7 @@ def build_crl_rep_success(
         recipient_cert,
         password=challenge_password,
         content_encryption_algorithm=content_encryption_algorithm,
+        key_transport=key_transport,
     )
     return build_cert_rep(
         STATUS_SUCCESS, encrypted_data, transaction_id, sender_nonce, ca_key, ca_cert

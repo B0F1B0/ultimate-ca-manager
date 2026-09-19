@@ -17,6 +17,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import dsa, ec, ed25519, rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 
+from services.scep.crypto_helpers import oaep_padding
+
 logger = logging.getLogger(__name__)
 
 
@@ -350,15 +352,19 @@ def decrypt_scep_envelope(
 
     if matching_ktri is None:
         raise ValueError("SCEP RecipientInfo does not identify configured CA")
-    if (
-        matching_ktri["key_encryption_algorithm"]["algorithm"].native
-        != "rsaes_pkcs1v15"
-    ):
+    key_algorithm = matching_ktri["key_encryption_algorithm"]
+    key_algorithm_name = key_algorithm["algorithm"].native
+    if key_algorithm_name == "rsaes_pkcs1v15":
+        key_padding = padding.PKCS1v15()
+    elif key_algorithm_name == "rsaes_oaep":
+        # Windows (Intune's SCEP client) wraps the content key with OAEP
+        key_padding = oaep_padding(key_algorithm["parameters"])
+    else:
         raise ValueError("Unsupported SCEP key transport algorithm")
 
     content_encryption_key = ca_key.decrypt(
         matching_ktri["encrypted_key"].native,
-        padding.PKCS1v15(),
+        key_padding,
     )
 
     eci = env["encrypted_content_info"]

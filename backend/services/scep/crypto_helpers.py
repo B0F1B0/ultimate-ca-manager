@@ -20,6 +20,78 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 AES128_CBC = "aes128_cbc"
 AES256_CBC = "aes256_cbc"
+
+RSAES_PKCS1V15 = "rsaes_pkcs1v15"
+RSAES_OAEP = "rsaes_oaep"
+# (algorithm, OAEP hash): a reply wraps its content key the way the request did.
+DEFAULT_KEY_TRANSPORT = (RSAES_PKCS1V15, None)
+
+_OAEP_HASHES = {
+    "sha1": hashes.SHA1,
+    "sha224": hashes.SHA224,
+    "sha256": hashes.SHA256,
+    "sha384": hashes.SHA384,
+    "sha512": hashes.SHA512,
+}
+
+
+def oaep_parameters(params) -> tuple[str, str, bytes]:
+    """(hash, MGF1 hash, label) of an RSAES-OAEP AlgorithmIdentifier.
+    Absent parameters mean the RFC 3560 defaults: SHA-1, MGF1 with SHA-1, no label."""
+    if params is None or not getattr(params, "contents", b""):
+        return "sha1", "sha1", b""
+    hash_name = params["hash_algorithm"]["algorithm"].native
+    mgf = params["mask_gen_algorithm"]
+    if mgf["algorithm"].native != "mgf1":
+        raise ValueError("Unsupported OAEP mask generation function")
+    mgf_hash = mgf["parameters"]["algorithm"].native
+    source = params["p_source_algorithm"]
+    if source["algorithm"].native != "p_specified":
+        raise ValueError("Unsupported OAEP label source")
+    label = source["parameters"].native or b""
+    return hash_name, mgf_hash, label
+
+
+def oaep_padding(params) -> asym_padding.OAEP:
+    """The cryptography padding matching an RSAES-OAEP AlgorithmIdentifier."""
+    hash_name, mgf_hash, label = oaep_parameters(params)
+    if label:
+        raise ValueError("OAEP label is not supported")
+    try:
+        hash_cls, mgf_cls = _OAEP_HASHES[hash_name], _OAEP_HASHES[mgf_hash]
+    except KeyError as e:
+        raise ValueError(f"Unsupported OAEP digest: {e.args[0]}") from e
+    return asym_padding.OAEP(
+        mgf=asym_padding.MGF1(mgf_cls()), algorithm=hash_cls(), label=None
+    )
+
+
+def _oaep_algorithm(hash_name: str) -> dict:
+    return {
+        'algorithm': RSAES_OAEP,
+        'parameters': asn1crypto.algos.RSAESOAEPParams({
+            'hash_algorithm': {'algorithm': hash_name},
+            'mask_gen_algorithm': {
+                'algorithm': 'mgf1', 'parameters': {'algorithm': hash_name},
+            },
+        }),
+    }
+
+
+def select_response_key_transport(encrypted_bytes: bytes) -> tuple:
+    """Key transport of the request's first RSA recipient, to reuse in the reply."""
+    content_info = asn1crypto.cms.ContentInfo.load(encrypted_bytes)
+    if content_info['content_type'].native != 'enveloped_data':
+        return DEFAULT_KEY_TRANSPORT
+    for recipient_info in content_info['content']['recipient_infos']:
+        if recipient_info.name != 'ktri':
+            continue
+        algorithm = recipient_info.chosen['key_encryption_algorithm']
+        if algorithm['algorithm'].native == RSAES_OAEP:
+            hash_name, _mgf_hash, _label = oaep_parameters(algorithm['parameters'])
+            return (RSAES_OAEP, hash_name)
+        return DEFAULT_KEY_TRANSPORT
+    return DEFAULT_KEY_TRANSPORT
 _CONTENT_ENCRYPTION = {
     AES128_CBC: (16, "2.16.840.1.101.3.4.1.2"),
     AES256_CBC: (32, "2.16.840.1.101.3.4.1.42"),
@@ -175,10 +247,23 @@ def _encrypt_content(data: bytes, content_key: bytes, iv: bytes) -> bytes:
 def _key_transport_recipient_info(
     content_key: bytes,
     recipient_cert: x509.Certificate,
+    key_transport: tuple = DEFAULT_KEY_TRANSPORT,
 ) -> asn1crypto.cms.RecipientInfo:
-    encrypted_key = recipient_cert.public_key().encrypt(
-        content_key, asym_padding.PKCS1v15()
-    )
+    algorithm, hash_name = key_transport
+    if algorithm == RSAES_OAEP:
+        hash_cls = _OAEP_HASHES[hash_name]
+        encrypted_key = recipient_cert.public_key().encrypt(
+            content_key,
+            asym_padding.OAEP(
+                mgf=asym_padding.MGF1(hash_cls()), algorithm=hash_cls(), label=None
+            ),
+        )
+        key_algorithm = _oaep_algorithm(hash_name)
+    else:
+        encrypted_key = recipient_cert.public_key().encrypt(
+            content_key, asym_padding.PKCS1v15()
+        )
+        key_algorithm = {'algorithm': RSAES_PKCS1V15}
     recipient_asn1 = asn1crypto.x509.Certificate.load(
         recipient_cert.public_bytes(serialization.Encoding.DER)
     )
@@ -191,7 +276,7 @@ def _key_transport_recipient_info(
                     'serial_number': recipient_asn1.serial_number,
                 }
             },
-            'key_encryption_algorithm': {'algorithm': 'rsaes_pkcs1v15'},
+            'key_encryption_algorithm': key_algorithm,
             'encrypted_key': encrypted_key,
         }
     })
@@ -283,6 +368,7 @@ def encrypt_for_client(
     *,
     password: Optional[str | bytes] = None,
     content_encryption_algorithm: str = AES128_CBC,
+    key_transport: tuple = DEFAULT_KEY_TRANSPORT,
 ) -> bytes:
     """Encrypt SCEP messageData with CMS EnvelopedData.
 
@@ -306,7 +392,9 @@ def encrypt_for_client(
     recipient_public_key = recipient_cert.public_key()
 
     if isinstance(recipient_public_key, rsa.RSAPublicKey):
-        recipient_info = _key_transport_recipient_info(content_key, recipient_cert)
+        recipient_info = _key_transport_recipient_info(
+            content_key, recipient_cert, key_transport
+        )
         enveloped_version = 'v0'
     else:
         recipient_info = _password_recipient_info(content_key, password)

@@ -32,7 +32,9 @@ from utils.file_naming import cert_cert_path
 
 from services.scep.crypto_helpers import (
     AES128_CBC,
+    DEFAULT_KEY_TRANSPORT,
     select_response_content_encryption_algorithm,
+    select_response_key_transport,
 )
 from services.scep.message_parser import (
     decrypt_scep_envelope,
@@ -160,6 +162,8 @@ class SCEPService:
             raise ValueError(f"CA {ca_refid} is awaiting its certificate")
 
         self._config_cache = {}
+        # Set per request from its envelope: the reply wraps its key the same way
+        self._response_key_transport = DEFAULT_KEY_TRANSPORT
 
         self.ca_cert = x509.load_pem_x509_certificate(
             base64.b64decode(self.ca.crt), default_backend()
@@ -355,6 +359,9 @@ class SCEPService:
             try:
                 response_encryption_algorithm = (
                     select_response_content_encryption_algorithm(encrypted_bytes)
+                )
+                self._response_key_transport = select_response_key_transport(
+                    encrypted_bytes
                 )
                 message_data = decrypt_scep_envelope(
                     encrypted_bytes, self.ca_key, self.ca_cert
@@ -558,6 +565,19 @@ class SCEPService:
                 transaction_id=transaction_id, ca_refid=self.ca_refid
             ).first()
             if existing:
+                # The certificate issued for this transaction pairs with one
+                # key only: another key is a new enrollment mislabelled, and
+                # the device could never install what a replay would return.
+                if not self._issued_for_same_key(existing, csr):
+                    logger.warning(
+                        "SCEP: transactionID %s already issued for another key "
+                        "(ca=%s), refusing the replay", transaction_id, self.ca_refid,
+                    )
+                    return self._create_error_response(
+                        self.FAIL_BAD_REQUEST,
+                        "transactionID already used with a different key",
+                        transaction_id=transaction_id, recipient_nonce=sender_nonce,
+                    ), 200
                 return self._status_for_existing(
                     existing,
                     sender_nonce,
@@ -1066,6 +1086,21 @@ class SCEPService:
 
         return None
 
+    @staticmethod
+    def _issued_for_same_key(existing: SCEPRequest, csr) -> bool:
+        if existing.status != "approved" or not existing.cert_refid:
+            return True
+        cert = Certificate.query.filter_by(refid=existing.cert_refid).first()
+        if not cert or not cert.crt:
+            return True
+        issued = x509.load_pem_x509_certificate(
+            base64.b64decode(cert.crt), default_backend()
+        )
+        spki = serialization.PublicFormat.SubjectPublicKeyInfo
+        der = serialization.Encoding.DER
+        return issued.public_key().public_bytes(der, spki) == \
+            csr.public_key().public_bytes(der, spki)
+
     def _status_for_existing(
         self,
         existing: SCEPRequest,
@@ -1542,6 +1577,7 @@ class SCEPService:
             self.ca_key,
             challenge_password=challenge_password,
             content_encryption_algorithm=content_encryption_algorithm,
+            key_transport=self._response_key_transport,
         )
 
     def _create_crl_rep_success(
@@ -1562,6 +1598,7 @@ class SCEPService:
             self.ca_key,
             challenge_password=challenge_password,
             content_encryption_algorithm=content_encryption_algorithm,
+            key_transport=self._response_key_transport,
         )
 
     def _create_cert_rep_pending(
