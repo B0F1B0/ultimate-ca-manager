@@ -15,6 +15,7 @@ from datetime import timedelta
 from models import db, Certificate, DeployTarget, DeployBinding, DeployDelivery
 from security.encryption import encrypt_text, decrypt_text
 from utils.datetime_utils import utc_now
+from utils.export_options import json_boolean
 from utils.key_codec import load_pem_bytes
 from services.deploy import ssh as deploy_ssh
 from services.deploy.ssh import DeploySSHError
@@ -81,7 +82,8 @@ class DeployService:
                 certificate.prv, context=f"certificate {certificate.id} deploy")
             files.append((binding.key_path, key_pem, MODE_PRIVATE))
         if binding.fullchain_path:
-            chain_pem = DeployService._chain_pem(certificate, pem_data)
+            chain_pem = DeployService._chain_pem(
+                certificate, pem_data, include_root=bool(binding.include_root))
             files.append((binding.fullchain_path, (leaf_pem + chain_pem).encode(), MODE_PUBLIC))
         if not files:
             raise ValueError("Binding has no destination path configured")
@@ -102,12 +104,14 @@ class DeployService:
         return blocks
 
     @staticmethod
-    def _chain_pem(certificate: Certificate, cert_pem: str) -> str:
+    def _chain_pem(certificate: Certificate, cert_pem: str,
+                   include_root: bool = False) -> str:
         """Issuing chain (excluding the leaf), reusing the export chain walker."""
         from cryptography.hazmat.primitives import serialization
         from api.v2.certificates.export import _build_ca_chain
         try:
-            chain = _build_ca_chain(certificate, cert_pem.encode())
+            chain = _build_ca_chain(
+                certificate, cert_pem.encode(), include_root=include_root)
         except Exception as e:
             logger.warning(f"Deploy: chain build failed for cert {certificate.id}: {e}")
             chain = []
@@ -466,6 +470,8 @@ class DeployService:
             out[field] = value or None
         if 'enabled' in data:
             out['enabled'] = bool(data['enabled'])
+        if 'include_root' in data:
+            out['include_root'] = json_boolean(data, 'include_root')
         return out
 
     @staticmethod
