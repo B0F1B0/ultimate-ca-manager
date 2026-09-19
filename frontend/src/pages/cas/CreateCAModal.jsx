@@ -154,16 +154,12 @@ export function CreateCAModal({ open, onClose, cas, onSuccess }) {
     return () => { cancelled = true }
   }, [createFormKeyStorage, createFormHsmKeyMode, createFormHsmProviderId])
 
-  // Apply RFC 5280 defaults when CA type changes
+  // Apply RFC 5280 defaults when CA type changes. No EKU on any CA unless
+  // asked for: a serverAuth-only issuing CA invalidates every clientAuth
+  // leaf beneath it for OpenSSL-based validators (the v2.197 API default).
   useEffect(() => {
-    if (createFormType === 'root') {
-      setCreateFormKeyUsage(ROOT_KEY_USAGE)
-      setCreateFormEkuServerAuth(false)
-    } else {
-      setCreateFormKeyUsage(INTERMEDIATE_KEY_USAGE)
-      // External-CSR CAs carry no EKU: the external signer decides.
-      setCreateFormEkuServerAuth(createFormType === 'intermediate')
-    }
+    setCreateFormKeyUsage(createFormType === 'root' ? ROOT_KEY_USAGE : INTERMEDIATE_KEY_USAGE)
+    setCreateFormEkuServerAuth(false)
   }, [createFormType])
 
   // Reset form when modal closes
