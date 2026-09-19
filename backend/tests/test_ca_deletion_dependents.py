@@ -39,20 +39,30 @@ def test_a_ca_still_referenced_is_refused_with_409(app, auth_client, create_ca, 
     with app.app_context():
         row = db.session.get(CA, ca['id'])
         if binding == "scep_profile":
-            db.session.add(ScepProfile(name=f'bound-{ca["id"]}', url_slug=f'bound-{ca["id"]}',
-                                       ca_refid=row.refid, auto_approve=True))
+            bound = ScepProfile(name=f'bound-{ca["id"]}', url_slug=f'bound-{ca["id"]}',
+                                ca_refid=row.refid, auto_approve=True)
             expected = 'SCEP profile'
         elif binding == "acme_local_domain":
-            db.session.add(AcmeLocalDomain(domain=f'bound-{ca["id"]}.example.test', issuing_ca_id=row.id))
+            bound = AcmeLocalDomain(domain=f'bound-{ca["id"]}.example.test', issuing_ca_id=row.id)
             expected = 'ACME domain'
         else:
-            db.session.add(CertificatePolicy(name=f'scoped-{ca["id"]}', ca_id=row.id, rules='{}'))
+            bound = CertificatePolicy(name=f'scoped-{ca["id"]}', ca_id=row.id, rules='{}')
             expected = 'policy'
+        db.session.add(bound)
         db.session.commit()
-    r = auth_client.delete(f"/api/v2/cas/{ca['id']}")
-    assert r.status_code == 409, r.data
-    assert expected in r.get_data(as_text=True)
-    assert_success(auth_client.get(f"/api/v2/cas/{ca['id']}"))
+        bound_id, bound_cls = bound.id, type(bound)
+    try:
+        r = auth_client.delete(f"/api/v2/cas/{ca['id']}")
+        assert r.status_code == 409, r.data
+        assert expected in r.get_data(as_text=True)
+        assert_success(auth_client.get(f"/api/v2/cas/{ca['id']}"))
+    finally:
+        # The binding and its CA must not outlive the test: the dashboard
+        # counts enabled SCEP profiles across the shared database
+        with app.app_context():
+            db.session.delete(db.session.get(bound_cls, bound_id))
+            db.session.commit()
+        auth_client.delete(f"/api/v2/cas/{ca['id']}")
 
 
 def test_files_survive_a_refused_commit(app, auth_client, create_ca, monkeypatch):
