@@ -25,6 +25,14 @@ Not handled here. The application rotates it itself, ten megabytes over five
 generations, roughly sixty megabytes in all, on every kind of install. It is
 neither compressed nor aged out by date.
 
+`UCM_LOG_MAX_BYTES` and `UCM_LOG_BACKUPS` change the size and the number of
+generations; `UCM_LOG_FILE` moves the file. A value that is not a positive
+integer is ignored rather than allowed to stop the service logging.
+
+In a container the same lines go to standard output and to
+`/opt/ucm/data/ucm.log` in the data volume, where the log viewer and the
+diagnostic bundle can read them back.
+
 ## How It Works
 
 1. **Once a day**: `logrotate.timer` fires, around midnight give or take an hour of jitter

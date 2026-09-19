@@ -806,6 +806,56 @@ export const helpContent = {
   },
 
   // ===== AUDIT LOGS =====
+  systemLogs: {
+    title: 'System Logs',
+    subtitle: 'The server\'s own application log',
+    overview: 'Reads back what UCM itself wrote, without shell access to the host. This is the log that explains a protocol failure the request never reached a record for: a SCEP enrolment refused during validation is rejected before a request row exists, so it appears here and nowhere else.',
+    sections: [
+      {
+        title: 'Sources',
+        icon: Stack,
+        items: [
+          { label: 'Application', text: 'UCM\'s own log. Only this source carries components' },
+          { label: 'Access', text: 'Gunicorn access log: HTTP requests and status codes, native installs only' },
+          { label: 'Errors', text: 'Gunicorn error log: worker startup and unhandled tracebacks, native installs only' },
+          { label: 'Journal', text: 'The systemd unit journal, where the service user can read it' },
+        ]
+      },
+      {
+        title: 'Filters',
+        icon: ListChecks,
+        items: [
+          { label: 'Source', text: 'Which log to read. Only sources this deployment actually has are offered' },
+          { label: 'Component', text: 'One subsystem of the application log, or all of them. Every subsystem is listed, not only those on screen' },
+          { label: 'Log level', text: 'A floor, not an exact match: WARNING shows warnings, errors and critical' },
+          { label: 'Search', text: 'Case-insensitive, across the message and the component name. Literal text, not a pattern' },
+          { label: 'Exclude', text: 'Drops the lines that match: the quickest way to silence a heartbeat' },
+          { label: 'Date', text: 'A From/To window, applied on the server' },
+          { label: 'Lines', text: 'How many matching lines to return, newest first' },
+        ]
+      },
+      {
+        title: 'Live logs',
+        icon: ArrowClockwise,
+        items: [
+          'Polls every five seconds; the newest line is the first row',
+          'Clears the date window, which asks the opposite question',
+        ]
+      },
+    ],
+    tips: [
+      'Timestamps are written in the server\'s local time with no offset in the line; the zone is named at the foot of the page',
+      'A line that matches no known format is still shown, with no level, rather than hidden',
+      'A traceback is one entry, not one line each: the message cell wraps to show it whole',
+      'Secrets are redacted server-side before anything leaves the process',
+    ],
+    warnings: [
+      'A component that has logged nothing recently is still listed, so picking one can come back empty',
+      'Reading this log is admin-only, and is deliberately not audited: the audit trail echoes to this same log, so recording every read would bury the lines it exists to surface',
+    ],
+    related: ['auditLogs', 'settings'],
+  },
+
   auditLogs: {
     title: 'Audit Logs',
     subtitle: 'Activity tracking and compliance',

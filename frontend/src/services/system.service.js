@@ -37,6 +37,11 @@ export const systemService = {
     return apiClient.download('/system/logs/bundle')
   },
 
+  async getApplicationLog(params = {}) {
+    // Tail of the application log, redacted and parsed into records
+    return apiClient.get(`/system/logs${buildQueryString(params)}`)
+  },
+
   async deleteBackup(filename) {
     return apiClient.delete(`/system/backup/${encodeURIComponent(filename)}`)
   },

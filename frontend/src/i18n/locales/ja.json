@@ -434,7 +434,8 @@
     "remove": "削除",
     "continue": "続行",
     "keyRecovery": "鍵リカバリ",
-    "preparing": "準備中…"
+    "preparing": "準備中…",
+    "systemLogs": "システムログ"
   },
   "commandPalette": {
     "searchPlaceholder": "コマンド、証明書、CA、ユーザーを検索...",
@@ -5080,5 +5081,39 @@
     "title": "UCM {{version}} の新機能",
     "installedOn": "{{date}} にインストール",
     "noNotes": "リリースノートを読み込めませんでした。設定 › 更新 の変更履歴を参照してください。"
+  },
+  "logs": {
+    "title": "システムログ",
+    "subtitle": "サーバーのアプリケーションログ（新しいものが上）。",
+    "level": "ログレベル",
+    "lines": "行数",
+    "searchPlaceholder": "メッセージを検索",
+    "empty": "このフィルターに一致するログ行はありません。",
+    "unavailable": "この環境にはまだアプリケーションログファイルがありません。",
+    "readingFrom": "読み取り元",
+    "source": "ソース",
+    "sourceApp": "アプリケーション",
+    "sourceAccess": "アクセス",
+    "sourceError": "エラー",
+    "sourceJournal": "ジャーナル",
+    "component": "コンポーネント",
+    "allComponents": "すべてのコンポーネント",
+    "follow": "ライブログ",
+    "time": "時刻",
+    "message": "メッセージ",
+    "levelShort": "レベル",
+    "from": "開始",
+    "to": "終了",
+    "serverTime": "時刻はサーバーのローカル時間です",
+    "errors": "エラー",
+    "warnings": "警告",
+    "components": "コンポーネント",
+    "copyAll": "すべてコピー",
+    "copySelected": "選択をコピー",
+    "showing": "一致する {{matched}} 行のうち、最新の {{shown}} 行を表示しています",
+    "scanCap": "ファイルの最新部分のみを読み取りました",
+    "linesOpt": "{{count}} 行",
+    "filters": "フィルター",
+    "exclude": "除外"
   }
 }

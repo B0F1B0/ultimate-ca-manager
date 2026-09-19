@@ -10,7 +10,7 @@ UCM stores data in:
 - **Database** -- `/opt/ucm/data/ucm.db` (SQLite, default) or PostgreSQL via `DATABASE_URL`
 - **Data Directory** -- `/opt/ucm/data/` (certificates, keys, backups)
 - **Config** -- `/etc/ucm/ucm.env` (DEB/RPM) or environment variables (Docker)
-- **Logs** -- `/var/log/ucm/` (DEB/RPM) or stdout (Docker)
+- **Logs** -- `/var/log/ucm/` (DEB/RPM), or stdout plus `/opt/ucm/data/ucm.log` (Docker)
 
 ---
 
@@ -25,6 +25,9 @@ UCM stores data in:
 | `UCM_PORT` | `8443` | HTTPS port |
 | `UCM_DATA_DIR` | `/opt/ucm/data` | Data storage |
 | `UCM_LOG_LEVEL` | `INFO` | Logging verbosity |
+| `UCM_LOG_FILE` | `/var/log/ucm/ucm.log` | Application log file (native installs). Falls back to `UCM_DATA_DIR/ucm.log` when it cannot be opened |
+| `UCM_LOG_MAX_BYTES` | `10485760` | Size at which `ucm.log` is rotated by the application (10 MB) |
+| `UCM_LOG_BACKUPS` | `5` | Generations of `ucm.log` kept |
 | `UCM_HTTPS_CERT` | (auto) | Server certificate |
 | `UCM_HTTPS_KEY` | (auto) | Server private key |
 | `DATABASE_URL` | (unset → SQLite) | SQLAlchemy URL. Set to `postgresql://user:pass@host:5432/dbname` to use PostgreSQL. When unset, UCM uses SQLite at `UCM_DATA_DIR/ucm.db`. |
@@ -56,8 +59,13 @@ Debian package and the RPM install:
 - Compression: gzip
 
 The application log, `ucm.log`, is rotated by the application itself, ten
-megabytes over five generations, on every kind of install. A container writes
-everything to standard output instead.
+megabytes over five generations, on every kind of install. `UCM_LOG_MAX_BYTES`
+and `UCM_LOG_BACKUPS` change those two numbers.
+
+A container keeps writing everything to standard output, so `docker logs` is
+unchanged, and also writes the same lines to `/opt/ucm/data/ucm.log` inside the
+data volume. That file is what **System Logs** and the diagnostic bundle read
+back, and it is why log history now survives the container.
 
 See [LOG_ROTATION.md](LOG_ROTATION.md) for details.
 

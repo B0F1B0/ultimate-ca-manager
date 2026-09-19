@@ -38,6 +38,7 @@ const OperationsPage = lazyWithRetry(() => import('./pages/OperationsPage'))
 const CertificateToolsPage = lazyWithRetry(() => import('./pages/CertificateToolsPage'))
 const AccountPage = lazyWithRetry(() => import('./pages/AccountPage'))
 const AuditLogsPage = lazyWithRetry(() => import('./pages/AuditLogsPage'))
+const SystemLogsPage = lazyWithRetry(() => import('./pages/SystemLogsPage'))
 const CRLOCSPPage = lazyWithRetry(() => import('./pages/CRLOCSPPage'))
 const TrustStorePage = lazyWithRetry(() => import('./pages/TrustStorePage'))
 const RBACPage = lazyWithRetry(() => import('./pages/RBACPage'))
@@ -143,6 +144,7 @@ function AppRoutes() {
           <Route path="/tsa-config" element={<PermissionRoute permission="read:settings"><TSAPage /></PermissionRoute>} />
           <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
           <Route path="/audit" element={<PermissionRoute permission="read:audit"><AuditLogsPage /></PermissionRoute>} />
+          <Route path="/logs" element={<AdminRoute><SystemLogsPage /></AdminRoute>} />
           <Route path="/operations" element={<AdminRoute><OperationsPage /></AdminRoute>} />
           <Route path="/import" element={<Navigate to="/operations" replace />} />
           <Route path="/tools" element={<ProtectedRoute><CertificateToolsPage /></ProtectedRoute>} />

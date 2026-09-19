@@ -1463,7 +1463,8 @@
     "remove": "Supprimer",
     "continue": "Continuer",
     "keyRecovery": "Récupération de clés",
-    "preparing": "Préparation…"
+    "preparing": "Préparation…",
+    "systemLogs": "Journaux système"
   },
   "compare": {
     "title": "Comparer les certificats",
@@ -5083,5 +5084,39 @@
     "title": "Nouveautés d'UCM {{version}}",
     "installedOn": "Installée le {{date}}",
     "noNotes": "Impossible de charger les notes de version. Consultez le journal des modifications dans Paramètres › Mises à jour."
+  },
+  "logs": {
+    "title": "Journaux système",
+    "subtitle": "Le journal applicatif du serveur, le plus récent en premier.",
+    "level": "Niveau de journal",
+    "lines": "Lignes",
+    "searchPlaceholder": "Rechercher dans les messages",
+    "empty": "Aucune ligne ne correspond à ces filtres.",
+    "unavailable": "Aucun fichier de journal applicatif n'est encore disponible sur cette installation.",
+    "readingFrom": "Lecture depuis",
+    "source": "Source",
+    "sourceApp": "Application",
+    "sourceAccess": "Accès",
+    "sourceError": "Erreurs",
+    "sourceJournal": "Journal",
+    "component": "Composant",
+    "allComponents": "Tous les composants",
+    "follow": "Journaux en direct",
+    "time": "Heure",
+    "message": "Message",
+    "levelShort": "Niveau",
+    "from": "De",
+    "to": "À",
+    "serverTime": "Heures en heure locale du serveur",
+    "errors": "Erreurs",
+    "warnings": "Avertissements",
+    "components": "Composants",
+    "copyAll": "Tout copier",
+    "copySelected": "Copier la sélection",
+    "showing": "Affichage des {{shown}} lignes les plus récentes sur {{matched}} correspondantes",
+    "scanCap": "Seule la partie la plus récente du fichier a été lue",
+    "linesOpt": "{{count}} lignes",
+    "filters": "Filtres",
+    "exclude": "Exclure"
   }
 }
