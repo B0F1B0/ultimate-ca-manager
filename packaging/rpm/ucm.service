@@ -15,6 +15,13 @@ EnvironmentFile=-/etc/ucm/ucm.env
 # Start gunicorn directly using config file
 ExecStart=/opt/ucm/venv/bin/gunicorn -c gunicorn_config.py wsgi:app
 
+# Standard output. Both are systemd's default, but stated here so the journal
+# destination the diagnostic bundle collects is not an implicit one, and so
+# entries carry the same identifier the DEB unit gives them.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ucm
+
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
