@@ -544,9 +544,10 @@ Four of those rows are worth a second look:
 
 #### Windows 10 and later
 
-> **Windows enrollment does not complete yet** — tracked in
-> [#228](https://github.com/NeySlim/ultimate-ca-manager/issues/228). iOS/iPadOS
-> is unaffected, and the settings below are correct to configure meanwhile.
+> **Windows needs UCM v2.232 or later.** Earlier releases refused the Windows
+> client's RSAES-OAEP key transport at the `PKIOperation` step
+> ([#228](https://github.com/NeySlim/ultimate-ca-manager/issues/228)); iOS/iPadOS
+> was never affected.
 
 One setting exists only on the Windows profile:
 
