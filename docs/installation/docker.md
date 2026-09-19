@@ -151,6 +151,8 @@ volumes:
 |----------|---------|-------------|
 | `UCM_DEBUG` | `false` | Enable debug mode |
 | `UCM_LOG_LEVEL` | `INFO` | Log level (DEBUG/INFO/WARNING/ERROR) |
+| `UCM_LOG_MAX_BYTES` | `10485760` | Size at which `/opt/ucm/data/ucm.log` is rotated (10 MB) |
+| `UCM_LOG_BACKUPS` | `5` | Generations of `ucm.log` kept in the data volume |
 | `UCM_SECRET_KEY` | auto-generated | Session secret key |
 | `UCM_SESSION_TIMEOUT` | `3600` | Session timeout (seconds) |
 | `UCM_ACME_ENABLED` | `true` | Enable ACME protocol |

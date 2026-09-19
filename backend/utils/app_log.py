@@ -43,8 +43,8 @@ def candidate_paths() -> list[Path]:
 
     Docker has no ``/var/log/ucm`` — the image logs to stdout — so the data
     directory is the only candidate there. It is the one writable, persistent
-    location on every deployment: ``/opt/ucm/data`` under the DEB and the
-    container volume, ``/var/lib/ucm`` under the RPM.
+    location on every deployment: ``/opt/ucm/data`` under the DEB, the RPM and
+    the container volume, or wherever ``DATA_DIR`` points.
 
     Native installs keep their existing path first, so logrotate and operator
     tooling are unaffected, and fall back to the data directory rather than to

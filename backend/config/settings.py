@@ -19,7 +19,8 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")  # Local dev
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 BACKEND_DIR = BASE_DIR / "backend"
 
-# DATA_DIR is configurable via environment for RPM (/var/lib/ucm) vs DEB (/opt/ucm/data)
+# DATA_DIR is set by the packaging: /opt/ucm/data under the DEB, the RPM and the
+# container image, and BASE_DIR/data for a source checkout that sets nothing.
 DATA_DIR = Path(os.environ.get("DATA_DIR", str(BASE_DIR / "data")))
 
 # Ensure data directories exist (may fail for permission reasons - that's OK)
