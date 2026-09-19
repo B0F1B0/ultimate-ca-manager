@@ -2,7 +2,13 @@
 
 Reading the log is a privileged read — it exposes whatever the server has
 written about every request — so it sits behind the same admin:system scope as
-the diagnostic bundle, and every read leaves an audit entry saying who looked.
+the diagnostic bundle.
+
+It is deliberately the one privileged read that leaves no audit entry: the
+audit trail echoes to this same log, and the page polls, so auditing a read
+would write into the log being read and bury the lines the page exists to
+surface. `test_a_read_leaves_no_audit_entry` below holds that line. The bundle
+download, rare and deliberate, stays audited.
 """
 
 import json
@@ -84,6 +90,29 @@ class TestRequestValidation:
 
     def test_a_known_level_in_any_casing_is_accepted(self, auth_client, log_file):
         assert _get(auth_client, '?level=warning').status_code == 200
+
+
+class TestDefaults:
+    """The level is a floor, and the interface opens on INFO. Left to the
+    absence of the parameter it meant no floor at all, so a caller that omitted
+    it read a noisier log than the one described to it."""
+
+    DEBUG_AND_INFO = (
+        '2026-09-19 13:41:36 [services.scep] DEBUG Parsed PKCS#7 envelope\n'
+        '2026-09-19 13:41:37 [services.scep] INFO Certificate issued\n'
+    )
+
+    def _levels(self, client, query=''):
+        body = json.loads(_get(client, query).data)['data']
+        return [line['level'] for line in body['lines']]
+
+    def test_the_floor_is_info_when_no_level_is_asked_for(self, auth_client, log_file):
+        log_file.write_text(self.DEBUG_AND_INFO)
+        assert self._levels(auth_client) == ['INFO']
+
+    def test_debug_is_there_for_the_asking(self, auth_client, log_file):
+        log_file.write_text(self.DEBUG_AND_INFO)
+        assert self._levels(auth_client, '?level=DEBUG') == ['DEBUG', 'INFO']
 
 
 class TestSearchIsASubstring:

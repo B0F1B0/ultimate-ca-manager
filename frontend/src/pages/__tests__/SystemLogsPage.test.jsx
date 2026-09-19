@@ -153,13 +153,14 @@ describe('SystemLogsPage', () => {
       .toEqual(['2026-09-19 13:41:36', 'WARNING', 'services.scep', 'failInfo=1'])
   })
 
-  it('marks a record that carries no level rather than dropping it', async () => {
+  it('keeps a record that carries no level, and invents none for it', async () => {
     await renderPage({
       ...DEFAULT_DATA,
       lines: [{ ts: null, logger: null, level: null, message: 'GET /api 200' }],
     })
     const row = (await screen.findByText('GET /api 200')).closest('tr')
-    expect(row.querySelectorAll('td')[1].textContent).toBe('—')
+    expect(row).toBeTruthy()                                   // shown, not dropped
+    expect(row.querySelectorAll('td')[1].textContent).toBe('')  // and no badge
   })
 
   it('summarises what the filters matched, not the page of it on screen', async () => {
@@ -306,13 +307,16 @@ describe('SystemLogsPage', () => {
     expect(first.querySelectorAll('td')[0].textContent).toBe('2026-09-19 13:41:37')
   })
 
-  it("copies every line in the log's own shape, newest first as shown", async () => {
+  it("copies every line as the file writes it, newest first as shown", async () => {
+    // asctime, [name], level, message. The other order reads the same to a
+    // person and parses back as neither, which matters when a pasted line
+    // comes back to this page.
     await renderPage()
     fireEvent.click(screen.getByText('logs.copyAll'))
     await waitFor(() => expect(mocks.writeText).toHaveBeenCalled())
     expect(mocks.writeText.mock.calls[0][0]).toBe(
-      '2026-09-19 13:41:37 INFO [api.v2] log read\n'
-      + '2026-09-19 13:41:36 WARNING [services.scep] failInfo=1',
+      '2026-09-19 13:41:37 [api.v2] INFO log read\n'
+      + '2026-09-19 13:41:36 [services.scep] WARNING failInfo=1',
     )
   })
 
@@ -324,7 +328,7 @@ describe('SystemLogsPage', () => {
     fireEvent.click(screen.getByText('logs.copySelected'))
     await waitFor(() => expect(mocks.writeText).toHaveBeenCalled())
     expect(mocks.writeText.mock.calls[0][0])
-      .toBe('2026-09-19 13:41:36 WARNING [services.scep] failInfo=1')
+      .toBe('2026-09-19 13:41:36 [services.scep] WARNING failInfo=1')
   })
 
   it('says the log is unavailable rather than showing an empty log', async () => {

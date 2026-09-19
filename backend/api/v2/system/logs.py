@@ -15,7 +15,8 @@ from auth.unified import require_auth
 from flask import Response, request
 from services.audit_service import AuditService
 from services.log_bundle import build_bundle, bundle_filename
-from services.log_reader import DEFAULT_LINES, LEVELS, MAX_LINES, SOURCES, read
+from services.log_reader import (DEFAULT_LEVEL, DEFAULT_LINES, LEVELS, MAX_LINES,
+                                 SOURCES, read)
 from utils.response import error_response, success_response
 from utils.trusted_proxy import client_ip
 
@@ -70,8 +71,11 @@ def read_application_log():
     if lines < 1 or lines > MAX_LINES:
         return error_response(f'lines must be between 1 and {MAX_LINES}', 400)
 
-    level = request.args.get('level') or None
-    if level and level.upper() not in LEVELS:
+    # A floor, and INFO by default: the same one the page opens on and the
+    # help describes. Absent, it used to mean no floor at all, so a caller who
+    # omitted it read a different log from the one described to them.
+    level = request.args.get('level') or DEFAULT_LEVEL
+    if level.upper() not in LEVELS:
         return error_response(f'level must be one of {", ".join(LEVELS)}', 400)
 
     source = request.args.get('source') or 'app'

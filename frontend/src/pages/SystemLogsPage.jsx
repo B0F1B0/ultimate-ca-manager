@@ -139,7 +139,7 @@ export default function SystemLogsPage() {
       mobileRender: (value, row) => (
         <div className="flex items-center justify-between gap-2 w-full">
           <span className="font-mono text-xs text-text-secondary">{value || ''}</span>
-          <Badge variant={LEVEL_VARIANT[row.level] || 'gray'} size="sm">{row.level || '—'}</Badge>
+          {row.level && <Badge variant={LEVEL_VARIANT[row.level]} size="sm">{row.level}</Badge>}
         </div>
       ),
     },
@@ -147,8 +147,11 @@ export default function SystemLogsPage() {
       key: 'level',
       header: t('logs.levelShort'),
       priority: 2,
+      // A line whose format carries no level gets no badge. A placeholder in
+      // its place reads as a level of its own, which is the one thing the
+      // reader must not conclude from a line nobody could parse.
       render: (value) => (
-        <Badge variant={LEVEL_VARIANT[value] || 'gray'} size="sm">{value || '—'}</Badge>
+        value ? <Badge variant={LEVEL_VARIANT[value]} size="sm">{value}</Badge> : null
       ),
     },
     {
@@ -175,11 +178,13 @@ export default function SystemLogsPage() {
     },
   ], [t])
 
-  // Copied in the log's own shape, so what lands on the clipboard can be pasted
-  // into an issue and read as a log rather than as a table.
+  // Copied in the log's own shape, field for field: asctime, [name], level,
+  // message, as the formatter in app.py writes it. Level and component the
+  // other way round read the same to a person and parse back as neither, which
+  // matters when the line is pasted into an issue and read by this same page.
   const copy = (subset) => {
     const text = subset
-      .map((l) => [l.ts, l.level, l.logger && `[${l.logger}]`, l.message].filter(Boolean).join(' '))
+      .map((l) => [l.ts, l.logger && `[${l.logger}]`, l.level, l.message].filter(Boolean).join(' '))
       .join('\n')
     navigator.clipboard.writeText(text).then(
       () => showSuccess(t('common.copy')),

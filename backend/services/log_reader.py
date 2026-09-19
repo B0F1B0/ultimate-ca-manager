@@ -34,6 +34,11 @@ from utils.app_log import resolved_path
 
 LEVELS = ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL')
 
+# The floor the interface opens on, and the one the help describes. Applied by
+# the route so that a client omitting the parameter reads the log the page
+# describes rather than a noisier one.
+DEFAULT_LEVEL = 'INFO'
+
 TS_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 APP = 'app'
