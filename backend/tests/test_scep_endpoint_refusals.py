@@ -19,7 +19,10 @@ def scep_config(app):
     """Restore the keys a test rewrites."""
     keys = ('scep_enabled', 'scep_ca_id')
     with app.app_context():
-        saved = {k: (SystemConfig.query.filter_by(key=k).first() or SystemConfig(key=k, value=None)).value for k in keys}
+        saved = {}
+        for k in keys:
+            row = SystemConfig.query.filter_by(key=k).first()
+            saved[k] = row.value if row else None
     yield _set
     with app.app_context():
         for k, v in saved.items():
@@ -47,6 +50,7 @@ def test_switched_off_scep_refuses_enrollment(app, client, scep_config):
     r = client.post("/scep/pkiclient.exe?operation=PKIOperation", data=b"\x30\x00",
                     content_type="application/x-pki-message")
     assert r.status_code == 503
+    assert "SCEP is disabled" in r.get_data(as_text=True)
 
 
 @pytest.mark.parametrize("operation", ["GetCACaps", "GetCACert"])

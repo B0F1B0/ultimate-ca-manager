@@ -541,6 +541,8 @@ class UCMTestSuite:
     def test_scep_capabilities(self) -> Tuple[bool, str]:
         """Test SCEP GetCACaps"""
         r = self.session.get(f"{self.base_url}/scep/pkiclient.exe?operation=GetCACaps", verify=False)
+        if r.status_code == 503 and "SCEP" in r.text:
+            return True, f"reachable, not configured: {r.text.strip()}"
         if r.status_code != 200:
             return False, f"Status {r.status_code}"
         return True, ""

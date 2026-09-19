@@ -42,7 +42,7 @@ class Refusal(str):
         return self
 
 
-def _reject(reason, status=503):
+def _reject(reason):
     """Refuse to build a SCEP service, recording why.
 
     Every configuration-driven refusal below used to return silently, so a
@@ -52,7 +52,7 @@ def _reject(reason, status=503):
     troubleshooting time, so each refusal is now recorded with its reason.
     """
     logger.warning("SCEP request refused: %s", reason)
-    return None, Refusal(reason, getattr(reason, 'status', status))
+    return None, Refusal(reason, getattr(reason, 'status', 503))
 
 
 def _resolve_profile(profile_slug):
