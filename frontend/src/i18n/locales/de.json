@@ -1952,6 +1952,7 @@
     "certPath": "Zertifikatspfad",
     "keyPath": "Pfad des privaten Schlüssels",
     "fullchainPath": "Pfad der vollständigen Kette",
+    "rootIncluded": "Root-CA enthalten",
     "pathsHint": "Absolute Pfade auf dem Ziel; mindestens einer ist erforderlich. Dateien werden atomar geschrieben (Zertifikat/Kette 0644, Schlüssel 0600).",
     "noKeyInUcm": "UCM besitzt den privaten Schlüssel dieses Zertifikats nicht.",
     "bindingCreated": "Ziel verknüpft",

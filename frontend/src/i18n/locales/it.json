@@ -1952,6 +1952,7 @@
     "certPath": "Percorso del certificato",
     "keyPath": "Percorso della chiave privata",
     "fullchainPath": "Percorso della catena completa",
+    "rootIncluded": "CA radice inclusa",
     "pathsHint": "Percorsi assoluti sulla destinazione; almeno uno è obbligatorio. I file vengono scritti in modo atomico (certificato/catena 0644, chiave 0600).",
     "noKeyInUcm": "UCM non custodisce la chiave privata di questo certificato.",
     "bindingCreated": "Destinazione associata",

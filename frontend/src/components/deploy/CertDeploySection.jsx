@@ -126,6 +126,9 @@ export function CertDeploySection({ certificate }) {
                   {!binding.enabled && (
                     <Badge variant="secondary" size="sm">{t('common.disabled')}</Badge>
                   )}
+                  {binding.fullchain_path && binding.include_root && (
+                    <Badge variant="secondary" size="sm">{t('deploy.rootIncluded')}</Badge>
+                  )}
                   {binding.last_delivery && (
                     <Badge variant={STATUS_VARIANT[binding.last_delivery.status] || 'secondary'} size="sm"
                            title={binding.last_delivery.last_error || ''}>

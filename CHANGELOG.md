@@ -9,6 +9,9 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ## [Unreleased]
 
+### Changed
+- A deployment binding now decides whether its full chain file carries the self-signed root. New bindings ship the leaf and the intermediates only, which is what a TLS server should send; bindings created before this release keep the root as they always did, and the binding row says so (#357, by @B0F1B0).
+
 ### Fixed
 - The Create CA wizard pre-ticked the serverAuth Extended Key Usage on every intermediate CA, so a CA created from the interface still restricted every chain beneath it to TLS servers and FreeRADIUS rejected the client certificates issued under it; v2.196 had removed that default on the API path only. The box now starts unticked (#228, reported by @stefanelul2000).
 - Three counters sat on zero whatever the data said: the number of users on the audit page, the certificates of each SSH CA, and the orders of each ACME account on the dashboard. Each tile read a field the API never sent, and each now reads a field it answers.

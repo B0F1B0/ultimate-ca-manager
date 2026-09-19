@@ -1952,6 +1952,7 @@
     "certPath": "Caminho do certificado",
     "keyPath": "Caminho da chave privada",
     "fullchainPath": "Caminho da cadeia completa",
+    "rootIncluded": "CA raiz incluída",
     "pathsHint": "Caminhos absolutos no alvo; pelo menos um é obrigatório. Os arquivos são gravados de forma atômica (certificado/cadeia 0644, chave 0600).",
     "noKeyInUcm": "O UCM não possui a chave privada deste certificado.",
     "bindingCreated": "Alvo anexado",

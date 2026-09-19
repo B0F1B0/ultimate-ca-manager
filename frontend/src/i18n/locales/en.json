@@ -1952,6 +1952,7 @@
     "certPath": "Certificate path",
     "keyPath": "Private key path",
     "fullchainPath": "Full chain path",
+    "rootIncluded": "Root CA included",
     "pathsHint": "Absolute paths on the target; at least one is required. Files are written atomically (certificate/chain 0644, key 0600).",
     "noKeyInUcm": "UCM does not hold this certificate's private key.",
     "bindingCreated": "Target attached",
