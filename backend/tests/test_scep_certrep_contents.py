@@ -7,7 +7,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509.oid import AttributeOID
 
-from models import CA, Certificate, SystemConfig, db
+from models import Certificate, db
 from models.certificate_template import CertificateTemplate
 from services.scep.scep_service import SCEPService
 from tests.test_scep_rfc8894_operations import (
@@ -18,7 +18,7 @@ from tests.test_scep_rfc8894_operations import (
 CHALLENGE = 'certrep horse battery staple'
 
 
-def _enroll_request(ca_cert, identity, txn_suffix):
+def _enroll_request(ca_cert, identity):
     key_cert, key = identity
     csr = (x509.CertificateSigningRequestBuilder()
            .subject_name(key_cert.subject)
@@ -30,24 +30,16 @@ def _enroll_request(ca_cert, identity, txn_suffix):
 
 
 @pytest.fixture
-def scep_ca(app, create_ca):
-    ca_data = create_ca(cn='SCEP CertRep CA')
-    with app.app_context():
-        db.session.add(SystemConfig(key=f'scep_challenge_{ca_data["id"]}', value=CHALLENGE))
-        db.session.commit()
-    yield ca_data
-    with app.app_context():
-        row = SystemConfig.query.filter_by(key=f'scep_challenge_{ca_data["id"]}').first()
-        if row:
-            db.session.delete(row)
-            db.session.commit()
+def scep_ca(create_ca):
+    # One CA per test: the harness stamps every PKCSReq with the same transactionID
+    return create_ca(cn='SCEP CertRep CA')
 
 
 def test_certrep_carries_only_the_issued_certificate(app, scep_ca):
     with app.app_context():
         ca, ca_cert, _ = _load_ca_material(scep_ca['id'])
         identity = _client_identity('certrep device')
-        request, csr = _enroll_request(ca_cert, identity, 'a')
+        request, csr = _enroll_request(ca_cert, identity)
         response, status = SCEPService(ca.refid, challenge_password=CHALLENGE,
                                        auto_approve=True).process_pkcs_req(request, '127.0.0.1')
         assert status == 200 and _response_attributes(response)[PKI_STATUS_OID] == '0'
@@ -69,9 +61,14 @@ def test_scep_issuance_is_counted_against_the_bound_template(app, scep_ca):
         db.session.commit()
         ca, ca_cert, _ = _load_ca_material(scep_ca['id'])
         identity = _client_identity('counted device')
-        request, _csr = _enroll_request(ca_cert, identity, 'b')
+        request, _csr = _enroll_request(ca_cert, identity)
         response, _ = SCEPService(ca.refid, challenge_password=CHALLENGE, auto_approve=True,
                                   template=tpl).process_pkcs_req(request, '127.0.0.1')
         assert _response_attributes(response)[PKI_STATUS_OID] == '0'
         row = Certificate.query.filter_by(caref=ca.refid).order_by(Certificate.id.desc()).first()
-        assert row.template_id == tpl.id
+        try:
+            assert row.template_id == tpl.id
+        finally:
+            db.session.delete(row)
+            db.session.delete(tpl)
+            db.session.commit()
