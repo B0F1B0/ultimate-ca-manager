@@ -17,12 +17,28 @@ import { extractData } from '../lib/utils'
 const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
 const LINE_COUNTS = [100, 200, 500, 1000, 2000, 5000]
 const FOLLOW_INTERVAL_MS = 5000
+// The same pause SearchBar uses elsewhere. Every read costs the server a two
+// megabyte tail, a redaction pass and a parse, on the one worker that also
+// answers ACME, SCEP and OCSP, so a word typed into either box is one request
+// rather than one per character.
+const TYPING_PAUSE_MS = 300
 
 const SOURCE_LABELS = {
   app: 'logs.sourceApp',
   access: 'logs.sourceAccess',
   error: 'logs.sourceError',
   journal: 'logs.sourceJournal',
+}
+
+// What was typed, once the typing stopped. The box itself stays on the raw
+// value, so the field never lags behind the keyboard.
+function useSettled(value, delay = TYPING_PAUSE_MS) {
+  const [settled, setSettled] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return settled
 }
 
 const LEVEL_VARIANT = {
@@ -49,6 +65,8 @@ export default function SystemLogsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [exclude, setExclude] = useState('')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
+  const query = useSettled(search)
+  const omit = useSettled(exclude)
 
   const load = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true)
@@ -56,10 +74,10 @@ export default function SystemLogsPage() {
       const response = await systemService.getApplicationLog({
         source, level, lines: parseInt(lines),
         ...(component ? { component } : {}),
-        ...(search ? { q: search } : {}),
+        ...(query ? { q: query } : {}),
         ...(since ? { since } : {}),
         ...(until ? { until } : {}),
-        ...(exclude ? { exclude } : {}),
+        ...(omit ? { exclude: omit } : {}),
       })
       setResult(extractData(response))
     } catch {
@@ -68,9 +86,9 @@ export default function SystemLogsPage() {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }, [source, component, level, lines, search, since, until, exclude, showError, t])
+  }, [source, component, level, lines, query, since, until, omit, showError, t])
 
-  useEffect(() => { load() }, [source, component, level, lines, search, since, until, exclude])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [source, component, level, lines, query, since, until, omit])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live mode polls rather than streaming: a log line pushed over the event bus
   // is itself logged by the push, which is a loop the interval cannot make.

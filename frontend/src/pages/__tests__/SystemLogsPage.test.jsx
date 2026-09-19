@@ -265,6 +265,44 @@ describe('SystemLogsPage', () => {
     expect(mocks.getApplicationLog.mock.calls.every(([args]) => !('regex' in args))).toBe(true)
   })
 
+  it('asks once when the typing stops, not once per character', async () => {
+    // Each read is a 2 MB tail, a redaction pass and a parse on the worker that
+    // also answers ACME, SCEP and OCSP.
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await renderPage()
+    const before = mocks.getApplicationLog.mock.calls.length
+    const box = screen.getByLabelText('logs.searchPlaceholder')
+
+    for (const typed of ['s', 'sc', 'sce', 'scep']) {
+      fireEvent.change(box, { target: { value: typed } })
+      await vi.advanceTimersByTimeAsync(50)
+    }
+    expect(mocks.getApplicationLog.mock.calls.length).toBe(before)
+
+    await vi.advanceTimersByTimeAsync(400)
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, q: 'scep' }))
+    expect(mocks.getApplicationLog.mock.calls.length).toBe(before + 1)
+  })
+
+  it('waits for the pause on the exclusion box too', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    await renderPage()
+    const before = mocks.getApplicationLog.mock.calls.length
+    fireEvent.click(screen.getByText('logs.filters'))
+    const box = await screen.findByLabelText('logs.exclude')
+
+    for (const typed of ['h', 'he', 'hea', 'heartbeat']) {
+      fireEvent.change(box, { target: { value: typed } })
+      await vi.advanceTimersByTimeAsync(50)
+    }
+    expect(mocks.getApplicationLog.mock.calls.length).toBe(before)
+
+    await vi.advanceTimersByTimeAsync(400)
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, exclude: 'heartbeat' }))
+  })
+
   it('clears the time window when live logs is switched on', async () => {
     await renderPage()
     fireEvent.click(screen.getByText('logs.filters'))
