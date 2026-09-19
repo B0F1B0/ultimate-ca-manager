@@ -434,7 +434,8 @@
     "remove": "Eliminar",
     "continue": "Continuar",
     "keyRecovery": "Recuperación de claves",
-    "preparing": "Preparando…"
+    "preparing": "Preparando…",
+    "systemLogs": "Registros del sistema"
   },
   "commandPalette": {
     "searchPlaceholder": "Buscar comandos, certificados, CAs, usuarios...",
@@ -5080,5 +5081,21 @@
     "title": "Novedades de UCM {{version}}",
     "installedOn": "Instalada el {{date}}",
     "noNotes": "No se pudieron cargar las notas de la versión. Consulte el registro de cambios en Configuración › Actualizaciones."
+  },
+  "logs": {
+    "title": "Registros del sistema",
+    "subtitle": "El registro de aplicación del servidor, el más reciente al final.",
+    "level": "Nivel mínimo",
+    "lines": "Líneas",
+    "searchPlaceholder": "Buscar mensajes",
+    "empty": "Ninguna línea coincide con estos filtros.",
+    "unavailable": "Todavía no hay ningún archivo de registro de aplicación en esta instalación.",
+    "truncated": "Se omitieron las líneas más antiguas.",
+    "readingFrom": "Leyendo de",
+    "source": "Origen",
+    "sourceApp": "Aplicación",
+    "sourceAccess": "Acceso",
+    "sourceError": "Errores",
+    "sourceJournal": "Journal"
   }
 }

@@ -434,7 +434,8 @@
     "remove": "Rimuovi",
     "continue": "Continua",
     "keyRecovery": "Recupero chiavi",
-    "preparing": "Preparazione…"
+    "preparing": "Preparazione…",
+    "systemLogs": "Log di sistema"
   },
   "commandPalette": {
     "searchPlaceholder": "Cerca comandi, certificati, CA, utenti...",
@@ -5080,5 +5081,21 @@
     "title": "Novità di UCM {{version}}",
     "installedOn": "Installato il {{date}}",
     "noNotes": "Impossibile caricare le note di versione. Consulta il changelog in Impostazioni › Aggiornamenti."
+  },
+  "logs": {
+    "title": "Log di sistema",
+    "subtitle": "Il log applicativo del server, il più recente per ultimo.",
+    "level": "Livello minimo",
+    "lines": "Righe",
+    "searchPlaceholder": "Cerca nei messaggi",
+    "empty": "Nessuna riga corrisponde a questi filtri.",
+    "unavailable": "Nessun file di log applicativo è ancora disponibile su questa installazione.",
+    "truncated": "Le righe più vecchie sono state omesse.",
+    "readingFrom": "Lettura da",
+    "source": "Origine",
+    "sourceApp": "Applicazione",
+    "sourceAccess": "Accessi",
+    "sourceError": "Errori",
+    "sourceJournal": "Journal"
   }
 }

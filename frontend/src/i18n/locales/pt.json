@@ -434,7 +434,8 @@
     "remove": "Remover",
     "continue": "Continuar",
     "keyRecovery": "Recuperação de chaves",
-    "preparing": "Preparando…"
+    "preparing": "Preparando…",
+    "systemLogs": "Registos do sistema"
   },
   "commandPalette": {
     "searchPlaceholder": "Pesquisar comandos, certificados, CAs, usuários...",
@@ -5080,5 +5081,21 @@
     "title": "Novidades do UCM {{version}}",
     "installedOn": "Instalada em {{date}}",
     "noNotes": "Não foi possível carregar as notas da versão. Consulte o registo de alterações em Definições › Atualizações."
+  },
+  "logs": {
+    "title": "Registos do sistema",
+    "subtitle": "O registo da aplicação do servidor, o mais recente por último.",
+    "level": "Nível mínimo",
+    "lines": "Linhas",
+    "searchPlaceholder": "Procurar nas mensagens",
+    "empty": "Nenhuma linha corresponde a estes filtros.",
+    "unavailable": "Ainda não existe ficheiro de registo da aplicação nesta instalação.",
+    "truncated": "As linhas mais antigas foram omitidas.",
+    "readingFrom": "A ler de",
+    "source": "Origem",
+    "sourceApp": "Aplicação",
+    "sourceAccess": "Acesso",
+    "sourceError": "Erros",
+    "sourceJournal": "Journal"
   }
 }

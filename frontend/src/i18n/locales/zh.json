@@ -434,7 +434,8 @@
     "remove": "移除",
     "continue": "继续",
     "keyRecovery": "密钥恢复",
-    "preparing": "准备中…"
+    "preparing": "准备中…",
+    "systemLogs": "系统日志"
   },
   "commandPalette": {
     "searchPlaceholder": "搜索命令、证书、CA、用户...",
@@ -5080,5 +5081,21 @@
     "title": "UCM {{version}} 新功能",
     "installedOn": "安装于 {{date}}",
     "noNotes": "无法加载版本说明。请在设置 › 更新中查看更新日志。"
+  },
+  "logs": {
+    "title": "系统日志",
+    "subtitle": "服务器的应用程序日志，最新的在最后。",
+    "level": "最低级别",
+    "lines": "行数",
+    "searchPlaceholder": "搜索消息",
+    "empty": "没有日志行符合这些筛选条件。",
+    "unavailable": "此部署尚无可用的应用程序日志文件。",
+    "truncated": "较早的行已被省略。",
+    "readingFrom": "读取自",
+    "source": "来源",
+    "sourceApp": "应用程序",
+    "sourceAccess": "访问",
+    "sourceError": "错误",
+    "sourceJournal": "Journal"
   }
 }

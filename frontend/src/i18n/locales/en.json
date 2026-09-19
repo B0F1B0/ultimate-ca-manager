@@ -434,7 +434,8 @@
     "remove": "Remove",
     "continue": "Continue",
     "keyRecovery": "Key Recovery",
-    "preparing": "Preparing…"
+    "preparing": "Preparing…",
+    "systemLogs": "System Logs"
   },
   "commandPalette": {
     "searchPlaceholder": "Search commands, certificates, CAs, users...",
@@ -5083,5 +5084,21 @@
     "title": "What's new in UCM {{version}}",
     "installedOn": "Installed on {{date}}",
     "noNotes": "Release notes could not be loaded. See the changelog in Settings › Updates."
+  },
+  "logs": {
+    "title": "System Logs",
+    "subtitle": "The server's own application log, newest last.",
+    "level": "Minimum level",
+    "lines": "Lines",
+    "searchPlaceholder": "Search messages",
+    "empty": "No log lines match these filters.",
+    "unavailable": "No application log file is available on this deployment yet.",
+    "truncated": "Older lines were left off.",
+    "readingFrom": "Reading from",
+    "source": "Source",
+    "sourceApp": "Application",
+    "sourceAccess": "Access",
+    "sourceError": "Errors",
+    "sourceJournal": "Journal"
   }
 }
