@@ -5084,8 +5084,8 @@
   },
   "logs": {
     "title": "系统日志",
-    "subtitle": "服务器的应用程序日志，最新的在最后。",
-    "level": "最低级别",
+    "subtitle": "服务器的应用程序日志，最新的在最前。",
+    "level": "日志级别",
     "lines": "行数",
     "searchPlaceholder": "搜索消息",
     "empty": "没有日志行符合这些筛选条件。",
@@ -5098,7 +5098,18 @@
     "sourceError": "错误",
     "sourceJournal": "Journal",
     "component": "组件",
-    "allComponents": "所有组件",
-    "follow": "跟随"
+    "follow": "实时日志",
+    "time": "时间",
+    "message": "消息",
+    "levelShort": "级别",
+    "from": "从",
+    "to": "到",
+    "serverTime": "时间为服务器本地时间",
+    "errors": "错误",
+    "warnings": "警告",
+    "components": "组件",
+    "allLevels": "所有级别",
+    "copyAll": "复制全部",
+    "copySelected": "复制所选"
   }
 }

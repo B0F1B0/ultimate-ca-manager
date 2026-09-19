@@ -5087,8 +5087,8 @@
   },
   "logs": {
     "title": "Journaux système",
-    "subtitle": "Le journal applicatif du serveur, le plus récent en dernier.",
-    "level": "Niveau minimum",
+    "subtitle": "Le journal applicatif du serveur, le plus récent en premier.",
+    "level": "Niveau de journal",
     "lines": "Lignes",
     "searchPlaceholder": "Rechercher dans les messages",
     "empty": "Aucune ligne ne correspond à ces filtres.",
@@ -5101,7 +5101,18 @@
     "sourceError": "Erreurs",
     "sourceJournal": "Journal",
     "component": "Composant",
-    "allComponents": "Tous les composants",
-    "follow": "Suivre"
+    "follow": "Journaux en direct",
+    "time": "Heure",
+    "message": "Message",
+    "levelShort": "Niveau",
+    "from": "De",
+    "to": "À",
+    "serverTime": "Heures en heure locale du serveur",
+    "errors": "Erreurs",
+    "warnings": "Avertissements",
+    "components": "Composants",
+    "allLevels": "Tous les niveaux",
+    "copyAll": "Tout copier",
+    "copySelected": "Copier la sélection"
   }
 }

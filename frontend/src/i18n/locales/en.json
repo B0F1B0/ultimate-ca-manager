@@ -5087,8 +5087,8 @@
   },
   "logs": {
     "title": "System Logs",
-    "subtitle": "The server's own application log, newest last.",
-    "level": "Minimum level",
+    "subtitle": "The server's own application log, newest first.",
+    "level": "Log level",
     "lines": "Lines",
     "searchPlaceholder": "Search messages",
     "empty": "No log lines match these filters.",
@@ -5101,7 +5101,18 @@
     "sourceError": "Errors",
     "sourceJournal": "Journal",
     "component": "Component",
-    "allComponents": "All components",
-    "follow": "Follow"
+    "follow": "Live logs",
+    "time": "Time",
+    "message": "Message",
+    "levelShort": "Level",
+    "from": "From",
+    "to": "To",
+    "serverTime": "Times are in server local time",
+    "errors": "Errors",
+    "warnings": "Warnings",
+    "components": "Components",
+    "allLevels": "All levels",
+    "copyAll": "Copy all",
+    "copySelected": "Copy selected"
   }
 }

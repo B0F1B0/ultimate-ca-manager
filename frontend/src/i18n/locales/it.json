@@ -5084,8 +5084,8 @@
   },
   "logs": {
     "title": "Log di sistema",
-    "subtitle": "Il log applicativo del server, il più recente per ultimo.",
-    "level": "Livello minimo",
+    "subtitle": "Il log applicativo del server, il più recente per primo.",
+    "level": "Livello di log",
     "lines": "Righe",
     "searchPlaceholder": "Cerca nei messaggi",
     "empty": "Nessuna riga corrisponde a questi filtri.",
@@ -5098,7 +5098,18 @@
     "sourceError": "Errori",
     "sourceJournal": "Journal",
     "component": "Componente",
-    "allComponents": "Tutti i componenti",
-    "follow": "Segui"
+    "follow": "Log in tempo reale",
+    "time": "Ora",
+    "message": "Messaggio",
+    "levelShort": "Livello",
+    "from": "Da",
+    "to": "A",
+    "serverTime": "Orari nell'ora locale del server",
+    "errors": "Errori",
+    "warnings": "Avvisi",
+    "components": "Componenti",
+    "allLevels": "Tutti i livelli",
+    "copyAll": "Copia tutto",
+    "copySelected": "Copia selezionati"
   }
 }

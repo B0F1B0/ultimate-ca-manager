@@ -5084,8 +5084,8 @@
   },
   "logs": {
     "title": "Registos do sistema",
-    "subtitle": "O registo da aplicação do servidor, o mais recente por último.",
-    "level": "Nível mínimo",
+    "subtitle": "O registo da aplicação do servidor, o mais recente primeiro.",
+    "level": "Nível de registo",
     "lines": "Linhas",
     "searchPlaceholder": "Procurar nas mensagens",
     "empty": "Nenhuma linha corresponde a estes filtros.",
@@ -5098,7 +5098,18 @@
     "sourceError": "Erros",
     "sourceJournal": "Journal",
     "component": "Componente",
-    "allComponents": "Todos os componentes",
-    "follow": "Seguir"
+    "follow": "Registos em direto",
+    "time": "Hora",
+    "message": "Mensagem",
+    "levelShort": "Nível",
+    "from": "De",
+    "to": "Até",
+    "serverTime": "Horas na hora local do servidor",
+    "errors": "Erros",
+    "warnings": "Avisos",
+    "components": "Componentes",
+    "allLevels": "Todos os níveis",
+    "copyAll": "Copiar tudo",
+    "copySelected": "Copiar selecção"
   }
 }

@@ -5084,8 +5084,8 @@
   },
   "logs": {
     "title": "システムログ",
-    "subtitle": "サーバーのアプリケーションログ（新しいものが下）。",
-    "level": "最小レベル",
+    "subtitle": "サーバーのアプリケーションログ（新しいものが上）。",
+    "level": "ログレベル",
     "lines": "行数",
     "searchPlaceholder": "メッセージを検索",
     "empty": "このフィルターに一致するログ行はありません。",
@@ -5098,7 +5098,18 @@
     "sourceError": "エラー",
     "sourceJournal": "ジャーナル",
     "component": "コンポーネント",
-    "allComponents": "すべてのコンポーネント",
-    "follow": "追従"
+    "follow": "ライブログ",
+    "time": "時刻",
+    "message": "メッセージ",
+    "levelShort": "レベル",
+    "from": "開始",
+    "to": "終了",
+    "serverTime": "時刻はサーバーのローカル時間です",
+    "errors": "エラー",
+    "warnings": "警告",
+    "components": "コンポーネント",
+    "allLevels": "すべてのレベル",
+    "copyAll": "すべてコピー",
+    "copySelected": "選択をコピー"
   }
 }

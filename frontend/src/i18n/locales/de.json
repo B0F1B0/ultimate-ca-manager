@@ -5084,8 +5084,8 @@
   },
   "logs": {
     "title": "Systemprotokolle",
-    "subtitle": "Das Anwendungsprotokoll des Servers, neueste zuletzt.",
-    "level": "Mindeststufe",
+    "subtitle": "Das Anwendungsprotokoll des Servers, neueste zuerst.",
+    "level": "Protokollstufe",
     "lines": "Zeilen",
     "searchPlaceholder": "Meldungen durchsuchen",
     "empty": "Keine Protokollzeilen entsprechen diesen Filtern.",
@@ -5098,7 +5098,18 @@
     "sourceError": "Fehler",
     "sourceJournal": "Journal",
     "component": "Komponente",
-    "allComponents": "Alle Komponenten",
-    "follow": "Folgen"
+    "follow": "Live-Protokolle",
+    "time": "Zeit",
+    "message": "Meldung",
+    "levelShort": "Stufe",
+    "from": "Von",
+    "to": "Bis",
+    "serverTime": "Zeiten in lokaler Serverzeit",
+    "errors": "Fehler",
+    "warnings": "Warnungen",
+    "components": "Komponenten",
+    "allLevels": "Alle Stufen",
+    "copyAll": "Alle kopieren",
+    "copySelected": "Auswahl kopieren"
   }
 }
