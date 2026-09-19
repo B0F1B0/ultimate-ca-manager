@@ -39,6 +39,13 @@ WorkingDirectory=/opt/ucm/backend
 ExecStart=/opt/ucm/venv/bin/gunicorn -c gunicorn_config.py wsgi:app
 ExecReload=/bin/kill -HUP $MAINPID
 
+# Journal access. The diagnostic bundle and the log viewer read this unit's own
+# journal with `journalctl -u ucm`, which needs membership of systemd-journal.
+# Granted here rather than with a usermod at install time: it is visible in the
+# unit, it is revocable by commenting out one line and restarting, and it is
+# scoped to this service rather than to every process the account can start.
+SupplementaryGroups=systemd-journal
+
 # Standard output
 StandardOutput=journal
 StandardError=journal

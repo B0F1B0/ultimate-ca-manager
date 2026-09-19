@@ -29,14 +29,6 @@ case "$1" in
         mkdir -p "$UCM_CONFIG"
         mkdir -p /var/log/ucm
         
-        # Journal access: the unit logs to the journal, and the diagnostic
-        # bundle collects it with `journalctl -u ucm`. Reading a system unit's
-        # journal needs systemd-journal membership, which the service user had
-        # none of, so the bundle shipped without the journal it advertised.
-        if getent group systemd-journal >/dev/null 2>&1; then
-            usermod -aG systemd-journal "$UCM_USER" 2>/dev/null || true
-        fi
-
         # SoftHSM setup: add ucm user to softhsm/ods group and prepare token directory
         HSM_GROUP=""
         if getent group softhsm >/dev/null 2>&1; then
