@@ -110,6 +110,8 @@ export function CertDeploySection({ certificate }) {
 
   const field = (key) => (e) => setForm({ ...form, [key]: e.target.value })
   const canWriteDeploy = hasPermission('write:deploy')
+  const certificateName = certificate.cn || certificate.common_name || certificate.descr ||
+    certificate.name || `${t('common.certificate')} #${certificate.id}`
 
   return (
     <>
@@ -174,7 +176,7 @@ export function CertDeploySection({ certificate }) {
       </CompactSection>
 
       <Modal open={addOpen} onOpenChange={(v) => !v && !saving && setAddOpen(false)}
-             title={t('deploy.attachTarget')} size="md">
+             title={`${t('deploy.attachTarget')}: ${certificateName}`} size="md">
         <form onSubmit={handleAdd} className="p-4 space-y-3">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">{t('deploy.target')}</label>
