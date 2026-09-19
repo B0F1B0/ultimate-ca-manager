@@ -24,6 +24,14 @@ FORMATTED = (
 )
 
 
+@pytest.fixture(autouse=True)
+def forget_the_journal_probe():
+    """Whether the journal answers is cached for the life of the process."""
+    log_reader.reset_journal_probe()
+    yield
+    log_reader.reset_journal_probe()
+
+
 @pytest.fixture
 def log_file(tmp_path, monkeypatch):
     path = tmp_path / 'ucm.log'
@@ -609,5 +617,47 @@ class TestEachSourceIsReadWithItsOwnFormat:
     def test_an_unknown_source_is_read_as_the_application_log(self):
         records = log_reader.parse(FORMATTED, 'not-a-source')
         assert records[0]['logger'] == 'services.scep.scep_service'
+
+
+class TestTheJournalIsNotProbedOnEveryRequest:
+    """journalctl is a process launch, and the page asks on every request: five
+    seconds apart while following, and again on each keystroke of the search
+    box. On a host where the service cannot read the journal the probe fails,
+    and the failure used to be logged into the log the viewer is reading."""
+
+    @pytest.fixture
+    def probes(self, monkeypatch):
+        calls = []
+        monkeypatch.setattr(log_reader, 'collect_journal',
+                            lambda: calls.append(1) or b'ucm running\n')
+        return calls
+
+    def test_the_answer_is_remembered_between_requests(self, probes, log_file):
+        log_file.write_text(FORMATTED)
+        for _ in range(5):
+            log_reader.read()
+        assert len(probes) == 1
+
+    def test_reading_the_journal_is_its_own_probe(self, probes):
+        log_reader.read(source=log_reader.JOURNAL)
+        assert len(probes) == 1
+
+    def test_the_question_is_asked_again_once_the_answer_is_stale(self, probes, log_file,
+                                                                  monkeypatch):
+        log_file.write_text(FORMATTED)
+        monkeypatch.setattr(log_reader, '_JOURNAL_PROBE_TTL', 0)
+        log_reader.read()
+        log_reader.read()
+        assert len(probes) == 2
+
+    def test_a_journal_that_starts_answering_is_offered_once_it_is_asked_again(
+            self, log_file, monkeypatch):
+        log_file.write_text(FORMATTED)
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: None)
+        assert log_reader.JOURNAL not in log_reader.read()['available_sources']
+
+        monkeypatch.setattr(log_reader, '_JOURNAL_PROBE_TTL', 0)
+        monkeypatch.setattr(log_reader, 'collect_journal', lambda: b'ucm running\n')
+        assert log_reader.JOURNAL in log_reader.read()['available_sources']
 
 

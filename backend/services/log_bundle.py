@@ -117,11 +117,16 @@ def collect_journal() -> Optional[bytes]:
             capture_output=True, text=True, timeout=15,
         )
         if proc.returncode != 0:
-            logger.info('log_bundle: journalctl rc=%d: %s', proc.returncode,
-                        (proc.stderr or '').strip()[:200])
+            # DEBUG, not INFO: the log viewer asks this question to decide
+            # whether to offer the journal as a source, and on a host whose
+            # service user cannot read the journal the answer is always a
+            # failure. At INFO each of those answers was written into the
+            # application log, which is the log the viewer is reading.
+            logger.debug('log_bundle: journalctl rc=%d: %s', proc.returncode,
+                         (proc.stderr or '').strip()[:200])
         return (proc.stdout or '').encode('utf-8', errors='replace') or None
     except Exception as exc:  # noqa: BLE001
-        logger.info('log_bundle: journalctl skipped: %s', exc)
+        logger.debug('log_bundle: journalctl skipped: %s', exc)
         return None
 
 

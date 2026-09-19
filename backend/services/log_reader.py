@@ -24,6 +24,7 @@ import functools
 import logging
 import os
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
@@ -355,6 +356,39 @@ def journal_text() -> Optional[str]:
     return None
 
 
+# Whether the journal answers, and when that was last established. Every other
+# source is a stat() away, but this one is a process launch, and the page asks
+# on every request: five seconds apart while following, and again on each
+# keystroke of the search box. Worse, a host whose service user cannot read the
+# journal answers with a failure the collector reports, so an uncached probe
+# writes a line into the very log the viewer is reading, every five seconds.
+#
+# The answer only changes when the service is restarted, or its groups are, so
+# it is remembered for a while rather than asked again each time.
+_JOURNAL_PROBE_TTL = 300.0
+_journal_probe: Optional[tuple[float, bool]] = None
+
+
+def _remember_journal(available: bool) -> None:
+    global _journal_probe
+    _journal_probe = (time.monotonic(), available)
+
+
+def reset_journal_probe() -> None:
+    """Forget the cached answer, so the next question is asked of journalctl."""
+    global _journal_probe
+    _journal_probe = None
+
+
+def journal_available() -> bool:
+    """Whether the journal is worth offering, asking journalctl at most rarely."""
+    if _journal_probe is not None and time.monotonic() - _journal_probe[0] < _JOURNAL_PROBE_TTL:
+        return _journal_probe[1]
+    available = journal_text() is not None
+    _remember_journal(available)
+    return available
+
+
 def available_sources() -> list[str]:
     """The sources this deployment can actually serve.
 
@@ -366,7 +400,7 @@ def available_sources() -> list[str]:
     available = []
     for source in SOURCES:
         if source == JOURNAL:
-            if journal_text() is not None:
+            if journal_available():
                 available.append(source)
             continue
         path = source_path(source)
@@ -393,6 +427,15 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
     if source not in SOURCES:
         source = APP
     count = max(1, min(int(lines), MAX_LINES))
+
+    # Reading the journal is its own answer to whether the journal is there, so
+    # the source being read is fetched first and the probe told what it found.
+    # Asking after the fact ran journalctl twice for one request.
+    text = None
+    if source == JOURNAL:
+        text = journal_text()
+        _remember_journal(text is not None)
+
     empty = {'source': source, 'path': None, 'exists': False,
              'lines': [], 'truncated': False, 'scan_truncated': False,
              'components': [], 'matched': 0, 'levels': level_counts([]),
@@ -400,7 +443,6 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
              'available_sources': available_sources()}
 
     if source == JOURNAL:
-        text = journal_text()
         if text is None:
             return empty
         scan_truncated = False

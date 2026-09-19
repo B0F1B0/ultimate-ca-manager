@@ -18,6 +18,14 @@ FORMATTED = (
 )
 
 
+@pytest.fixture(autouse=True)
+def forget_the_journal_probe():
+    """Whether the journal answers is cached for the life of the process."""
+    log_reader.reset_journal_probe()
+    yield
+    log_reader.reset_journal_probe()
+
+
 @pytest.fixture
 def log_file(tmp_path, monkeypatch):
     path = tmp_path / 'ucm.log'
