@@ -828,9 +828,8 @@ export const helpContent = {
           { label: 'Source', text: 'Which log to read. Only sources this deployment actually has are offered' },
           { label: 'Component', text: 'One subsystem of the application log, or all of them. Every subsystem is listed, not only those on screen' },
           { label: 'Log level', text: 'A floor, not an exact match: WARNING shows warnings, errors and critical' },
-          { label: 'Search', text: 'Case-insensitive, across the message and the component name' },
+          { label: 'Search', text: 'Case-insensitive, across the message and the component name. Literal text, not a pattern' },
           { label: 'Exclude', text: 'Drops the lines that match: the quickest way to silence a heartbeat' },
-          { label: 'Regular expressions', text: 'Treats search and exclude as patterns; a half-written one matches nothing rather than failing' },
           { label: 'Date', text: 'A From/To window, applied on the server' },
           { label: 'Lines', text: 'How many matching lines to return, newest first' },
         ]

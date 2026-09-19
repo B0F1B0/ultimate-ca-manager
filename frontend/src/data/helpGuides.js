@@ -1683,15 +1683,15 @@ Lines are shown newest first, and every filter is applied on the server, so a fi
 **Source** and **Component** live in the Filters panel: pick the log, then narrow it to one subsystem.
 
 - **Application**: UCM's own log. This is the only source with components.
-- **Access**: the gunicorn access log — HTTP requests and status codes. Native installs only.
-- **Errors**: the gunicorn error log — worker startup and unhandled tracebacks. Native installs only.
+- **Access**: the gunicorn access log, holding HTTP requests and status codes. Native installs only.
+- **Errors**: the gunicorn error log, holding worker startup and unhandled tracebacks. Native installs only.
 - **Journal**: the systemd unit journal, where the service user is able to read it.
 
 Only sources this deployment actually has are offered. A source with nothing behind it is left out rather than shown empty.
 
 ### Components
 
-**All components** is the whole application log. The list holds every subsystem UCM can log from — \`services\`, \`api\`, \`utils\`, \`security\` and the rest — whether or not it has logged recently, plus the specific loggers the lines on screen came from.
+**All components** is the whole application log. The list holds every subsystem UCM can log from (\`services\`, \`api\`, \`utils\`, \`security\` and the rest), whether or not it has logged recently, plus the specific loggers the lines on screen came from.
 
 Choosing one takes everything beneath it. \`services\` matches \`services.scep.scep_service\` and every other service; \`services.scep\` narrows to the SCEP subtree.
 
@@ -1703,9 +1703,9 @@ A floor, not an exact match. **WARNING** shows warnings, errors and critical. **
 A record whose level could not be read is never hidden by this filter: its severity is unknown, and guessing it would hide the lines most worth seeing.
 
 ### Search and Exclude
-Both match the message and the component name, and both are case-insensitive. **Exclude** removes what matches — the quickest way to silence a heartbeat that repeats every minute and buries the one error.
+Both match the message and the component name, and both are case-insensitive. **Exclude** removes what matches: the quickest way to silence a heartbeat that repeats every minute and buries the one error.
 
-Turn on **Regular expressions** to treat both as patterns. A half-written pattern matches nothing rather than failing the request.
+Both are literal text rather than patterns, so \`.*\` finds those two characters and nothing else. A pattern from the browser is unbounded work for the single worker that answers ACME, SCEP and OCSP from this same process.
 
 ### Date
 A **From**/**To** window, applied on the server. Unlike the level floor, a record carrying no timestamp is left out when a bound is set: a window asks for an instant, and such a record has none.
@@ -1719,14 +1719,14 @@ Polls every five seconds. It clears the date window, which asks the opposite que
 
 ## Copy
 
-**Copy all** takes every line on screen. Tick the box beside any line and it becomes **Copy selected**. Both copy in the log's own shape — time, level, component, message — so what lands on the clipboard reads as a log and can be pasted into an issue.
+**Copy all** takes every line on screen. Tick the box beside any line and it becomes **Copy selected**. Both copy a line the way the file writes it: time, component, level, message. What lands on the clipboard reads as a log, and pasting it back into this page parses as one.
 
 ## Reading the footer
 
 The foot of the page names the file being read, the time zone its timestamps are written in, and whether anything was cut:
 
-- **Showing the N most recent of M matching lines** — more matched than the **Lines** setting allows. Raise it to see further back.
-- **Only the most recent part of the file was scanned** — the file is larger than the window the reader scans, so older lines are out of reach at any line count.
+- **Showing the N most recent of M matching lines**: more matched than the **Lines** setting allows. Raise it to see further back.
+- **Only the most recent part of the file was scanned**: the file is larger than the window the reader scans, so older lines are out of reach at any line count.
 
 Timestamps carry no offset of their own; they are the server's local time, and the zone is named beside the path.
 

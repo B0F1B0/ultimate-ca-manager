@@ -7,23 +7,22 @@ export default {
       {
         title: "Origens",
         items: [
-          "Aplicação — o registo do próprio UCM. A única origem com componentes",
-          "Acesso — registo de acesso do Gunicorn: pedidos HTTP e códigos de estado, apenas instalações nativas",
-          "Erros — registo de erros do Gunicorn: arranque dos workers e tracebacks não tratados, apenas nativas",
-          "Journal — o journal da unidade systemd, onde o utilizador do serviço o possa ler",
+          "Aplicação: o registo do próprio UCM. A única origem com componentes",
+          "Acesso: registo de acesso do Gunicorn, com os pedidos HTTP e os códigos de estado, apenas instalações nativas",
+          "Erros: registo de erros do Gunicorn, com o arranque dos workers e os tracebacks não tratados, apenas nativas",
+          "Journal: o journal da unidade systemd, onde o utilizador do serviço o possa ler",
         ]
       },
       {
         title: "Filtros",
         items: [
-          "Origem — Que registo é lido. Só são oferecidas as origens que esta instalação tem",
-          "Componente — Um subsistema do registo da aplicação, ou todos. Estão todos, não só os visíveis",
-          "Nível de registo — Um mínimo, não uma correspondência exacta: WARNING mostra também erros e críticos",
-          "Procurar — Sem distinguir maiúsculas, sobre a mensagem e o nome do componente",
-          "Excluir — Remove as linhas que correspondem: o mais rápido para calar um batimento",
-          "Expressões regulares — Trata procurar e excluir como padrões; um incompleto não corresponde a nada",
-          "Data — Uma janela De/Até, aplicada no servidor",
-          "Linhas — Quantas linhas correspondentes devolver, da mais recente para a mais antiga",
+          "Origem: que registo é lido. Só são oferecidas as origens que esta instalação tem",
+          "Componente: um subsistema do registo da aplicação, ou todos. Estão todos, não só os visíveis",
+          "Nível de registo: um mínimo, não uma correspondência exacta. WARNING mostra também erros e críticos",
+          "Procurar: sem distinguir maiúsculas, sobre a mensagem e o nome do componente. É texto literal, não um padrão",
+          "Excluir: remove as linhas que correspondem, o mais rápido para calar um batimento",
+          "Data: uma janela De/Até, aplicada no servidor",
+          "Linhas: quantas linhas correspondentes devolver, da mais recente para a mais antiga",
         ]
       },
       {
@@ -73,7 +72,9 @@ As linhas aparecem da mais recente para a mais antiga e todos os filtros são ap
 Um mínimo, não uma correspondência exacta: **WARNING** mostra também erros e críticos. Uma linha sem nível legível nunca é escondida.
 
 ### Procurar e Excluir
-Ambos percorrem a mensagem e o nome do componente. **Excluir** remove o que corresponde, a forma mais rápida de calar um batimento que se repete a cada minuto. **Expressões regulares** trata ambos como padrões; um padrão incompleto não corresponde a nada em vez de falhar.
+Ambos percorrem a mensagem e o nome do componente. **Excluir** remove o que corresponde, a forma mais rápida de calar um batimento que se repete a cada minuto.
+
+Ambos são texto literal e não padrões: \`.*\` corresponde a esses dois caracteres e mais nada. Um padrão vindo do navegador seria trabalho sem limite para o único worker que aqui responde a todos os protocolos.
 
 ### Data
 Uma janela De/Até. Uma linha sem hora fica de fora: a janela pergunta por um instante.
@@ -91,8 +92,8 @@ Consulta a cada cinco segundos e limpa a janela de datas, que faz a pergunta opo
 
 ## Ler o rodapé
 
-- **A mostrar as N linhas mais recentes de M correspondentes** — corresponderam mais do que **Linhas** permite.
-- **Apenas a parte mais recente do ficheiro foi lida** — o ficheiro excede a janela lida.
+- **A mostrar as N linhas mais recentes de M correspondentes**: corresponderam mais do que **Linhas** permite.
+- **Apenas a parte mais recente do ficheiro foi lida**: o ficheiro excede a janela lida.
 
 As horas não têm desvio: são hora local do servidor, e a zona aparece ao lado do caminho.
 

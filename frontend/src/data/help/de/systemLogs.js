@@ -7,23 +7,22 @@ export default {
       {
         title: "Quellen",
         items: [
-          "Anwendung — UCMs eigenes Protokoll. Nur diese Quelle hat Komponenten",
-          "Zugriff — Gunicorn-Zugriffsprotokoll: HTTP-Anfragen und Statuscodes, nur native Installationen",
-          "Fehler — Gunicorn-Fehlerprotokoll: Worker-Start und nicht behandelte Tracebacks, nur native Installationen",
-          "Journal — Das systemd-Unit-Journal, sofern der Dienstbenutzer es lesen darf",
+          "Anwendung: UCMs eigenes Protokoll. Nur diese Quelle hat Komponenten",
+          "Zugriff: Gunicorn-Zugriffsprotokoll mit HTTP-Anfragen und Statuscodes, nur native Installationen",
+          "Fehler: Gunicorn-Fehlerprotokoll mit Worker-Start und nicht behandelten Tracebacks, nur native Installationen",
+          "Journal: das systemd-Unit-Journal, sofern der Dienstbenutzer es lesen darf",
         ]
       },
       {
         title: "Filter",
         items: [
-          "Quelle — Welches Protokoll gelesen wird. Nur tatsächlich vorhandene Quellen werden angeboten",
-          "Komponente — Ein Subsystem des Anwendungsprotokolls oder alle. Aufgeführt sind alle, nicht nur die sichtbaren",
-          "Protokollstufe — Eine Untergrenze, keine exakte Übereinstimmung: WARNING zeigt auch Fehler und Kritisches",
-          "Suche — Groß-/Kleinschreibung egal, über Meldung und Komponentenname",
-          "Ausschließen — Entfernt passende Zeilen: der schnellste Weg, einen Heartbeat stummzuschalten",
-          "Reguläre Ausdrücke — Behandelt Suche und Ausschluss als Muster; ein unvollständiges trifft nichts",
-          "Datum — Ein Von/Bis-Fenster, serverseitig angewendet",
-          "Zeilen — Wie viele passende Zeilen zurückgegeben werden, neueste zuerst",
+          "Quelle: welches Protokoll gelesen wird. Nur tatsächlich vorhandene Quellen werden angeboten",
+          "Komponente: ein Subsystem des Anwendungsprotokolls oder alle. Aufgeführt sind alle, nicht nur die sichtbaren",
+          "Protokollstufe: eine Untergrenze, keine exakte Übereinstimmung. WARNING zeigt auch Fehler und Kritisches",
+          "Suche: Groß-/Kleinschreibung egal, über Meldung und Komponentenname. Gesucht wird nach Text, nicht nach Mustern",
+          "Ausschließen: entfernt passende Zeilen und schaltet so am schnellsten einen Heartbeat stumm",
+          "Datum: ein Von/Bis-Fenster, serverseitig angewendet",
+          "Zeilen: wie viele passende Zeilen zurückgegeben werden, neueste zuerst",
         ]
       },
       {
@@ -73,7 +72,9 @@ Zeilen erscheinen neueste zuerst, und jeder Filter wird auf dem Server angewende
 Eine Untergrenze, keine exakte Übereinstimmung: **WARNING** zeigt auch Fehler und Kritisches. Eine Zeile ohne lesbare Stufe wird nie ausgeblendet.
 
 ### Suche und Ausschließen
-Beide durchsuchen Meldung und Komponentenname. **Ausschließen** entfernt Treffer — der schnellste Weg, einen minütlichen Heartbeat stummzuschalten. **Reguläre Ausdrücke** behandelt beide als Muster; ein unvollständiges Muster trifft nichts, statt die Anfrage scheitern zu lassen.
+Beide durchsuchen Meldung und Komponentenname. **Ausschließen** entfernt Treffer: der schnellste Weg, einen minütlichen Heartbeat stummzuschalten.
+
+Beide sind reiner Text, keine Muster: \`.*\` trifft genau diese zwei Zeichen. Ein Muster aus dem Browser wäre unbegrenzte Arbeit für den einen Worker, der hier jedes Protokoll beantwortet.
 
 ### Datum
 Ein Von/Bis-Fenster. Eine Zeile ohne Zeitstempel entfällt dabei: Ein Fenster fragt nach einem Zeitpunkt.
@@ -91,8 +92,8 @@ Fragt alle fünf Sekunden ab und löscht das Datumsfenster, das die gegenteilige
 
 ## Die Fußzeile lesen
 
-- **Es werden die N neuesten von M passenden Zeilen angezeigt** — mehr passten, als die Einstellung **Zeilen** zulässt.
-- **Nur der neueste Teil der Datei wurde gelesen** — die Datei ist größer als das gelesene Fenster.
+- **Es werden die N neuesten von M passenden Zeilen angezeigt**: mehr passten, als die Einstellung **Zeilen** zulässt.
+- **Nur der neueste Teil der Datei wurde gelesen**: die Datei ist größer als das gelesene Fenster.
 
 Zeitstempel tragen keinen Offset; sie sind lokale Serverzeit, die Zone steht neben dem Pfad.
 

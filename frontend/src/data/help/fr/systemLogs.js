@@ -7,23 +7,22 @@ export default {
       {
         title: "Sources",
         items: [
-          "Application — le journal propre à UCM. Seule source à porter des composants",
-          "Accès — journal d'accès Gunicorn : requêtes HTTP et codes de statut, installations natives uniquement",
-          "Erreurs — journal d'erreurs Gunicorn : démarrage des workers et traces non gérées, natives uniquement",
-          "Journal — le journal de l'unité systemd, là où l'utilisateur du service peut le lire",
+          "Application : le journal propre à UCM. Seule source à porter des composants",
+          "Accès : journal d'accès Gunicorn, avec les requêtes HTTP et les codes de statut, installations natives uniquement",
+          "Erreurs : journal d'erreurs Gunicorn, avec le démarrage des workers et les traces non gérées, natives uniquement",
+          "Journal : le journal de l'unité systemd, là où l'utilisateur du service peut le lire",
         ]
       },
       {
         title: "Filtres",
         items: [
-          "Source — Quel journal est lu. Seules les sources réellement présentes sont proposées",
-          "Composant — Un sous-système du journal applicatif, ou tous. Tous y figurent, pas seulement ceux affichés",
-          "Niveau de journal — Un plancher, pas une correspondance exacte : WARNING montre aussi erreurs et critiques",
-          "Recherche — Insensible à la casse, sur le message et le nom du composant",
-          "Exclure — Retire les lignes correspondantes : le plus rapide pour faire taire un battement",
-          "Expressions régulières — Traite recherche et exclusion comme des motifs ; un motif inachevé ne correspond à rien",
-          "Date — Une fenêtre De/À, appliquée sur le serveur",
-          "Lignes — Combien de lignes correspondantes renvoyer, de la plus récente à la plus ancienne",
+          "Source : quel journal est lu. Seules les sources réellement présentes sont proposées",
+          "Composant : un sous-système du journal applicatif, ou tous. Tous y figurent, pas seulement ceux affichés",
+          "Niveau de journal : un plancher, pas une correspondance exacte. WARNING montre aussi erreurs et critiques",
+          "Recherche : insensible à la casse, sur le message et le nom du composant. C'est du texte, pas un motif",
+          "Exclure : retire les lignes correspondantes, le plus rapide pour faire taire un battement",
+          "Date : une fenêtre De/À, appliquée sur le serveur",
+          "Lignes : combien de lignes correspondantes renvoyer, de la plus récente à la plus ancienne",
         ]
       },
       {
@@ -73,7 +72,9 @@ Les lignes sont affichées de la plus récente à la plus ancienne, et tous les 
 Un plancher, pas une correspondance exacte : **WARNING** montre aussi erreurs et critiques. Une ligne sans niveau lisible n'est jamais masquée.
 
 ### Recherche et Exclure
-Les deux parcourent le message et le nom du composant. **Exclure** retire ce qui correspond, le moyen le plus rapide de faire taire un battement qui revient chaque minute. **Expressions régulières** traite les deux comme des motifs ; un motif inachevé ne correspond à rien plutôt que d'échouer.
+Les deux parcourent le message et le nom du composant. **Exclure** retire ce qui correspond, le moyen le plus rapide de faire taire un battement qui revient chaque minute.
+
+Les deux sont du texte littéral et non des motifs : \`.*\` ne correspond qu'à ces deux caractères. Un motif venu du navigateur serait un travail sans borne pour l'unique worker qui répond ici à tous les protocoles.
 
 ### Date
 Une fenêtre De/À. Une ligne sans horodatage en est exclue : une fenêtre demande un instant.
@@ -91,8 +92,8 @@ Interroge toutes les cinq secondes et efface la fenêtre de dates, qui pose la q
 
 ## Lire le pied de page
 
-- **Affichage des N lignes les plus récentes sur M correspondantes** — davantage correspondaient que ne l'autorise **Lignes**.
-- **Seule la partie la plus récente du fichier a été lue** — le fichier dépasse la fenêtre lue.
+- **Affichage des N lignes les plus récentes sur M correspondantes** : davantage correspondaient que ne l'autorise **Lignes**.
+- **Seule la partie la plus récente du fichier a été lue** : le fichier dépasse la fenêtre lue.
 
 Les horodatages ne portent pas de décalage : c'est l'heure locale du serveur, la zone est indiquée à côté du chemin.
 

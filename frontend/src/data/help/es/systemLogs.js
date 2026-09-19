@@ -7,23 +7,22 @@ export default {
       {
         title: "Orígenes",
         items: [
-          "Aplicación — el registro propio de UCM. Única fuente con componentes",
-          "Acceso — registro de acceso de Gunicorn: peticiones HTTP y códigos de estado, solo instalaciones nativas",
-          "Errores — registro de errores de Gunicorn: arranque de workers y trazas no gestionadas, solo nativas",
-          "Journal — el journal de la unidad systemd, si el usuario del servicio puede leerlo",
+          "Aplicación: el registro propio de UCM. Única fuente con componentes",
+          "Acceso: registro de acceso de Gunicorn con las peticiones HTTP y los códigos de estado, solo instalaciones nativas",
+          "Errores: registro de errores de Gunicorn con el arranque de los workers y las trazas no gestionadas, solo nativas",
+          "Journal: el journal de la unidad systemd, si el usuario del servicio puede leerlo",
         ]
       },
       {
         title: "Filtros",
         items: [
-          "Origen — Qué registro se lee. Solo se ofrecen los orígenes que esta instalación tiene",
-          "Componente — Un subsistema del registro de aplicación, o todos. Están todos, no solo los visibles",
-          "Nivel de registro — Un mínimo, no una coincidencia exacta: WARNING muestra también errores y críticos",
-          "Buscar — Sin distinguir mayúsculas, sobre el mensaje y el nombre del componente",
-          "Excluir — Quita las líneas que coinciden: lo más rápido para silenciar un latido",
-          "Expresiones regulares — Trata buscar y excluir como patrones; uno a medio escribir no coincide con nada",
-          "Fecha — Una ventana Desde/Hasta, aplicada en el servidor",
-          "Líneas — Cuántas líneas coincidentes devolver, de más reciente a más antigua",
+          "Origen: qué registro se lee. Solo se ofrecen los orígenes que esta instalación tiene",
+          "Componente: un subsistema del registro de aplicación, o todos. Están todos, no solo los visibles",
+          "Nivel de registro: un mínimo, no una coincidencia exacta. WARNING muestra también errores y críticos",
+          "Buscar: sin distinguir mayúsculas, sobre el mensaje y el nombre del componente. Es texto literal, no un patrón",
+          "Excluir: quita las líneas que coinciden, lo más rápido para silenciar un latido",
+          "Fecha: una ventana Desde/Hasta, aplicada en el servidor",
+          "Líneas: cuántas líneas coincidentes devolver, de más reciente a más antigua",
         ]
       },
       {
@@ -73,7 +72,9 @@ Las líneas se muestran de más reciente a más antigua y todos los filtros se a
 Un mínimo, no una coincidencia exacta: **WARNING** muestra también errores y críticos. Una línea sin nivel legible nunca se oculta.
 
 ### Buscar y Excluir
-Ambos recorren el mensaje y el nombre del componente. **Excluir** quita lo que coincide, la forma más rápida de silenciar un latido que se repite cada minuto. **Expresiones regulares** trata ambos como patrones; un patrón a medio escribir no coincide con nada en lugar de fallar.
+Ambos recorren el mensaje y el nombre del componente. **Excluir** quita lo que coincide, la forma más rápida de silenciar un latido que se repite cada minuto.
+
+Ambos son texto literal, no patrones: \`.*\` coincide con esos dos caracteres y nada más. Un patrón enviado desde el navegador sería trabajo sin límite para el único worker que responde aquí a todos los protocolos.
 
 ### Fecha
 Una ventana Desde/Hasta. Una línea sin hora queda fuera: la ventana pregunta por un instante.
@@ -91,8 +92,8 @@ Consulta cada cinco segundos y limpia la ventana de fechas, que plantea la pregu
 
 ## Leer el pie de página
 
-- **Mostrando las N líneas más recientes de M coincidentes** — coincidieron más de las que permite **Líneas**.
-- **Solo se leyó la parte más reciente del archivo** — el archivo supera la ventana leída.
+- **Mostrando las N líneas más recientes de M coincidentes**: coincidieron más de las que permite **Líneas**.
+- **Solo se leyó la parte más reciente del archivo**: el archivo supera la ventana leída.
 
 Las horas no llevan desfase: son hora local del servidor, y la zona aparece junto a la ruta.
 

@@ -7,23 +7,22 @@ export default {
       {
         title: "Origini",
         items: [
-          "Applicazione — il log di UCM. L'unica origine con componenti",
-          "Accessi — log di accesso di Gunicorn: richieste HTTP e codici di stato, solo installazioni native",
-          "Errori — log errori di Gunicorn: avvio dei worker e traceback non gestiti, solo native",
-          "Journal — il journal dell'unità systemd, dove l'utente del servizio può leggerlo",
+          "Applicazione: il log di UCM. L'unica origine con componenti",
+          "Accessi: log di accesso di Gunicorn, con richieste HTTP e codici di stato, solo installazioni native",
+          "Errori: log errori di Gunicorn, con avvio dei worker e traceback non gestiti, solo native",
+          "Journal: il journal dell'unità systemd, dove l'utente del servizio può leggerlo",
         ]
       },
       {
         title: "Filtri",
         items: [
-          "Origine — Quale log viene letto. Sono offerte solo le origini realmente presenti",
-          "Componente — Un sottosistema del log applicativo, o tutti. Ci sono tutti, non solo quelli a schermo",
-          "Livello di log — Una soglia, non una corrispondenza esatta: WARNING mostra anche errori e critici",
-          "Cerca — Senza distinzione fra maiuscole, su messaggio e nome del componente",
-          "Escludi — Toglie le righe che corrispondono: il modo più rapido di zittire un battito",
-          "Espressioni regolari — Tratta cerca ed escludi come pattern; uno incompleto non corrisponde a nulla",
-          "Data — Una finestra Da/A, applicata sul server",
-          "Righe — Quante righe corrispondenti restituire, dalla più recente",
+          "Origine: quale log viene letto. Sono offerte solo le origini realmente presenti",
+          "Componente: un sottosistema del log applicativo, o tutti. Ci sono tutti, non solo quelli a schermo",
+          "Livello di log: una soglia, non una corrispondenza esatta. WARNING mostra anche errori e critici",
+          "Cerca: senza distinzione fra maiuscole, su messaggio e nome del componente. È testo, non un pattern",
+          "Escludi: toglie le righe che corrispondono, il modo più rapido di zittire un battito",
+          "Data: una finestra Da/A, applicata sul server",
+          "Righe: quante righe corrispondenti restituire, dalla più recente",
         ]
       },
       {
@@ -73,7 +72,9 @@ Le righe sono mostrate dalla più recente e ogni filtro è applicato sul server.
 Una soglia, non una corrispondenza esatta: **WARNING** mostra anche errori e critici. Una riga senza livello leggibile non viene mai nascosta.
 
 ### Cerca ed Escludi
-Entrambi guardano messaggio e nome del componente. **Escludi** toglie ciò che corrisponde, il modo più rapido di zittire un battito che torna ogni minuto. **Espressioni regolari** tratta entrambi come pattern; un pattern incompleto non corrisponde a nulla invece di fallire.
+Entrambi guardano messaggio e nome del componente. **Escludi** toglie ciò che corrisponde, il modo più rapido di zittire un battito che torna ogni minuto.
+
+Entrambi sono testo letterale e non pattern: \`.*\` corrisponde a quei due caratteri e basta. Un pattern inviato dal browser sarebbe lavoro senza limite per l'unico worker che qui risponde a ogni protocollo.
 
 ### Data
 Una finestra Da/A. Una riga senza orario ne resta fuori: la finestra chiede un istante.
@@ -91,8 +92,8 @@ Interroga ogni cinque secondi e azzera la finestra temporale, che pone la domand
 
 ## Leggere il piè di pagina
 
-- **Mostrate le N righe più recenti su M corrispondenti** — ne corrispondevano più di quante **Righe** ne consenta.
-- **È stata letta solo la parte più recente del file** — il file supera la finestra letta.
+- **Mostrate le N righe più recenti su M corrispondenti**: ne corrispondevano più di quante **Righe** ne consenta.
+- **È stata letta solo la parte più recente del file**: il file supera la finestra letta.
 
 Gli orari non portano offset: sono ora locale del server, la zona è indicata accanto al percorso.
 
