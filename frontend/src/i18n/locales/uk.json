@@ -1970,6 +1970,16 @@
       "failed": "Помилка"
     }
   },
+  "crlDeploy": {
+    "title": "CRL Deployment", "description": "Push every updated complete CRL to an SSH deployment target.",
+    "none": "This CA is not deployed to any target.", "attach": "Attach target", "attachFor": "Attach CRL target: {{name}}",
+    "path": "CRL destination path", "includeParents": "Include parent CRLs",
+    "includeParentsHelp": "Creates a PEM bundle containing this CA CRL followed by issuer CRLs.", "withParents": "includes parent CRLs",
+    "deployNow": "Deploy now", "loadFailed": "Failed to load CRL deployments", "created": "CRL deployment attached and initial push queued",
+    "createFailed": "Failed to attach CRL deployment", "deleteConfirm": "Remove this CRL deployment?", "remove": "Remove CRL deployment",
+    "removed": "CRL deployment removed", "deleteFailed": "Failed to remove CRL deployment", "deployed": "CRL deployed successfully",
+    "deployFailed": "CRL deployment failed"
+  },
   "trustStore": {
     "caTrust": "Довіра CA",
     "caTrustDesc": "Довірений для видачі сертифікатів",

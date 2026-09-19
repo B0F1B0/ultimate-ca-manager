@@ -42,6 +42,23 @@ export const deployService = {
     return apiClient.post(`/deploy/bindings/${bindingId}/deploy`)
   },
 
+  // CRL bindings
+  async getCRLBindings(params = {}) {
+    return apiClient.get(`/deploy/crl-bindings${buildQueryString(params)}`)
+  },
+  async createCRLBinding(data) {
+    return apiClient.post('/deploy/crl-bindings', data)
+  },
+  async updateCRLBinding(id, data) {
+    return apiClient.patch(`/deploy/crl-bindings/${id}`, data)
+  },
+  async deleteCRLBinding(id) {
+    return apiClient.delete(`/deploy/crl-bindings/${id}`)
+  },
+  async deployCRLNow(bindingId) {
+    return apiClient.post(`/deploy/crl-bindings/${bindingId}/deploy`)
+  },
+
   // Deliveries
   async getDeliveries(params = {}) {
     return apiClient.get(`/deploy/deliveries${buildQueryString(params)}`)

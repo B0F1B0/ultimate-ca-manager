@@ -15,7 +15,10 @@ from auth.unified import require_auth
 from utils.response import success_response, error_response, created_response
 from utils.pagination import parse_request_limit
 from utils.db_transaction import safe_commit
-from models import db, Certificate, DeployTarget, DeployBinding, DeployDelivery
+from models import (
+    db, CA, Certificate, DeployTarget, DeployBinding, CRLDeployBinding,
+    DeployDelivery,
+)
 from services.deploy import DeployService
 from services.deploy.ssh import DeploySSHError, HostKeyMismatch
 from services.audit_service import AuditService
@@ -85,6 +88,7 @@ def get_target(target_id):
         return error_response('Deploy target not found', 404)
     data = target.to_dict()
     data['bindings'] = [b.to_dict(include_target=False) for b in target.bindings]
+    data['crl_bindings'] = [b.to_dict(include_target=False) for b in target.crl_bindings]
     return success_response(data=data)
 
 
@@ -123,11 +127,19 @@ def delete_target(target_id):
     name = target.name
     try:
         binding_ids = [b.id for b in target.bindings]
+        crl_binding_ids = [b.id for b in target.crl_bindings]
         if binding_ids:
             DeployDelivery.query.filter(
+                DeployDelivery.binding_type == DeployDelivery.BINDING_CERTIFICATE,
                 DeployDelivery.binding_id.in_(binding_ids)).delete(synchronize_session=False)
             DeployBinding.query.filter(
                 DeployBinding.id.in_(binding_ids)).delete(synchronize_session=False)
+        if crl_binding_ids:
+            DeployDelivery.query.filter(
+                DeployDelivery.binding_type == DeployDelivery.BINDING_CRL,
+                DeployDelivery.binding_id.in_(crl_binding_ids)).delete(synchronize_session=False)
+            CRLDeployBinding.query.filter(
+                CRLDeployBinding.id.in_(crl_binding_ids)).delete(synchronize_session=False)
         db.session.delete(target)
         ok, err = safe_commit(logger, 'Failed to delete deploy target')
         if not ok:
@@ -138,7 +150,8 @@ def delete_target(target_id):
         AuditService.log_action(
             action='deploy_target_delete', resource_type='deploy_target',
             resource_id=str(target_id), resource_name=name,
-            details=f"Deleted deploy target {name} and {len(binding_ids)} binding(s)",
+            details=(f"Deleted deploy target {name} and "
+                     f"{len(binding_ids) + len(crl_binding_ids)} binding(s)"),
             success=True)
         return success_response(message='Deploy target deleted')
     except Exception as e:
@@ -197,7 +210,9 @@ def list_bindings():
     result = []
     for b in bindings:
         data = b.to_dict()
-        last = (DeployDelivery.query.filter_by(binding_id=b.id)
+        last = (DeployDelivery.query.filter_by(
+                    binding_id=b.id,
+                    binding_type=DeployDelivery.BINDING_CERTIFICATE)
                 .order_by(DeployDelivery.id.desc()).first())
         data['last_delivery'] = last.to_dict() if last else None
         result.append(data)
@@ -352,6 +367,7 @@ def deploy_now(binding_id):
 
     delivery = DeployDelivery(
         binding_id=binding.id,
+        binding_type=DeployDelivery.BINDING_CERTIFICATE,
         event_type='manual',
         status=DeployDelivery.STATUS_PENDING,
         attempts=1,
@@ -368,6 +384,147 @@ def deploy_now(binding_id):
     return error_response(delivery.last_error or 'Deploy failed', 502)
 
 
+# =========================================================== CRL bindings
+
+@bp.route('/api/v2/deploy/crl-bindings', methods=['GET'])
+@require_auth(['read:deploy'])
+def list_crl_bindings():
+    query = CRLDeployBinding.query
+    ca_id = request.args.get('ca_id', type=int)
+    target_id = request.args.get('target_id', type=int)
+    if ca_id:
+        query = query.filter_by(ca_id=ca_id)
+    if target_id:
+        query = query.filter_by(target_id=target_id)
+    bindings = query.order_by(CRLDeployBinding.id.asc()).all()
+    result = []
+    for binding in bindings:
+        data = binding.to_dict()
+        last = (DeployDelivery.query.filter_by(
+                    binding_id=binding.id,
+                    binding_type=DeployDelivery.BINDING_CRL)
+                .order_by(DeployDelivery.id.desc()).first())
+        data['last_delivery'] = last.to_dict() if last else None
+        result.append(data)
+    return success_response(data=result)
+
+
+@bp.route('/api/v2/deploy/crl-bindings', methods=['POST'])
+@require_auth(['write:deploy'])
+def create_crl_binding():
+    data = request.get_json() or {}
+    target = db.session.get(DeployTarget, data.get('target_id') or 0)
+    if not target:
+        return error_response('Deploy target not found', 404)
+    ca = db.session.get(CA, data.get('ca_id') or 0)
+    if not ca:
+        return error_response('CA not found', 404)
+    if CRLDeployBinding.query.filter_by(target_id=target.id, ca_id=ca.id).first():
+        return error_response('This CA CRL is already bound to this target', 409)
+    try:
+        fields = DeployService.validate_crl_binding(data)
+        DeployService._latest_complete_crl(ca.id)
+    except ValueError as e:
+        return error_response(str(e), 400)
+
+    binding = CRLDeployBinding(
+        target_id=target.id, ca_id=ca.id, created_by=_actor(), **fields)
+    db.session.add(binding)
+    delivery = None
+    try:
+        db.session.flush()
+        delivery = DeployService.enqueue_initial_crl_push(binding, actor=_actor())
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return error_response('This CA CRL is already bound to this target', 409)
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Failed to create CRL deploy binding: {e}', exc_info=True)
+        return error_response('Failed to create CRL deploy binding', 500)
+
+    queued = delivery is not None
+    result = binding.to_dict()
+    AuditService.log_action(
+        action='crl_deploy_binding_create', resource_type='deploy_target',
+        resource_id=str(target.id), resource_name=target.name,
+        details=(f"Bound CRL for {ca.descr} to {target.name}; "
+                 + ('initial deployment queued' if queued else
+                    'initial deployment not queued (binding or target disabled)')),
+        success=True)
+    message = ('CRL deploy binding created: initial deployment queued' if queued
+               else 'CRL deploy binding created, no deployment queued')
+    return created_response(data=result, message=message)
+
+
+@bp.route('/api/v2/deploy/crl-bindings/<int:binding_id>', methods=['PATCH'])
+@require_auth(['write:deploy'])
+def update_crl_binding(binding_id):
+    binding = db.session.get(CRLDeployBinding, binding_id)
+    if not binding:
+        return error_response('CRL deploy binding not found', 404)
+    data = dict(request.get_json() or {})
+    data['current_format'] = binding.format
+    data['current_include_parent_crls'] = binding.include_parent_crls
+    try:
+        fields = DeployService.validate_crl_binding(data, partial=True)
+    except ValueError as e:
+        return error_response(str(e), 400)
+    for key, value in fields.items():
+        setattr(binding, key, value)
+    ok, err = safe_commit(logger, 'Failed to update CRL deploy binding')
+    if not ok:
+        return err
+    return success_response(data=binding.to_dict(), message='CRL deploy binding updated')
+
+
+@bp.route('/api/v2/deploy/crl-bindings/<int:binding_id>', methods=['DELETE'])
+@require_auth(['delete:deploy'])
+def delete_crl_binding(binding_id):
+    binding = db.session.get(CRLDeployBinding, binding_id)
+    if not binding:
+        return error_response('CRL deploy binding not found', 404)
+    target_id = binding.target_id
+    target_name = binding.target.name if binding.target else '?'
+    from services.delivery_retention import delete_binding_deliveries
+    delete_binding_deliveries(binding.id, DeployDelivery.BINDING_CRL)
+    db.session.delete(binding)
+    ok, err = safe_commit(logger, 'Failed to delete CRL deploy binding')
+    if not ok:
+        return err
+    AuditService.log_action(
+        action='crl_deploy_binding_delete', resource_type='deploy_target',
+        resource_id=str(target_id), resource_name=target_name,
+        details=f"Removed CRL deploy binding {binding_id} from {target_name}",
+        success=True)
+    return success_response(message='CRL deploy binding deleted')
+
+
+@bp.route('/api/v2/deploy/crl-bindings/<int:binding_id>/deploy', methods=['POST'])
+@require_auth(['write:deploy'])
+def deploy_crl_now(binding_id):
+    binding = db.session.get(CRLDeployBinding, binding_id)
+    if not binding:
+        return error_response('CRL deploy binding not found', 404)
+    delivery = DeployDelivery(
+        binding_id=binding.id,
+        binding_type=DeployDelivery.BINDING_CRL,
+        event_type='manual',
+        status=DeployDelivery.STATUS_PENDING,
+        attempts=1,
+        max_attempts=1,
+        triggered_by=_actor(),
+    )
+    db.session.add(delivery)
+    ok = DeployService.execute_delivery(delivery)
+    ok_commit, err = safe_commit(logger, 'Failed to record CRL deploy delivery')
+    if not ok_commit:
+        return err
+    if ok:
+        return success_response(data=delivery.to_dict(), message='CRL deployed successfully')
+    return error_response(delivery.last_error or 'CRL deploy failed', 502)
+
+
 # =============================================================== deliveries
 
 @bp.route('/api/v2/deploy/deliveries', methods=['GET'])
@@ -377,12 +534,17 @@ def list_deliveries():
     binding_id = request.args.get('binding_id', type=int)
     cert_id = request.args.get('certificate_id', type=int)
     if binding_id:
-        query = query.filter_by(binding_id=binding_id)
+        binding_type = request.args.get('binding_type', 'certificate')
+        if binding_type not in ('certificate', 'crl'):
+            return error_response('binding_type must be certificate or crl', 400)
+        query = query.filter_by(binding_id=binding_id, binding_type=binding_type)
     elif cert_id:
         binding_ids = [b.id for b in DeployBinding.query.filter_by(certificate_id=cert_id)]
         if not binding_ids:
             return success_response(data=[])
-        query = query.filter(DeployDelivery.binding_id.in_(binding_ids))
+        query = query.filter(
+            DeployDelivery.binding_type == DeployDelivery.BINDING_CERTIFICATE,
+            DeployDelivery.binding_id.in_(binding_ids))
     limit = parse_request_limit(50, 200)
     deliveries = query.order_by(DeployDelivery.id.desc()).limit(limit).all()
     return success_response(data=[d.to_dict() for d in deliveries])

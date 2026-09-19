@@ -287,6 +287,22 @@ class CRLGenerationMixin:
             username=username,
         )
 
+        # Publish only after the CRL row exists durably. SSH deployment is a
+        # subscriber that merely queues work, so CRL generation never waits
+        # on a remote host.
+        from services.events import event_bus
+        event_bus.emit(
+            'crl.updated',
+            {'crl': {
+                'id': crl_metadata.id,
+                'ca_id': ca.id,
+                'crl_number': crl_number,
+                'is_external': False,
+            }},
+            ca_refid=ca.refid,
+            meta={'actor': username},
+        )
+
         return crl_metadata
 
     @staticmethod

@@ -1970,6 +1970,27 @@
       "failed": "Fehlgeschlagen"
     }
   },
+  "crlDeploy": {
+    "title": "CRL-Bereitstellung",
+    "description": "Jede aktualisierte vollständige CRL automatisch auf ein SSH-Deploy-Ziel übertragen.",
+    "none": "Die CRL dieser CA wird auf keinem Ziel bereitgestellt.",
+    "attach": "Ziel verknüpfen",
+    "attachFor": "CRL-Ziel verknüpfen: {{name}}",
+    "path": "CRL-Zielpfad",
+    "includeParents": "Übergeordnete CRLs einschließen",
+    "includeParentsHelp": "Erstellt ein PEM-Bundle aus der CRL dieser CA, gefolgt von den CRLs der ausstellenden CAs.",
+    "withParents": "enthält übergeordnete CRLs",
+    "deployNow": "Jetzt bereitstellen",
+    "loadFailed": "CRL-Bereitstellungen konnten nicht geladen werden",
+    "created": "CRL-Ziel verknüpft und erste Bereitstellung eingeplant",
+    "createFailed": "CRL-Ziel konnte nicht verknüpft werden",
+    "deleteConfirm": "Diese CRL-Bereitstellung entfernen?",
+    "remove": "CRL-Bereitstellung entfernen",
+    "removed": "CRL-Bereitstellung entfernt",
+    "deleteFailed": "CRL-Bereitstellung konnte nicht entfernt werden",
+    "deployed": "CRL erfolgreich bereitgestellt",
+    "deployFailed": "CRL-Bereitstellung fehlgeschlagen"
+  },
   "trustStore": {
     "caTrust": "CA-Vertrauen",
     "caTrustDesc": "Vertrauenswürdig für die Ausstellung von Zertifikaten",

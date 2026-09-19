@@ -117,6 +117,56 @@ class DeployBinding(db.Model):
         return data
 
 
+class CRLDeployBinding(db.Model):
+    """Attach a CA's complete CRL to an existing SSH deploy target."""
+    __tablename__ = 'crl_deploy_bindings'
+    __table_args__ = (
+        db.UniqueConstraint('target_id', 'ca_id', name='uq_crl_deploy_binding'),
+    )
+
+    FORMAT_PEM = 'pem'
+    FORMAT_DER = 'der'
+
+    id = db.Column(db.Integer, primary_key=True)
+    target_id = db.Column(
+        db.Integer, db.ForeignKey('deploy_targets.id'), nullable=False, index=True)
+    ca_id = db.Column(
+        db.Integer, db.ForeignKey('certificate_authorities.id'), nullable=False, index=True)
+    crl_path = db.Column(db.String(512), nullable=False)
+    format = db.Column(db.String(8), nullable=False, default=FORMAT_PEM)
+    include_parent_crls = db.Column(db.Boolean, nullable=False, default=False)
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String(80))
+
+    target = db.relationship(
+        'DeployTarget', backref=db.backref('crl_bindings', lazy='dynamic'))
+    ca = db.relationship(
+        'CA', backref=db.backref('crl_deploy_bindings', lazy='dynamic'))
+
+    def to_dict(self, include_target=True):
+        data = {
+            'id': self.id,
+            'target_id': self.target_id,
+            'ca_id': self.ca_id,
+            'crl_path': self.crl_path,
+            'format': self.format,
+            'include_parent_crls': self.include_parent_crls,
+            'enabled': self.enabled,
+            'created_at': utc_isoformat(self.created_at),
+            'created_by': self.created_by,
+        }
+        if self.ca:
+            data['ca_name'] = self.ca.descr
+            data['ca_refid'] = self.ca.refid
+        if include_target and self.target:
+            data['target_name'] = self.target.name
+            data['target_host'] = self.target.host
+            data['target_enabled'] = self.target.enabled
+        return data
+
+
 class DeployDelivery(db.Model):
     """Durable deploy queue — same model as webhook_deliveries: pending rows
     are drained by a scheduler task with retry/backoff."""
@@ -126,10 +176,15 @@ class DeployDelivery(db.Model):
     STATUS_DELIVERED = 'delivered'
     STATUS_FAILED = 'failed'
 
+    BINDING_CERTIFICATE = 'certificate'
+    BINDING_CRL = 'crl'
+
     id = db.Column(db.Integer, primary_key=True)
     # Logical reference to deploy_bindings.id (no DB-level FK so delivery
     # history survives binding deletion until explicitly cleaned up).
     binding_id = db.Column(db.Integer, nullable=False, index=True)
+    binding_type = db.Column(
+        db.String(16), nullable=False, default=BINDING_CERTIFICATE, index=True)
     # 'certificate.issued' | 'certificate.renewed' | 'manual'
     event_type = db.Column(db.String(32), nullable=False)
 
@@ -156,6 +211,7 @@ class DeployDelivery(db.Model):
         return {
             'id': self.id,
             'binding_id': self.binding_id,
+            'binding_type': self.binding_type,
             'event_type': self.event_type,
             'status': self.status,
             'attempts': self.attempts,

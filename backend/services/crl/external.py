@@ -194,6 +194,18 @@ class ExternalCRLMixin:
         logger.info(
             f"Installed external CRL #{stored_number} for CA {ca.descr} ({entries} entries)"
         )
+        from services.events import event_bus
+        event_bus.emit(
+            'crl.updated',
+            {'crl': {
+                'id': crl_metadata.id,
+                'ca_id': ca.id,
+                'crl_number': stored_number,
+                'is_external': True,
+            }},
+            ca_refid=ca.refid,
+            meta={'actor': username},
+        )
         return crl_metadata
 
     @staticmethod
