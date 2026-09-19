@@ -14,6 +14,10 @@ Technical documentation for Ultimate Certificate Manager.
 - **[installation/README.md](./installation/README.md)**: All installation methods (DEB, RPM, Docker)
 - **[installation/docker.md](./installation/docker.md)**: Docker & docker-compose deployment
 
+## Integrations
+
+- **[integrations/intune-scep.md](./integrations/intune-scep.md)**: Microsoft Intune SCEP enrollment (live challenge validation via Entra app registration)
+
 ## API
 
 - **[API_REFERENCE.md](./API_REFERENCE.md)**: Complete API reference (347+ endpoints)
