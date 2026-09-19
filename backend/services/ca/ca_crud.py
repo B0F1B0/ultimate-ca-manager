@@ -2,6 +2,7 @@
 CA CRUD operations
 """
 import logging
+from types import SimpleNamespace
 from typing import List, Optional
 
 from models import CA, Certificate, db
@@ -79,8 +80,12 @@ class CAcrudMixin:
         if purged:
             logger.info(f"{purged} for CA {_ca_name}")
 
-        # Delete files
-        delete_ca_files(ca)
+        # The files go after the commit: a refused delete (a foreign key the
+        # blockers did not know) must leave the authority whole. The row is
+        # expired by then, so the file helpers read a detached copy.
+        _ca_files = SimpleNamespace(
+            **{column.key: getattr(ca, column.key) for column in CA.__table__.columns}
+        )
 
         # Delete from database
         db.session.delete(ca)
@@ -89,21 +94,19 @@ class CAcrudMixin:
         except Exception as _commit_err:
             db.session.rollback()
             logger.error(f"Commit failed deleting CA {_ca_id}: {_commit_err}", exc_info=True)
-            # The row survives and its key, certificate and CRL do not: the
-            # unlinks above are done and the rollback cannot undo them.
-            # Recording the failure is the only thing left that says so, and
-            # it is safe here because the rollback has emptied the session,
-            # so this commit carries nothing but the entry.
+            # Recording the failure is safe here because the rollback has
+            # emptied the session, so this commit carries nothing but the entry.
             AuditService.log_action(
                 action='ca_deleted',
                 resource_type='ca',
                 resource_id=_ca_id,
                 resource_name=_ca_name,
-                details=('Failed to delete CA; its files on disk were '
-                         'already removed'),
+                details='Failed to delete CA; nothing on disk was touched',
                 success=False,
             )
             raise
+
+        delete_ca_files(_ca_files)
 
         # Audit after the delete has committed, not before it. `log_action`
         # commits the session it is given, so an entry written first said the
