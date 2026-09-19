@@ -1945,6 +1945,7 @@
     "certSection": "Розгортання",
     "noBindings": "Цей сертифікат не розгорнуто на жодній цілі.",
     "attachTarget": "Прикріпити ціль",
+    "attachTargetFor": "Прикріпити ціль: {{name}}",
     "attach": "Прикріпити",
     "target": "Ціль",
     "selectTarget": "Виберіть ціль…",

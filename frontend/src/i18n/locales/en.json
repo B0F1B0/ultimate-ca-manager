@@ -1945,6 +1945,7 @@
     "certSection": "Deployment",
     "noBindings": "This certificate is not deployed to any target.",
     "attachTarget": "Attach target",
+    "attachTargetFor": "Attach target: {{name}}",
     "attach": "Attach",
     "target": "Target",
     "selectTarget": "Select a target…",

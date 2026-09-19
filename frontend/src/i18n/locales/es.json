@@ -1945,6 +1945,7 @@
     "certSection": "Despliegue",
     "noBindings": "Este certificado no está desplegado en ningún destino.",
     "attachTarget": "Vincular destino",
+    "attachTargetFor": "Vincular destino: {{name}}",
     "attach": "Vincular",
     "target": "Destino",
     "selectTarget": "Seleccione un destino…",

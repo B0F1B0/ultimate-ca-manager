@@ -1945,6 +1945,7 @@
     "certSection": "Implantação",
     "noBindings": "Este certificado não está implantado em nenhum alvo.",
     "attachTarget": "Anexar alvo",
+    "attachTargetFor": "Anexar alvo: {{name}}",
     "attach": "Anexar",
     "target": "Alvo",
     "selectTarget": "Selecione um alvo…",

@@ -176,7 +176,7 @@ export function CertDeploySection({ certificate }) {
       </CompactSection>
 
       <Modal open={addOpen} onOpenChange={(v) => !v && !saving && setAddOpen(false)}
-             title={`${t('deploy.attachTarget')}: ${certificateName}`} size="md">
+             title={t('deploy.attachTargetFor', { name: certificateName })} size="md">
         <form onSubmit={handleAdd} className="p-4 space-y-3">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">{t('deploy.target')}</label>

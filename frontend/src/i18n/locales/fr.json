@@ -1621,6 +1621,7 @@
     "certSection": "Déploiement",
     "noBindings": "Ce certificat n'est déployé vers aucune cible.",
     "attachTarget": "Attacher une cible",
+    "attachTargetFor": "Attacher une cible : {{name}}",
     "attach": "Attacher",
     "target": "Cible",
     "selectTarget": "Sélectionnez une cible…",

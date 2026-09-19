@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (key) => key }),
+  useTranslation: () => ({ t: (key, opts) => (opts?.name ? `${key}|${opts.name}` : key) }),
 }))
 
 vi.mock('../../contexts', () => ({
@@ -54,7 +54,7 @@ describe('CertDeploySection certificate context', () => {
     })
 
     expect(screen.getByTestId('modal-title')).toHaveTextContent(
-      'deploy.attachTarget: npm.lan')
+      'deploy.attachTargetFor|npm.lan')
   })
 
   it('falls back to the certificate description when no common name is available', async () => {
@@ -65,6 +65,6 @@ describe('CertDeploySection certificate context', () => {
     })
 
     expect(screen.getByTestId('modal-title')).toHaveTextContent(
-      'deploy.attachTarget: Imported appliance certificate')
+      'deploy.attachTargetFor|Imported appliance certificate')
   })
 })

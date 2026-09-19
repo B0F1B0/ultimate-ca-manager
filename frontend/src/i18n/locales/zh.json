@@ -1945,6 +1945,7 @@
     "certSection": "部署",
     "noBindings": "此证书未部署到任何目标。",
     "attachTarget": "关联目标",
+    "attachTargetFor": "关联目标：{{name}}",
     "attach": "关联",
     "target": "目标",
     "selectTarget": "选择目标…",

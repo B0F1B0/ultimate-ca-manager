@@ -10,6 +10,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 ## [Unreleased]
 
 ### Changed
+- The Attach target dialog names the certificate it is attaching, so two certificates opened one after the other no longer look alike (#359, by @B0F1B0).
 - Attaching a deployment target now offers the Include Root CA box of the export dialog for the full chain file. New bindings ship the leaf and the intermediates only, which is what a TLS server should send; bindings created before this release keep the root as they always did, and the binding row says so (#357, by @B0F1B0).
 
 ### Fixed

@@ -1945,6 +1945,7 @@
     "certSection": "Bereitstellung",
     "noBindings": "Dieses Zertifikat wird auf keinem Ziel bereitgestellt.",
     "attachTarget": "Ziel verknüpfen",
+    "attachTargetFor": "Ziel verknüpfen: {{name}}",
     "attach": "Verknüpfen",
     "target": "Ziel",
     "selectTarget": "Ziel auswählen…",

@@ -1945,6 +1945,7 @@
     "certSection": "Distribuzione",
     "noBindings": "Questo certificato non è distribuito ad alcuna destinazione.",
     "attachTarget": "Associa destinazione",
+    "attachTargetFor": "Associa destinazione: {{name}}",
     "attach": "Associa",
     "target": "Destinazione",
     "selectTarget": "Seleziona una destinazione…",

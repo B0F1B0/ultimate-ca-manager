@@ -1945,6 +1945,7 @@
     "certSection": "デプロイ",
     "noBindings": "この証明書はどのターゲットにもデプロイされていません。",
     "attachTarget": "ターゲットを関連付け",
+    "attachTargetFor": "ターゲットを関連付け：{{name}}",
     "attach": "関連付け",
     "target": "ターゲット",
     "selectTarget": "ターゲットを選択…",
