@@ -88,6 +88,36 @@ def ca_deletion_blockers(ca) -> Iterator[DeletionBlocker]:
             'it. Revoke and delete them first.',
             f'{issued_certs} certificate(s) issued by it',
         )
+    # Bindings that name the authority by foreign key: PostgreSQL refuses the
+    # delete outright, SQLite would leave them pointing at nothing.
+    from models.scep import ScepProfile
+    scep_profiles = ScepProfile.query.filter_by(ca_refid=ca.refid).count()
+    if scep_profiles > 0:
+        yield DeletionBlocker(
+            409,
+            f'Cannot delete CA: {scep_profiles} SCEP profile(s) issue from it. '
+            'Rebind or delete them first.',
+            f'{scep_profiles} SCEP profile(s) issue from it',
+        )
+    from models.acme_models import AcmeDomain, AcmeLocalDomain
+    acme_domains = (AcmeDomain.query.filter_by(issuing_ca_id=ca.id).count()
+                    + AcmeLocalDomain.query.filter_by(issuing_ca_id=ca.id).count())
+    if acme_domains > 0:
+        yield DeletionBlocker(
+            409,
+            f'Cannot delete CA: {acme_domains} ACME domain(s) issue from it. '
+            'Point them at another CA first.',
+            f'{acme_domains} ACME domain(s) issue from it',
+        )
+    from models.policy import CertificatePolicy
+    policies = CertificatePolicy.query.filter_by(ca_id=ca.id).count()
+    if policies > 0:
+        yield DeletionBlocker(
+            409,
+            f'Cannot delete CA: {policies} issuance policy(ies) are scoped to it. '
+            'Rescope or delete them first.',
+            f'{policies} issuance policy(ies) scoped to it',
+        )
 
 
 def certificate_deletion_blockers(cert) -> Iterator[DeletionBlocker]:
@@ -172,12 +202,15 @@ def purge_ca_dependents(ca) -> str:
     from models.crl import CRLMetadata
     from models.ocsp import OCSPResponse
     from models.revoked_serial import RevokedSerial
+    from models.scep import SCEPRequest
 
     crl_count = CRLMetadata.query.filter_by(ca_id=ca.id).delete()
     ocsp_count = OCSPResponse.query.filter_by(ca_id=ca.id).delete()
     rs_count = RevokedSerial.query.filter_by(caref=ca.refid).delete()
+    # The enrolment history of the authority: same foreign key, same fate.
+    scep_count = SCEPRequest.query.filter_by(ca_refid=ca.refid).delete()
 
-    if crl_count or ocsp_count or rs_count:
+    if crl_count or ocsp_count or rs_count or scep_count:
         return (f"Deleted {crl_count} CRL(s), {ocsp_count} OCSP response(s), "
-                f"and {rs_count} revoked serial(s)")
+                f"{rs_count} revoked serial(s) and {scep_count} SCEP request(s)")
     return ''
