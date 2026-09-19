@@ -534,18 +534,25 @@ class TestAdvancedMatching:
     def test_include_and_exclude_compose(self):
         assert self._messages(query='services', exclude='scheduler') == ['failInfo=1']
 
-    def test_regex_applies_to_both_patterns(self):
-        assert self._messages(query=r'fail\w+=\d', regex=True) == ['failInfo=1']
-        assert self._messages(exclude=r'^Task', regex=True) == ['failInfo=1', 'login ok']
-
-    def test_a_half_written_regex_matches_nothing_rather_than_raising(self):
-        """The reader is typing; an unbalanced bracket should not 500."""
-        assert self._messages(query='[unclosed', regex=True) == []
-        assert self._messages(exclude='[unclosed', regex=True) == [r['message'] for r in self.RECORDS]
-
-    def test_without_the_flag_a_regex_is_read_literally(self):
+    def test_a_pattern_is_matched_literally_and_not_as_a_regex(self):
+        """Search is a substring. One gevent worker answers every protocol this
+        server speaks, and a caller's regular expression is unbounded work over
+        up to five thousand records: `(a+)+b` against a line of twenty-nine
+        characters takes fifteen seconds, and nothing here can interrupt it."""
         assert self._messages(query=r'fail\w+=\d') == []
         assert self._messages(query='failInfo=1') == ['failInfo=1']
+
+    def test_a_pattern_that_would_not_compile_is_just_text(self):
+        """It is a search box: an unbalanced bracket is a half-typed word."""
+        assert self._messages(query='[unclosed') == []
+        assert self._messages(exclude='[unclosed') == [r['message'] for r in self.RECORDS]
+
+    def test_a_catastrophic_pattern_costs_no_more_than_its_length(self):
+        """The line the reviewer measured at fifteen seconds, as a substring."""
+        import time
+        started = time.monotonic()
+        assert self._messages(query='(a+)+b') == []
+        assert time.monotonic() - started < 1.0
 
 
 class TestJournalFormat:

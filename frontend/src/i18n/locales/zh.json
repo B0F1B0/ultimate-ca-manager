@@ -5114,7 +5114,6 @@
     "scanCap": "仅读取了文件最新的部分",
     "linesOpt": "{{count}} 行",
     "filters": "筛选",
-    "exclude": "排除",
-    "regex": "正则表达式"
+    "exclude": "排除"
   }
 }

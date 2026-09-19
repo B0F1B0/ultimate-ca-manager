@@ -48,7 +48,6 @@ export default function SystemLogsPage() {
   const [loading, setLoading] = useState(true)
   const [showFilters, setShowFilters] = useState(false)
   const [exclude, setExclude] = useState('')
-  const [regex, setRegex] = useState(false)
   const [selectedIds, setSelectedIds] = useState(() => new Set())
 
   const load = useCallback(async (quiet = false) => {
@@ -61,7 +60,6 @@ export default function SystemLogsPage() {
         ...(since ? { since } : {}),
         ...(until ? { until } : {}),
         ...(exclude ? { exclude } : {}),
-        ...(regex ? { regex: true } : {}),
       })
       setResult(extractData(response))
     } catch {
@@ -70,9 +68,9 @@ export default function SystemLogsPage() {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }, [source, component, level, lines, search, since, until, exclude, regex, showError, t])
+  }, [source, component, level, lines, search, since, until, exclude, showError, t])
 
-  useEffect(() => { load() }, [source, component, level, lines, search, since, until, exclude, regex])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [source, component, level, lines, search, since, until, exclude])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live mode polls rather than streaming: a log line pushed over the event bus
   // is itself logged by the push, which is a loop the interval cannot make.
@@ -108,7 +106,7 @@ export default function SystemLogsPage() {
     [result, t],
   )
 
-  const filtered = source !== 'app' || component || since || until || exclude || regex
+  const filtered = source !== 'app' || component || since || until || exclude
 
   const headerStats = useMemo(() => {
     const levels = result?.levels || {}
@@ -268,17 +266,14 @@ export default function SystemLogsPage() {
         onChange={(e) => setUntil(e.target.value)}
       />
       <p className="text-xs text-text-tertiary">{t('logs.serverTime')}</p>
+      {/* Search and Exclude are substrings, not patterns: one gevent worker
+          answers every protocol this server speaks, and a pattern from the
+          browser is unbounded work over thousands of records. */}
       <Input
         label={t('logs.exclude')}
         placeholder={t('logs.exclude')}
         value={exclude}
         onChange={(e) => setExclude(e.target.value)}
-      />
-      <ToggleSwitch
-        checked={regex}
-        onChange={setRegex}
-        label={t('logs.regex')}
-        size="sm"
       />
       <Button
         type="button"
@@ -286,7 +281,7 @@ export default function SystemLogsPage() {
         size="sm"
         onClick={() => {
           setSource('app'); setComponent('')
-          setSince(''); setUntil(''); setExclude(''); setRegex(false)
+          setSince(''); setUntil(''); setExclude('')
         }}
       >
         {t('common.clear')}

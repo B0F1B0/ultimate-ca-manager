@@ -55,7 +55,14 @@ def download_log_bundle():
 @bp.route('/api/v2/system/logs', methods=['GET'])
 @require_auth(['admin:system'])
 def read_application_log():
-    """Read the tail of the application log."""
+    """Read the tail of one log source as filtered records.
+
+    ``q`` and ``exclude`` are case-insensitive substrings, matched against the
+    message and the component name. They are not patterns: this process serves
+    every protocol UCM speaks from a single gevent worker, and a caller's
+    regular expression is unbounded work no timeout here can interrupt. A
+    request carrying ``regex`` is refused rather than answered as a substring.
+    """
     try:
         lines = int(request.args.get('lines', DEFAULT_LINES))
     except (TypeError, ValueError):
@@ -71,12 +78,18 @@ def read_application_log():
     if source not in SOURCES:
         return error_response(f'source must be one of {", ".join(SOURCES)}', 400)
 
+    # Refused, not ignored. The parameter existed only between two commits of
+    # this feature and no release ever answered it, so anything sending it is
+    # asking for a pattern search that is not here, and silently giving it a
+    # substring search would answer a different question than the one asked.
+    if request.args.get('regex') is not None:
+        return error_response('regex is not supported: q and exclude are substrings', 400)
+
     try:
         data = read(lines=lines, level=level, query=request.args.get('q'),
                     source=source, logger=request.args.get('component'),
                     since=request.args.get('since'), until=request.args.get('until'),
-                    exclude=request.args.get('exclude'),
-                    regex=str(request.args.get('regex', '')).lower() in ('1', 'true', 'yes'))
+                    exclude=request.args.get('exclude'))
     except OSError as exc:
         logger.error('Application log read failed: %s', exc)
         return error_response('Failed to read the application log', 500)

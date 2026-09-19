@@ -7,7 +7,7 @@ const dir = dirname(fileURLToPath(import.meta.url))
 const localesDir = join(dir, '..', 'locales')
 const LOCALE_CODES = ['de', 'en', 'es', 'fr', 'it', 'ja', 'pt', 'uk', 'zh']
 const LOG_KEYS = ['subtitle', 'level', 'lines', 'searchPlaceholder', 'empty',
-  'unavailable', 'showing', 'scanCap', 'linesOpt', 'filters', 'exclude', 'regex', 'readingFrom', 'source', 'sourceApp', 'sourceAccess',
+  'unavailable', 'showing', 'scanCap', 'linesOpt', 'filters', 'exclude', 'readingFrom', 'source', 'sourceApp', 'sourceAccess',
   'sourceError', 'sourceJournal', 'component', 'allComponents', 'follow', 'time', 'message', 'levelShort', 'from', 'to', 'serverTime', 'errors', 'warnings', 'components', 'copyAll', 'copySelected']
 
 function loadLocale(code) {

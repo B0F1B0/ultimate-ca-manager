@@ -5114,7 +5114,6 @@
     "scanCap": "ファイルの最新部分のみを読み取りました",
     "linesOpt": "{{count}} 行",
     "filters": "フィルター",
-    "exclude": "除外",
-    "regex": "正規表現"
+    "exclude": "除外"
   }
 }

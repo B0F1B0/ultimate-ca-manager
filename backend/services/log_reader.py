@@ -215,22 +215,18 @@ def _at_least(level: Optional[str]) -> set[str]:
     return set(LEVELS[LEVELS.index(level.upper()):])
 
 
-def _matcher(pattern: Optional[str], regex: bool):
+def _matcher(pattern: Optional[str]):
     """A predicate over a record's message and logger, or None for no pattern.
 
-    A bad regex matches nothing rather than raising: the reader is typing, and
-    half-written brackets should not empty the page with a 400.
+    Deliberately a substring and not a pattern. One gevent worker answers every
+    protocol this server speaks, and a caller-supplied regular expression is
+    unbounded work on up to five thousand records: `(a+)+b` over a line of
+    twenty-nine characters takes fifteen seconds, which is fifteen seconds in
+    which ACME, SCEP and OCSP answer nothing. Searching for a pattern is worth
+    having, but not before it can be run under a bound the search cannot escape.
     """
     if not pattern:
         return None
-    if regex:
-        try:
-            compiled = re.compile(pattern, re.IGNORECASE)
-        except re.error:
-            return lambda record: False
-        return lambda record: bool(
-            compiled.search(record['message']) or compiled.search(record['logger'] or '')
-        )
     needle = pattern.lower()
     return lambda record: (
         needle in record['message'].lower() or needle in (record['logger'] or '').lower()
@@ -242,8 +238,7 @@ def filter_records(records: list[dict], level: Optional[str] = None,
                    logger: Optional[str] = None,
                    since: Optional[str] = None,
                    until: Optional[str] = None,
-                   exclude: Optional[str] = None,
-                   regex: bool = False) -> list[dict]:
+                   exclude: Optional[str] = None) -> list[dict]:
     """Apply the level floor, the component and the substring search.
 
     A record with no level is never filtered out by the level floor: its
@@ -253,8 +248,8 @@ def filter_records(records: list[dict], level: Optional[str] = None,
     operator picking a subsystem means the subtree.
     """
     wanted = _at_least(level)
-    include = _matcher(query, regex)
-    omit = _matcher(exclude, regex)
+    include = _matcher(query)
+    omit = _matcher(exclude)
     prefix = (logger or '').strip()
     start, end = _parse_bound(since), _parse_bound(until)
 
@@ -421,8 +416,7 @@ def level_counts(records: list[dict]) -> dict:
 def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
          query: Optional[str] = None, source: str = APP,
          logger: Optional[str] = None, since: Optional[str] = None,
-         until: Optional[str] = None, exclude: Optional[str] = None,
-         regex: bool = False) -> dict:
+         until: Optional[str] = None, exclude: Optional[str] = None) -> dict:
     """Read the tail of one log source as filtered records."""
     if source not in SOURCES:
         source = APP
@@ -455,7 +449,7 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
 
     parsed = parse(redact(text), source)
     records = filter_records(parsed, level=level, query=query, logger=logger,
-                             since=since, until=until, exclude=exclude, regex=regex)
+                             since=since, until=until, exclude=exclude)
     # Counted before the line cap: the summary describes what the filters
     # matched, not the tail of it that fitted.
     matched, levels = len(records), level_counts(records)

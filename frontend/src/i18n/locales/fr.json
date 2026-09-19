@@ -5117,7 +5117,6 @@
     "scanCap": "Seule la partie la plus récente du fichier a été lue",
     "linesOpt": "{{count}} lignes",
     "filters": "Filtres",
-    "exclude": "Exclure",
-    "regex": "Expressions régulières"
+    "exclude": "Exclure"
   }
 }

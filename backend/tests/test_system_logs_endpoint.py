@@ -86,6 +86,36 @@ class TestRequestValidation:
         assert _get(auth_client, '?level=warning').status_code == 200
 
 
+class TestSearchIsASubstring:
+    """One gevent worker answers every protocol this server speaks, so the
+    search cannot be a caller-supplied regular expression: `(a+)+b` over a line
+    of twenty-nine characters takes fifteen seconds, and while it runs ACME,
+    SCEP and OCSP answer nothing."""
+
+    def test_a_metacharacter_is_matched_as_itself(self, auth_client, log_file):
+        log_file.write_text(
+            '2026-09-19 13:41:36 [api] INFO SCEP error response\n'
+            '2026-09-19 13:41:37 [api] INFO literal .* in the message\n'
+        )
+        body = json.loads(_get(auth_client, '?q=.*').data)['data']
+        assert [line['message'] for line in body['lines']] == [
+            'literal .* in the message'
+        ]
+
+    @pytest.mark.parametrize('value', ['true', 'false', '1', '0', ''])
+    def test_the_regex_parameter_is_refused_rather_than_ignored(self, auth_client,
+                                                                log_file, value):
+        """The parameter lived between two commits of this feature and no
+        release ever answered it. Answering it as a substring search would give
+        a different answer to the question that was asked, quietly."""
+        assert _get(auth_client, f'?q=fail&regex={value}').status_code == 400
+
+    def test_the_search_itself_still_works_without_it(self, auth_client, log_file):
+        log_file.write_text('2026-09-19 13:41:36 [api] INFO failInfo=1\n')
+        body = json.loads(_get(auth_client, '?q=fail').data)['data']
+        assert [line['message'] for line in body['lines']] == ['failInfo=1']
+
+
 def test_a_read_leaves_no_audit_entry(app, auth_client, log_file):
     """AuditService echoes every entry to the application logger, so auditing a
     read of that log writes a line into the log being read, which the next read

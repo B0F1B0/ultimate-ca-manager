@@ -242,16 +242,26 @@ describe('SystemLogsPage', () => {
       .toHaveBeenLastCalledWith({ ...BASE, since: '2026-09-19T12:30' }))
   })
 
-  it('sends an exclusion, and turns both terms into patterns on request', async () => {
+  it('sends an exclusion to the server rather than applying it here', async () => {
     await renderPage()
     fireEvent.click(screen.getByText('logs.filters'))
     fireEvent.change(await screen.findByLabelText('logs.exclude'), { target: { value: 'heartbeat' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, exclude: 'heartbeat' }))
+  })
 
-    fireEvent.click(screen.getByLabelText('logs.regex'))
+  it('offers no pattern switch: search and exclude are text', async () => {
+    // One gevent worker answers every protocol this server speaks, and a
+    // pattern from here is unbounded work over thousands of records.
+    await renderPage()
+    fireEvent.click(screen.getByText('logs.filters'))
+    expect(await screen.findByLabelText('logs.exclude')).toBeInTheDocument()
+    expect(screen.queryByLabelText('logs.regex')).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('logs.searchPlaceholder'), { target: { value: '.*' } })
     await waitFor(() => expect(mocks.getApplicationLog)
-      .toHaveBeenLastCalledWith({ ...BASE, exclude: 'heartbeat', regex: true }))
+      .toHaveBeenLastCalledWith({ ...BASE, q: '.*' }))
+    expect(mocks.getApplicationLog.mock.calls.every(([args]) => !('regex' in args))).toBe(true)
   })
 
   it('clears the time window when live logs is switched on', async () => {

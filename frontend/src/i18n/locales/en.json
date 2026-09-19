@@ -5117,7 +5117,6 @@
     "scanCap": "Only the most recent part of the file was scanned",
     "linesOpt": "{{count}} lines",
     "filters": "Filters",
-    "exclude": "Exclude",
-    "regex": "Regular expressions"
+    "exclude": "Exclude"
   }
 }
