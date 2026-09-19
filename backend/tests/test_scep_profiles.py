@@ -150,7 +150,7 @@ class TestScepProfileRouting:
 
     def test_unknown_profile_rejected(self, client):
         r = client.get('/scep/nope-nope/pkiclient.exe?operation=GetCACert')
-        assert r.status_code == 500
+        assert r.status_code == 404
 
     def test_disabled_profile_rejected(self, app, client, auth_client, create_ca):
         ca = create_ca(cn='Disabled Profile CA')
@@ -160,7 +160,7 @@ class TestScepProfileRouting:
                           data=json.dumps({'enabled': False}),
                           content_type=CONTENT_JSON)
         r = client.get(f"/scep/{prof['url_slug']}/pkiclient.exe?operation=GetCACert")
-        assert r.status_code == 500
+        assert r.status_code == 503
 
     def test_getcacaps_works_per_profile(self, client, auth_client, create_ca):
         ca = create_ca(cn='Caps Profile CA')

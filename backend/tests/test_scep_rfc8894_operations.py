@@ -805,8 +805,16 @@ class TestScepCaCertificateAndCapabilities:
                 _clear_config("scep_ca_id")
                 _clear_config("scep_getcacert_chain")
 
-    def test_get_ca_caps_advertises_implemented_standard_features(self, client):
-        response = client.get("/scep/pkiclient.exe?operation=GetCACaps")
+    def test_get_ca_caps_advertises_implemented_standard_features(self, app, client, create_ca):
+        # Capabilities are only served by a configured endpoint
+        ca_data = create_ca(cn="SCEP Caps CA")
+        with app.app_context():
+            _set_config("scep_ca_id", str(ca_data["id"]))
+        try:
+            response = client.get("/scep/pkiclient.exe?operation=GetCACaps")
+        finally:
+            with app.app_context():
+                _clear_config("scep_ca_id")
         capabilities = set(response.get_data(as_text=True).splitlines())
         assert response.status_code == 200
         assert "AES-256" not in capabilities

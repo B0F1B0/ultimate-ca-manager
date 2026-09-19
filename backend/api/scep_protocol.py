@@ -32,7 +32,17 @@ def get_config(key, default=None):
     return config.value if config else default
 
 
-def _reject(reason):
+class Refusal(str):
+    """A configuration-driven refusal, carrying the HTTP status the client gets."""
+    status = 503
+
+    def __new__(cls, reason, status=503):
+        self = super().__new__(cls, reason)
+        self.status = status
+        return self
+
+
+def _reject(reason, status=503):
     """Refuse to build a SCEP service, recording why.
 
     Every configuration-driven refusal below used to return silently, so a
@@ -42,7 +52,7 @@ def _reject(reason):
     troubleshooting time, so each refusal is now recorded with its reason.
     """
     logger.warning("SCEP request refused: %s", reason)
-    return None, reason
+    return None, Refusal(reason, getattr(reason, 'status', status))
 
 
 def _resolve_profile(profile_slug):
@@ -50,9 +60,9 @@ def _resolve_profile(profile_slug):
     from models import ScepProfile
     profile = ScepProfile.query.filter_by(url_slug=profile_slug).first()
     if not profile:
-        return None, f"Unknown SCEP profile {profile_slug!r}"
+        return None, Refusal(f"Unknown SCEP profile {profile_slug!r}", 404)
     if not profile.enabled:
-        return None, f"SCEP profile {profile.name!r} is disabled"
+        return None, Refusal(f"SCEP profile {profile.name!r} is disabled", 503)
     return profile, None
 
 
@@ -224,9 +234,9 @@ def scep_endpoint(profile_slug=None):
 
     if not operation:
         # Return capabilities by default (common client behavior)
-        return handle_get_ca_caps()
+        return handle_get_ca_caps(profile_slug)
     elif operation == 'GetCACaps':
-        return handle_get_ca_caps()
+        return handle_get_ca_caps(profile_slug)
     elif operation == 'GetCACert':
         return handle_get_ca_cert(profile_slug)
     elif operation == 'GetNextCACert':
@@ -238,8 +248,13 @@ def scep_endpoint(profile_slug=None):
         return make_error_response(f"Unknown operation: {operation}", 400)
 
 
-def handle_get_ca_caps():
+def handle_get_ca_caps(profile_slug=None):
     """Handle GetCACaps operation - return implemented RFC 8894 capabilities."""
+    # Capabilities are static, but a switched-off or unconfigured endpoint
+    # must not advertise them: the same refusals as every other operation.
+    _service, error = get_scep_service(profile_slug)
+    if error:
+        return refusal_response(error)
     # RFC 8894 §3.5.2 defines "AES" specifically as AES128-CBC. There is no
     # registered AES-256 capability keyword; support is inferred from requests.
     response = make_response("\n".join(SCEPService.CAPABILITIES))
@@ -252,7 +267,7 @@ def handle_get_ca_cert(profile_slug=None):
     service, error = get_scep_service(profile_slug)
 
     if error:
-        return make_error_response(error, 500)
+        return refusal_response(error)
 
     try:
         # Apple clients fail on application/x-x509-ca-ra-cert with error
@@ -294,7 +309,7 @@ def handle_get_next_ca_cert(profile_slug=None):
     service, error = get_scep_service(profile_slug)
 
     if error:
-        return make_error_response(error, 500)
+        return refusal_response(error)
 
     try:
         ca = service.ca
@@ -359,7 +374,7 @@ def handle_pki_operation(profile_slug=None):
     service, error = get_scep_service(profile_slug)
 
     if error:
-        return make_error_response(error, 500)
+        return refusal_response(error)
 
     try:
         # Get PKCS#7 message from request
@@ -405,6 +420,11 @@ def handle_pki_operation(profile_slug=None):
     except Exception as e:
         logger.error(f"SCEP PKIOperation error: {e}", exc_info=True)
         return make_error_response("SCEP processing error", 500)
+
+
+def refusal_response(error):
+    """503 (or the refusal's own status) for a known refusal, 500 for a failure."""
+    return make_error_response(str(error), getattr(error, 'status', 500))
 
 
 def make_error_response(message, status_code):
