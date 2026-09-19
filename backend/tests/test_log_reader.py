@@ -206,7 +206,6 @@ class TestSources:
         message = log_reader.read(source=log_reader.ERROR)['lines'][0]['message']
         assert 'deadbeef' not in message
 
-
     def test_gunicorn_logs_follow_the_env_vars_gunicorn_itself_reads(self, tmp_path, monkeypatch):
         """An install that moves the access log must not read as not having one."""
         access = tmp_path / 'somewhere' / 'access.log'
@@ -224,9 +223,76 @@ class TestSources:
         assert log_reader.source_path('access') == log_reader.LOG_DIR / 'access.log'
         assert log_reader.source_path('error') == log_reader.LOG_DIR / 'error.log'
 
+
 def test_the_reader_and_the_bundle_share_one_journal_collector():
     from services import log_bundle
     assert log_reader.collect_journal is log_bundle.collect_journal
+
+
+class TestGunicornFormats:
+    """gunicorn writes neither of its logs in UCM's format."""
+
+    ACCESS = (
+        '127.0.0.1 - - [19/Sep/2026:16:16:26 +0300] "GET /api/v2/auth/methods HTTP/1.1" 200 888\n'
+        '10.0.0.5 - - [19/Sep/2026:16:16:32 +0300] "GET /api/health HTTP/1.1" 200 825\n'
+    )
+    ERROR = (
+        '[2026-09-19 16:16:24 +0300] [150704] [INFO] Starting gunicorn 25.1.0\n'
+        '[2026-09-19 16:16:25 +0300] [150723] [ERROR] Exception in worker\n'
+        'Traceback (most recent call last):\n'
+        '  File "wsgi.py", line 1, in <module>\n'
+        '[2026-09-19 16:19:00 +0300] [150704] [INFO] Handling signal: term\n'
+    )
+
+    def test_each_access_line_is_its_own_record(self):
+        """Not one record carrying the whole file, which is what folding gives."""
+        records = log_reader.parse(self.ACCESS)
+
+        assert len(records) == 2
+        assert records[0]['ts'] == '2026-09-19 16:16:26'
+        assert records[0]['logger'] == '127.0.0.1'
+        assert records[0]['message'].startswith('"GET /api/v2/auth/methods')
+        assert records[1]['logger'] == '10.0.0.5'
+
+    def test_an_access_line_carries_no_level_rather_than_a_made_up_one(self):
+        assert log_reader.parse(self.ACCESS)[0]['level'] is None
+
+    def test_an_error_line_carries_its_worker_and_level(self):
+        records = log_reader.parse(self.ERROR)
+
+        assert len(records) == 3
+        assert records[0]['ts'] == '2026-09-19 16:16:24'
+        assert records[0]['logger'] == '150704'
+        assert records[0]['level'] == 'INFO'
+
+    def test_a_traceback_still_folds_into_the_line_that_raised_it(self):
+        raised = log_reader.parse(self.ERROR)[1]
+
+        assert raised['level'] == 'ERROR'
+        assert 'Traceback (most recent call last):' in raised['message']
+        assert 'File "wsgi.py"' in raised['message']
+
+    def test_gunicorn_timestamps_are_comparable_with_the_application_log(self):
+        """The time filters compare strings, so one format has to serve both."""
+        records = log_reader.parse(self.ACCESS + self.ERROR)
+
+        assert all(log_reader.TS_FORMAT and len(r['ts']) == 19 for r in records)
+
+    def test_an_unreadable_timestamp_leaves_the_line_standing(self, tmp_path, monkeypatch):
+        records = log_reader.parse('[not a date] [150704] [INFO] Starting gunicorn\n')
+
+        assert len(records) == 1
+        assert records[0]['ts'] is None
+        assert records[0]['level'] == 'INFO'
+
+    def test_only_the_application_log_offers_components(self, tmp_path, monkeypatch):
+        """Client addresses are not subsystems, and gunicorn has no loggers."""
+        access = tmp_path / 'access.log'
+        access.write_text(self.ACCESS)
+        monkeypatch.setenv('ACCESS_LOG', str(access))
+
+        assert log_reader.read(source=log_reader.ACCESS)['components'] == []
+
 
 class TestEmptyJournal:
     """journalctl answers `-- No entries --` on stdout with a zero exit status

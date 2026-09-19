@@ -55,6 +55,28 @@ _RECORD = re.compile(
     r'^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[([^\]]*)\] ([A-Z]+) (.*)$'
 )
 
+# gunicorn writes its own two formats, neither of them UCM's. Without them every
+# line of those files reads as the continuation of the one above and the whole
+# log collapses into a single record.
+_GUNICORN_ERROR = re.compile(
+    r'^\[([^\]]+)\] \[(\d+)\] \[([A-Z]+)\] (.*)$'
+)
+_GUNICORN_ACCESS = re.compile(
+    r'^(\S+) \S+ \S+ \[([^\]]+)\] (.*)$'
+)
+
+
+def _reformat(raw: str, fmt: str) -> Optional[str]:
+    """A gunicorn timestamp in the shape the rest of the reader expects.
+
+    Both carry a UTC offset the application log does not; dropping it keeps one
+    timestamp format across sources, which is what the time filters compare.
+    """
+    try:
+        return datetime.strptime(raw, fmt).strftime(TS_FORMAT)
+    except ValueError:
+        return None
+
 
 def _tail_text(path: Path) -> tuple[str, bool]:
     """Return the tail of ``path`` and whether anything was left off the front."""
@@ -73,21 +95,41 @@ def _tail_text(path: Path) -> tuple[str, bool]:
 def parse(text: str) -> list[dict]:
     """Turn formatted log text into records, oldest first.
 
+    Three formats are read: UCM's own, and gunicorn's error and access lines.
+
     A traceback spans many lines and only its first carries the prefix, so a
-    line that does not match continues the record above it. A line that matches
-    nothing and has no record above it is still returned, with no level: these
-    are the lines someone is usually hunting for, and dropping them would hide
-    exactly that.
+    line that matches none of them continues the record above it. A line that
+    matches nothing and has no record above it is still returned, with no level:
+    these are the lines someone is usually hunting for, and dropping them would
+    hide exactly that.
     """
     records: list[dict] = []
     for line in text.splitlines():
         match = _RECORD.match(line)
+        error = None if match else _GUNICORN_ERROR.match(line)
+        access = None if match or error else _GUNICORN_ACCESS.match(line)
         if match:
             timestamp, name, level, message = match.groups()
             records.append({
                 'ts': timestamp,
                 'logger': name,
                 'level': level,
+                'message': message,
+            })
+        elif error:
+            raw, pid, level, message = error.groups()
+            records.append({
+                'ts': _reformat(raw, '%Y-%m-%d %H:%M:%S %z'),
+                'logger': pid,
+                'level': level,
+                'message': message,
+            })
+        elif access:
+            client, raw, message = access.groups()
+            records.append({
+                'ts': _reformat(raw, '%d/%b/%Y:%H:%M:%S %z'),
+                'logger': client,
+                'level': None,
                 'message': message,
             })
         elif records:
@@ -351,7 +393,7 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
     return {'source': source, 'path': str(path) if path else None, 'exists': True,
             'lines': records, 'truncated': matched > len(records),
             'scan_truncated': scan_truncated,
-            'components': components(parsed),
+            'components': components(parsed) if source == APP else [],
             'matched': matched, 'levels': levels,
             'timezone': empty['timezone'],
             'available_sources': empty['available_sources']}
