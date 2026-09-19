@@ -15,6 +15,7 @@ import base64
 from typing import Optional, Tuple
 
 from cryptography import x509
+from utils.csr_extensions import extensions_of
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.serialization import Encoding
 
@@ -87,7 +88,7 @@ def issued_certificate_status(ca: CA, cert: x509.Certificate) -> Tuple[Optional[
 
 def _san_identity(cert_or_csr):
     try:
-        ext = cert_or_csr.extensions.get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
+        ext = extensions_of(cert_or_csr).get_extension_for_oid(x509.ExtensionOID.SUBJECT_ALTERNATIVE_NAME)
     except x509.ExtensionNotFound:
         return None
     return {(type(name).__name__, str(getattr(name, 'value', name))) for name in ext.value}

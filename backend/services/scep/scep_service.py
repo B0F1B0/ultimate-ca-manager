@@ -27,6 +27,7 @@ from utils.dn_parse import subject_common_name
 from utils.eku_validation import add_ocsp_nocheck_if_responder
 from utils.leaf_key_usage import constrain_builder_key_usage
 from utils.key_codec import load_pem_bytes
+from utils.csr_extensions import csr_extensions
 from utils.datetime_utils import utc_now
 from utils.file_naming import cert_cert_path
 
@@ -1182,7 +1183,7 @@ class SCEPService:
         # names here just as on the web/ACME/EST paths.
         try:
             _scep_sans = list(
-                csr.extensions.get_extension_for_oid(
+                csr_extensions(csr).get_extension_for_oid(
                     ExtensionOID.SUBJECT_ALTERNATIVE_NAME
                 ).value
             )
@@ -1340,7 +1341,7 @@ class SCEPService:
                 builder = add_ocsp_nocheck_if_responder(builder, tpl_eku_oids)
 
         try:
-            for ext in csr.extensions:
+            for ext in csr_extensions(csr):
                 if ext.oid == ExtensionOID.SUBJECT_ALTERNATIVE_NAME:
                     # RFC 5280 §4.2.1.6: critical when the subject is empty
                     builder = builder.add_extension(
