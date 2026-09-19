@@ -40,7 +40,7 @@ vi.mock('../../components/ui/responsive', () => ({
   ),
   ResponsiveDataTable: ({
     data = [], columns = [], externalSearch, onSearchChange, searchPlaceholder,
-    toolbarFilters = [], toolbarActions, emptyState,
+    toolbarActions, emptyState,
     multiSelect, selectedIds, onSelectionChange, bulkActions,
   }) => (
     <div>
@@ -49,18 +49,6 @@ vi.mock('../../components/ui/responsive', () => ({
         value={externalSearch ?? ''}
         onChange={(e) => onSearchChange?.(e.target.value)}
       />
-      {toolbarFilters.map((f) => (
-        <select
-          key={f.key}
-          aria-label={f.label}
-          value={f.value ?? ''}
-          onChange={(e) => f.onChange?.(e.target.value)}
-        >
-          {/* FilterSelect always prepends this cleared entry */}
-          <option value="">{f.allLabel ?? f.placeholder}</option>
-          {(f.options || []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      ))}
       <div>{toolbarActions}</div>
       {multiSelect && (
         <div>
@@ -103,8 +91,13 @@ vi.mock('../../components', () => ({
   Badge: ({ children }) => <span>{children}</span>,
   Button: ({ children, loading: _loading, ...props }) => <button {...props}>{children}</button>,
   Input: ({ label, ...props }) => <input aria-label={label || props.placeholder} {...props} />,
-  Select: ({ label, options = [], value, onChange }) => (
-    <select aria-label={label || 'lines'} value={value ?? ''} onChange={(e) => onChange?.(e.target.value)}>
+  Select: ({ label, options = [], value, onChange, disabled }) => (
+    <select
+      aria-label={label}
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(e) => onChange?.(e.target.value)}
+    >
       {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   ),
@@ -183,37 +176,44 @@ describe('SystemLogsPage', () => {
     expect(mocks.getApplicationLog).toHaveBeenCalledWith(BASE)
   })
 
-  it('makes the cleared source entry mean the unfiltered application log', async () => {
+  it('offers each source this deployment has, and the components beneath it', async () => {
     await renderPage()
-    const select = screen.getByLabelText('logs.source')
-    expect(select.value).toBe('')
-    // no second entry for the application log itself — the cleared one is it
-    expect([...select.options].map((o) => o.value))
-      .toEqual(['', 'app:api.v2', 'app:services.scep', 'access'])
+    fireEvent.click(screen.getByText('logs.filters'))
+    expect([...(await screen.findByLabelText('logs.source')).options].map((o) => o.value))
+      .toEqual(['app', 'access'])
+    // a component entry that means all of them, so the log itself is reachable
+    expect([...screen.getByLabelText('logs.component').options].map((o) => o.value))
+      .toEqual(['', 'api.v2', 'services.scep'])
   })
 
-  it('splits a nested choice back into a source and a component', async () => {
+  it('narrows to a component, and back to the whole log', async () => {
     await renderPage()
-    fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: 'app:services.scep' } })
+    fireEvent.click(screen.getByText('logs.filters'))
+    fireEvent.change(await screen.findByLabelText('logs.component'), { target: { value: 'services.scep' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, component: 'services.scep' }))
+
+    fireEvent.change(screen.getByLabelText('logs.component'), { target: { value: '' } })
+    await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenLastCalledWith(BASE))
+  })
+
+  it('drops the component when another log is picked, as it has none', async () => {
+    await renderPage()
+    fireEvent.click(screen.getByText('logs.filters'))
+    fireEvent.change(await screen.findByLabelText('logs.component'), { target: { value: 'services.scep' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, component: 'services.scep' }))
 
     fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: 'access' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, source: 'access' }))
-
-    fireEvent.change(screen.getByLabelText('logs.source'), { target: { value: '' } })
-    await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenLastCalledWith(BASE))
   })
 
-  it('reads every level when the floor is cleared', async () => {
+  it('offers every level as a floor, with no entry that means none', async () => {
     await renderPage()
     const select = screen.getByLabelText('logs.level')
     expect([...select.options].map((o) => o.value))
-      .toEqual(['', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
-    fireEvent.change(select, { target: { value: '' } })
-    await waitFor(() => expect(mocks.getApplicationLog)
-      .toHaveBeenLastCalledWith({ ...BASE, level: 'DEBUG' }))
+      .toEqual(['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'])
   })
 
   it('refetches when the level or line count changes', async () => {
@@ -222,7 +222,7 @@ describe('SystemLogsPage', () => {
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, level: 'ERROR' }))
 
-    fireEvent.change(screen.getByLabelText('lines'), { target: { value: '1000' } })
+    fireEvent.change(screen.getByLabelText('logs.lines'), { target: { value: '1000' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, level: 'ERROR', lines: 1000 }))
   })
@@ -234,17 +234,29 @@ describe('SystemLogsPage', () => {
       .toHaveBeenLastCalledWith({ ...BASE, q: 'scep' }))
   })
 
-  it('sends a time window from the date panel', async () => {
+  it('sends a time window from the filter panel', async () => {
     await renderPage()
-    fireEvent.click(screen.getByText('common.date'))
+    fireEvent.click(screen.getByText('logs.filters'))
     fireEvent.change(await screen.findByLabelText('logs.from'), { target: { value: '2026-09-19T12:30' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, since: '2026-09-19T12:30' }))
   })
 
+  it('sends an exclusion, and turns both terms into patterns on request', async () => {
+    await renderPage()
+    fireEvent.click(screen.getByText('logs.filters'))
+    fireEvent.change(await screen.findByLabelText('logs.exclude'), { target: { value: 'heartbeat' } })
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, exclude: 'heartbeat' }))
+
+    fireEvent.click(screen.getByLabelText('logs.regex'))
+    await waitFor(() => expect(mocks.getApplicationLog)
+      .toHaveBeenLastCalledWith({ ...BASE, exclude: 'heartbeat', regex: true }))
+  })
+
   it('clears the time window when live logs is switched on', async () => {
     await renderPage()
-    fireEvent.click(screen.getByText('common.date'))
+    fireEvent.click(screen.getByText('logs.filters'))
     fireEvent.change(await screen.findByLabelText('logs.from'), { target: { value: '2026-09-19T12:30' } })
     await waitFor(() => expect(mocks.getApplicationLog)
       .toHaveBeenLastCalledWith({ ...BASE, since: '2026-09-19T12:30' }))
@@ -321,9 +333,14 @@ describe('SystemLogsPage', () => {
     expect(screen.getByText(/logs\.serverTime \(CEST \+02:00\)/)).toBeInTheDocument()
   })
 
-  it('says when older lines were left off', async () => {
+  it('says how much of what matched is on screen when the cap cut it', async () => {
     await renderPage({ ...DEFAULT_DATA, truncated: true })
-    expect(await screen.findByText(/logs\.truncated/)).toBeInTheDocument()
+    expect(await screen.findByText(/logs\.showing/)).toBeInTheDocument()
+  })
+
+  it('says separately when only the tail of the file was scanned', async () => {
+    await renderPage({ ...DEFAULT_DATA, scan_truncated: true })
+    expect(await screen.findByText(/logs\.scanCap/)).toBeInTheDocument()
   })
 
   it('reports a failed manual read instead of rendering a blank page', async () => {

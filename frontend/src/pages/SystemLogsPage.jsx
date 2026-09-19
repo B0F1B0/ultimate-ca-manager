@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  Stack, ArrowsClockwise, Copy, Warning, XCircle, Database, Cube, CalendarBlank
+  Stack, ArrowsClockwise, Copy, Warning, XCircle, Database, Cube, FunnelSimple
 } from '@phosphor-icons/react'
 import { Badge, Button, Input, Select } from '../components'
 import { ToggleSwitch } from '../components/ui/ToggleSwitch'
@@ -15,9 +15,8 @@ import { systemService } from '../services'
 import { extractData } from '../lib/utils'
 
 const LEVELS = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
-const LINE_COUNTS = [100, 200, 500, 1000, 2000]
+const LINE_COUNTS = [100, 200, 500, 1000, 2000, 5000]
 const FOLLOW_INTERVAL_MS = 5000
-const INDENT = '  '
 
 const SOURCE_LABELS = {
   app: 'logs.sourceApp',
@@ -47,7 +46,9 @@ export default function SystemLogsPage() {
   const [follow, setFollow] = useState(false)
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [showTimeFilters, setShowTimeFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [exclude, setExclude] = useState('')
+  const [regex, setRegex] = useState(false)
   const [selectedIds, setSelectedIds] = useState(() => new Set())
 
   const load = useCallback(async (quiet = false) => {
@@ -59,6 +60,8 @@ export default function SystemLogsPage() {
         ...(search ? { q: search } : {}),
         ...(since ? { since } : {}),
         ...(until ? { until } : {}),
+        ...(exclude ? { exclude } : {}),
+        ...(regex ? { regex: true } : {}),
       })
       setResult(extractData(response))
     } catch {
@@ -67,9 +70,9 @@ export default function SystemLogsPage() {
     } finally {
       if (!quiet) setLoading(false)
     }
-  }, [source, component, level, lines, search, since, until, showError, t])
+  }, [source, component, level, lines, search, since, until, exclude, regex, showError, t])
 
-  useEffect(() => { load() }, [source, component, level, lines, search, since, until])  // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [source, component, level, lines, search, since, until, exclude, regex])  // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live mode polls rather than streaming: a log line pushed over the event bus
   // is itself logged by the push, which is a loop the interval cannot make.
@@ -87,28 +90,25 @@ export default function SystemLogsPage() {
     [result],
   )
 
-  // Source and component answer one question — which lines am I looking at —
-  // so they are one control. FilterSelect always prepends a cleared entry and
-  // labels it from allLabel, so that entry *is* the unfiltered application log:
-  // its components nest under it, and the other sources follow. Listing 'app'
-  // again would duplicate the entry that already means it.
-  const sourceOptions = useMemo(() => {
-    const out = []
-    for (const c of (result?.components || [])) {
-      out.push({ value: `app:${c}`, label: `${INDENT}${c}` })
-    }
-    for (const s of (result?.available_sources || [])) {
-      if (s !== 'app') out.push({ value: s, label: t(SOURCE_LABELS[s] || s) })
-    }
-    return out
-  }, [result, t])
+  // Source and component were one nested control until the component list grew
+  // to every subsystem UCM has: the three other logs then sat below thirty
+  // entries, where nobody found them. Two plain selects, both in the panel.
+  const sourceOptions = useMemo(
+    () => (result?.available_sources || ['app']).map((s) => ({
+      value: s, label: t(SOURCE_LABELS[s] || s),
+    })),
+    [result, t],
+  )
 
-  const sourceValue = component ? `app:${component}` : (source === 'app' ? '' : source)
-  const onSourceChange = (v) => {
-    const [nextSource, nextComponent = ''] = String(v || 'app').split(':')
-    setSource(nextSource)
-    setComponent(nextComponent)
-  }
+  const componentOptions = useMemo(
+    () => [
+      { value: '', label: t('logs.allComponents') },
+      ...(result?.components || []).map((c) => ({ value: c, label: c })),
+    ],
+    [result, t],
+  )
+
+  const filtered = source !== 'app' || component || since || until || exclude || regex
 
   const headerStats = useMemo(() => {
     const levels = result?.levels || {}
@@ -191,11 +191,22 @@ export default function SystemLogsPage() {
 
   const toolbarActions = (
     <>
-      <div className="w-24">
+      <div className="w-32">
         <Select
+          label={t('logs.level')}
+          value={level}
+          onChange={setLevel}
+          options={LEVELS.map((l) => ({ value: l, label: l }))}
+        />
+      </div>
+      <div className="w-32">
+        <Select
+          label={t('logs.lines')}
           value={lines}
           onChange={setLines}
-          options={LINE_COUNTS.map((n) => ({ value: String(n), label: String(n) }))}
+          options={LINE_COUNTS.map((n) => ({
+            value: String(n), label: t('logs.linesOpt', { count: n }),
+          }))}
         />
       </div>
       <ToggleSwitch
@@ -205,19 +216,18 @@ export default function SystemLogsPage() {
           // requests; following one clears the other rather than leaving an
           // empty pane that reads as nothing being logged.
           setFollow(on)
-          if (on) { setSince(''); setUntil(''); setShowTimeFilters(false) }
+          if (on) { setSince(''); setUntil(''); setShowFilters(false) }
         }}
         label={t('logs.follow')}
         size="sm"
       />
       <Button
         type="button"
-        variant={since || until ? 'primary' : 'secondary'}
+        variant={filtered ? 'primary' : 'secondary'}
         size="sm"
-        disabled={follow}
-        onClick={() => setShowTimeFilters(true)}
+        onClick={() => setShowFilters(true)}
       >
-        <CalendarBlank size={14} /> {t('common.date')}
+        <FunnelSimple size={14} /> {t('logs.filters')}
       </Button>
       <Button type="button" variant="secondary" size="sm" onClick={() => load()} loading={loading}>
         <ArrowsClockwise size={14} />
@@ -228,29 +238,59 @@ export default function SystemLogsPage() {
     </>
   )
 
-  const timeFilterContent = (
+  const filterContent = (
     <div className="p-4 space-y-4">
+      <Select
+        label={t('logs.source')}
+        value={source}
+        onChange={(v) => { setSource(v); if (v !== 'app') setComponent('') }}
+        options={sourceOptions}
+      />
+      <Select
+        label={t('logs.component')}
+        value={component}
+        onChange={setComponent}
+        disabled={source !== 'app'}
+        options={componentOptions}
+      />
       <Input
         type="datetime-local"
         label={t('logs.from')}
         value={since}
+        disabled={follow}
         onChange={(e) => setSince(e.target.value)}
       />
       <Input
         type="datetime-local"
         label={t('logs.to')}
         value={until}
+        disabled={follow}
         onChange={(e) => setUntil(e.target.value)}
+      />
+      <p className="text-xs text-text-tertiary">{t('logs.serverTime')}</p>
+      <Input
+        label={t('logs.exclude')}
+        placeholder={t('logs.exclude')}
+        value={exclude}
+        onChange={(e) => setExclude(e.target.value)}
+      />
+      <ToggleSwitch
+        checked={regex}
+        onChange={setRegex}
+        label={t('logs.regex')}
+        size="sm"
       />
       <Button
         type="button"
         variant="secondary"
         size="sm"
-        onClick={() => { setSince(''); setUntil('') }}
+        onClick={() => {
+          setSource('app'); setComponent('')
+          setSince(''); setUntil(''); setExclude(''); setRegex(false)
+        }}
       >
         {t('common.clear')}
       </Button>
-      <p className="text-xs text-text-tertiary">{t('logs.serverTime')}</p>
     </div>
   )
 
@@ -261,10 +301,10 @@ export default function SystemLogsPage() {
       subtitle={t('logs.subtitle')}
       stats={headerStats}
       helpPageKey="systemLogs"
-      slideOverOpen={showTimeFilters}
-      onSlideOverClose={() => setShowTimeFilters(false)}
-      slideOverTitle={t('common.date')}
-      slideOverContent={timeFilterContent}
+      slideOverOpen={showFilters}
+      onSlideOverClose={() => setShowFilters(false)}
+      slideOverTitle={t('logs.filters')}
+      slideOverContent={filterContent}
       slideOverWidth="narrow"
     >
       <div className="flex flex-col h-full min-h-0">
@@ -277,27 +317,6 @@ export default function SystemLogsPage() {
           externalSearch={search}
           onSearchChange={setSearch}
           searchPlaceholder={t('logs.searchPlaceholder')}
-          toolbarFilters={[
-            {
-              key: 'source',
-              label: t('logs.source'),
-              value: sourceValue,
-              onChange: onSourceChange,
-              allLabel: t('logs.sourceApp'),
-              placeholder: t('logs.sourceApp'),
-              options: sourceOptions,
-            },
-            {
-              key: 'level',
-              label: t('logs.level'),
-              // Cleared means no floor, which is the lowest level there is.
-              value: level === 'DEBUG' ? '' : level,
-              onChange: (v) => setLevel(v || 'DEBUG'),
-              allLabel: t('logs.allLevels'),
-              placeholder: t('logs.allLevels'),
-              options: LEVELS.filter((l) => l !== 'DEBUG').map((l) => ({ value: l, label: l })),
-            },
-          ]}
           densityStorageKey="ucm-system-logs-density"
           toolbarActions={toolbarActions}
           multiSelect
@@ -326,7 +345,10 @@ export default function SystemLogsPage() {
             {result.timezone?.name || result.timezone?.offset
               ? ` (${[result.timezone.name, result.timezone.offset].filter(Boolean).join(' ')})`
               : ''}
-            {result.truncated ? ` · ${t('logs.truncated')}` : ''}
+            {result.truncated
+              ? ` · ${t('logs.showing', { shown: rows.length, matched: result.matched })}`
+              : ''}
+            {result.scan_truncated ? ` · ${t('logs.scanCap')}` : ''}
           </p>
         )}
       </div>
