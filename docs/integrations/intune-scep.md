@@ -493,7 +493,7 @@ them to your own template — the next section explains what has to line up.
 | **Certificate type** | **Device** — the rest of this table is a device profile. A **User** profile uses user tokens instead (`CN={{UserPrincipalName}}`, a UPN SAN); a device certificate can only carry device attributes in its subject and SAN. |
 | **Subject name format** | `CN={{DeviceId}}` or `CN={{AAD_Device_ID}}` |
 | **Subject alternative name** | **URI** = `IntuneDeviceId://{{DeviceId}}` — see the note below |
-| **Certificate validity period** | `1 year` — must not exceed the validity of UCM's certificate template or the issuing CA. Intune supports up to 24 months. |
+| **Certificate validity period** | `1 year`, the same as the bound template. This value never reaches UCM: the certificate is issued for the template's validity (365 days for the bundled Client Certificate template), so keep the two equal. Intune supports up to 24 months. |
 | **Key usage** | **Digital signature** *and* **Key encipherment** |
 | **Key size (bits)** | `2048` |
 | **Hash algorithm** | **SHA-2** — UCM advertises SHA-256, SHA-384 and SHA-512 |

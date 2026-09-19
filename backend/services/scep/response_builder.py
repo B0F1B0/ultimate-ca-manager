@@ -111,7 +111,10 @@ def build_cert_rep_success(
     key_transport: tuple = DEFAULT_KEY_TRANSPORT,
 ) -> bytes:
     """Create a successful CertRep encrypted for the SCEP client."""
-    pkcs7_data = create_degenerate_pkcs7([cert, ca_cert])
+    # The issued certificate only (RFC 8894 §3.3.2.1): Apple's client pairs
+    # the first certificate of the reply with its key, and DER ordering put
+    # a shorter CA certificate first. Clients fetch the chain via GetCACert.
+    pkcs7_data = create_degenerate_pkcs7([cert])
     encrypted_data = encrypt_for_client(
         pkcs7_data,
         recipient_cert,

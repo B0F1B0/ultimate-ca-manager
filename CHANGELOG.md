@@ -17,6 +17,8 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 - Attaching a deployment target now offers the Include Root CA box of the export dialog for the full chain file. New bindings ship the leaf and the intermediates only, which is what a TLS server should send; bindings created before this release keep the root as they always did, and the binding row says so (#357, by @B0F1B0).
 
 ### Fixed
+- An iPhone enrolling over SCEP refused every certificate from a CA whose own certificate is shorter than the leaf: the reply carried the CA certificate next to the issued one, DER ordering put the CA first, and Apple's client pairs the first certificate with its key. The reply now carries the issued certificate only, as RFC 8894 asks (#228, reported by @stefanelul2000).
+- A certificate issued over SCEP through a profile's template was not counted against that template.
 - The SCEP endpoint kept advertising its capabilities with SCEP switched off, and a switched-off or unconfigured endpoint answered 500 as if the server had crashed. Every operation now honours the switch, and a refusal comes back as 503 with its reason, or 404 for an unknown profile.
 - A Windows device enrolling through Intune was refused at the very last step with `badMessageCheck`: the Windows SCEP client wraps the session key with RSAES-OAEP, and UCM only unwrapped PKCS#1 v1.5. Both are accepted now, and the reply is wrapped the way the request was (#228, reported by @stefanelul2000).
 - A SCEP request reusing an already-issued transactionID with a different key was answered with the certificate of the first key, which the device cannot pair with its own. It is refused with `badRequest` now, and the log names the transaction (#228).

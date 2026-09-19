@@ -1524,6 +1524,7 @@ class SCEPService:
         cert_obj = Certificate(
             refid=cert_refid,
             caref=self.ca_refid,
+            template_id=self.template.id if self.template is not None else None,
             descr=f"SCEP: {csr.subject.rfc4514_string()}",
             crt=base64.b64encode(cert_pem).decode('utf-8'),
             prv=None,

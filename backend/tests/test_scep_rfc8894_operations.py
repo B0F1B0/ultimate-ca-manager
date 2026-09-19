@@ -608,7 +608,7 @@ class TestScepResponseEncryption:
         assert attrs[PKI_STATUS_OID] == "0"
         assert recipient_info.name == "pwri"
         assert envelope["version"].native == "v3"
-        assert len(certs) == 2
+        assert len(certs) == 1          # the requested certificate, nothing else
 
     def test_ec_client_without_challenge_receives_bad_message_check(
         self, app, create_ca, create_cert
