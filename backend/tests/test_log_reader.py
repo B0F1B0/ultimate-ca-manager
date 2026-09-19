@@ -246,7 +246,7 @@ class TestGunicornFormats:
 
     def test_each_access_line_is_its_own_record(self):
         """Not one record carrying the whole file, which is what folding gives."""
-        records = log_reader.parse(self.ACCESS)
+        records = log_reader.parse(self.ACCESS, log_reader.ACCESS)
 
         assert len(records) == 2
         assert records[0]['ts'] == '2026-09-19 16:16:26'
@@ -255,10 +255,10 @@ class TestGunicornFormats:
         assert records[1]['logger'] == '10.0.0.5'
 
     def test_an_access_line_carries_no_level_rather_than_a_made_up_one(self):
-        assert log_reader.parse(self.ACCESS)[0]['level'] is None
+        assert log_reader.parse(self.ACCESS, log_reader.ACCESS)[0]['level'] is None
 
     def test_an_error_line_carries_its_worker_and_level(self):
-        records = log_reader.parse(self.ERROR)
+        records = log_reader.parse(self.ERROR, log_reader.ERROR)
 
         assert len(records) == 3
         assert records[0]['ts'] == '2026-09-19 16:16:24'
@@ -266,7 +266,7 @@ class TestGunicornFormats:
         assert records[0]['level'] == 'INFO'
 
     def test_a_traceback_still_folds_into_the_line_that_raised_it(self):
-        raised = log_reader.parse(self.ERROR)[1]
+        raised = log_reader.parse(self.ERROR, log_reader.ERROR)[1]
 
         assert raised['level'] == 'ERROR'
         assert 'Traceback (most recent call last):' in raised['message']
@@ -274,12 +274,14 @@ class TestGunicornFormats:
 
     def test_gunicorn_timestamps_are_comparable_with_the_application_log(self):
         """The time filters compare strings, so one format has to serve both."""
-        records = log_reader.parse(self.ACCESS + self.ERROR)
+        records = (log_reader.parse(self.ACCESS, log_reader.ACCESS)
+                   + log_reader.parse(self.ERROR, log_reader.ERROR))
 
         assert all(log_reader.TS_FORMAT and len(r['ts']) == 19 for r in records)
 
     def test_an_unreadable_timestamp_leaves_the_line_standing(self, tmp_path, monkeypatch):
-        records = log_reader.parse('[not a date] [150704] [INFO] Starting gunicorn\n')
+        records = log_reader.parse('[not a date] [150704] [INFO] Starting gunicorn\n',
+                                   log_reader.ERROR)
 
         assert len(records) == 1
         assert records[0]['ts'] is None
@@ -536,3 +538,76 @@ class TestAdvancedMatching:
     def test_without_the_flag_a_regex_is_read_literally(self):
         assert self._messages(query=r'fail\w+=\d') == []
         assert self._messages(query='failInfo=1') == ['failInfo=1']
+
+
+class TestJournalFormat:
+    """`journalctl --output=short-iso` writes neither UCM's format nor
+    gunicorn's, and its own is what the collector asks for. Read with another
+    source's parser it matched nothing, so every line continued the one above it
+    and a whole journal came back as a single record carrying no timestamp."""
+
+    JOURNAL = (
+        '2026-09-19T21:30:08+02:00 host ucm[409576]: Starting gunicorn 25.1.0\n'
+        '2026-09-19T21:30:08+02:00 host ucm[409576]: Listening at: http://0.0.0.0:8000\n'
+        '2026-09-19T21:30:09+02:00 host ucm[409581]: Booting worker with pid: 409581\n'
+        '2026-09-19T21:30:11+02:00 host systemd[1]: Started ucm.service.\n'
+    )
+
+    def _records(self):
+        return log_reader.parse(self.JOURNAL, log_reader.JOURNAL)
+
+    def test_every_line_is_its_own_record(self):
+        assert len(self._records()) == len(self.JOURNAL.splitlines())
+
+    def test_every_record_carries_the_instant_its_line_was_written(self):
+        assert [r['ts'] for r in self._records()] == [
+            '2026-09-19 21:30:08', '2026-09-19 21:30:08',
+            '2026-09-19 21:30:09', '2026-09-19 21:30:11',
+        ]
+
+    def test_the_identifier_stands_in_for_the_component(self):
+        assert [r['logger'] for r in self._records()] == [
+            'ucm[409576]', 'ucm[409576]', 'ucm[409581]', 'systemd[1]',
+        ]
+
+    def test_the_message_is_what_follows_the_syslog_framing(self):
+        assert self._records()[0]['message'] == 'Starting gunicorn 25.1.0'
+
+    def test_no_level_is_invented_for_a_format_that_carries_none(self):
+        assert all(r['level'] is None for r in self._records())
+
+    def test_an_offset_written_without_its_colon_is_read_too(self):
+        """systemd wrote `+0200` before v247 and `+02:00` since."""
+        line = '2026-09-19T21:30:08+0200 host ucm[1]: up\n'
+        assert log_reader.parse(line, log_reader.JOURNAL)[0]['ts'] == '2026-09-19 21:30:08'
+
+    def test_the_journal_source_reads_the_journal_format(self, monkeypatch):
+        monkeypatch.setattr(log_reader, 'collect_journal',
+                            lambda: self.JOURNAL.encode())
+        result = log_reader.read(source=log_reader.JOURNAL)
+        assert len(result['lines']) == 4
+        assert result['lines'][0]['ts'] == '2026-09-19 21:30:08'
+
+
+class TestEachSourceIsReadWithItsOwnFormat:
+    """Every format tried against every source matches by accident as readily as
+    it fails: a journal line was taken for a gunicorn access line, which reports
+    a timestamp and a client the line never carried."""
+
+    def test_the_application_log_does_not_read_gunicorn_lines(self):
+        gunicorn = '[2026-09-19 16:16:24 +0300] [150704] [INFO] Starting gunicorn\n'
+        assert log_reader.parse(gunicorn, log_reader.APP)[0]['level'] is None
+
+    def test_the_error_stream_reads_both_formats_it_is_written_in(self):
+        """gunicorn logs its own lines there, and an unhandled traceback that
+        reaches its logger arrives in UCM's."""
+        mixed = ('[2026-09-19 16:16:24 +0300] [150704] [INFO] Starting gunicorn\n'
+                 '2026-09-19 16:16:25 [app] ERROR Unhandled\n')
+        records = log_reader.parse(mixed, log_reader.ERROR)
+        assert [r['logger'] for r in records] == ['150704', 'app']
+
+    def test_an_unknown_source_is_read_as_the_application_log(self):
+        records = log_reader.parse(FORMATTED, 'not-a-source')
+        assert records[0]['logger'] == 'services.scep.scep_service'
+
+

@@ -4,10 +4,15 @@ The diagnostic bundle hands whole files to a human; this reads their tails into
 records the interface can filter and colour. Redaction and journal collection
 are shared with the bundle so both leave by the same gate.
 
-Only the application log carries UCM's own format. The gunicorn streams and the
-journal are returned as records with no level rather than being forced through
-a parser built for a different shape — a level guessed from someone else's
-format is worse than none.
+Each source is read with the format it is actually written in rather than by
+trying every format against every line: UCM's own for the application log,
+gunicorn's two for its access and error streams, and the syslog framing
+journalctl prints for the journal. A line matching nothing continues the record
+above it, so a format nobody reads collapses a whole log into one record.
+
+Only the application log carries a level of its own. The others are returned
+with no level rather than being forced through a parser built for a different
+shape — a level guessed from someone else's format is worse than none.
 
 Timestamps are returned exactly as they were written. ``logging.Formatter``
 renders ``asctime`` in local time with no zone and no offset, so presenting it
@@ -65,6 +70,15 @@ _GUNICORN_ACCESS = re.compile(
     r'^(\S+) \S+ \S+ \[([^\]]+)\] (.*)$'
 )
 
+# journalctl --output=short-iso, which is what the collector asks for:
+# `2026-09-19T21:30:08+02:00 host ucm[409576]: message`. The identifier is kept
+# with its PID, so the worker a line came from is visible the way it is in the
+# gunicorn error log.
+_JOURNAL = re.compile(
+    r'^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:Z|[+-]\d{2}:?\d{2})) '
+    r'\S+ ([^\s:]+):\s?(.*)$'
+)
+
 
 def _reformat(raw: str, fmt: str) -> Optional[str]:
     """A gunicorn timestamp in the shape the rest of the reader expects.
@@ -92,46 +106,65 @@ def _tail_text(path: Path) -> tuple[str, bool]:
     return raw.decode('utf-8', errors='replace'), truncated
 
 
-def parse(text: str) -> list[dict]:
-    """Turn formatted log text into records, oldest first.
+def _app_record(match) -> dict:
+    timestamp, name, level, message = match.groups()
+    return {'ts': timestamp, 'logger': name, 'level': level, 'message': message}
 
-    Three formats are read: UCM's own, and gunicorn's error and access lines.
+
+def _gunicorn_error_record(match) -> dict:
+    raw, pid, level, message = match.groups()
+    return {'ts': _reformat(raw, '%Y-%m-%d %H:%M:%S %z'), 'logger': pid,
+            'level': level, 'message': message}
+
+
+def _gunicorn_access_record(match) -> dict:
+    client, raw, message = match.groups()
+    return {'ts': _reformat(raw, '%d/%b/%Y:%H:%M:%S %z'), 'logger': client,
+            'level': None, 'message': message}
+
+
+def _journal_record(match) -> dict:
+    raw, identifier, message = match.groups()
+    return {'ts': _reformat(raw, '%Y-%m-%dT%H:%M:%S%z'), 'logger': identifier,
+            'level': None, 'message': message}
+
+
+# What each source is written in. The error stream is the one source with two:
+# gunicorn writes its own lines there, and an unhandled traceback reaching its
+# logger arrives in UCM's format, so both belong to that file.
+_READERS = {
+    APP: ((_RECORD, _app_record),),
+    ACCESS: ((_GUNICORN_ACCESS, _gunicorn_access_record),),
+    ERROR: ((_GUNICORN_ERROR, _gunicorn_error_record), (_RECORD, _app_record)),
+    JOURNAL: ((_JOURNAL, _journal_record),),
+}
+
+
+def parse(text: str, source: str = APP) -> list[dict]:
+    """Turn one source's log text into records, oldest first.
+
+    The formats tried are the ones that source is written in; reading a log
+    with another log's parser either matches nothing, which folds the file into
+    a single record, or matches by accident and reports a timestamp the line
+    does not carry.
 
     A traceback spans many lines and only its first carries the prefix, so a
-    line that matches none of them continues the record above it. A line that
-    matches nothing and has no record above it is still returned, with no level:
-    these are the lines someone is usually hunting for, and dropping them would
-    hide exactly that.
+    line that matches nothing continues the record above it. A line that matches
+    nothing and has no record above it is still returned, with no level: these
+    are the lines someone is usually hunting for, and dropping them would hide
+    exactly that.
     """
+    readers = _READERS.get(source, _READERS[APP])
     records: list[dict] = []
     for line in text.splitlines():
-        match = _RECORD.match(line)
-        error = None if match else _GUNICORN_ERROR.match(line)
-        access = None if match or error else _GUNICORN_ACCESS.match(line)
-        if match:
-            timestamp, name, level, message = match.groups()
-            records.append({
-                'ts': timestamp,
-                'logger': name,
-                'level': level,
-                'message': message,
-            })
-        elif error:
-            raw, pid, level, message = error.groups()
-            records.append({
-                'ts': _reformat(raw, '%Y-%m-%d %H:%M:%S %z'),
-                'logger': pid,
-                'level': level,
-                'message': message,
-            })
-        elif access:
-            client, raw, message = access.groups()
-            records.append({
-                'ts': _reformat(raw, '%d/%b/%Y:%H:%M:%S %z'),
-                'logger': client,
-                'level': None,
-                'message': message,
-            })
+        record = None
+        for pattern, build in readers:
+            match = pattern.match(line)
+            if match:
+                record = build(match)
+                break
+        if record is not None:
+            records.append(record)
         elif records:
             records[-1]['message'] += '\n' + line
         elif line:
@@ -378,7 +411,7 @@ def read(lines: int = DEFAULT_LINES, level: Optional[str] = None,
             return {**empty, 'path': str(path) if path else None}
         text, scan_truncated = _tail_text(path)
 
-    parsed = parse(redact(text))
+    parsed = parse(redact(text), source)
     records = filter_records(parsed, level=level, query=query, logger=logger,
                              since=since, until=until, exclude=exclude, regex=regex)
     # Counted before the line cap: the summary describes what the filters
