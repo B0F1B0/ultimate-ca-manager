@@ -166,8 +166,6 @@ Both new permissions show **⚠ Not granted** until consented.
 Click **Grant admin consent for &lt;your organization&gt;** and confirm. Both
 rows turn to a green **Granted** status.
 
-<!-- TODO screenshot: both permissions showing a green "Granted" status -->
-
 > Enrollment fails at the service-discovery step if consent is skipped — the
 > permissions being *listed* is not the same as being *granted*.
 
@@ -225,10 +223,7 @@ list.
 The row shows the enrollment path, the CA and template, and both an
 **Auto-approve requests** and an **Intune** badge.
 
-> **Secret storage:** the client secret is encrypted at rest via
-> `utils.encryption`, which always encrypts. This is deliberately stronger than
-> the helper used for the static challenge password, which silently stores
-> plaintext when no master key is configured.
+> **Secret storage:** the client secret is encrypted at rest.
 
 ### Copy the SCEP URL
 
@@ -414,25 +409,12 @@ A trusted certificate profile carries exactly one certificate, and the
 iOS/iPadOS the certificate goes to the system keychain with no store to choose.
 So the number of profiles differs by platform.
 
-#### Windows 10 and later — three profiles
+#### Windows 10 and later — two profiles
 
 | # | Certificate | Destination store | Why |
 |---|-------------|-------------------|-----|
 | 1 | **Root CA** | Computer certificate store — **Root** | The trust anchor. Nothing beneath it validates without it. |
-| 2 | **Root CA** *(again)* | Computer certificate store — **Intermediate** | Belt and braces for chain building — see the note below. |
-| 3 | **Issuing CA** | Computer certificate store — **Intermediate** | Completes the chain locally, so validation does not depend on receiving the intermediate from elsewhere. |
-
-![Example of configured profiles](img/intune-scep-profile-trustedCA.png)
-
-> **Why the root goes in twice on Windows.** Microsoft documents one trusted
-> certificate profile per CA certificate and does not call for this duplication,
-> so treat profile 2 as a field workaround rather than a documented requirement.
-> In practice, deploying the root to the Intermediate store as well makes chain
-> building reliable on Windows, where a chain that resolves under one security
-> context has been observed to fail under another. It is harmless: a self-signed
-> root present in both stores still validates as a root, and Windows deduplicates
-> by thumbprint. If you would rather keep the deployment minimal, start with
-> profiles 1 and 3 and add 2 only if chain validation misbehaves.
+| 2 | **Issuing CA** | Computer certificate store — **Intermediate** | Completes the chain locally, so validation does not depend on receiving the intermediate from elsewhere. |
 
 #### iOS/iPadOS — two profiles
 
@@ -441,8 +423,8 @@ So the number of profiles differs by platform.
 | 1 | **Root CA** | The trust anchor. |
 | 2 | **Issuing CA** | Completes the chain on the device. |
 
-There is no Destination Store choice on iOS/iPadOS, and no reason to deploy the
-root twice.
+There is no Destination Store choice on iOS/iPadOS — the certificate goes to the
+system keychain.
 
 ![Example of configured profiles (iOS)](img/intune-scep-profile-trustedCA-iOS.png)
 
@@ -460,8 +442,7 @@ Export each certificate from UCM separately — **Certificate Authorities** →
 select the CA → **Export**, format **DER** (Microsoft asks for a DER-encoded
 `.cer`), with **Include CA chain** and **Include private key** both **off**. A
 trusted certificate profile takes one certificate, not a bundle, and never a
-private key. The same exported root file is uploaded to both Windows root
-profiles; only the destination store differs.
+private key.
 
 Then create the profiles under **Devices → Configuration → Create → Trusted
 certificate**, assigning each to the *same group* that will receive the SCEP
@@ -475,7 +456,6 @@ profile.
 - [ ] Root CA exported from UCM
 - [ ] Issuing CA exported from UCM
 - [ ] *(Windows)* Root CA profile — Root store
-- [ ] *(Windows)* Root CA profile — Intermediate store
 - [ ] *(Windows)* Issuing CA profile — Intermediate store
 - [ ] *(iOS/iPadOS)* Root CA profile
 - [ ] *(iOS/iPadOS)* Issuing CA profile
@@ -520,14 +500,25 @@ them to your own template — the next section explains what has to line up.
 | **Root Certificate** | The trusted certificate profile from the previous step — on Windows, the **issuing CA** one. See the note below. |
 | **Extended key usage** | **Client Authentication** (`1.3.6.1.5.5.7.3.2`) |
 | **Renewal threshold (%)** | `20` — renewal starts when 20% of the lifetime remains |
-| **SCEP Server URLs** | `https://UCMProxy-<tenant>.msappproxy.net/scep/ucm-intune-device-clientauth/pkiclient.exe` — the externally reachable URL from Step 4, **not** the internal one |
+| **SCEP Server URLs** | The externally reachable URL from Step 4, **not** the internal one. The value differs by platform — see the note below. |
 
 Four of those rows are worth a second look:
 
-> **Use the external URL.** Microsoft's documentation shows an NDES URL here;
-> with UCM you point at the profile's own enrollment endpoint instead. It must
-> be the address devices can reach from the internet, and HTTPS is required for
-> all Android enrollment scenarios.
+> **Use the external URL, and mind the trailing path.** Microsoft's
+> documentation shows an NDES URL here; with UCM you point at the profile's own
+> enrollment endpoint instead. It must be the address devices can reach from the
+> internet, and HTTPS is required for all Android enrollment scenarios.
+>
+> The Windows SCEP client appends `/pkiclient.exe` to whatever it is given, so
+> the two platforms take different values for the same endpoint:
+>
+> | Platform | SCEP Server URL |
+> |---|---|
+> | iOS/iPadOS | `https://UCMProxy-<tenant>.msappproxy.net/scep/ucm-intune-device-clientauth/pkiclient.exe` |
+> | Windows | `https://UCMProxy-<tenant>.msappproxy.net/scep/ucm-intune-device-clientauth` |
+>
+> Leaving `/pkiclient.exe` on the Windows profile produces a request for
+> `.../pkiclient.exe/pkiclient.exe`, which UCM has no route for.
 >
 > **The URI SAN carries the Intune device identity.** `IntuneDeviceId://{{DeviceId}}`
 > is Microsoft's recommended form for NAC solutions, which read it to identify
@@ -553,6 +544,10 @@ Four of those rows are worth a second look:
 
 #### Windows 10 and later
 
+> **Windows enrollment does not complete yet** — tracked in
+> [#228](https://github.com/NeySlim/ultimate-ca-manager/issues/228). iOS/iPadOS
+> is unaffected, and the settings below are correct to configure meanwhile.
+
 One setting exists only on the Windows profile:
 
 | Setting | Value |
@@ -573,8 +568,6 @@ profile setting. Every other value is the same as the common table above.
 
 Finish through **Assignments** (target the same group as the trusted certificate
 profiles) and **Review + create**.
-
-<!-- TODO screenshot: Intune SCEP certificate profile configuration -->
 
 ### Match the settings to UCM's template
 
@@ -615,8 +608,6 @@ whole CN value instead, or remove the character:
 ```
 CN="Test User (TestCompany, LLC)",OU=UserAccounts,DC=corp,DC=contoso,DC=com
 ```
-
-<!-- TODO screenshot: Device showing successfully deployed certificate -->
 
 ---
 
