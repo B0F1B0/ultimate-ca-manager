@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "Procurar nas mensagens",
     "empty": "Nenhuma linha corresponde a estes filtros.",
     "unavailable": "Ainda não existe ficheiro de registo da aplicação nesta instalação.",
-    "truncated": "As linhas mais antigas foram omitidas.",
     "readingFrom": "A ler de",
     "source": "Origem",
     "sourceApp": "Aplicação",
@@ -5098,6 +5097,7 @@
     "sourceError": "Erros",
     "sourceJournal": "Journal",
     "component": "Componente",
+    "allComponents": "Todos os componentes",
     "follow": "Registos em direto",
     "time": "Hora",
     "message": "Mensagem",
@@ -5108,8 +5108,13 @@
     "errors": "Erros",
     "warnings": "Avisos",
     "components": "Componentes",
-    "allLevels": "Todos os níveis",
     "copyAll": "Copiar tudo",
-    "copySelected": "Copiar selecção"
+    "copySelected": "Copiar selecção",
+    "showing": "A mostrar as {{shown}} linhas mais recentes de {{matched}} correspondentes",
+    "scanCap": "Apenas a parte mais recente do ficheiro foi lida",
+    "linesOpt": "{{count}} linhas",
+    "filters": "Filtros",
+    "exclude": "Excluir",
+    "regex": "Expressões regulares"
   }
 }

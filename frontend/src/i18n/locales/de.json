@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "Meldungen durchsuchen",
     "empty": "Keine Protokollzeilen entsprechen diesen Filtern.",
     "unavailable": "Auf dieser Installation ist noch keine Anwendungsprotokolldatei verfügbar.",
-    "truncated": "Ältere Zeilen wurden weggelassen.",
     "readingFrom": "Gelesen aus",
     "source": "Quelle",
     "sourceApp": "Anwendung",
@@ -5098,6 +5097,7 @@
     "sourceError": "Fehler",
     "sourceJournal": "Journal",
     "component": "Komponente",
+    "allComponents": "Alle Komponenten",
     "follow": "Live-Protokolle",
     "time": "Zeit",
     "message": "Meldung",
@@ -5108,8 +5108,13 @@
     "errors": "Fehler",
     "warnings": "Warnungen",
     "components": "Komponenten",
-    "allLevels": "Alle Stufen",
     "copyAll": "Alle kopieren",
-    "copySelected": "Auswahl kopieren"
+    "copySelected": "Auswahl kopieren",
+    "showing": "Es werden die {{shown}} neuesten von {{matched}} passenden Zeilen angezeigt",
+    "scanCap": "Nur der neueste Teil der Datei wurde gelesen",
+    "linesOpt": "{{count}} Zeilen",
+    "filters": "Filter",
+    "exclude": "Ausschließen",
+    "regex": "Reguläre Ausdrücke"
   }
 }

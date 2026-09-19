@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "メッセージを検索",
     "empty": "このフィルターに一致するログ行はありません。",
     "unavailable": "この環境にはまだアプリケーションログファイルがありません。",
-    "truncated": "古い行は省略されました。",
     "readingFrom": "読み取り元",
     "source": "ソース",
     "sourceApp": "アプリケーション",
@@ -5098,6 +5097,7 @@
     "sourceError": "エラー",
     "sourceJournal": "ジャーナル",
     "component": "コンポーネント",
+    "allComponents": "すべてのコンポーネント",
     "follow": "ライブログ",
     "time": "時刻",
     "message": "メッセージ",
@@ -5108,8 +5108,13 @@
     "errors": "エラー",
     "warnings": "警告",
     "components": "コンポーネント",
-    "allLevels": "すべてのレベル",
     "copyAll": "すべてコピー",
-    "copySelected": "選択をコピー"
+    "copySelected": "選択をコピー",
+    "showing": "一致する {{matched}} 行のうち、最新の {{shown}} 行を表示しています",
+    "scanCap": "ファイルの最新部分のみを読み取りました",
+    "linesOpt": "{{count}} 行",
+    "filters": "フィルター",
+    "exclude": "除外",
+    "regex": "正規表現"
   }
 }

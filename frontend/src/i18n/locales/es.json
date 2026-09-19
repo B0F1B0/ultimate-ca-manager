@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "Buscar mensajes",
     "empty": "Ninguna línea coincide con estos filtros.",
     "unavailable": "Todavía no hay ningún archivo de registro de aplicación en esta instalación.",
-    "truncated": "Se omitieron las líneas más antiguas.",
     "readingFrom": "Leyendo de",
     "source": "Origen",
     "sourceApp": "Aplicación",
@@ -5098,6 +5097,7 @@
     "sourceError": "Errores",
     "sourceJournal": "Journal",
     "component": "Componente",
+    "allComponents": "Todos los componentes",
     "follow": "Registros en vivo",
     "time": "Hora",
     "message": "Mensaje",
@@ -5108,8 +5108,13 @@
     "errors": "Errores",
     "warnings": "Avisos",
     "components": "Componentes",
-    "allLevels": "Todos los niveles",
     "copyAll": "Copiar todo",
-    "copySelected": "Copiar selección"
+    "copySelected": "Copiar selección",
+    "showing": "Mostrando las {{shown}} líneas más recientes de {{matched}} coincidentes",
+    "scanCap": "Solo se leyó la parte más reciente del archivo",
+    "linesOpt": "{{count}} líneas",
+    "filters": "Filtros",
+    "exclude": "Excluir",
+    "regex": "Expresiones regulares"
   }
 }

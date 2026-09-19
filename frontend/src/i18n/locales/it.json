@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "Cerca nei messaggi",
     "empty": "Nessuna riga corrisponde a questi filtri.",
     "unavailable": "Nessun file di log applicativo è ancora disponibile su questa installazione.",
-    "truncated": "Le righe più vecchie sono state omesse.",
     "readingFrom": "Lettura da",
     "source": "Origine",
     "sourceApp": "Applicazione",
@@ -5098,6 +5097,7 @@
     "sourceError": "Errori",
     "sourceJournal": "Journal",
     "component": "Componente",
+    "allComponents": "Tutti i componenti",
     "follow": "Log in tempo reale",
     "time": "Ora",
     "message": "Messaggio",
@@ -5108,8 +5108,13 @@
     "errors": "Errori",
     "warnings": "Avvisi",
     "components": "Componenti",
-    "allLevels": "Tutti i livelli",
     "copyAll": "Copia tutto",
-    "copySelected": "Copia selezionati"
+    "copySelected": "Copia selezionati",
+    "showing": "Mostrate le {{shown}} righe più recenti su {{matched}} corrispondenti",
+    "scanCap": "È stata letta solo la parte più recente del file",
+    "linesOpt": "{{count}} righe",
+    "filters": "Filtri",
+    "exclude": "Escludi",
+    "regex": "Espressioni regolari"
   }
 }

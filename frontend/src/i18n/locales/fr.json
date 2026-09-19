@@ -5093,7 +5093,6 @@
     "searchPlaceholder": "Rechercher dans les messages",
     "empty": "Aucune ligne ne correspond à ces filtres.",
     "unavailable": "Aucun fichier de journal applicatif n'est encore disponible sur cette installation.",
-    "truncated": "Les lignes plus anciennes ont été omises.",
     "readingFrom": "Lecture depuis",
     "source": "Source",
     "sourceApp": "Application",
@@ -5101,6 +5100,7 @@
     "sourceError": "Erreurs",
     "sourceJournal": "Journal",
     "component": "Composant",
+    "allComponents": "Tous les composants",
     "follow": "Journaux en direct",
     "time": "Heure",
     "message": "Message",
@@ -5111,8 +5111,13 @@
     "errors": "Erreurs",
     "warnings": "Avertissements",
     "components": "Composants",
-    "allLevels": "Tous les niveaux",
     "copyAll": "Tout copier",
-    "copySelected": "Copier la sélection"
+    "copySelected": "Copier la sélection",
+    "showing": "Affichage des {{shown}} lignes les plus récentes sur {{matched}} correspondantes",
+    "scanCap": "Seule la partie la plus récente du fichier a été lue",
+    "linesOpt": "{{count}} lignes",
+    "filters": "Filtres",
+    "exclude": "Exclure",
+    "regex": "Expressions régulières"
   }
 }

@@ -5090,7 +5090,6 @@
     "searchPlaceholder": "搜索消息",
     "empty": "没有日志行符合这些筛选条件。",
     "unavailable": "此部署尚无可用的应用程序日志文件。",
-    "truncated": "较早的行已被省略。",
     "readingFrom": "读取自",
     "source": "来源",
     "sourceApp": "应用程序",
@@ -5098,6 +5097,7 @@
     "sourceError": "错误",
     "sourceJournal": "Journal",
     "component": "组件",
+    "allComponents": "所有组件",
     "follow": "实时日志",
     "time": "时间",
     "message": "消息",
@@ -5108,8 +5108,13 @@
     "errors": "错误",
     "warnings": "警告",
     "components": "组件",
-    "allLevels": "所有级别",
     "copyAll": "复制全部",
-    "copySelected": "复制所选"
+    "copySelected": "复制所选",
+    "showing": "正在显示 {{matched}} 条匹配行中最新的 {{shown}} 条",
+    "scanCap": "仅读取了文件最新的部分",
+    "linesOpt": "{{count}} 行",
+    "filters": "筛选",
+    "exclude": "排除",
+    "regex": "正则表达式"
   }
 }

@@ -5093,7 +5093,6 @@
     "searchPlaceholder": "Search messages",
     "empty": "No log lines match these filters.",
     "unavailable": "No application log file is available on this deployment yet.",
-    "truncated": "Older lines were left off.",
     "readingFrom": "Reading from",
     "source": "Source",
     "sourceApp": "Application",
@@ -5101,6 +5100,7 @@
     "sourceError": "Errors",
     "sourceJournal": "Journal",
     "component": "Component",
+    "allComponents": "All components",
     "follow": "Live logs",
     "time": "Time",
     "message": "Message",
@@ -5111,8 +5111,13 @@
     "errors": "Errors",
     "warnings": "Warnings",
     "components": "Components",
-    "allLevels": "All levels",
     "copyAll": "Copy all",
-    "copySelected": "Copy selected"
+    "copySelected": "Copy selected",
+    "showing": "Showing the {{shown}} most recent of {{matched}} matching lines",
+    "scanCap": "Only the most recent part of the file was scanned",
+    "linesOpt": "{{count}} lines",
+    "filters": "Filters",
+    "exclude": "Exclude",
+    "regex": "Regular expressions"
   }
 }
