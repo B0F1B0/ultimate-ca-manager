@@ -434,7 +434,8 @@
     "remove": "Remove",
     "continue": "Continue",
     "keyRecovery": "Key Recovery",
-    "preparing": "Preparing…"
+    "preparing": "Preparing…",
+    "systemLogs": "System Logs"
   },
   "commandPalette": {
     "searchPlaceholder": "Search commands, certificates, CAs, users...",
@@ -5083,5 +5084,39 @@
     "title": "What's new in UCM {{version}}",
     "installedOn": "Installed on {{date}}",
     "noNotes": "Release notes could not be loaded. See the changelog in Settings › Updates."
+  },
+  "logs": {
+    "title": "System Logs",
+    "subtitle": "The server's own application log, newest first.",
+    "level": "Log level",
+    "lines": "Lines",
+    "searchPlaceholder": "Search messages",
+    "empty": "No log lines match these filters.",
+    "unavailable": "No application log file is available on this deployment yet.",
+    "readingFrom": "Reading from",
+    "source": "Source",
+    "sourceApp": "Application",
+    "sourceAccess": "Access",
+    "sourceError": "Errors",
+    "sourceJournal": "Journal",
+    "component": "Component",
+    "allComponents": "All components",
+    "follow": "Live logs",
+    "time": "Time",
+    "message": "Message",
+    "levelShort": "Level",
+    "from": "From",
+    "to": "To",
+    "serverTime": "Times are in server local time",
+    "errors": "Errors",
+    "warnings": "Warnings",
+    "components": "Components",
+    "copyAll": "Copy all",
+    "copySelected": "Copy selected",
+    "showing": "Showing the {{shown}} most recent of {{matched}} matching lines",
+    "scanCap": "Only the most recent part of the file was scanned",
+    "linesOpt": "{{count}} lines",
+    "filters": "Filters",
+    "exclude": "Exclude"
   }
 }

@@ -434,7 +434,8 @@
     "remove": "Entfernen",
     "continue": "Weiter",
     "keyRecovery": "Schlüsselwiederherstellung",
-    "preparing": "Vorbereitung…"
+    "preparing": "Vorbereitung…",
+    "systemLogs": "Systemprotokolle"
   },
   "commandPalette": {
     "searchPlaceholder": "Befehle, Zertifikate, CAs, Benutzer suchen...",
@@ -5080,5 +5081,39 @@
     "title": "Neu in UCM {{version}}",
     "installedOn": "Installiert am {{date}}",
     "noNotes": "Die Versionshinweise konnten nicht geladen werden. Siehe das Änderungsprotokoll unter Einstellungen › Aktualisierungen."
+  },
+  "logs": {
+    "title": "Systemprotokolle",
+    "subtitle": "Das Anwendungsprotokoll des Servers, neueste zuerst.",
+    "level": "Protokollstufe",
+    "lines": "Zeilen",
+    "searchPlaceholder": "Meldungen durchsuchen",
+    "empty": "Keine Protokollzeilen entsprechen diesen Filtern.",
+    "unavailable": "Auf dieser Installation ist noch keine Anwendungsprotokolldatei verfügbar.",
+    "readingFrom": "Gelesen aus",
+    "source": "Quelle",
+    "sourceApp": "Anwendung",
+    "sourceAccess": "Zugriff",
+    "sourceError": "Fehler",
+    "sourceJournal": "Journal",
+    "component": "Komponente",
+    "allComponents": "Alle Komponenten",
+    "follow": "Live-Protokolle",
+    "time": "Zeit",
+    "message": "Meldung",
+    "levelShort": "Stufe",
+    "from": "Von",
+    "to": "Bis",
+    "serverTime": "Zeiten in lokaler Serverzeit",
+    "errors": "Fehler",
+    "warnings": "Warnungen",
+    "components": "Komponenten",
+    "copyAll": "Alle kopieren",
+    "copySelected": "Auswahl kopieren",
+    "showing": "Es werden die {{shown}} neuesten von {{matched}} passenden Zeilen angezeigt",
+    "scanCap": "Nur der neueste Teil der Datei wurde gelesen",
+    "linesOpt": "{{count}} Zeilen",
+    "filters": "Filter",
+    "exclude": "Ausschließen"
   }
 }

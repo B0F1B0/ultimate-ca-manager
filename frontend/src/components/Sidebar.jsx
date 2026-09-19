@@ -90,6 +90,7 @@ const navGroups = [
       { id: 'rbac', icon: Shield, labelKey: 'common.rbac', path: '/rbac', adminOnly: true },
       { id: 'hsm', icon: Lock, labelKey: 'common.hsm', path: '/hsm', permission: 'read:hsm' },
       { id: 'audit', icon: ClockCounterClockwise, labelKey: 'common.audit', path: '/audit', permission: 'read:audit' },
+      { id: 'logs', icon: Stack, labelKey: 'common.systemLogs', path: '/logs', adminOnly: true },
     ]
   },
 ]

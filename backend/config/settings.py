@@ -19,7 +19,8 @@ load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env")  # Local dev
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 BACKEND_DIR = BASE_DIR / "backend"
 
-# DATA_DIR is configurable via environment for RPM (/var/lib/ucm) vs DEB (/opt/ucm/data)
+# DATA_DIR is set by the packaging: /opt/ucm/data under the DEB, the RPM and the
+# container image, and BASE_DIR/data for a source checkout that sets nothing.
 DATA_DIR = Path(os.environ.get("DATA_DIR", str(BASE_DIR / "data")))
 
 # Ensure data directories exist (may fail for permission reasons - that's OK)
@@ -217,10 +218,12 @@ class Config:
     RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
     RATE_LIMIT_PER_HOUR = int(os.getenv("RATE_LIMIT_PER_HOUR", "1000"))
     
-    # Logging
+    # Logging. LOG_FILE is the fallback application log path (utils.app_log):
+    # the data directory is writable on every deployment, unlike /var/log/ucm.
+    # The audit trail has no file: it is a hash-chained database table, shipped
+    # off-box by services.syslog_service.
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE = DATA_DIR / "ucm.log"
-    AUDIT_LOG_FILE = DATA_DIR / "audit.log"
     
     # CORS - auto-include FQDN and hostname
     _https_port = int(os.getenv("HTTPS_PORT", "8443"))

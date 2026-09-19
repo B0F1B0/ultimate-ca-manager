@@ -434,7 +434,8 @@
     "remove": "Remover",
     "continue": "Continuar",
     "keyRecovery": "Recuperação de chaves",
-    "preparing": "Preparando…"
+    "preparing": "Preparando…",
+    "systemLogs": "Registos do sistema"
   },
   "commandPalette": {
     "searchPlaceholder": "Pesquisar comandos, certificados, CAs, usuários...",
@@ -5080,5 +5081,39 @@
     "title": "Novidades do UCM {{version}}",
     "installedOn": "Instalada em {{date}}",
     "noNotes": "Não foi possível carregar as notas da versão. Consulte o registo de alterações em Definições › Atualizações."
+  },
+  "logs": {
+    "title": "Registos do sistema",
+    "subtitle": "O registo da aplicação do servidor, o mais recente primeiro.",
+    "level": "Nível de registo",
+    "lines": "Linhas",
+    "searchPlaceholder": "Procurar nas mensagens",
+    "empty": "Nenhuma linha corresponde a estes filtros.",
+    "unavailable": "Ainda não existe ficheiro de registo da aplicação nesta instalação.",
+    "readingFrom": "A ler de",
+    "source": "Origem",
+    "sourceApp": "Aplicação",
+    "sourceAccess": "Acesso",
+    "sourceError": "Erros",
+    "sourceJournal": "Journal",
+    "component": "Componente",
+    "allComponents": "Todos os componentes",
+    "follow": "Registos em direto",
+    "time": "Hora",
+    "message": "Mensagem",
+    "levelShort": "Nível",
+    "from": "De",
+    "to": "Até",
+    "serverTime": "Horas na hora local do servidor",
+    "errors": "Erros",
+    "warnings": "Avisos",
+    "components": "Componentes",
+    "copyAll": "Copiar tudo",
+    "copySelected": "Copiar selecção",
+    "showing": "A mostrar as {{shown}} linhas mais recentes de {{matched}} correspondentes",
+    "scanCap": "Apenas a parte mais recente do ficheiro foi lida",
+    "linesOpt": "{{count}} linhas",
+    "filters": "Filtros",
+    "exclude": "Excluir"
   }
 }

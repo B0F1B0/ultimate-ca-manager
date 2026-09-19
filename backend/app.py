@@ -105,7 +105,8 @@ def create_app(config_name=None):
         _sh = _logging.StreamHandler(sys.stdout)
         _sh.setFormatter(_log_fmt)
         root_logger.addHandler(_sh)
-    elif app.config.get('TESTING'):
+
+    if app.config.get('TESTING'):
         # Never touch the production log from a test run: on a host that also
         # runs UCM, writing there pollutes real logs and — if the suite runs as
         # a different user — silently steals ownership of the file at rotation,
@@ -114,17 +115,10 @@ def create_app(config_name=None):
         _sh.setFormatter(_log_fmt)
         root_logger.addHandler(_sh)
     else:
-        # Native: write to /var/log/ucm/ucm.log (same file the docs reference)
-        _log_path = os.getenv('UCM_LOG_FILE', '/var/log/ucm/ucm.log')
-        try:
-            from logging.handlers import RotatingFileHandler
-            _fh = RotatingFileHandler(
-                _log_path, maxBytes=10 * 1024 * 1024, backupCount=5
-            )
-            _fh.setFormatter(_log_fmt)
-            root_logger.addHandler(_fh)
-        except (PermissionError, FileNotFoundError):
-            # Fallback to stderr if log dir doesn't exist (e.g. during build)
+        # A file UCM can read back, on every deployment — Docker keeps its
+        # stdout stream above and gains log history that survives the container.
+        from utils.app_log import install_file_handler
+        if install_file_handler(root_logger, _log_fmt) is None and not _is_docker:
             _sh = _logging.StreamHandler(sys.stderr)
             _sh.setFormatter(_log_fmt)
             root_logger.addHandler(_sh)
