@@ -7,7 +7,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
-## [Unreleased]
+## [2.232] - 2026-09-21
 
 ### Added
 - The server's own application log can be read from the interface, under System Logs: the source (application log, gunicorn access and error streams, the systemd journal where it exists), a subsystem, a level floor, a time window, a search and an exclusion, all applied on the server, with secrets redacted before anything leaves the process and a traceback kept as one entry. Reading is restricted to administrators and deliberately not audited, since the audit trail is written to that same log and the page polls (#361, by @stefanelul2000).
