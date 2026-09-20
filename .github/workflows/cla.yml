@@ -145,7 +145,20 @@ jobs:
           done < authors.txt
 
           # A commit whose email GitHub links to no account counts as the pull
-          # request author's, checked above: the name on it cannot be verified.
+          # request author's, checked above. The name on it cannot be verified, so
+          # the author attests in the description that it is theirs to submit.
+          ATTEST='I confirm that commits with an unlinked author email are my own work, or that I am authorised to submit them.'
+          gh api "repos/$REPO/pulls/$PR/commits" --paginate \
+            --jq '.[] | select(.author == null) | .commit.author.name' | sort -u > unlinked.txt
+          if [ -s unlinked.txt ]; then
+            if ! gh pr view "$PR" --repo "$REPO" --json body --jq '.body' | tr -d '\r' \
+              | sed -nE 's/^[[:space:]]*[-*][[:space:]]*\[[xX]\][[:space:]]*//p' \
+              | sed 's/[[:space:]]*$//' | grep -Fxi -- "$ATTEST" > /dev/null; then
+              echo "::error::Commits by $(paste -sd ';' unlinked.txt | sed 's/;/, /g') carry an email linked to no"\
+                   "GitHub account. Tick this line in the pull request description: - [x] $ATTEST"
+              fail=1
+            fi
+          fi
 
           # Co-authors hold copyright on what they wrote, so they are checked too.
           # The trailer is free text: both the name and the address are looked up,
@@ -184,7 +197,12 @@ jobs:
           A co-author signs the same way, under their own GitHub username and in a
           pull request of their own, and the Co-authored-by trailer carries that
           username. A commit whose email is not linked to a GitHub account counts
-          as the pull request author's.
+          as the pull request author's, who ticks this line in the description:
+
+              - [x] I confirm that commits with an unlinked author email are my own work, or that I am authorised to submit them.
+
+          Anyone else who took part still signs for themselves, named in a
+          Co-authored-by trailer.
 
           You keep the copyright on your work. The agreement lets the project
           distribute it under its free licence and, separately, under a commercial
