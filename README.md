@@ -64,6 +64,7 @@
 - **Deploy Hooks** -- Push issued and renewed certificates to remote hosts over SSH/SFTP: key-based auth (generated ed25519 or imported key, encrypted at rest), host-key pinning on first connect, per-binding destination paths (cert / key / full chain, the chain without the self-signed root unless the binding asks for it, written atomically), one fixed reload command per target, durable delivery queue with retries and per-delivery history and a **same-host preset** for services running next to UCM
 - **Backup & Restore** -- Manual and scheduled encrypted backups with retention policies
 - **Diagnostic Log Bundle** -- One-click download (Settings → About → Diagnostic) of application logs, error log, systemd journal and a secret-free system diagnostic as a ZIP, with sensitive tokens redacted
+- **System Log Viewer** -- Browse the application, access, error and systemd journal logs from the UI, filtered by level, time window and text, with secrets redacted
 - **Prometheus Metrics** -- opt-in, bearer-gated `/metrics` endpoint exposing certificate, CA, scheduler, webhook and ACME counters
 - **Scheduler** -- admin view of background tasks (expiry checks, CRL refresh, webhook delivery, backups, auto-renewal) with status and run-now
 - **Self-serving HTTPS** -- apply any issued certificate to the web UI; the binding follows renewals automatically (files re-materialized, service restarted)
