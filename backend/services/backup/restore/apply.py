@@ -164,7 +164,7 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
         setattr(instance, attribute_of.get(name, name),
                 _coerce(value, column, f"{section_name}.{name}"))
     for column, value in legacy_defaults(section_name, row).items():
-        setattr(instance, column, value)
+        setattr(instance, attribute_of.get(column, column), value)
 
 
 def _unplaceable_reference(section_name, section, name, row, column) -> None:

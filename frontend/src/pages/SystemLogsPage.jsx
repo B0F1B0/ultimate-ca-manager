@@ -65,7 +65,7 @@ export default function SystemLogsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [exclude, setExclude] = useState('')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  useEffect(() => { setSelectedIds(new Set()) }, [result])   // ids are row indexes
+  useEffect(() => { setSelectedIds((prev) => (prev.size ? new Set() : prev)) }, [result])   // ids are row indexes
   const query = useSettled(search)
   const omit = useSettled(exclude)
 
