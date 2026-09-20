@@ -24,6 +24,8 @@ line added to `signatures/cla-v1.1.md`, in that same pull request:
 ```
 
 A check on the pull request tells you if an author is missing, co-authors included.
+A commit whose email GitHub links to no account counts as yours: tick the
+attestation line the pull request template carries.
 You are asked once, and the signature covers everything you have contributed, before
 and after.
 
