@@ -2,7 +2,7 @@
  * System Logs Page - Migrated to ResponsiveLayout
  * The server's own application log: filter by source, component, level and time
  */
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Stack, ArrowsClockwise, Copy, Warning, XCircle, Database, Cube, FunnelSimple
@@ -65,10 +65,18 @@ export default function SystemLogsPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [exclude, setExclude] = useState('')
   const [selectedIds, setSelectedIds] = useState(() => new Set())
+  useEffect(() => { setSelectedIds((prev) => (prev.size ? new Set() : prev)) }, [result])   // ids are row indexes
   const query = useSettled(search)
   const omit = useSettled(exclude)
 
+  // Only the newest request may fill the page: a slow read of one source must
+  // not land over the filters chosen since, and a poll never stacks on a read.
+  const sequence = useRef(0)
+  const inFlight = useRef(false)
   const load = useCallback(async (quiet = false) => {
+    if (quiet && inFlight.current) return
+    const mine = ++sequence.current
+    inFlight.current = true
     if (!quiet) setLoading(true)
     try {
       const response = await systemService.getApplicationLog({
@@ -79,12 +87,16 @@ export default function SystemLogsPage() {
         ...(until ? { until } : {}),
         ...(omit ? { exclude: omit } : {}),
       })
-      setResult(extractData(response))
+      if (mine === sequence.current) setResult(extractData(response))
     } catch {
+      if (mine !== sequence.current) return
       if (!quiet) showError(t('logs.unavailable'))
       setResult((prev) => (quiet ? prev : null))
     } finally {
-      if (!quiet) setLoading(false)
+      if (mine === sequence.current) {
+        inFlight.current = false
+        if (!quiet) setLoading(false)
+      }
     }
   }, [source, component, level, lines, query, since, until, omit, showError, t])
 
@@ -196,13 +208,11 @@ export default function SystemLogsPage() {
     },
   ], [t])
 
-  // Copied in the log's own shape, field for field: asctime, [name], level,
-  // message, as the formatter in app.py writes it. Level and component the
-  // other way round read the same to a person and parse back as neither, which
-  // matters when the line is pasted into an issue and read by this same page.
+  // Copied as the log wrote it, whatever the source: the server keeps each
+  // record's raw line, so a pasted line parses back on this same page.
   const copy = (subset) => {
     const text = subset
-      .map((l) => [l.ts, l.logger && `[${l.logger}]`, l.level, l.message].filter(Boolean).join(' '))
+      .map((l) => l.raw ?? [l.ts, l.logger && `[${l.logger}]`, l.level, l.message].filter(Boolean).join(' '))
       .join('\n')
     navigator.clipboard.writeText(text).then(
       () => showSuccess(t('common.copy')),

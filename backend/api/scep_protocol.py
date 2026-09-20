@@ -229,7 +229,7 @@ def scep_endpoint(profile_slug=None):
     logger.info(
         "SCEP request: operation=%s method=%s profile=%s from=%s ua=%r",
         operation or '(none)', request.method, profile_slug or '(default)',
-        client_ip(), request.headers.get('User-Agent', ''),
+        client_ip(), request.headers.get('User-Agent', '')[:120],
     )
 
     if not operation:

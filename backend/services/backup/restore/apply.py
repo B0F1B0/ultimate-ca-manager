@@ -125,6 +125,19 @@ def apply_section(section_name: str, rows: List[Dict[str, Any]],
     return applied
 
 
+# A column added after an archive was written: the archive's silence means the
+# value its author's version implied, not the model's default of today.
+LEGACY_DEFAULTS = {
+    'deploy_bindings': {'include_root': True},   # every fullchain carried the root before 089
+}
+
+
+def legacy_defaults(section_name, row) -> dict:
+    """The values an older archive implied for the columns it does not name."""
+    return {column: value for column, value in LEGACY_DEFAULTS.get(section_name, {}).items()
+            if column not in row}
+
+
 def _apply_row(section_name, section, instance, row, columns, attribute_of, plan):
     for name, value in row.items():
         if name.startswith('_') or name.endswith(REFERENCE_SUFFIX):
@@ -150,6 +163,8 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
 
         setattr(instance, attribute_of.get(name, name),
                 _coerce(value, column, f"{section_name}.{name}"))
+    for column, value in legacy_defaults(section_name, row).items():
+        setattr(instance, attribute_of.get(column, column), value)
 
 
 def _unplaceable_reference(section_name, section, name, row, column) -> None:

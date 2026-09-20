@@ -14,8 +14,8 @@ ownership. It grants a licence, and it lets that licence be passed on.
 This document is adapted from the Apache Software Foundation Individual
 Contributor License Agreement v2.0.
 
-**Version 1.0, 16 September 2026.** Signatures are recorded against this version in
-`signatures/cla-v1.md`. A later version carries a new number and its own file, and
+**Version 1.1, 16 September 2026.** Signatures are recorded against this version in
+`signatures/cla-v1.1.md`. A later version carries a new number and its own file, and
 signing one version never signs another.
 
 ---

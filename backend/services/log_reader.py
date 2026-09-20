@@ -170,11 +170,15 @@ def parse(text: str, source: str = APP) -> list[dict]:
                 record = build(match)
                 break
         if record is not None:
+            # The line as written, so a copy of the record is the log's own text
+            record['raw'] = line
             records.append(record)
         elif records:
             records[-1]['message'] += '\n' + line
+            records[-1]['raw'] += '\n' + line
         elif line:
-            records.append({'ts': None, 'logger': None, 'level': None, 'message': line})
+            records.append({'ts': None, 'logger': None, 'level': None,
+                            'message': line, 'raw': line})
     return records
 
 
@@ -193,16 +197,22 @@ def server_timezone() -> dict:
     }
 
 
-def _parse_bound(value: Optional[str]) -> Optional[datetime]:
-    """Read a time bound, tolerating the forms a browser's datetime-local sends."""
+def _parse_bound(value: Optional[str], end: bool = False) -> Optional[datetime]:
+    """Read a time bound, tolerating the forms a browser's datetime-local sends.
+
+    An end bound given to the minute, or to the day, closes that minute or
+    that day: 01:08 as an end means up to 01:08:59.
+    """
     if not value:
         return None
     text = value.strip().replace('T', ' ')
-    for fmt in (TS_FORMAT, '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+    for fmt, tail in ((TS_FORMAT, None), ('%Y-%m-%d %H:%M', {'second': 59}),
+                      ('%Y-%m-%d', {'hour': 23, 'minute': 59, 'second': 59})):
         try:
-            return datetime.strptime(text, fmt)
+            moment = datetime.strptime(text, fmt)
         except ValueError:
             continue
+        return moment.replace(**tail) if end and tail else moment
     return None
 
 
@@ -256,7 +266,7 @@ def filter_records(records: list[dict], level: Optional[str] = None,
     include = _matcher(query)
     omit = _matcher(exclude)
     prefix = (logger or '').strip()
-    start, end = _parse_bound(since), _parse_bound(until)
+    start, end = _parse_bound(since), _parse_bound(until, end=True)
 
     def within(record):
         # A bound asks for records between two instants, so one carrying no

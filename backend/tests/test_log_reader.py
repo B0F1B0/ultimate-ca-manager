@@ -58,7 +58,8 @@ class TestParse:
     def test_an_orphan_line_is_kept_with_no_level(self):
         records = log_reader.parse('gunicorn starting, not our format\n')
         assert records == [{'ts': None, 'logger': None, 'level': None,
-                            'message': 'gunicorn starting, not our format'}]
+                            'message': 'gunicorn starting, not our format',
+                            'raw': 'gunicorn starting, not our format'}]
 
     def test_blank_lines_do_not_become_records(self):
         assert log_reader.parse('\n\n') == []

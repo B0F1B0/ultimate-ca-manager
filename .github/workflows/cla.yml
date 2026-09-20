@@ -49,7 +49,7 @@ jobs:
           # Accounts that never sign: the maintainer, and bots whose commits are
           # generated rather than authored. Named one by one on purpose: a wildcard
           # such as *[bot] would exempt any account someone chooses to call a bot.
-          EXEMPT='neyslim dependabot[bot] github-actions[bot] renovate[bot] copilot'
+          EXEMPT='neyslim dependabot[bot] github-actions[bot] renovate[bot] copilot app/dependabot app/github-actions app/renovate app/copilot'
 
           # refs/pull/N/head exists on the base repository for every pull request,
           # fork or not, so one token reaches both sides.
@@ -84,7 +84,7 @@ jobs:
                 who = $2; stmt = $4
                 gsub(/^[ \t]+|[ \t]+$/, "", who)
                 gsub(/^[ \t]+|[ \t]+$/, "", stmt)
-                if (stmt == want && who != "" && who !~ /^-+$/ && tolower(who) != "github username")
+                if (stmt == want && who != "" && who !~ /^-+$/ && tolower(who) != "github username" && tolower(who) != "your-github-username")
                   print tolower(who)
               }' "$1" | sort -u
           }
@@ -100,6 +100,28 @@ jobs:
             fi
           fi
 
+          # A signature is added by its own signatory, in a pull request of theirs:
+          # a line naming anyone else is not a signature, whoever wrote it.
+          author=$(gh pr view "$PR" --repo "$REPO" --json author --jq '.author.login' \
+            | tr '[:upper:]' '[:lower:]')
+          while IFS= read -r who; do
+            [ -z "$who" ] && continue
+            if [ "$who" != "$author" ]; then
+              echo "::error::This pull request adds a signature for $who, but its author"\
+                   "is $author. Each contributor signs in a pull request of their own."
+              fail=1
+            fi
+          done < <(comm -13 signed-base.txt <(signatories sig-pr.txt))
+          # A signature on file is kept byte for byte: its date and statement are
+          # the signatory's, not the next contributor's to touch.
+          while IFS= read -r row; do
+            [ -z "$row" ] && continue
+            if ! grep -Fxq -- "$row" sig-pr.txt; then
+              echo "::error::A signature on file was altered by this pull request: $row"
+              fail=1
+            fi
+          done < <(grep -F -- "$STATEMENT" sig-base.txt || true)
+
           echo "Signatories on file: $(wc -l < signed.txt)"
 
           is_signed() {
@@ -107,7 +129,7 @@ jobs:
             who="$1"
             low=$(printf '%s' "$who" | tr '[:upper:]' '[:lower:]')
             case " $EXEMPT " in *" $low "*) return 0 ;; esac
-            grep -Fxq "$low" signed.txt
+            grep -Fxq -- "$low" signed.txt
           }
 
           missing=""
@@ -134,8 +156,10 @@ jobs:
           # Co-authors hold copyright on what they wrote, so they are checked too.
           # The trailer is free text: both the name and the address are looked up,
           # literally, and either one being on file is enough.
+          # grep finds nothing on most pull requests, and under pipefail that must
+          # not be a failure.
           gh api "repos/$REPO/pulls/$PR/commits" --paginate --jq '.[] | .commit.message' \
-            | grep -oiP '^Co-authored-by:\s*\K.*' | sort -u > coauthors.txt
+            | { grep -oiP '^Co-authored-by:\s*\K.*' || true; } | sort -u > coauthors.txt
           while read -r line; do
             [ -z "$line" ] && continue
             name=${line%%<*}
@@ -163,8 +187,10 @@ jobs:
 
               | your-github-username | YYYY-MM-DD | I have read and agree to the UCM CLA v1.1 |
 
-          A co-author, or an author whose commit email is not linked to a GitHub
-          account, signs under the exact name or address that appears on the commit.
+          A co-author signs the same way, under their own GitHub username and in a
+          pull request of their own, and the Co-authored-by trailer carries that
+          username. An author whose commit email is not linked to a GitHub account
+          is checked under the exact name on the commit.
 
           You keep the copyright on your work. The agreement lets the project
           distribute it under its free licence and, separately, under a commercial

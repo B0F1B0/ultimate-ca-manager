@@ -400,4 +400,47 @@ describe('SystemLogsPage', () => {
     render(<SystemLogsPage />)
     await waitFor(() => expect(mocks.showError).toHaveBeenCalledWith('logs.unavailable'))
   })
+
+  it('ignores a slow answer once newer filters have asked again', async () => {
+    await renderPage()
+    let answerSlow
+    mocks.getApplicationLog.mockImplementationOnce(() => new Promise((resolve) => { answerSlow = resolve }))
+    fireEvent.change(screen.getByLabelText('logs.level'), { target: { value: 'ERROR' } })
+    await waitFor(() => expect(mocks.getApplicationLog).toHaveBeenCalledTimes(2))
+
+    mocks.getApplicationLog.mockImplementationOnce(async () => ({
+      data: { ...DEFAULT_DATA, lines: [{ ...LINES[0], message: 'the fresh answer' }] },
+    }))
+    fireEvent.change(screen.getByLabelText('logs.lines'), { target: { value: '1000' } })
+    await screen.findByText('the fresh answer')
+
+    answerSlow({ data: { ...DEFAULT_DATA, lines: [{ ...LINES[0], message: 'the stale answer' }] } })
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.queryByText('the stale answer')).toBeNull()
+    expect(screen.getByText('the fresh answer')).toBeInTheDocument()
+  })
+
+  it('forgets the ticked rows when the data underneath them changes', async () => {
+    await renderPage()
+    fireEvent.click(screen.getByLabelText('select-0'))
+    expect(screen.getByText('logs.copySelected')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('logs.level'), { target: { value: 'ERROR' } })
+    await waitFor(() => expect(screen.queryByText('logs.copySelected')).toBeNull())
+  })
+
+  it('copies the line the log wrote, whatever the source', async () => {
+    await renderPage({
+      ...DEFAULT_DATA, source: 'access',
+      lines: [
+        { ts: '2026-09-19 13:41:36', logger: '10.0.0.1', level: null, message: '"GET / HTTP/1.1" 200', raw: '10.0.0.1 - - [19/Sep/2026:13:41:36 +0200] "GET / HTTP/1.1" 200' },
+        { ts: '2026-09-19 13:41:37', logger: '10.0.0.2', level: null, message: '"GET /x HTTP/1.1" 404', raw: '10.0.0.2 - - [19/Sep/2026:13:41:37 +0200] "GET /x HTTP/1.1" 404' },
+      ],
+    })
+    fireEvent.click(screen.getByText('logs.copyAll'))
+    await waitFor(() => expect(mocks.writeText).toHaveBeenCalled())
+    expect(mocks.writeText.mock.calls[0][0]).toBe(
+      '10.0.0.2 - - [19/Sep/2026:13:41:37 +0200] "GET /x HTTP/1.1" 404\n'
+      + '10.0.0.1 - - [19/Sep/2026:13:41:36 +0200] "GET / HTTP/1.1" 200')
+  })
 })

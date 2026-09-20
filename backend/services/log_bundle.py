@@ -105,16 +105,35 @@ _add(r'(?i)((?:set-)?cookie\s*[:=]\s*).+', r'\1[redacted]')
 _add(r'(?i)\b([a-z][a-z0-9+.\-]*://[^\s:/@]+):[^\s/@]+@', r'\1:[redacted]@')
 # JWT-ish: three base64url segments separated by dots, middle one reasonably long.
 _add(r'\beyJ[A-Za-z0-9_\-=]{6,}\.[A-Za-z0-9_\-=]{6,}\.[A-Za-z0-9_\-=]{6,}\b', '[redacted-jwt]')
-# Whole PEM private-key blocks (RSA, EC, OPENSSH, ENCRYPTED, ...).
-_add(r'-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----',
-     '[redacted-private-key]', flags=re.DOTALL)
+# Whole PEM private-key blocks (RSA, EC, OPENSSH, ENCRYPTED, ...). Scanned in
+# one pass: a lazy `.*?` between the markers is quadratic on a log seeded with
+# unclosed BEGIN lines, which anyone can write there through a User-Agent.
+_PEM_BEGIN = re.compile(r'-----BEGIN [A-Z ]*PRIVATE KEY-----')
+_PEM_END = re.compile(r'-----END [A-Z ]*PRIVATE KEY-----')
+
+
+def _redact_pem(text: str) -> str:
+    out, pos = [], 0
+    while True:
+        begin = _PEM_BEGIN.search(text, pos)
+        if begin is None:
+            out.append(text[pos:])
+            return ''.join(out)
+        end = _PEM_END.search(text, begin.end())
+        if end is None:
+            # No END anywhere after this marker: nothing later can close either
+            out.append(text[pos:])
+            return ''.join(out)
+        out.append(text[pos:begin.start()])
+        out.append('[redacted-private-key]')
+        pos = end.end()
 
 
 def redact(text: str) -> str:
     """Apply every sanitisation pattern to ``text`` and return the redacted copy."""
     for pat, repl in _PATTERNS:
         text = pat.sub(repl, text)
-    return text
+    return _redact_pem(text)
 
 
 # --- file collection -------------------------------------------------------
