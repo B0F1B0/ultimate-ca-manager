@@ -391,6 +391,15 @@ SECTIONS: Dict[str, Section] = {
         exclude={**_SURROGATE},
         references={'target_id': 'deploy_targets', 'certificate_id': 'certificates'},
     ),
+    'crl_deploy_bindings': Section(
+        model='models.deploy:CRLDeployBinding',
+        identity=('target_id', 'ca_id'),
+        exclude={**_SURROGATE},
+        references={
+            'target_id': 'deploy_targets',
+            'ca_id': 'certificate_authorities',
+        },
+    ),
     'scan_profiles': Section(
         model='models.discovered_certificate:ScanProfile',
         identity=('name',),

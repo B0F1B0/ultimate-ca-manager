@@ -44,7 +44,7 @@ describe('DeploySection same-host preset', () => {
 
     expect(screen.getByDisplayValue('127.0.0.1')).toBeInTheDocument()
     expect(screen.getByDisplayValue('ucm-deploy')).toBeInTheDocument()
-    expect(screen.getByDisplayValue('sudo systemctl reload nginx')).toBeInTheDocument()
+    expect(screen.queryByText('deploy.reloadCommand')).not.toBeInTheDocument()
     expect(screen.getByText('deploy.sameHostHint')).toBeInTheDocument()
   })
 })
