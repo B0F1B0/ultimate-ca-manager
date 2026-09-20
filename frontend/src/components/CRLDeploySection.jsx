@@ -41,9 +41,9 @@ export function CRLDeploySection({ ca, hasCRL }) {
   const canWriteDeploy = hasPermission('write:deploy')
   const canDeleteDeploy = hasPermission('delete:deploy')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent = false) => {
     if (!ca?.id || !canReadDeploy) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     try {
       const [bindingRes, targetRes] = await Promise.all([
         deployService.getCRLBindings({ ca_id: ca.id }),
@@ -52,9 +52,11 @@ export function CRLDeploySection({ ca, hasCRL }) {
       setBindings(extractData(bindingRes) || [])
       setTargets((extractData(targetRes) || []).filter(target => target.enabled))
     } catch (error) {
-      showError(error.message || t('crlDeploy.loadFailed', 'Failed to load CRL deployments'))
+      if (!silent) {
+        showError(error.message || t('crlDeploy.loadFailed', 'Failed to load CRL deployments'))
+      }
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [ca?.id, canReadDeploy, showError, t])
 
@@ -65,9 +67,13 @@ export function CRLDeploySection({ ca, hasCRL }) {
   useEffect(() => {
     if (!hasPendingDelivery) return undefined
     setNow(Date.now())
-    const interval = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(interval)
-  }, [hasPendingDelivery])
+    const countdownInterval = setInterval(() => setNow(Date.now()), 1000)
+    const refreshInterval = setInterval(() => load(true), 5000)
+    return () => {
+      clearInterval(countdownInterval)
+      clearInterval(refreshInterval)
+    }
+  }, [hasPendingDelivery, load])
 
   const create = async (event) => {
     event.preventDefault()
