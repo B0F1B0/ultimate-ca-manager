@@ -100,6 +100,27 @@ jobs:
             fi
           fi
 
+          # A signature is added by its own signatory, in a pull request of theirs:
+          # a line naming anyone else is not a signature, whoever wrote it.
+          author=$(gh pr view "$PR" --repo "$REPO" --json author --jq '.author.login' \
+            | tr '[:upper:]' '[:lower:]')
+          for who in $(comm -13 signed-base.txt <(signatories sig-pr.txt)); do
+            if [ "$who" != "$author" ]; then
+              echo "::error::This pull request adds a signature for $who, but its author"\
+                   "is $author. Each contributor signs in a pull request of their own."
+              fail=1
+            fi
+          done
+          # A signature on file is kept byte for byte: its date and statement are
+          # the signatory's, not the next contributor's to touch.
+          while IFS= read -r row; do
+            [ -z "$row" ] && continue
+            if ! grep -Fxq -- "$row" sig-pr.txt; then
+              echo "::error::A signature on file was altered by this pull request: $row"
+              fail=1
+            fi
+          done < <(grep -F -- "$STATEMENT" sig-base.txt || true)
+
           echo "Signatories on file: $(wc -l < signed.txt)"
 
           is_signed() {
@@ -134,8 +155,10 @@ jobs:
           # Co-authors hold copyright on what they wrote, so they are checked too.
           # The trailer is free text: both the name and the address are looked up,
           # literally, and either one being on file is enough.
+          # grep finds nothing on most pull requests, and under pipefail that must
+          # not be a failure.
           gh api "repos/$REPO/pulls/$PR/commits" --paginate --jq '.[] | .commit.message' \
-            | grep -oiP '^Co-authored-by:\s*\K.*' | sort -u > coauthors.txt
+            | { grep -oiP '^Co-authored-by:\s*\K.*' || true; } | sort -u > coauthors.txt
           while read -r line; do
             [ -z "$line" ] && continue
             name=${line%%<*}
