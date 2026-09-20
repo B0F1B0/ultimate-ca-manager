@@ -10,6 +10,7 @@ export default {
           { label: 'Auto-régénération', text: 'Activer la régénération automatique des CRL par CA' },
           { label: 'Régénération manuelle', text: 'Forcer la régénération immédiate de la CRL' },
           { label: 'Télécharger la CRL', text: 'Télécharger le fichier CRL au format DER ou PEM' },
+          { label: 'Déploiement de CRL', text: 'Associer une cible SSH/SFTP pour transférer automatiquement chaque CRL régénérée. Chaque liaison définit le format, le chemin de destination, les CRL parentes et une commande de rechargement facultative' },
           { label: 'URL CDP', text: 'URL du point de distribution CRL à intégrer dans les certificats' },
           { label: 'Validité', text: 'Validité de la CRL par CA de 1 jour à 5 ans (90j/180j/1a/3a/5a pour les CA hors ligne qui ne peuvent pas re-signer à l\'échéance). Un avertissement s\'affiche au-delà d\'un an, les parties utilisatrices peuvent conserver des données de révocation périmées pendant toute la fenêtre' },
           { label: 'CRL externe', text: "Les CA sans clé ou hors ligne ne peuvent pas auto-signer une CRL, téléversez depuis le panneau de détails de la CA une CRL générée auprès de la clé hors ligne ; elle est validée (signature, émetteur, monotonie) et servie à la même URL CDP (v2.215)" },

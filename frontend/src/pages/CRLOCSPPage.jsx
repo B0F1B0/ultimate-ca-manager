@@ -19,6 +19,7 @@ import {
   CompactSection, CompactGrid, CompactField
 } from '../components'
 import { ToggleSwitch } from '../components/ui/ToggleSwitch'
+import { CRLDeploySection } from '../components/CRLDeploySection'
 import { casService, crlService } from '../services'
 import { useNotification } from '../contexts'
 import { usePermission, useClipboard } from '../hooks'
@@ -715,6 +716,8 @@ export default function CRLOCSPPage() {
           <CompactField autoIcon="nextUpdate" label={t('crlOcsp.nextUpdate')} value={selectedCRL?.next_update ? formatDate(selectedCRL.next_update) : '-'} />
         </CompactGrid>
       </CompactSection>
+
+      <CRLDeploySection ca={selectedCA} hasCRL={Boolean(selectedCRL)} />
 
       {/* OCSP Configuration */}
       <CompactSection title={t('crlOcsp.ocspConfig')} icon={Pulse}>

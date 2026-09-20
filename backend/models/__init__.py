@@ -36,7 +36,7 @@ from models.ca_template_pin import CATemplatePin
 from models.webhook_delivery import WebhookDelivery
 from models.key_recovery import KeyRecoveryRequest
 from models.revoked_serial import RevokedSerial
-from models.deploy import DeployTarget, DeployBinding, DeployDelivery
+from models.deploy import DeployTarget, DeployBinding, CRLDeployBinding, DeployDelivery
 
 from utils.datetime_utils import utc_now, utc_isoformat
 
@@ -59,5 +59,5 @@ __all__ = [
     "KeyRecoveryRequest",
     "ADConnectorConfig",
     "RevokedSerial",
-    "DeployTarget", "DeployBinding", "DeployDelivery",
+    "DeployTarget", "DeployBinding", "CRLDeployBinding", "DeployDelivery",
 ]

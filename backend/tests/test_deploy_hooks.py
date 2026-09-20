@@ -32,7 +32,6 @@ def _create_target(auth_client, **overrides):
         'name': _name(),
         'host': 'web01.example.test',
         'username': 'ucm-deploy',
-        'reload_command': 'systemctl reload nginx',
     }
     payload.update(overrides)
     return assert_success(post_json(auth_client, f'{BASE}/targets', payload), status=201)
@@ -45,6 +44,7 @@ def _create_binding(auth_client, target_id, cert_id, **overrides):
         'cert_path': '/etc/ssl/ucm/cert.pem',
         'key_path': '/etc/ssl/ucm/key.pem',
         'fullchain_path': '/etc/ssl/ucm/fullchain.pem',
+        'reload_command': 'systemctl reload nginx',
     }
     payload.update(overrides)
     return assert_success(post_json(auth_client, f'{BASE}/bindings', payload), status=201)
@@ -112,6 +112,7 @@ class TestTargets:
         assert data['host_key_pinned'] is False
         assert data['enabled'] is True
         assert data['port'] == 22
+        assert 'reload_command' not in data
 
     def test_private_key_encrypted_at_rest(self, app, auth_client):
         data = _create_target(auth_client)
@@ -528,6 +529,41 @@ class TestReviewFindings:
                        {'fullchain_path': '/etc/ssl/ucm/cert.pem'})
         assert_error(r, 400)
 
+    def test_binding_patch_failure_starts_retry_after_immediate_attempt(
+            self, app, auth_client, create_cert, monkeypatch):
+        from models import db, DeployDelivery
+        from utils.datetime_utils import utc_now
+
+        target = _create_target(auth_client)
+        cert = create_cert()
+        binding = _create_binding(auth_client, target['id'], cert['id'])
+        with app.app_context():
+            initial = DeployDelivery.query.filter_by(
+                binding_id=binding['id'], binding_type='certificate').one()
+            initial.status = 'failed'
+            initial.attempts = initial.max_attempts
+            initial.last_error = 'Reload command exited 1'
+            db.session.commit()
+
+        transport = _FakeSSH(monkeypatch)
+        transport.reload_result = (1, 'reload failed')
+        assert_success(patch_json(
+            auth_client, f"{BASE}/bindings/{binding['id']}",
+            {'reload_command': 'systemctl reload apache2'}))
+
+        with app.app_context():
+            rows = DeployDelivery.query.filter_by(
+                binding_id=binding['id'], binding_type='certificate').all()
+            assert len(rows) == 2
+            failed = next(row for row in rows if row.status == 'failed')
+            pending = next(row for row in rows if row.status == 'pending')
+            assert failed.event_type == 'initial'
+            assert pending.event_type == 'binding.updated'
+            assert pending.attempts == 1
+            assert 'Reload command exited 1' in pending.last_error
+            assert pending.next_attempt_at > utc_now()
+        assert transport.commands == ['systemctl reload apache2']
+
     def _admin_scoped_key(self, app, permissions, name):
         """API key owned by a DEDICATED admin user, scoped to the given deploy
         permissions. A dedicated owner (not the shared 'admin') keeps this test
@@ -572,7 +608,7 @@ class TestReviewFindings:
         client = app.test_client()
 
         r = client.patch(f"{BASE}/targets/{target['id']}",
-                         data=json.dumps({'reload_command': 'true'}),
+                         data=json.dumps({'enabled': False}),
                          content_type='application/json',
                          headers={'X-API-Key': write_key})
         assert r.status_code == 200, r.data[:300]

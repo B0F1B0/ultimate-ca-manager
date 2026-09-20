@@ -66,7 +66,7 @@ export default {
         items: [
           { label: 'Ziel verknüpfen', text: 'Aus der Zertifikat-Detailansicht: ein Deploy-Ziel wählen und absolute Zielpfade für Zertifikat, privaten Schlüssel und/oder vollständige Kette festlegen (mindestens einen)' },
           { label: 'Derselbe Host', text: 'Für eine Bereitstellung auf dem UCM-Host selbst ein SFTP-Ziel unter 127.0.0.1 mit einem dedizierten SSH-Konto verwenden; der Sandbox-Dienst kann nicht außerhalb seines Datenverzeichnisses schreiben' },
-          { label: 'Automatisch', text: 'Bei Ausstellung und Erneuerung werden die verknüpften Dateien erneut übertragen und der Reload-Befehl des Ziels ausgeführt, Zustellungen werden mit Wiederholungen in die Warteschlange gestellt' },
+          { label: 'Automatisch', text: 'Bei Ausstellung und Erneuerung werden die verknüpften Dateien erneut übertragen und der Reload-Befehl dieser Zertifikats-Bereitstellung ausgeführt, Zustellungen werden mit Wiederholungen in die Warteschlange gestellt' },
           { label: 'Dateien', text: 'Werden atomar an den exakt konfigurierten Pfaden geschrieben (übergeordnetes Verzeichnis muss existieren): Schlüssel 0600, Zertifikat/Kette 0644' },
           { label: 'Jetzt bereitstellen', text: 'Manuelle Übertragung aus der Detailansicht, mit Zustellstatus und letztem Fehler pro Ziel' },
         ]

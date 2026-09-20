@@ -14,3 +14,4 @@ not counted as a signature.
 | GitHub username | Date | Statement |
 |---|---|---|
 | NeySlim | 2026-09-16 | I have read and agree to the UCM CLA v1.1 |
+| B0F1B0 | 2026-09-20 | I have read and agree to the UCM CLA v1.1 |

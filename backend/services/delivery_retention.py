@@ -150,12 +150,12 @@ def delete_endpoint_deliveries(endpoint_id: int) -> int:
             .delete(synchronize_session=False))
 
 
-def delete_binding_deliveries(binding_id: int) -> int:
+def delete_binding_deliveries(binding_id: int, binding_type: str = 'certificate') -> int:
     """The same for a deployment binding."""
     from models.deploy import DeployDelivery
 
     return (DeployDelivery.query
-            .filter_by(binding_id=binding_id)
+            .filter_by(binding_id=binding_id, binding_type=binding_type)
             .delete(synchronize_session=False))
 
 

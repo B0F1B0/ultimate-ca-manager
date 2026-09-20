@@ -1905,7 +1905,7 @@
     "title": "Implantação de certificados",
     "subtitle": "Envie certificados para hosts remotos via SSH",
     "helpTitle": "Hooks de implantação",
-    "helpDescription": "Na emissão e na renovação, o UCM envia os arquivos escolhidos (certificado, chave privada, cadeia completa) para os hosts remotos vinculados via SFTP e, em seguida, executa o comando de recarga do alvo via SSH. Use uma conta SSH dedicada com poucos privilégios em cada alvo: acesso de escrita aos caminhos dos certificados e permissão para recarregar o serviço, nada mais.",
+    "helpDescription": "Os destinos armazenam conexões SSH/SFTP reutilizáveis. Cada implantação de certificado ou CRL define seus próprios caminhos e o comando de recarga opcional. Use uma conta SSH dedicada com privilégios mínimos em cada destino.",
     "targets": "Alvos de implantação",
     "noTargets": "Nenhum alvo de implantação",
     "noTargetsDescription": "Crie um alvo para enviar certificados a um host remoto via SSH na emissão e na renovação.",
@@ -1939,7 +1939,7 @@
     "sameHostHint": "Para colocar chaves no próprio host UCM, use uma conta SSH dedicada; o serviço não pode gravar fora do diretório de dados.",
     "port": "Porta",
     "reloadCommand": "Comando de recarga",
-    "reloadCommandHint": "Opcional: executado via SSH após um envio bem-sucedido (exit 0 = sucesso). Um único comando fixo, sem templating.",
+    "reloadCommandHint": "Opcional para esta implementação: executado via SSH após uma transferência bem-sucedida (código de saída 0 = sucesso). Sem modelos.",
     "privateKeyOptional": "Chave privada SSH (opcional: deixe vazio para gerar uma chave ed25519)",
     "privateKeyRotate": "Nova chave privada SSH (deixe vazio para manter a atual)",
     "privateKeyPlaceholder": "Cole uma chave privada PEM/OpenSSH ou deixe vazio para gerar uma",
@@ -1964,11 +1964,22 @@
     "deployed": "Implantado em {{name}}",
     "deployFailed": "Falha na implantação",
     "lastDeployed": "Última implantação {{date}}",
+    "nextRetry": "Próxima tentativa {{date}} (em {{countdown}})",
     "status": {
       "delivered": "Implantado",
       "pending": "Pendente",
       "failed": "Falhou"
     }
+  },
+  "crlDeploy": {
+    "title": "Implementação de CRL", "description": "Transfere cada CRL completa atualizada para um destino de implementação SSH.",
+    "none": "A CRL desta CA não é implementada em nenhum destino.", "attach": "Associar destino", "attachFor": "Associar destino de CRL: {{name}}",
+    "path": "Caminho de destino da CRL", "includeParents": "Incluir CRLs superiores",
+    "includeParentsHelp": "Cria um pacote PEM com a CRL desta CA seguida pelas CRLs das CAs emissoras.", "withParents": "inclui CRLs superiores",
+    "deployNow": "Implementar agora", "loadFailed": "Falha ao carregar implementações de CRL", "created": "Destino de CRL associado e primeira transferência colocada em fila",
+    "createFailed": "Falha ao associar o destino de CRL", "deleteConfirm": "Remover esta implementação de CRL?", "remove": "Remover implementação de CRL",
+    "removed": "Implementação de CRL removida", "deleteFailed": "Falha ao remover a implementação de CRL", "deployed": "CRL implementada com sucesso",
+    "deployFailed": "Falha na implementação da CRL"
   },
   "trustStore": {
     "caTrust": "AC Trust",

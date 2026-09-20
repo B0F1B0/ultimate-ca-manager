@@ -1905,7 +1905,7 @@
     "title": "Despliegue de certificados",
     "subtitle": "Envíe certificados a hosts remotos por SSH",
     "helpTitle": "Hooks de despliegue",
-    "helpDescription": "En la emisión y la renovación, UCM envía los archivos elegidos (certificado, clave privada, cadena completa) a los hosts remotos vinculados por SFTP y luego ejecuta el comando de recarga del destino por SSH. Use una cuenta SSH dedicada con privilegios mínimos en cada destino: acceso de escritura a las rutas de los certificados y permiso para recargar el servicio, nada más.",
+    "helpDescription": "Los destinos almacenan conexiones SSH/SFTP reutilizables. Cada despliegue de certificado o CRL define sus propias rutas de destino y su comando de recarga opcional. Use una cuenta SSH dedicada con privilegios mínimos en cada destino.",
     "targets": "Destinos de despliegue",
     "noTargets": "No hay destinos de despliegue",
     "noTargetsDescription": "Cree un destino para enviar certificados a un host remoto por SSH en la emisión y la renovación.",
@@ -1939,7 +1939,7 @@
     "sameHostHint": "Para colocar claves en el propio host de UCM, use una cuenta SSH dedicada; el servicio no puede escribir fuera de su directorio de datos.",
     "port": "Puerto",
     "reloadCommand": "Comando de recarga",
-    "reloadCommandHint": "Opcional: se ejecuta por SSH tras un envío exitoso (exit 0 = éxito). Un solo comando fijo, sin plantillas.",
+    "reloadCommandHint": "Opcional para este despliegue: se ejecuta por SSH después de una transferencia correcta (código de salida 0 = éxito). Sin plantillas.",
     "privateKeyOptional": "Clave privada SSH (opcional: deje vacío para generar una clave ed25519)",
     "privateKeyRotate": "Nueva clave privada SSH (deje vacío para conservar la actual)",
     "privateKeyPlaceholder": "Pegue una clave privada PEM/OpenSSH, o deje vacío para generar una",
@@ -1964,11 +1964,22 @@
     "deployed": "Desplegado en {{name}}",
     "deployFailed": "Error en el despliegue",
     "lastDeployed": "Último despliegue {{date}}",
+    "nextRetry": "Próximo intento {{date}} (en {{countdown}})",
     "status": {
       "delivered": "Desplegado",
       "pending": "Pendiente",
       "failed": "Fallido"
     }
+  },
+  "crlDeploy": {
+    "title": "Despliegue de CRL", "description": "Transferir cada CRL completa actualizada a un destino de despliegue SSH.",
+    "none": "La CRL de esta CA no se despliega en ningún destino.", "attach": "Vincular destino", "attachFor": "Vincular destino de CRL: {{name}}",
+    "path": "Ruta de destino de la CRL", "includeParents": "Incluir CRL superiores",
+    "includeParentsHelp": "Crea un paquete PEM con la CRL de esta CA seguida de las CRL de las CA emisoras.", "withParents": "incluye CRL superiores",
+    "deployNow": "Desplegar ahora", "loadFailed": "No se pudieron cargar los despliegues de CRL", "created": "Destino de CRL vinculado y primera transferencia en cola",
+    "createFailed": "No se pudo vincular el destino de CRL", "deleteConfirm": "¿Quitar este despliegue de CRL?", "remove": "Quitar despliegue de CRL",
+    "removed": "Despliegue de CRL eliminado", "deleteFailed": "No se pudo eliminar el despliegue de CRL", "deployed": "CRL desplegada correctamente",
+    "deployFailed": "Error al desplegar la CRL"
   },
   "trustStore": {
     "caTrust": "Confianza de CA",

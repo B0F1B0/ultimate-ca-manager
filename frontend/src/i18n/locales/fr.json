@@ -1581,7 +1581,7 @@
     "title": "Déploiement de certificats",
     "subtitle": "Pousser les certificats vers des hôtes distants via SSH",
     "helpTitle": "Hooks de déploiement",
-    "helpDescription": "À l'émission et au renouvellement, UCM pousse les fichiers choisis (certificat, clé privée, chaîne complète) vers les hôtes distants liés via SFTP, puis exécute la commande de rechargement de la cible via SSH. Utilisez un compte SSH dédié à privilèges réduits sur chaque cible : accès en écriture aux chemins des certificats et permission de recharger le service, rien de plus.",
+    "helpDescription": "Les cibles stockent des connexions SSH/SFTP réutilisables. Chaque déploiement de certificat ou de CRL définit ses propres chemins de destination et sa commande de rechargement facultative. Utilisez un compte SSH dédié avec des privilèges minimaux sur chaque cible.",
     "targets": "Cibles de déploiement",
     "noTargets": "Aucune cible de déploiement",
     "noTargetsDescription": "Créez une cible pour pousser les certificats vers un hôte distant via SSH à l'émission et au renouvellement.",
@@ -1615,7 +1615,7 @@
     "sameHostHint": "Pour placer des clés sur l'hôte UCM lui-même, utilisez un compte SSH dédié ; le service ne peut pas écrire hors de son répertoire de données.",
     "port": "Port",
     "reloadCommand": "Commande de rechargement",
-    "reloadCommandHint": "Optionnel : exécutée via SSH après un envoi réussi (exit 0 = succès). Une seule commande fixe, sans templating.",
+    "reloadCommandHint": "Optionnel pour ce déploiement : exécutée via SSH après un transfert réussi (code de sortie 0 = succès). Aucun modèle de commande.",
     "privateKeyOptional": "Clé privée SSH (optionnel : laisser vide pour générer une clé ed25519)",
     "privateKeyRotate": "Nouvelle clé privée SSH (laisser vide pour conserver l'actuelle)",
     "privateKeyPlaceholder": "Collez une clé privée PEM/OpenSSH, ou laissez vide pour en générer une",
@@ -1640,6 +1640,7 @@
     "deployed": "Déployé vers {{name}}",
     "deployFailed": "Échec du déploiement",
     "lastDeployed": "Dernier déploiement {{date}}",
+    "nextRetry": "Prochaine tentative {{date}} (dans {{countdown}})",
     "status": {
       "delivered": "Déployé",
       "pending": "En attente",
@@ -3395,6 +3396,16 @@
     "pkcs12PasswordRequired": "Le mot de passe est requis pour les fichiers PKCS12/PFX",
     "pkcs12OutputPasswordRequired": "Le mot de passe est requis pour la sortie PKCS12",
     "pkcs12PasswordPlaceholder": "Mot de passe du fichier PKCS12/PFX"
+  },
+  "crlDeploy": {
+    "title": "Déploiement de CRL", "description": "Transférer chaque CRL complète mise à jour vers une cible de déploiement SSH.",
+    "none": "La CRL de cette AC n’est déployée sur aucune cible.", "attach": "Associer une cible", "attachFor": "Associer une cible CRL : {{name}}",
+    "path": "Chemin de destination de la CRL", "includeParents": "Inclure les CRL parentes",
+    "includeParentsHelp": "Crée un bundle PEM contenant la CRL de cette AC, suivie des CRL des AC émettrices.", "withParents": "inclut les CRL parentes",
+    "deployNow": "Déployer maintenant", "loadFailed": "Impossible de charger les déploiements de CRL", "created": "Cible CRL associée et premier transfert mis en attente",
+    "createFailed": "Impossible d’associer la cible CRL", "deleteConfirm": "Supprimer ce déploiement de CRL ?", "remove": "Supprimer le déploiement de CRL",
+    "removed": "Déploiement de CRL supprimé", "deleteFailed": "Impossible de supprimer le déploiement de CRL", "deployed": "CRL déployée avec succès",
+    "deployFailed": "Échec du déploiement de la CRL"
   },
   "trustStore": {
     "addCertificate": "Ajouter un certificat",

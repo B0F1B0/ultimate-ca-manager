@@ -587,6 +587,10 @@ def _seed_source():
 
     add('deploy_bindings', target_id=deploy_targets[1].id,
         certificate_id=leaves[1].id)
+    add('crl_deploy_bindings', target_id=deploy_targets[1].id,
+        ca_id=authorities[1].id, crl_path='/etc/ucm/xinst.crl',
+        format='pem', include_parent_crls=True,
+        reload_command='systemctl reload nginx')
 
     scan_profiles = [add('scan_profiles', name=f'xinst-scan-{suffix}')
                      for suffix in 'ab']
@@ -701,7 +705,8 @@ RESTORABLE_SECTIONS = tuple(
         # the sections it points at, so they are ordinary sections of the
         # round trip like any other.
         'role_permissions', 'group_members', 'webauthn_credentials',
-        'deploy_bindings', 'ca_template_pins', 'key_recovery_requests',
+        'deploy_bindings', 'crl_deploy_bindings', 'ca_template_pins',
+        'key_recovery_requests',
     ) if name not in ABORTS_THE_RESTORE
 )
 

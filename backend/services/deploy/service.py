@@ -1,7 +1,7 @@
 """Deploy hooks service (#299).
 
-Certificates bound to deploy targets are pushed over SFTP on issuance and
-renewal (and on demand), then the target's fixed reload command runs over SSH.
+Certificates and CRLs bound to deploy targets are pushed over SFTP after
+updates (and on demand), then the binding's optional reload command runs over SSH.
 Deliveries go through a durable queue drained by a scheduler task with
 exponential backoff — the same model as webhook deliveries: the issuing
 request is never blocked on SSH.
@@ -12,7 +12,10 @@ import logging
 import posixpath
 from datetime import timedelta
 
-from models import db, Certificate, DeployTarget, DeployBinding, DeployDelivery
+from models import (
+    db, CA, Certificate, CRLMetadata, DeployTarget, DeployBinding,
+    CRLDeployBinding, DeployDelivery,
+)
 from security.encryption import encrypt_text, decrypt_text
 from utils.datetime_utils import utc_now
 from utils.export_options import json_boolean
@@ -23,6 +26,7 @@ from services.deploy.ssh import DeploySSHError
 logger = logging.getLogger(__name__)
 
 DEPLOY_EVENTS = ('certificate.issued', 'certificate.renewed')
+CRL_DEPLOY_EVENT = 'crl.updated'
 
 # File modes on the target: the key is operator-readable only.
 MODE_PUBLIC = 0o644
@@ -118,6 +122,60 @@ class DeployService:
         return ''.join(
             c.public_bytes(serialization.Encoding.PEM).decode() for c in chain)
 
+    @staticmethod
+    def _latest_complete_crl(ca_id: int) -> CRLMetadata:
+        crl = (CRLMetadata.query
+               .filter_by(ca_id=ca_id, is_delta=False)
+               .order_by(CRLMetadata.crl_number.desc(), CRLMetadata.id.desc())
+               .first())
+        if not crl:
+            raise ValueError(f"CA {ca_id} has no complete CRL to deploy")
+        return crl
+
+    @staticmethod
+    def _crl_ca_chain(ca: CA):
+        """Yield the selected CA and its verified in-database issuers."""
+        seen = set()
+        current = ca
+        while current and current.id not in seen:
+            seen.add(current.id)
+            yield current
+            parent = current.issuing_ca()
+            if not parent or parent.id == current.id:
+                break
+            current = parent
+
+    @staticmethod
+    def resolve_crl_files(binding: CRLDeployBinding):
+        """Build the single CRL file requested by a CRL binding.
+
+        PEM may contain the selected CA's CRL followed by issuer CRLs. DER is
+        necessarily one CRL and therefore cannot include parents.
+        """
+        ca = binding.ca or db.session.get(CA, binding.ca_id)
+        if not ca:
+            raise ValueError("CA no longer exists")
+        if binding.format == CRLDeployBinding.FORMAT_DER:
+            if binding.include_parent_crls:
+                raise ValueError("Parent CRLs can only be included in PEM format")
+            crl = DeployService._latest_complete_crl(ca.id)
+            if not crl.crl_der:
+                raise ValueError(f"CA {ca.descr} has no DER CRL data")
+            content = bytes(crl.crl_der)
+        elif binding.format == CRLDeployBinding.FORMAT_PEM:
+            cas = (DeployService._crl_ca_chain(ca)
+                   if binding.include_parent_crls else (ca,))
+            blocks = []
+            for chain_ca in cas:
+                crl = DeployService._latest_complete_crl(chain_ca.id)
+                if not crl.crl_pem:
+                    raise ValueError(f"CA {chain_ca.descr} has no PEM CRL data")
+                blocks.append(crl.crl_pem.rstrip() + '\n')
+            content = ''.join(blocks).encode()
+        else:
+            raise ValueError(f"Unsupported CRL format: {binding.format}")
+        return [(binding.crl_path, content, MODE_PUBLIC)]
+
     # ------------------------------------------------------------- transport
 
     @staticmethod
@@ -137,7 +195,16 @@ class DeployService:
         there is no record that has to outlive the request.
         """
         now = utc_now()
-        binding = db.session.get(DeployBinding, delivery.binding_id)
+        binding_type = delivery.binding_type or DeployDelivery.BINDING_CERTIFICATE
+        if binding_type not in (
+                DeployDelivery.BINDING_CERTIFICATE, DeployDelivery.BINDING_CRL):
+            delivery.status = DeployDelivery.STATUS_FAILED
+            delivery.last_error = f'Unknown binding type: {binding_type}'
+            return False
+        binding_model = (CRLDeployBinding
+                         if binding_type == DeployDelivery.BINDING_CRL
+                         else DeployBinding)
+        binding = db.session.get(binding_model, delivery.binding_id)
         if not binding or not binding.enabled:
             delivery.status = DeployDelivery.STATUS_FAILED
             delivery.last_error = 'Binding missing or disabled'
@@ -147,15 +214,19 @@ class DeployService:
             delivery.status = DeployDelivery.STATUS_FAILED
             delivery.last_error = 'Target missing or disabled'
             return False
-        certificate = db.session.get(Certificate, binding.certificate_id)
-        if not certificate:
-            delivery.status = DeployDelivery.STATUS_FAILED
-            delivery.last_error = 'Certificate no longer exists'
-            return False
+        certificate = None
+        if binding_type == DeployDelivery.BINDING_CERTIFICATE:
+            certificate = db.session.get(Certificate, binding.certificate_id)
+            if not certificate:
+                delivery.status = DeployDelivery.STATUS_FAILED
+                delivery.last_error = 'Certificate no longer exists'
+                return False
 
         detail = {}
         try:
-            files = DeployService.resolve_files(binding, certificate)
+            files = (DeployService.resolve_crl_files(binding)
+                     if binding_type == DeployDelivery.BINDING_CRL
+                     else DeployService.resolve_files(binding, certificate))
         except ValueError as e:
             DeployService._record_failure(delivery, target, str(e), now, permanent=True)
             return False
@@ -170,8 +241,9 @@ class DeployService:
                 logger.info(f"Deploy target '{target.name}': pinned host key on first connect")
             deploy_ssh.push_files(client, files)
             detail['pushed'] = [path for path, _, _ in files]
-            if target.reload_command:
-                exit_status, stderr_tail = deploy_ssh.run_command(client, target.reload_command)
+            if binding.reload_command:
+                exit_status, stderr_tail = deploy_ssh.run_command(
+                    client, binding.reload_command)
                 detail['reload_exit'] = exit_status
                 if stderr_tail:
                     detail['reload_stderr'] = stderr_tail[:1024]
@@ -217,8 +289,9 @@ class DeployService:
             resource_id=str(target.id),
             resource_name=target.name,
             details=(
-                f"Deployed certificate {certificate.descr or certificate.refid} "
-                f"to {target.name} ({', '.join(detail.get('pushed', []))})"
+                ((f"Deployed CRL for {binding.ca.descr}" if binding_type == DeployDelivery.BINDING_CRL
+                  else f"Deployed certificate {certificate.descr or certificate.refid}") + ' ')
+                + f"to {target.name} ({', '.join(detail.get('pushed', []))})"
                 + (f", reload exit {detail.get('reload_exit')}" if 'reload_exit' in detail else '')
                 + ('' if recorded else
                    '; the delivery record could not be saved, so this push '
@@ -294,6 +367,7 @@ class DeployService:
         for binding in bindings:
             db.session.add(DeployDelivery(
                 binding_id=binding.id,
+                binding_type=DeployDelivery.BINDING_CERTIFICATE,
                 event_type=event_type,
                 status=DeployDelivery.STATUS_PENDING,
                 next_attempt_at=now,
@@ -312,6 +386,81 @@ class DeployService:
         except Exception as e:
             db.session.rollback()
             logger.error(f"Failed to queue deploy deliveries for {event_type}: {e}")
+        finally:
+            session.expire_on_commit = prev_expire
+
+    @staticmethod
+    def _ca_chain_contains(ca: CA, ancestor_id: int) -> bool:
+        return any(item.id == ancestor_id for item in DeployService._crl_ca_chain(ca))
+
+    @staticmethod
+    def enqueue_crl_for_event(event_type: str, payload: dict,
+                              ca_refid: str = None, meta: dict = None):
+        """Queue CRL pushes after a complete CRL has been persisted.
+
+        A parent CRL update also refreshes descendant PEM bundles that include
+        issuer CRLs. Pending work is coalesced because delivery always resolves
+        the newest stored CRL at execution time.
+        """
+        if event_type != CRL_DEPLOY_EVENT:
+            return
+        ca_id = ((payload or {}).get('crl') or {}).get('ca_id')
+        if not ca_id:
+            return
+        try:
+            candidates = (CRLDeployBinding.query
+                          .filter_by(enabled=True)
+                          .join(DeployTarget)
+                          .filter(DeployTarget.enabled == True)  # noqa: E712
+                          .all())
+            bindings = [
+                b for b in candidates
+                if b.ca_id == ca_id or (
+                    b.include_parent_crls and b.ca
+                    and DeployService._ca_chain_contains(b.ca, ca_id))
+            ]
+        except Exception as e:
+            logger.error(f"CRL deploy enqueue skipped: {e}")
+            return
+
+        now = utc_now()
+        actor = (meta or {}).get('actor') or 'system'
+        queued = 0
+        for binding in bindings:
+            pending = DeployDelivery.query.filter_by(
+                binding_id=binding.id,
+                binding_type=DeployDelivery.BINDING_CRL,
+                status=DeployDelivery.STATUS_PENDING,
+            ).first()
+            if pending:
+                pending.event_type = event_type
+                pending.next_attempt_at = now
+                pending.triggered_by = actor
+                pending.attempts = 0
+                pending.last_error = None
+                continue
+            db.session.add(DeployDelivery(
+                binding_id=binding.id,
+                binding_type=DeployDelivery.BINDING_CRL,
+                event_type=event_type,
+                status=DeployDelivery.STATUS_PENDING,
+                next_attempt_at=now,
+                max_attempts=DeployService.DEFAULT_MAX_ATTEMPTS,
+                triggered_by=actor,
+            ))
+            queued += 1
+        if not bindings:
+            return
+        session = db.session()
+        prev_expire = session.expire_on_commit
+        try:
+            session.expire_on_commit = False
+            db.session.commit()
+            logger.info(
+                f"Deploy: queued {queued} CRL delivery(ies) after CA {ca_id} update")
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Failed to queue CRL deploy deliveries: {e}")
         finally:
             session.expire_on_commit = prev_expire
 
@@ -388,11 +537,6 @@ class DeployService:
             if not username or len(username) > 120:
                 raise ValueError('username is required (max 120 chars)')
             out['username'] = username
-        if 'reload_command' in data:
-            cmd = str(data.get('reload_command') or '').strip()
-            if len(cmd) > 512:
-                raise ValueError('reload_command is too long (max 512 chars)')
-            out['reload_command'] = cmd or None
         if 'enabled' in data:
             out['enabled'] = bool(data['enabled'])
         return out
@@ -472,7 +616,43 @@ class DeployService:
             out['enabled'] = bool(data['enabled'])
         if 'include_root' in data:
             out['include_root'] = json_boolean(data, 'include_root')
+        DeployService._validate_reload_command(data, out, partial)
         return out
+
+    @staticmethod
+    def validate_crl_binding(data: dict, partial: bool = False) -> dict:
+        out = {}
+        if not partial or 'crl_path' in data:
+            path = str(data.get('crl_path') or '').strip()
+            if not path or not posixpath.isabs(path) or len(path) > 512:
+                raise ValueError('crl_path must be an absolute file path (max 512 chars)')
+            if path.endswith('/'):
+                raise ValueError('crl_path must be a file path, not a directory')
+            out['crl_path'] = path
+        if not partial or 'format' in data:
+            crl_format = str(data.get('format') or 'pem').strip().lower()
+            if crl_format not in (CRLDeployBinding.FORMAT_PEM, CRLDeployBinding.FORMAT_DER):
+                raise ValueError('format must be pem or der')
+            out['format'] = crl_format
+        if 'include_parent_crls' in data:
+            out['include_parent_crls'] = json_boolean(data, 'include_parent_crls')
+        if 'enabled' in data:
+            out['enabled'] = bool(data['enabled'])
+        DeployService._validate_reload_command(data, out, partial)
+        final_format = out.get('format', data.get('current_format'))
+        final_include = out.get('include_parent_crls', data.get('current_include_parent_crls', False))
+        if final_format == CRLDeployBinding.FORMAT_DER and final_include:
+            raise ValueError('include_parent_crls requires PEM format')
+        return out
+
+    @staticmethod
+    def _validate_reload_command(data: dict, out: dict, partial: bool = False):
+        if partial and 'reload_command' not in data:
+            return
+        command = str(data.get('reload_command') or '').strip()
+        if len(command) > 512:
+            raise ValueError('reload_command is too long (max 512 chars)')
+        out['reload_command'] = command or None
 
     @staticmethod
     def ensure_distinct_paths(cert_path, key_path, fullchain_path):
@@ -502,6 +682,86 @@ class DeployService:
         db.session.add(delivery)
         return delivery
 
+    @staticmethod
+    def enqueue_initial_crl_push(binding: CRLDeployBinding, actor: str = 'system'):
+        if not binding.enabled or not binding.target or not binding.target.enabled:
+            return None
+        delivery = DeployDelivery(
+            binding_id=binding.id,
+            binding_type=DeployDelivery.BINDING_CRL,
+            event_type='initial',
+            status=DeployDelivery.STATUS_PENDING,
+            next_attempt_at=utc_now(),
+            max_attempts=DeployService.DEFAULT_MAX_ATTEMPTS,
+            triggered_by=actor,
+        )
+        db.session.add(delivery)
+        return delivery
+
+    @staticmethod
+    def enqueue_binding_update(binding, binding_type: str, actor: str = 'system'):
+        """Make a saved binding change take effect without waiting for the
+        previous retry backoff or another certificate/CRL event.
+
+        A pending delivery is coalesced and made due immediately. Completed
+        or exhausted history stays immutable; in that case a new delivery is
+        appended. The caller commits this together with the binding update.
+        """
+        if binding_type not in (
+                DeployDelivery.BINDING_CERTIFICATE, DeployDelivery.BINDING_CRL):
+            raise ValueError(f'Unknown binding type: {binding_type}')
+        if not binding.enabled or not binding.target or not binding.target.enabled:
+            return None
+
+        now = utc_now()
+        pending = DeployDelivery.query.filter_by(
+            binding_id=binding.id,
+            binding_type=binding_type,
+            status=DeployDelivery.STATUS_PENDING,
+        ).first()
+        if pending:
+            pending.event_type = 'binding.updated'
+            pending.attempts = 0
+            pending.max_attempts = DeployService.DEFAULT_MAX_ATTEMPTS
+            pending.next_attempt_at = now
+            pending.last_error = None
+            pending.detail = None
+            pending.triggered_by = actor
+            pending.delivered_at = None
+            return pending
+
+        delivery = DeployDelivery(
+            binding_id=binding.id,
+            binding_type=binding_type,
+            event_type='binding.updated',
+            status=DeployDelivery.STATUS_PENDING,
+            attempts=0,
+            max_attempts=DeployService.DEFAULT_MAX_ATTEMPTS,
+            next_attempt_at=now,
+            triggered_by=actor,
+        )
+        db.session.add(delivery)
+        return delivery
+
+    @staticmethod
+    def deploy_binding_update_now(binding, binding_type: str,
+                                  actor: str = 'system'):
+        """Run the first delivery attempt synchronously after an edit.
+
+        Transport or reload failures are recorded by ``execute_delivery`` as
+        a pending retry with backoff. This keeps Save deterministic while the
+        scheduler is only responsible for later attempts.
+        """
+        delivery = DeployService.enqueue_binding_update(
+            binding, binding_type, actor=actor)
+        if not delivery:
+            return None
+        # The scheduler increments before executing; this request is itself
+        # the first attempt and therefore records the same counter value.
+        delivery.attempts = 1
+        DeployService.execute_delivery(delivery)
+        return delivery
+
 
 def _register_bus_subscriber():
     from services.events import event_bus
@@ -509,5 +769,6 @@ def _register_bus_subscriber():
         return
     for event in DEPLOY_EVENTS:
         event_bus.subscribe(event, DeployService.enqueue_for_event)
+    event_bus.subscribe(CRL_DEPLOY_EVENT, DeployService.enqueue_crl_for_event)
     _register_bus_subscriber._done = True
     logger.info("Registered deploy-hook event-bus subscriber")

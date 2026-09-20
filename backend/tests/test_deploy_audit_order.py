@@ -33,7 +33,8 @@ def audit_always_fails(monkeypatch):
 # (route, comment se lit la présence de la ligne après coup)
 ROUTES_THAT_WRITE_THEN_RECORD = (
     'create_target', 'update_target', 'delete_target', 'test_target',
-    'create_binding', 'delete_binding',
+    'create_binding', 'update_binding', 'delete_binding',
+    'create_crl_binding', 'update_crl_binding', 'delete_crl_binding',
 )
 
 

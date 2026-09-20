@@ -1905,7 +1905,7 @@
     "title": "Distribuzione dei certificati",
     "subtitle": "Invia i certificati agli host remoti tramite SSH",
     "helpTitle": "Hook di distribuzione",
-    "helpDescription": "All'emissione e al rinnovo, UCM invia i file scelti (certificato, chiave privata, catena completa) agli host remoti associati tramite SFTP, quindi esegue il comando di ricarica della destinazione tramite SSH. Usa un account SSH dedicato a privilegi minimi su ogni destinazione: accesso in scrittura ai percorsi dei certificati e permesso di ricaricare il servizio, nient'altro.",
+    "helpDescription": "Le destinazioni memorizzano connessioni SSH/SFTP riutilizzabili. Ogni distribuzione di certificato o CRL definisce i propri percorsi e il comando di ricarica facoltativo. Usa un account SSH dedicato con privilegi minimi su ogni destinazione.",
     "targets": "Destinazioni di distribuzione",
     "noTargets": "Nessuna destinazione di distribuzione",
     "noTargetsDescription": "Crea una destinazione per inviare i certificati a un host remoto via SSH a ogni emissione e rinnovo.",
@@ -1939,7 +1939,7 @@
     "sameHostHint": "Per collocare le chiavi sullo stesso host UCM, usa un account SSH dedicato; il servizio non può scrivere fuori dalla propria directory dei dati.",
     "port": "Porta",
     "reloadCommand": "Comando di ricarica",
-    "reloadCommandHint": "Facoltativo: eseguito tramite SSH dopo un invio riuscito (exit 0 = successo). Un solo comando fisso, senza templating.",
+    "reloadCommandHint": "Facoltativo per questa distribuzione: eseguito tramite SSH dopo un trasferimento riuscito (codice di uscita 0 = successo). Nessun modello.",
     "privateKeyOptional": "Chiave privata SSH (facoltativa: lascia vuoto per generare una chiave ed25519)",
     "privateKeyRotate": "Nuova chiave privata SSH (lascia vuoto per mantenere quella attuale)",
     "privateKeyPlaceholder": "Incolla una chiave privata PEM/OpenSSH, oppure lascia vuoto per generarne una",
@@ -1964,11 +1964,22 @@
     "deployed": "Distribuito su {{name}}",
     "deployFailed": "Distribuzione non riuscita",
     "lastDeployed": "Ultima distribuzione {{date}}",
+    "nextRetry": "Prossimo tentativo {{date}} (tra {{countdown}})",
     "status": {
       "delivered": "Distribuito",
       "pending": "In attesa",
       "failed": "Non riuscito"
     }
+  },
+  "crlDeploy": {
+    "title": "Distribuzione CRL", "description": "Trasferisce ogni CRL completa aggiornata a una destinazione di distribuzione SSH.",
+    "none": "La CRL di questa CA non è distribuita ad alcuna destinazione.", "attach": "Collega destinazione", "attachFor": "Collega destinazione CRL: {{name}}",
+    "path": "Percorso di destinazione della CRL", "includeParents": "Includi CRL superiori",
+    "includeParentsHelp": "Crea un pacchetto PEM con la CRL di questa CA seguita dalle CRL delle CA emittenti.", "withParents": "include le CRL superiori",
+    "deployNow": "Distribuisci ora", "loadFailed": "Impossibile caricare le distribuzioni CRL", "created": "Destinazione CRL collegata e primo trasferimento accodato",
+    "createFailed": "Impossibile collegare la destinazione CRL", "deleteConfirm": "Rimuovere questa distribuzione CRL?", "remove": "Rimuovi distribuzione CRL",
+    "removed": "Distribuzione CRL rimossa", "deleteFailed": "Impossibile rimuovere la distribuzione CRL", "deployed": "CRL distribuita correttamente",
+    "deployFailed": "Distribuzione della CRL non riuscita"
   },
   "trustStore": {
     "caTrust": "Fiducia CA",

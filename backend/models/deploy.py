@@ -1,9 +1,9 @@
 """Deploy hooks models (#299).
 
-Push issued/renewed certificates to remote hosts over SFTP and run a fixed
-reload command over SSH. Admin-only feature: UCM holds SSH credentials that
-can execute a command on the fleet, so everything is encrypted at rest and
-audited.
+Push issued/renewed certificates and CRLs to remote hosts over SFTP. Each
+binding may run its own fixed reload command over SSH after a successful push.
+Admin-only feature: UCM holds SSH credentials that can execute commands on the
+fleet, so everything is encrypted at rest and audited.
 """
 import json
 
@@ -26,8 +26,8 @@ class DeployTarget(db.Model):
     public_key = db.Column(db.Text)
     # Pinned host key, '<type> <base64>', recorded on first connect (TOFU)
     host_key = db.Column(db.Text)
-    # One fixed, admin-defined command run over SSH after a successful push.
-    # No templating, no uploaded scripts (v1 scope).
+    # Legacy storage retained for downgrade compatibility. Migration 091 copies
+    # this value to each binding; new code neither exposes nor executes it.
     reload_command = db.Column(db.String(512))
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -61,7 +61,6 @@ class DeployTarget(db.Model):
             'public_key': self.public_key,
             'host_key_fingerprint': self.host_key_fingerprint(),
             'host_key_pinned': bool(self.host_key),
-            'reload_command': self.reload_command,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,
@@ -89,6 +88,9 @@ class DeployBinding(db.Model):
     # in a TLS server's fullchain. Keep the exceptional legacy behaviour as
     # an explicit per-binding choice.
     include_root = db.Column(db.Boolean, nullable=False, default=False)
+    # Optional command for this certificate deployment only. The same SSH
+    # target can therefore serve different daemons with different reloads.
+    reload_command = db.Column(db.String(512))
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -106,10 +108,63 @@ class DeployBinding(db.Model):
             'key_path': self.key_path,
             'fullchain_path': self.fullchain_path,
             'include_root': self.include_root,
+            'reload_command': self.reload_command,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,
         }
+        if include_target and self.target:
+            data['target_name'] = self.target.name
+            data['target_host'] = self.target.host
+            data['target_enabled'] = self.target.enabled
+        return data
+
+
+class CRLDeployBinding(db.Model):
+    """Attach a CA's complete CRL to an existing SSH deploy target."""
+    __tablename__ = 'crl_deploy_bindings'
+    __table_args__ = (
+        db.UniqueConstraint('target_id', 'ca_id', name='uq_crl_deploy_binding'),
+    )
+
+    FORMAT_PEM = 'pem'
+    FORMAT_DER = 'der'
+
+    id = db.Column(db.Integer, primary_key=True)
+    target_id = db.Column(
+        db.Integer, db.ForeignKey('deploy_targets.id'), nullable=False, index=True)
+    ca_id = db.Column(
+        db.Integer, db.ForeignKey('certificate_authorities.id'), nullable=False, index=True)
+    crl_path = db.Column(db.String(512), nullable=False)
+    format = db.Column(db.String(8), nullable=False, default=FORMAT_PEM)
+    include_parent_crls = db.Column(db.Boolean, nullable=False, default=False)
+    reload_command = db.Column(db.String(512))
+    enabled = db.Column(db.Boolean, nullable=False, default=True)
+
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String(80))
+
+    target = db.relationship(
+        'DeployTarget', backref=db.backref('crl_bindings', lazy='dynamic'))
+    ca = db.relationship(
+        'CA', backref=db.backref('crl_deploy_bindings', lazy='dynamic'))
+
+    def to_dict(self, include_target=True):
+        data = {
+            'id': self.id,
+            'target_id': self.target_id,
+            'ca_id': self.ca_id,
+            'crl_path': self.crl_path,
+            'format': self.format,
+            'include_parent_crls': self.include_parent_crls,
+            'reload_command': self.reload_command,
+            'enabled': self.enabled,
+            'created_at': utc_isoformat(self.created_at),
+            'created_by': self.created_by,
+        }
+        if self.ca:
+            data['ca_name'] = self.ca.descr
+            data['ca_refid'] = self.ca.refid
         if include_target and self.target:
             data['target_name'] = self.target.name
             data['target_host'] = self.target.host
@@ -126,11 +181,18 @@ class DeployDelivery(db.Model):
     STATUS_DELIVERED = 'delivered'
     STATUS_FAILED = 'failed'
 
+    BINDING_CERTIFICATE = 'certificate'
+    BINDING_CRL = 'crl'
+
     id = db.Column(db.Integer, primary_key=True)
     # Logical reference to deploy_bindings.id (no DB-level FK so delivery
     # history survives binding deletion until explicitly cleaned up).
     binding_id = db.Column(db.Integer, nullable=False, index=True)
-    # 'certificate.issued' | 'certificate.renewed' | 'manual'
+    binding_type = db.Column(
+        db.String(16), nullable=False, default=BINDING_CERTIFICATE, index=True)
+    # Certificate: 'certificate.issued', 'certificate.renewed', 'initial',
+    # 'binding.updated', 'manual'. CRL: 'crl.updated' plus the shared latter
+    # three event types.
     event_type = db.Column(db.String(32), nullable=False)
 
     status = db.Column(db.String(16), nullable=False, default=STATUS_PENDING, index=True)
@@ -156,6 +218,7 @@ class DeployDelivery(db.Model):
         return {
             'id': self.id,
             'binding_id': self.binding_id,
+            'binding_type': self.binding_type,
             'event_type': self.event_type,
             'status': self.status,
             'attempts': self.attempts,

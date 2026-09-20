@@ -132,10 +132,28 @@ LEGACY_DEFAULTS = {
 }
 
 
-def legacy_defaults(section_name, row) -> dict:
+def legacy_defaults(section_name, row, plan=None) -> dict:
     """The values an older archive implied for the columns it does not name."""
-    return {column: value for column, value in LEGACY_DEFAULTS.get(section_name, {}).items()
-            if column not in row}
+    defaults = {
+        column: value
+        for column, value in LEGACY_DEFAULTS.get(section_name, {}).items()
+        if column not in row
+    }
+    # Before migration 091 the reload command belonged to the SSH target.
+    # Restores happen after migrations, so an old archive's binding rows never
+    # pass through 091. Preserve the old behaviour by copying the archived
+    # target command into each binding that does not carry its own command.
+    if section_name == 'deploy_bindings' and 'reload_command' not in row and plan:
+        target_identity = row.get(f'target_id{REFERENCE_SUFFIX}') or {}
+        target_id = row.get('target_id')
+        for target in plan.rows.get('deploy_targets') or []:
+            same_identity = (target_identity and all(
+                target.get(key) == value for key, value in target_identity.items()))
+            same_legacy_id = (not target_identity and target.get('id') == target_id)
+            if same_identity or same_legacy_id:
+                defaults['reload_command'] = target.get('reload_command')
+                break
+    return defaults
 
 
 def _apply_row(section_name, section, instance, row, columns, attribute_of, plan):
@@ -163,7 +181,7 @@ def _apply_row(section_name, section, instance, row, columns, attribute_of, plan
 
         setattr(instance, attribute_of.get(name, name),
                 _coerce(value, column, f"{section_name}.{name}"))
-    for column, value in legacy_defaults(section_name, row).items():
+    for column, value in legacy_defaults(section_name, row, plan).items():
         setattr(instance, attribute_of.get(column, column), value)
 
 

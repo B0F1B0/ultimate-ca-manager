@@ -558,6 +558,7 @@ class LifecycleMixin:
             binding_ids = [b.id for b in DeployBinding.query.filter_by(certificate_id=cert_id)]
             if binding_ids:
                 DeployDelivery.query.filter(
+                    DeployDelivery.binding_type == DeployDelivery.BINDING_CERTIFICATE,
                     DeployDelivery.binding_id.in_(binding_ids)).delete(synchronize_session=False)
                 DeployBinding.query.filter(
                     DeployBinding.id.in_(binding_ids)).delete(synchronize_session=False)
