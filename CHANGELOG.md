@@ -10,7 +10,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 ## [Unreleased]
 
 ### Added
-- CRLs can be deployed over SSH/SFTP whenever they change, with durable per-target delivery, PEM parent-CRL bundles or a single DER CRL, on-demand deployment, and editable certificate and CRL bindings. Reload commands now belong to each binding so one SSH target can safely serve different services.
+- CRLs can be deployed over SSH/SFTP whenever they change, with durable per-target delivery, PEM parent-CRL bundles or a single DER CRL, on-demand deployment, and editable certificate and CRL bindings. Reload commands now belong to each binding so one SSH target can safely serve different services. Pending retries show their last error and a live countdown to the next attempt, and bindings can be enabled or disabled from their edit dialog.
 - The server's own application log can be read from the interface, under System Logs: the source (application log, gunicorn access and error streams, the systemd journal where it exists), a subsystem, a level floor, a time window, a search and an exclusion, all applied on the server, with secrets redacted before anything leaves the process and a traceback kept as one entry. Reading is restricted to administrators and deliberately not audited, since the audit trail is written to that same log and the page polls (#361, by @stefanelul2000).
 - A guide to enrolling devices through Microsoft Intune's SCEP challenge validation, from the Entra app registration to the per-platform Intune profile, in `docs/integrations/intune-scep.md` (#360, by @stefanelul2000).
 

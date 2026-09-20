@@ -10,6 +10,15 @@ import { extractData, formatDate } from '../lib/utils'
 
 const STATUS_VARIANT = { delivered: 'success', pending: 'warning', failed: 'danger' }
 
+function retryCountdown(nextAttemptAt, now) {
+  const milliseconds = new Date(nextAttemptAt).getTime() - now
+  if (!Number.isFinite(milliseconds)) return ''
+  const seconds = Math.max(0, Math.ceil(milliseconds / 1000))
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return minutes > 0 ? `${minutes}m ${String(remainingSeconds).padStart(2, '0')}s` : `${seconds}s`
+}
+
 const EMPTY = {
   target_id: '', crl_path: '', format: 'pem',
   include_parent_crls: true, reload_command: '', enabled: true,
@@ -27,6 +36,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
   const [saving, setSaving] = useState(false)
   const [deploying, setDeploying] = useState(null)
   const [form, setForm] = useState(EMPTY)
+  const [now, setNow] = useState(() => Date.now())
   const canReadDeploy = hasPermission('read:deploy')
   const canWriteDeploy = hasPermission('write:deploy')
   const canDeleteDeploy = hasPermission('delete:deploy')
@@ -49,6 +59,15 @@ export function CRLDeploySection({ ca, hasCRL }) {
   }, [ca?.id, canReadDeploy, showError, t])
 
   useEffect(() => { load() }, [load])
+
+  const hasPendingDelivery = bindings.some(binding =>
+    binding.last_delivery?.status === 'pending' && binding.last_delivery?.next_attempt_at)
+  useEffect(() => {
+    if (!hasPendingDelivery) return undefined
+    setNow(Date.now())
+    const interval = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(interval)
+  }, [hasPendingDelivery])
 
   const create = async (event) => {
     event.preventDefault()
@@ -176,8 +195,17 @@ export function CRLDeploySection({ ca, hasCRL }) {
                         {t('deploy.lastDeployed', { date: formatDate(binding.last_delivery.delivered_at) })}
                       </p>
                     )}
-                    {binding.last_delivery?.status === 'failed' && binding.last_delivery.last_error && (
-                      <p className="text-2xs status-danger-text truncate"
+                    {binding.last_delivery?.status === 'pending' && binding.last_delivery.next_attempt_at && (
+                      <p className="text-2xs text-text-tertiary">
+                        {t('deploy.nextRetry', {
+                          date: formatDate(binding.last_delivery.next_attempt_at),
+                          countdown: retryCountdown(binding.last_delivery.next_attempt_at, now),
+                        })}
+                      </p>
+                    )}
+                    {binding.last_delivery?.last_error && (
+                      <p className={`text-2xs truncate ${binding.last_delivery.status === 'failed'
+                        ? 'status-danger-text' : 'status-warning-text'}`}
                         title={binding.last_delivery.last_error}>
                         {binding.last_delivery.last_error}
                       </p>
@@ -287,6 +315,13 @@ export function CRLDeploySection({ ca, hasCRL }) {
               </span>
             </label>
           )}
+          <label className="flex items-start gap-2 rounded-md border border-border p-3">
+            <input type="checkbox" className="mt-0.5" checked={form.enabled}
+              onChange={event => setForm({ ...form, enabled: event.target.checked })} />
+            <span className="block text-sm font-medium text-text-primary">
+              {t('common.enabled')}
+            </span>
+          </label>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">
               {t('deploy.reloadCommand', 'Reload command')}

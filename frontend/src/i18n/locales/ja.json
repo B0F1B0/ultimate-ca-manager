@@ -1964,6 +1964,7 @@
     "deployed": "{{name}} にデプロイしました",
     "deployFailed": "デプロイに失敗しました",
     "lastDeployed": "最終デプロイ {{date}}",
+    "nextRetry": "次回試行 {{date}}（{{countdown}}後）",
     "status": {
       "delivered": "デプロイ済み",
       "pending": "保留中",

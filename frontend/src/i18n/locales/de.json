@@ -1964,6 +1964,7 @@
     "deployed": "Bereitgestellt auf {{name}}",
     "deployFailed": "Bereitstellung fehlgeschlagen",
     "lastDeployed": "Zuletzt bereitgestellt {{date}}",
+    "nextRetry": "Nächster Versuch {{date}} (in {{countdown}})",
     "status": {
       "delivered": "Bereitgestellt",
       "pending": "Ausstehend",

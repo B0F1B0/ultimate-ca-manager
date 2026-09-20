@@ -1964,6 +1964,7 @@
     "deployed": "Implantado em {{name}}",
     "deployFailed": "Falha na implantação",
     "lastDeployed": "Última implantação {{date}}",
+    "nextRetry": "Próxima tentativa {{date}} (em {{countdown}})",
     "status": {
       "delivered": "Implantado",
       "pending": "Pendente",

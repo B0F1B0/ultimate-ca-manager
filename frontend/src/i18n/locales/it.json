@@ -1964,6 +1964,7 @@
     "deployed": "Distribuito su {{name}}",
     "deployFailed": "Distribuzione non riuscita",
     "lastDeployed": "Ultima distribuzione {{date}}",
+    "nextRetry": "Prossimo tentativo {{date}} (tra {{countdown}})",
     "status": {
       "delivered": "Distribuito",
       "pending": "In attesa",

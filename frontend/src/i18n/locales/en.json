@@ -1964,6 +1964,7 @@
     "deployed": "Deployed to {{name}}",
     "deployFailed": "Deploy failed",
     "lastDeployed": "Last deployed {{date}}",
+    "nextRetry": "Next retry {{date}} (in {{countdown}})",
     "status": {
       "delivered": "Deployed",
       "pending": "Pending",

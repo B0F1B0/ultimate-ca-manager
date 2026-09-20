@@ -1964,6 +1964,7 @@
     "deployed": "已部署到 {{name}}",
     "deployFailed": "部署失败",
     "lastDeployed": "上次部署于 {{date}}",
+    "nextRetry": "下次重试 {{date}}（{{countdown}} 后）",
     "status": {
       "delivered": "已部署",
       "pending": "待处理",

@@ -1640,6 +1640,7 @@
     "deployed": "Déployé vers {{name}}",
     "deployFailed": "Échec du déploiement",
     "lastDeployed": "Dernier déploiement {{date}}",
+    "nextRetry": "Prochaine tentative {{date}} (dans {{countdown}})",
     "status": {
       "delivered": "Déployé",
       "pending": "En attente",

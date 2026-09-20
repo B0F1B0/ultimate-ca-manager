@@ -1964,6 +1964,7 @@
     "deployed": "Розгорнуто на {{name}}",
     "deployFailed": "Не вдалося розгорнути",
     "lastDeployed": "Останнє розгортання {{date}}",
+    "nextRetry": "Наступна спроба {{date}} (через {{countdown}})",
     "status": {
       "delivered": "Розгорнуто",
       "pending": "Очікує",

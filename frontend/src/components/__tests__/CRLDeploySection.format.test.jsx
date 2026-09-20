@@ -66,7 +66,7 @@ describe('CRLDeploySection format options', () => {
 
     fireEvent.change(selects[1], { target: { value: 'der' } })
     expect(screen.queryByText('crlDeploy.includeParents')).not.toBeInTheDocument()
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'crlDeploy.includeParents' })).not.toBeInTheDocument()
 
     fireEvent.submit(document.querySelector('form'))
     await waitFor(() => expect(mocks.createCRLBinding).toHaveBeenCalledWith(
@@ -98,5 +98,35 @@ describe('CRLDeploySection format options', () => {
     render(<CRLDeploySection ca={{ id: 42, descr: 'Client CA' }} hasCRL />)
     expect(await screen.findByText('common.disabled')).toBeInTheDocument()
     expect(screen.queryByText('common.enabled')).not.toBeInTheDocument()
+  })
+
+  it('shows a pending retry countdown and its last error', async () => {
+    mocks.getCRLBindings.mockResolvedValue({ data: [{
+      id: 14, target_id: 7, target_name: 'web01', crl_path: '/crl.pem',
+      format: 'pem', include_parent_crls: false, enabled: true,
+      last_delivery: {
+        status: 'pending', last_error: 'Destination directory does not exist',
+        next_attempt_at: new Date(Date.now() + 65000).toISOString(),
+      },
+    }] })
+    render(<CRLDeploySection ca={{ id: 42, descr: 'Client CA' }} hasCRL />)
+
+    expect(await screen.findByText('deploy.status.pending')).toBeInTheDocument()
+    expect(screen.getByText('Destination directory does not exist')).toBeInTheDocument()
+    expect(mocks.t).toHaveBeenCalledWith('deploy.nextRetry', expect.objectContaining({
+      date: expect.any(String), countdown: expect.stringMatching(/^1m 0[45]s$/),
+    }))
+  })
+
+  it('offers an enabled switch while editing a CRL binding', async () => {
+    mocks.getCRLBindings.mockResolvedValue({ data: [{
+      id: 15, target_id: 7, target_name: 'web01', target_host: 'web01.test',
+      crl_path: '/crl.pem', format: 'pem', include_parent_crls: false,
+      reload_command: '', enabled: true, last_delivery: null,
+    }] })
+    render(<CRLDeploySection ca={{ id: 42, descr: 'Client CA' }} hasCRL />)
+    await screen.findByText('web01')
+    fireEvent.click(screen.getByTitle('common.edit'))
+    expect(screen.getByRole('checkbox', { name: 'common.enabled' })).toBeChecked()
   })
 })
