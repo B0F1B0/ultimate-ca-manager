@@ -147,7 +147,7 @@ jobs:
           # A commit whose email GitHub links to no account counts as the pull
           # request author's, checked above. The name on it cannot be verified, so
           # the author attests in the description that it is theirs to submit.
-          ATTEST='I confirm that commits with an unlinked author email are my own work, or that I am authorised to submit them.'
+          ATTEST='I confirm that commits with an unlinked author email are my own work, or that I am authorised by their copyright holder to submit and license them under the UCM CLA v1.1.'
           gh api "repos/$REPO/pulls/$PR/commits" --paginate \
             --jq '.[] | select(.author == null) | .commit.author.name' | sort -u > unlinked.txt
           if [ -s unlinked.txt ]; then
@@ -199,7 +199,7 @@ jobs:
           username. A commit whose email is not linked to a GitHub account counts
           as the pull request author's, who ticks this line in the description:
 
-              - [x] I confirm that commits with an unlinked author email are my own work, or that I am authorised to submit them.
+              - [x] I confirm that commits with an unlinked author email are my own work, or that I am authorised by their copyright holder to submit and license them under the UCM CLA v1.1.
 
           Anyone else who took part still signs for themselves, named in a
           Co-authored-by trailer.
