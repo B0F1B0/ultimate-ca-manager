@@ -10,6 +10,7 @@ export default {
           { label: 'Auto-Regenerierung', text: 'Automatische CRL-Regenerierung pro CA umschalten' },
           { label: 'Manuell regenerieren', text: 'CRL-Regenerierung sofort erzwingen' },
           { label: 'CRL herunterladen', text: 'Die CRL-Datei im DER- oder PEM-Format herunterladen' },
+          { label: 'CRL-Bereitstellung', text: 'Ein SSH-/SFTP-Ziel verknüpfen, um jede neu erzeugte CRL automatisch zu übertragen. Jede Verknüpfung legt Format, Zielpfad, übergeordnete CRLs und einen optionalen Reload-Befehl fest' },
           { label: 'CDP-URL', text: 'CRL Distribution Point-URL zum Einbetten in Zertifikate' },
           { label: 'Gültigkeit', text: 'CRL-Gültigkeit pro CA von 1 Tag bis zu 5 Jahren (90d/180d/1y/3y/5y für Offline-CAs, die nicht planmäßig neu signieren können). Ab einem Jahr erscheint eine Warnung, vertrauende Parteien können veraltete Widerrufsdaten für das gesamte Zeitfenster behalten' },
           { label: 'Externe CRL', text: 'CAs ohne Schlüssel bzw. Offline-CAs können keine CRL selbst signieren, laden Sie aus der CA-Detailansicht eine neben dem Offline-Schlüssel erzeugte CRL hoch; sie wird validiert (Signatur, Aussteller, Monotonie) und unter derselben CDP-URL ausgeliefert (v2.215)' },

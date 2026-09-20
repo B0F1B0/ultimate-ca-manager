@@ -304,6 +304,8 @@ def update_binding(binding_id):
         fields = DeployService.validate_binding_paths(data, partial=True)
     except ValueError as e:
         return error_response(str(e), 400)
+    changed_fields = [key for key, value in fields.items()
+                      if getattr(binding, key) != value]
     for key, value in fields.items():
         setattr(binding, key, value)
     if not any((binding.cert_path, binding.key_path, binding.fullchain_path)):
@@ -327,6 +329,13 @@ def update_binding(binding_id):
     ok, err = safe_commit(logger, 'Failed to update deploy binding')
     if not ok:
         return err
+    AuditService.log_action(
+        action='deploy_binding_update', resource_type='deploy_target',
+        resource_id=str(binding.target_id),
+        resource_name=binding.target.name if binding.target else '?',
+        details=(f"Updated certificate deploy binding {binding.id}; changed fields: "
+                 f"{', '.join(changed_fields) if changed_fields else 'none'}"),
+        success=True)
     if not delivery:
         message = 'Deploy binding updated, no deployment queued'
     elif delivery.status == DeployDelivery.STATUS_DELIVERED:
@@ -480,6 +489,8 @@ def update_crl_binding(binding_id):
         fields = DeployService.validate_crl_binding(data, partial=True)
     except ValueError as e:
         return error_response(str(e), 400)
+    changed_fields = [key for key, value in fields.items()
+                      if getattr(binding, key) != value]
     for key, value in fields.items():
         setattr(binding, key, value)
     delivery = DeployService.deploy_binding_update_now(
@@ -487,6 +498,13 @@ def update_crl_binding(binding_id):
     ok, err = safe_commit(logger, 'Failed to update CRL deploy binding')
     if not ok:
         return err
+    AuditService.log_action(
+        action='crl_deploy_binding_update', resource_type='deploy_target',
+        resource_id=str(binding.target_id),
+        resource_name=binding.target.name if binding.target else '?',
+        details=(f"Updated CRL deploy binding {binding.id}; changed fields: "
+                 f"{', '.join(changed_fields) if changed_fields else 'none'}"),
+        success=True)
     if not delivery:
         message = 'CRL deploy binding updated, no deployment queued'
     elif delivery.status == DeployDelivery.STATUS_DELIVERED:
@@ -506,18 +524,23 @@ def delete_crl_binding(binding_id):
         return error_response('CRL deploy binding not found', 404)
     target_id = binding.target_id
     target_name = binding.target.name if binding.target else '?'
-    from services.delivery_retention import delete_binding_deliveries
-    delete_binding_deliveries(binding.id, DeployDelivery.BINDING_CRL)
-    db.session.delete(binding)
-    ok, err = safe_commit(logger, 'Failed to delete CRL deploy binding')
-    if not ok:
-        return err
-    AuditService.log_action(
-        action='crl_deploy_binding_delete', resource_type='deploy_target',
-        resource_id=str(target_id), resource_name=target_name,
-        details=f"Removed CRL deploy binding {binding_id} from {target_name}",
-        success=True)
-    return success_response(message='CRL deploy binding deleted')
+    try:
+        from services.delivery_retention import delete_binding_deliveries
+        delete_binding_deliveries(binding.id, DeployDelivery.BINDING_CRL)
+        db.session.delete(binding)
+        ok, err = safe_commit(logger, 'Failed to delete CRL deploy binding')
+        if not ok:
+            return err
+        AuditService.log_action(
+            action='crl_deploy_binding_delete', resource_type='deploy_target',
+            resource_id=str(target_id), resource_name=target_name,
+            details=f"Removed CRL deploy binding {binding_id} from {target_name}",
+            success=True)
+        return success_response(message='CRL deploy binding deleted')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Failed to delete CRL deploy binding {binding_id}: {e}')
+        return error_response('Failed to delete CRL deploy binding', 500)
 
 
 @bp.route('/api/v2/deploy/crl-bindings/<int:binding_id>/deploy', methods=['POST'])

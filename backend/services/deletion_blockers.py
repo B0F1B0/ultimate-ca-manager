@@ -118,6 +118,15 @@ def ca_deletion_blockers(ca) -> Iterator[DeletionBlocker]:
             'Rescope or delete them first.',
             f'{policies} issuance policy(ies) scoped to it',
         )
+    from models.deploy import CRLDeployBinding
+    crl_bindings = CRLDeployBinding.query.filter_by(ca_id=ca.id).count()
+    if crl_bindings > 0:
+        yield DeletionBlocker(
+            409,
+            f'Cannot delete CA: its CRL is deployed to {crl_bindings} target(s). '
+            'Remove the CRL deployment binding(s) first.',
+            f'CRL deployed to {crl_bindings} target(s)',
+        )
 
 
 def certificate_deletion_blockers(cert) -> Iterator[DeletionBlocker]:

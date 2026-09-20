@@ -47,6 +47,28 @@ def _bulk(auth_client, resource, ids):
 
 
 class TestBothPathsRefuseTheSameRows:
+    def test_a_ca_with_a_crl_deployment_is_refused_by_both(
+            self, app, auth_client, create_ca):
+        from models.deploy import DeployTarget, CRLDeployBinding
+        from security.encryption import encrypt_text
+        ca = create_ca(cn='Parity CRL Deployment CA')
+        with app.app_context():
+            target = DeployTarget(name='parity-crl-target', host='crl.test',
+                                  username='deploy', private_key=encrypt_text('k'))
+            db.session.add(target)
+            db.session.flush()
+            db.session.add(CRLDeployBinding(
+                target_id=target.id, ca_id=ca['id'], crl_path='/tmp/ca.crl'))
+            db.session.commit()
+
+        unit = auth_client.delete(f"/api/v2/cas/{ca['id']}")
+        assert unit.status_code == 409, unit.data
+        assert b'CRL is deployed to 1 target' in unit.data
+
+        bulk = _bulk(auth_client, 'cas', [ca['id']])
+        assert json.loads(bulk.data)['data']['failed'] == [
+            {'id': ca['id'], 'error': 'CRL deployed to 1 target(s)'}]
+
     def test_a_template_bound_to_a_scep_profile_is_refused_by_both(
             self, app, auth_client, create_ca):
         create_ca(cn='Parity SCEP Anchor CA')

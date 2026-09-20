@@ -1615,7 +1615,7 @@
     "sameHostHint": "Pour placer des clés sur l'hôte UCM lui-même, utilisez un compte SSH dédié ; le service ne peut pas écrire hors de son répertoire de données.",
     "port": "Port",
     "reloadCommand": "Commande de rechargement",
-    "reloadCommandHint": "Optionnel : exécutée via SSH après un envoi réussi (exit 0 = succès). Une seule commande fixe, sans templating.",
+    "reloadCommandHint": "Optionnel pour ce déploiement : exécutée via SSH après un transfert réussi (code de sortie 0 = succès). Aucun modèle de commande.",
     "privateKeyOptional": "Clé privée SSH (optionnel : laisser vide pour générer une clé ed25519)",
     "privateKeyRotate": "Nouvelle clé privée SSH (laisser vide pour conserver l'actuelle)",
     "privateKeyPlaceholder": "Collez une clé privée PEM/OpenSSH, ou laissez vide pour en générer une",
@@ -3397,14 +3397,14 @@
     "pkcs12PasswordPlaceholder": "Mot de passe du fichier PKCS12/PFX"
   },
   "crlDeploy": {
-    "title": "CRL Deployment", "description": "Push every updated complete CRL to an SSH deployment target.",
-    "none": "This CA is not deployed to any target.", "attach": "Attach target", "attachFor": "Attach CRL target: {{name}}",
-    "path": "CRL destination path", "includeParents": "Include parent CRLs",
-    "includeParentsHelp": "Creates a PEM bundle containing this CA CRL followed by issuer CRLs.", "withParents": "includes parent CRLs",
-    "deployNow": "Deploy now", "loadFailed": "Failed to load CRL deployments", "created": "CRL deployment attached and initial push queued",
-    "createFailed": "Failed to attach CRL deployment", "deleteConfirm": "Remove this CRL deployment?", "remove": "Remove CRL deployment",
-    "removed": "CRL deployment removed", "deleteFailed": "Failed to remove CRL deployment", "deployed": "CRL deployed successfully",
-    "deployFailed": "CRL deployment failed"
+    "title": "Déploiement de CRL", "description": "Transférer chaque CRL complète mise à jour vers une cible de déploiement SSH.",
+    "none": "La CRL de cette AC n’est déployée sur aucune cible.", "attach": "Associer une cible", "attachFor": "Associer une cible CRL : {{name}}",
+    "path": "Chemin de destination de la CRL", "includeParents": "Inclure les CRL parentes",
+    "includeParentsHelp": "Crée un bundle PEM contenant la CRL de cette AC, suivie des CRL des AC émettrices.", "withParents": "inclut les CRL parentes",
+    "deployNow": "Déployer maintenant", "loadFailed": "Impossible de charger les déploiements de CRL", "created": "Cible CRL associée et premier transfert mis en attente",
+    "createFailed": "Impossible d’associer la cible CRL", "deleteConfirm": "Supprimer ce déploiement de CRL ?", "remove": "Supprimer le déploiement de CRL",
+    "removed": "Déploiement de CRL supprimé", "deleteFailed": "Impossible de supprimer le déploiement de CRL", "deployed": "CRL déployée avec succès",
+    "deployFailed": "Échec du déploiement de la CRL"
   },
   "trustStore": {
     "addCertificate": "Ajouter un certificat",

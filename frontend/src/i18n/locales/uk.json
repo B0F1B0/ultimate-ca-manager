@@ -1939,7 +1939,7 @@
     "sameHostHint": "Щоб розмістити ключі на самому хості UCM, використовуйте окремий обліковий запис SSH; служба не може записувати за межами каталогу даних.",
     "port": "Порт",
     "reloadCommand": "Команда перезавантаження",
-    "reloadCommandHint": "Необов'язково: виконується через SSH після успішного надсилання (exit 0 = успіх). Одна фіксована команда, без шаблонів.",
+    "reloadCommandHint": "Необов’язково для цього розгортання: виконується через SSH після успішної передачі (код виходу 0 = успіх). Без шаблонів.",
     "privateKeyOptional": "Закритий ключ SSH (необов'язково: залиште порожнім, щоб згенерувати ключ ed25519)",
     "privateKeyRotate": "Новий закритий ключ SSH (залиште порожнім, щоб зберегти поточний)",
     "privateKeyPlaceholder": "Вставте закритий ключ PEM/OpenSSH або залиште порожнім, щоб згенерувати новий",
@@ -1971,14 +1971,14 @@
     }
   },
   "crlDeploy": {
-    "title": "CRL Deployment", "description": "Push every updated complete CRL to an SSH deployment target.",
-    "none": "This CA is not deployed to any target.", "attach": "Attach target", "attachFor": "Attach CRL target: {{name}}",
-    "path": "CRL destination path", "includeParents": "Include parent CRLs",
-    "includeParentsHelp": "Creates a PEM bundle containing this CA CRL followed by issuer CRLs.", "withParents": "includes parent CRLs",
-    "deployNow": "Deploy now", "loadFailed": "Failed to load CRL deployments", "created": "CRL deployment attached and initial push queued",
-    "createFailed": "Failed to attach CRL deployment", "deleteConfirm": "Remove this CRL deployment?", "remove": "Remove CRL deployment",
-    "removed": "CRL deployment removed", "deleteFailed": "Failed to remove CRL deployment", "deployed": "CRL deployed successfully",
-    "deployFailed": "CRL deployment failed"
+    "title": "Розгортання CRL", "description": "Передавати кожен оновлений повний CRL на ціль розгортання SSH.",
+    "none": "CRL цього ЦС не розгортається на жодній цілі.", "attach": "Прив’язати ціль", "attachFor": "Прив’язати ціль CRL: {{name}}",
+    "path": "Шлях призначення CRL", "includeParents": "Включити CRL батьківських ЦС",
+    "includeParentsHelp": "Створює PEM-пакет із CRL цього ЦС, за яким ідуть CRL ЦС-видавців.", "withParents": "містить CRL батьківських ЦС",
+    "deployNow": "Розгорнути зараз", "loadFailed": "Не вдалося завантажити розгортання CRL", "created": "Ціль CRL прив’язано, першу передачу поставлено в чергу",
+    "createFailed": "Не вдалося прив’язати ціль CRL", "deleteConfirm": "Видалити це розгортання CRL?", "remove": "Видалити розгортання CRL",
+    "removed": "Розгортання CRL видалено", "deleteFailed": "Не вдалося видалити розгортання CRL", "deployed": "CRL успішно розгорнуто",
+    "deployFailed": "Не вдалося розгорнути CRL"
   },
   "trustStore": {
     "caTrust": "Довіра CA",

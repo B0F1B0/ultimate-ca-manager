@@ -6,7 +6,9 @@ import { Modal } from './Modal'
 import { deployService } from '../services'
 import { useNotification } from '../contexts'
 import { usePermission } from '../hooks'
-import { extractData } from '../lib/utils'
+import { extractData, formatDate } from '../lib/utils'
+
+const STATUS_VARIANT = { delivered: 'success', pending: 'warning', failed: 'danger' }
 
 const EMPTY = {
   target_id: '', crl_path: '', format: 'pem',
@@ -144,9 +146,16 @@ export function CRLDeploySection({ ca, hasCRL }) {
                       <span className="text-sm font-medium text-text-primary truncate">
                         {binding.target_name}
                       </span>
-                      <Badge variant={binding.last_delivery?.status === 'failed' ? 'danger' : 'success'} size="sm">
-                        {binding.last_delivery?.status || t('common.enabled')}
-                      </Badge>
+                      {!binding.enabled ? (
+                        <Badge variant="secondary" size="sm">{t('common.disabled')}</Badge>
+                      ) : binding.last_delivery ? (
+                        <Badge variant={STATUS_VARIANT[binding.last_delivery.status] || 'secondary'} size="sm"
+                          title={binding.last_delivery.last_error || ''}>
+                          {t(`deploy.status.${binding.last_delivery.status}`)}
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" size="sm">{t('common.enabled')}</Badge>
+                      )}
                     </div>
                     <code className="block text-xs text-text-secondary break-all mt-1">
                       {binding.crl_path}
@@ -160,6 +169,17 @@ export function CRLDeploySection({ ca, hasCRL }) {
                       <p className="text-xs text-text-tertiary font-mono truncate mt-1"
                         title={binding.reload_command}>
                         {t('deploy.reloadCommand', 'Reload command')}: {binding.reload_command}
+                      </p>
+                    )}
+                    {binding.last_delivery?.delivered_at && (
+                      <p className="text-2xs text-text-tertiary">
+                        {t('deploy.lastDeployed', { date: formatDate(binding.last_delivery.delivered_at) })}
+                      </p>
+                    )}
+                    {binding.last_delivery?.status === 'failed' && binding.last_delivery.last_error && (
+                      <p className="text-2xs status-danger-text truncate"
+                        title={binding.last_delivery.last_error}>
+                        {binding.last_delivery.last_error}
                       </p>
                     )}
                   </div>
@@ -240,7 +260,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">
-              {t('common.format', 'Format')}
+              {t('export.format')}
             </label>
             <select value={form.format}
               data-crl-der-single-object="true"

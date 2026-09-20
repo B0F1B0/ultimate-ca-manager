@@ -1939,7 +1939,7 @@
     "sameHostHint": "UCM ホスト自体に鍵を配置するには専用の SSH アカウントを使用してください。サービスはデータディレクトリ外へ書き込めません。",
     "port": "ポート",
     "reloadCommand": "リロードコマンド",
-    "reloadCommandHint": "任意: 転送成功後に SSH で実行されます（exit 0 = 成功）。固定コマンド 1 つのみ、テンプレートは使用できません。",
+    "reloadCommandHint": "このデプロイでは任意です。転送成功後に SSH で実行されます（終了コード 0 = 成功）。テンプレートは使用できません。",
     "privateKeyOptional": "SSH 秘密鍵（任意: 空欄の場合は ed25519 鍵を生成します）",
     "privateKeyRotate": "新しい SSH 秘密鍵（現在の鍵を維持する場合は空欄のまま）",
     "privateKeyPlaceholder": "PEM/OpenSSH 秘密鍵を貼り付けるか、空欄のままにして生成します",
@@ -1971,14 +1971,14 @@
     }
   },
   "crlDeploy": {
-    "title": "CRL Deployment", "description": "Push every updated complete CRL to an SSH deployment target.",
-    "none": "This CA is not deployed to any target.", "attach": "Attach target", "attachFor": "Attach CRL target: {{name}}",
-    "path": "CRL destination path", "includeParents": "Include parent CRLs",
-    "includeParentsHelp": "Creates a PEM bundle containing this CA CRL followed by issuer CRLs.", "withParents": "includes parent CRLs",
-    "deployNow": "Deploy now", "loadFailed": "Failed to load CRL deployments", "created": "CRL deployment attached and initial push queued",
-    "createFailed": "Failed to attach CRL deployment", "deleteConfirm": "Remove this CRL deployment?", "remove": "Remove CRL deployment",
-    "removed": "CRL deployment removed", "deleteFailed": "Failed to remove CRL deployment", "deployed": "CRL deployed successfully",
-    "deployFailed": "CRL deployment failed"
+    "title": "CRL デプロイ", "description": "更新された完全な CRL を SSH デプロイ先へ転送します。",
+    "none": "この CA の CRL はどのデプロイ先にも配布されていません。", "attach": "デプロイ先を関連付け", "attachFor": "CRL デプロイ先を関連付け: {{name}}",
+    "path": "CRL の保存先パス", "includeParents": "上位 CA の CRL を含める",
+    "includeParentsHelp": "この CA の CRL に続けて発行元 CA の CRL を含む PEM バンドルを作成します。", "withParents": "上位 CA の CRL を含む",
+    "deployNow": "今すぐデプロイ", "loadFailed": "CRL デプロイを読み込めませんでした", "created": "CRL デプロイ先を関連付け、初回転送をキューに追加しました",
+    "createFailed": "CRL デプロイ先を関連付けできませんでした", "deleteConfirm": "この CRL デプロイを削除しますか？", "remove": "CRL デプロイを削除",
+    "removed": "CRL デプロイを削除しました", "deleteFailed": "CRL デプロイを削除できませんでした", "deployed": "CRL を正常にデプロイしました",
+    "deployFailed": "CRL のデプロイに失敗しました"
   },
   "trustStore": {
     "caTrust": "CAトラスト",

@@ -72,4 +72,31 @@ describe('CRLDeploySection format options', () => {
     await waitFor(() => expect(mocks.createCRLBinding).toHaveBeenCalledWith(
       expect.objectContaining({ format: 'der', include_parent_crls: false })))
   })
+
+  it('localizes delivery state and shows the last failure', async () => {
+    mocks.getCRLBindings.mockResolvedValue({ data: [{
+      id: 12, target_id: 7, target_name: 'web01', crl_path: '/crl.pem',
+      format: 'pem', include_parent_crls: false, enabled: true,
+      last_delivery: {
+        status: 'failed', last_error: 'Reload command exited 1',
+        delivered_at: '2026-09-20T10:00:00Z',
+      },
+    }] })
+    render(<CRLDeploySection ca={{ id: 42, descr: 'Client CA' }} hasCRL />)
+
+    expect(await screen.findByText('deploy.status.failed')).toBeInTheDocument()
+    expect(screen.getByText('Reload command exited 1')).toBeInTheDocument()
+    expect(mocks.t).toHaveBeenCalledWith('deploy.lastDeployed', expect.any(Object))
+  })
+
+  it('shows disabled instead of enabled when a binding has no delivery', async () => {
+    mocks.getCRLBindings.mockResolvedValue({ data: [{
+      id: 13, target_id: 7, target_name: 'web01', crl_path: '/crl.pem',
+      format: 'pem', include_parent_crls: false, enabled: false,
+      last_delivery: null,
+    }] })
+    render(<CRLDeploySection ca={{ id: 42, descr: 'Client CA' }} hasCRL />)
+    expect(await screen.findByText('common.disabled')).toBeInTheDocument()
+    expect(screen.queryByText('common.enabled')).not.toBeInTheDocument()
+  })
 })

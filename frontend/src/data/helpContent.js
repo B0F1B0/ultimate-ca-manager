@@ -374,6 +374,7 @@ export const helpContent = {
           { label: 'Auto-Regeneration', text: 'Toggle automatic CRL regeneration per CA' },
           { label: 'Manual Regenerate', text: 'Force CRL regeneration immediately' },
           { label: 'Download CRL', text: 'Download the CRL file in DER or PEM format' },
+          { label: 'CRL deployment', text: 'Attach an SSH/SFTP target to push every regenerated CRL automatically. Each binding selects PEM or DER, its destination path, optional parent CRLs and its own reload command' },
           { label: 'CDP URL', text: 'CRL Distribution Point URL to embed in certificates' },
           { label: 'Validity', text: 'Per-CA CRL validity from 1 day up to 5 years (90d/180d/1y/3y/5y for offline CAs that cannot re-sign on schedule). A warning appears past one year, relying parties may keep stale revocation data for the whole window' },
           { label: 'External CRL', text: 'Key-less/offline CAs cannot self-sign a CRL, upload one generated next to the offline key from the CA detail view; it is validated (signature, issuer, monotonicity) and served at the same CDP URL (v2.215)' },
@@ -996,8 +997,8 @@ export const helpContent = {
         items: [
           { label: 'Target', text: 'Host, port, SSH user. UCM generates an ed25519 key (install the shown public key on the target) or accepts an imported private key, stored encrypted' },
           { label: 'Host key', text: 'Pinned on the first successful connection (trust-on-first-use); any later change fails closed. Changing the host re-pins' },
-          { label: 'Reload command', text: 'One fixed, admin-defined command run after a successful push (e.g. systemctl reload nginx): exit 0 = success, no templating' },
-          { label: 'Bindings', text: 'Certificates are attached to targets from the certificate detail view, with per-file destination paths' },
+          { label: 'Reload command', text: 'An optional command configured per certificate or CRL binding and run after a successful push (e.g. systemctl reload nginx): exit 0 = success, no templating' },
+          { label: 'Bindings', text: 'Certificates are attached from the certificate detail view; CRLs are attached under CRL & OCSP. Each binding owns its paths, file options and reload command' },
           { label: 'Delivery', text: 'Pushes run asynchronously through a durable queue with retries and backoff; per-delivery status, manual deploy-now and retry, full audit trail' },
           { label: 'Least privilege', text: 'Use a dedicated SSH account on each target: write access to the certificate paths and permission to reload the service, nothing more' },
         ]

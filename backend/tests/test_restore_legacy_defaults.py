@@ -39,3 +39,36 @@ def test_a_pre_089_binding_comes_back_with_its_root(app, auth_client, create_cer
     assert _restore(auth_client, blob).status_code == 200
     with app.app_context():
         assert DeployBinding.query.filter_by(certificate_id=cert['id']).one().include_root is True
+
+
+def test_a_pre_091_binding_inherits_its_archived_target_reload_command(
+        app, auth_client, create_cert):
+    """Migration 091 cannot touch binding rows inserted later by restore."""
+    from models import db, DeployBinding
+    from models.deploy import DeployTarget
+    from security.encryption import encrypt_text
+    from tests.test_backup_hostile_corpus import _forged, _restore
+    cert = create_cert()
+    with app.app_context():
+        target = DeployTarget(
+            name='legacy-reload-target', host='legacy-reload.example.test',
+            username='deploy', private_key=encrypt_text('k'),
+            reload_command='systemctl reload nginx')
+        db.session.add(target)
+        db.session.flush()
+        db.session.add(DeployBinding(
+            target_id=target.id, certificate_id=cert['id'],
+            cert_path='/etc/ssl/cert.pem', reload_command=None))
+        db.session.commit()
+
+        def forget_binding_command(data):
+            for row in data['deploy_bindings']:
+                del row['reload_command']
+
+        blob = _forged(
+            ('certificate_authorities', 'certificates', 'deploy_targets',
+             'deploy_bindings'), mutate=forget_binding_command)
+    assert _restore(auth_client, blob).status_code == 200
+    with app.app_context():
+        restored = DeployBinding.query.filter_by(certificate_id=cert['id']).one()
+        assert restored.reload_command == 'systemctl reload nginx'

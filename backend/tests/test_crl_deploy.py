@@ -63,6 +63,35 @@ def _binding(client, target_id, ca_id, **overrides):
 
 
 class TestCRLBindings:
+    def test_deleting_certificate_binding_keeps_same_numbered_crl_delivery(
+            self, app, auth_client, create_ca, create_cert):
+        """Certificate and CRL bindings use independent id sequences."""
+        ca = create_ca(cn='CRL Delivery Collision CA')
+        _generate(app, ca['id'])
+        target = _target(auth_client)
+        crl_binding = _binding(auth_client, target['id'], ca['id'])
+        cert = create_cert(cn='delivery-collision.example.test', ca_id=ca['id'])
+        cert_binding = assert_success(_post(auth_client, f'{BASE}/bindings', {
+            'target_id': target['id'], 'certificate_id': cert['id'],
+            'cert_path': '/etc/ssl/collision.pem',
+        }), status=201)
+
+        from models import db, Certificate, DeployDelivery
+        from services.cert_service import CertificateService
+        with app.app_context():
+            # A fresh test database gives both binding tables the same first id;
+            # assert the precondition so this remains a real collision test.
+            assert cert_binding['id'] == crl_binding['id']
+            crl_delivery_ids = [row.id for row in DeployDelivery.query.filter_by(
+                binding_id=crl_binding['id'], binding_type='crl').all()]
+            assert crl_delivery_ids
+            db.session.get(Certificate, cert['id']).revoked = True
+            db.session.commit()
+            assert CertificateService.delete_certificate(cert['id']) is True
+            assert [row.id for row in DeployDelivery.query.filter_by(
+                binding_id=crl_binding['id'], binding_type='crl').all()
+                    if row.id in crl_delivery_ids] == crl_delivery_ids
+
     def test_create_lists_and_queues_initial_push(self, app, auth_client, create_ca):
         ca = create_ca(cn='CRL Binding CA')
         _generate(app, ca['id'])
@@ -89,6 +118,10 @@ class TestCRLBindings:
             'target_id': target['id'], 'ca_id': ca['id'],
             'crl_path': '/root/certs/CRL.der', 'format': 'der',
             'include_parent_crls': True}), 400)
+        assert_error(_post(auth_client, f'{BASE}/crl-bindings', {
+            'target_id': target['id'], 'ca_id': ca['id'],
+            'crl_path': '/root/certs/CRL.pem', 'format': 'pem',
+            'include_parent_crls': 'false'}), 400)
 
     def test_patch_validates_final_format_state(self, app, auth_client, create_ca):
         ca = create_ca(cn='CRL Patch CA')

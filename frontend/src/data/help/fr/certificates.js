@@ -66,7 +66,7 @@ export default {
         items: [
           { label: 'Attacher une cible', text: "Depuis le panneau de détails du certificat : choisissez une cible de déploiement et définissez des chemins de destination absolus pour le certificat, la clé privée et/ou la chaîne complète (au moins un)" },
           { label: 'Même hôte', text: "Pour déployer sur l’hôte UCM lui-même, utilisez une cible SFTP sur 127.0.0.1 avec un compte SSH dédié ; le service isolé ne peut pas écrire hors de son répertoire de données" },
-          { label: 'Automatique', text: "À l'émission et au renouvellement, les fichiers liés sont poussés à nouveau et la commande de rechargement de la cible s'exécute, les livraisons sont mises en file avec réessais" },
+          { label: 'Automatique', text: "À l'émission et au renouvellement, les fichiers liés sont transférés à nouveau et la commande de rechargement de ce déploiement de certificat s'exécute ; les livraisons sont mises en file avec réessais" },
           { label: 'Fichiers', text: "Écrits de façon atomique aux chemins exacts configurés (le répertoire parent doit exister) : clé 0600, certificat/chaîne 0644" },
           { label: 'Déployer maintenant', text: "Envoi manuel depuis le panneau de détails, avec le statut de livraison et la dernière erreur affichés par cible" },
         ]

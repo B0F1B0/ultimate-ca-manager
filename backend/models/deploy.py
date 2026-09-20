@@ -190,7 +190,9 @@ class DeployDelivery(db.Model):
     binding_id = db.Column(db.Integer, nullable=False, index=True)
     binding_type = db.Column(
         db.String(16), nullable=False, default=BINDING_CERTIFICATE, index=True)
-    # 'certificate.issued' | 'certificate.renewed' | 'manual'
+    # Certificate: 'certificate.issued', 'certificate.renewed', 'initial',
+    # 'binding.updated', 'manual'. CRL: 'crl.updated' plus the shared latter
+    # three event types.
     event_type = db.Column(db.String(32), nullable=False)
 
     status = db.Column(db.String(16), nullable=False, default=STATUS_PENDING, index=True)

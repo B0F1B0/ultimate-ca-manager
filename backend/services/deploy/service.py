@@ -635,7 +635,7 @@ class DeployService:
                 raise ValueError('format must be pem or der')
             out['format'] = crl_format
         if 'include_parent_crls' in data:
-            out['include_parent_crls'] = bool(data['include_parent_crls'])
+            out['include_parent_crls'] = json_boolean(data, 'include_parent_crls')
         if 'enabled' in data:
             out['enabled'] = bool(data['enabled'])
         DeployService._validate_reload_command(data, out, partial)

@@ -1939,7 +1939,7 @@
     "sameHostHint": "Para colocar claves en el propio host de UCM, use una cuenta SSH dedicada; el servicio no puede escribir fuera de su directorio de datos.",
     "port": "Puerto",
     "reloadCommand": "Comando de recarga",
-    "reloadCommandHint": "Opcional: se ejecuta por SSH tras un envío exitoso (exit 0 = éxito). Un solo comando fijo, sin plantillas.",
+    "reloadCommandHint": "Opcional para este despliegue: se ejecuta por SSH después de una transferencia correcta (código de salida 0 = éxito). Sin plantillas.",
     "privateKeyOptional": "Clave privada SSH (opcional: deje vacío para generar una clave ed25519)",
     "privateKeyRotate": "Nueva clave privada SSH (deje vacío para conservar la actual)",
     "privateKeyPlaceholder": "Pegue una clave privada PEM/OpenSSH, o deje vacío para generar una",
@@ -1971,14 +1971,14 @@
     }
   },
   "crlDeploy": {
-    "title": "CRL Deployment", "description": "Push every updated complete CRL to an SSH deployment target.",
-    "none": "This CA is not deployed to any target.", "attach": "Attach target", "attachFor": "Attach CRL target: {{name}}",
-    "path": "CRL destination path", "includeParents": "Include parent CRLs",
-    "includeParentsHelp": "Creates a PEM bundle containing this CA CRL followed by issuer CRLs.", "withParents": "includes parent CRLs",
-    "deployNow": "Deploy now", "loadFailed": "Failed to load CRL deployments", "created": "CRL deployment attached and initial push queued",
-    "createFailed": "Failed to attach CRL deployment", "deleteConfirm": "Remove this CRL deployment?", "remove": "Remove CRL deployment",
-    "removed": "CRL deployment removed", "deleteFailed": "Failed to remove CRL deployment", "deployed": "CRL deployed successfully",
-    "deployFailed": "CRL deployment failed"
+    "title": "Despliegue de CRL", "description": "Transferir cada CRL completa actualizada a un destino de despliegue SSH.",
+    "none": "La CRL de esta CA no se despliega en ningún destino.", "attach": "Vincular destino", "attachFor": "Vincular destino de CRL: {{name}}",
+    "path": "Ruta de destino de la CRL", "includeParents": "Incluir CRL superiores",
+    "includeParentsHelp": "Crea un paquete PEM con la CRL de esta CA seguida de las CRL de las CA emisoras.", "withParents": "incluye CRL superiores",
+    "deployNow": "Desplegar ahora", "loadFailed": "No se pudieron cargar los despliegues de CRL", "created": "Destino de CRL vinculado y primera transferencia en cola",
+    "createFailed": "No se pudo vincular el destino de CRL", "deleteConfirm": "¿Quitar este despliegue de CRL?", "remove": "Quitar despliegue de CRL",
+    "removed": "Despliegue de CRL eliminado", "deleteFailed": "No se pudo eliminar el despliegue de CRL", "deployed": "CRL desplegada correctamente",
+    "deployFailed": "Error al desplegar la CRL"
   },
   "trustStore": {
     "caTrust": "Confianza de CA",
