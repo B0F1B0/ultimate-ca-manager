@@ -21,7 +21,6 @@ def _target(client):
         'name': f'crl-target-{_seq[0]}',
         'host': 'crl.example.test',
         'username': 'ucm-deploy',
-        'reload_command': 'nginx -t && nginx -s reload',
     }), status=201)
 
 
@@ -57,6 +56,7 @@ def _binding(client, target_id, ca_id, **overrides):
         'crl_path': '/root/certs/CRL.crl',
         'format': 'pem',
         'include_parent_crls': False,
+        'reload_command': 'nginx -t && nginx -s reload',
     }
     payload.update(overrides)
     return assert_success(_post(client, f'{BASE}/crl-bindings', payload), status=201)
@@ -75,6 +75,7 @@ class TestCRLBindings:
         assert rows[0]['id'] == binding['id']
         assert rows[0]['last_delivery']['binding_type'] == 'crl'
         assert rows[0]['last_delivery']['event_type'] == 'initial'
+        assert rows[0]['reload_command'] == 'nginx -t && nginx -s reload'
 
     def test_rejects_relative_path_and_der_parent_bundle(
             self, app, auth_client, create_ca):
@@ -97,6 +98,56 @@ class TestCRLBindings:
                            include_parent_crls=True)
         assert_error(_patch(auth_client, f"{BASE}/crl-bindings/{binding['id']}",
                             {'format': 'der'}), 400)
+
+    def test_patch_executes_pending_delivery_immediately(
+            self, app, auth_client, create_ca, monkeypatch):
+        from datetime import timedelta
+        from models import db, DeployDelivery
+        from utils.datetime_utils import utc_now
+
+        ca = create_ca(cn='CRL Patch Retry CA')
+        _generate(app, ca['id'])
+        target = _target(auth_client)
+        binding = _binding(auth_client, target['id'], ca['id'])
+
+        with app.app_context():
+            pending = DeployDelivery.query.filter_by(
+                binding_id=binding['id'], binding_type='crl', status='pending').one()
+            pending.attempts = 4
+            pending.next_attempt_at = utc_now() + timedelta(hours=1)
+            pending.last_error = 'Reload command exited 1'
+            pending.detail = '{"reload_exit": 1}'
+            db.session.commit()
+
+        import services.deploy.ssh as ssh_mod
+        pushed = []
+
+        class FakeClient:
+            def close(self):
+                pass
+
+        monkeypatch.setattr(
+            ssh_mod, 'open_client',
+            lambda host, port, username, key, expected: (FakeClient(), None))
+        monkeypatch.setattr(
+            ssh_mod, 'push_files', lambda client, files: pushed.extend(files))
+        monkeypatch.setattr(ssh_mod, 'run_command', lambda client, command: (0, ''))
+
+        assert_success(_patch(
+            auth_client, f"{BASE}/crl-bindings/{binding['id']}",
+            {'format': 'der', 'include_parent_crls': False}))
+
+        with app.app_context():
+            rows = DeployDelivery.query.filter_by(
+                binding_id=binding['id'], binding_type='crl').all()
+            assert len(rows) == 1
+            assert rows[0].status == 'delivered'
+            assert rows[0].event_type == 'binding.updated'
+            assert rows[0].attempts == 1
+            assert rows[0].last_error is None
+            assert rows[0].get_detail()['pushed'] == ['/root/certs/CRL.crl']
+        assert len(pushed) == 1
+        assert not pushed[0][1].startswith(b'-----BEGIN X509 CRL-----')
 
 
 class TestCRLMaterial:

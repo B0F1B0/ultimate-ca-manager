@@ -1,7 +1,7 @@
 """Deploy hooks service (#299).
 
-Certificates bound to deploy targets are pushed over SFTP on issuance and
-renewal (and on demand), then the target's fixed reload command runs over SSH.
+Certificates and CRLs bound to deploy targets are pushed over SFTP after
+updates (and on demand), then the binding's optional reload command runs over SSH.
 Deliveries go through a durable queue drained by a scheduler task with
 exponential backoff — the same model as webhook deliveries: the issuing
 request is never blocked on SSH.
@@ -241,8 +241,9 @@ class DeployService:
                 logger.info(f"Deploy target '{target.name}': pinned host key on first connect")
             deploy_ssh.push_files(client, files)
             detail['pushed'] = [path for path, _, _ in files]
-            if target.reload_command:
-                exit_status, stderr_tail = deploy_ssh.run_command(client, target.reload_command)
+            if binding.reload_command:
+                exit_status, stderr_tail = deploy_ssh.run_command(
+                    client, binding.reload_command)
                 detail['reload_exit'] = exit_status
                 if stderr_tail:
                     detail['reload_stderr'] = stderr_tail[:1024]
@@ -536,11 +537,6 @@ class DeployService:
             if not username or len(username) > 120:
                 raise ValueError('username is required (max 120 chars)')
             out['username'] = username
-        if 'reload_command' in data:
-            cmd = str(data.get('reload_command') or '').strip()
-            if len(cmd) > 512:
-                raise ValueError('reload_command is too long (max 512 chars)')
-            out['reload_command'] = cmd or None
         if 'enabled' in data:
             out['enabled'] = bool(data['enabled'])
         return out
@@ -620,6 +616,7 @@ class DeployService:
             out['enabled'] = bool(data['enabled'])
         if 'include_root' in data:
             out['include_root'] = json_boolean(data, 'include_root')
+        DeployService._validate_reload_command(data, out, partial)
         return out
 
     @staticmethod
@@ -641,11 +638,21 @@ class DeployService:
             out['include_parent_crls'] = bool(data['include_parent_crls'])
         if 'enabled' in data:
             out['enabled'] = bool(data['enabled'])
+        DeployService._validate_reload_command(data, out, partial)
         final_format = out.get('format', data.get('current_format'))
         final_include = out.get('include_parent_crls', data.get('current_include_parent_crls', False))
         if final_format == CRLDeployBinding.FORMAT_DER and final_include:
             raise ValueError('include_parent_crls requires PEM format')
         return out
+
+    @staticmethod
+    def _validate_reload_command(data: dict, out: dict, partial: bool = False):
+        if partial and 'reload_command' not in data:
+            return
+        command = str(data.get('reload_command') or '').strip()
+        if len(command) > 512:
+            raise ValueError('reload_command is too long (max 512 chars)')
+        out['reload_command'] = command or None
 
     @staticmethod
     def ensure_distinct_paths(cert_path, key_path, fullchain_path):
@@ -689,6 +696,70 @@ class DeployService:
             triggered_by=actor,
         )
         db.session.add(delivery)
+        return delivery
+
+    @staticmethod
+    def enqueue_binding_update(binding, binding_type: str, actor: str = 'system'):
+        """Make a saved binding change take effect without waiting for the
+        previous retry backoff or another certificate/CRL event.
+
+        A pending delivery is coalesced and made due immediately. Completed
+        or exhausted history stays immutable; in that case a new delivery is
+        appended. The caller commits this together with the binding update.
+        """
+        if binding_type not in (
+                DeployDelivery.BINDING_CERTIFICATE, DeployDelivery.BINDING_CRL):
+            raise ValueError(f'Unknown binding type: {binding_type}')
+        if not binding.enabled or not binding.target or not binding.target.enabled:
+            return None
+
+        now = utc_now()
+        pending = DeployDelivery.query.filter_by(
+            binding_id=binding.id,
+            binding_type=binding_type,
+            status=DeployDelivery.STATUS_PENDING,
+        ).first()
+        if pending:
+            pending.event_type = 'binding.updated'
+            pending.attempts = 0
+            pending.max_attempts = DeployService.DEFAULT_MAX_ATTEMPTS
+            pending.next_attempt_at = now
+            pending.last_error = None
+            pending.detail = None
+            pending.triggered_by = actor
+            pending.delivered_at = None
+            return pending
+
+        delivery = DeployDelivery(
+            binding_id=binding.id,
+            binding_type=binding_type,
+            event_type='binding.updated',
+            status=DeployDelivery.STATUS_PENDING,
+            attempts=0,
+            max_attempts=DeployService.DEFAULT_MAX_ATTEMPTS,
+            next_attempt_at=now,
+            triggered_by=actor,
+        )
+        db.session.add(delivery)
+        return delivery
+
+    @staticmethod
+    def deploy_binding_update_now(binding, binding_type: str,
+                                  actor: str = 'system'):
+        """Run the first delivery attempt synchronously after an edit.
+
+        Transport or reload failures are recorded by ``execute_delivery`` as
+        a pending retry with backoff. This keeps Save deterministic while the
+        scheduler is only responsible for later attempts.
+        """
+        delivery = DeployService.enqueue_binding_update(
+            binding, binding_type, actor=actor)
+        if not delivery:
+            return None
+        # The scheduler increments before executing; this request is itself
+        # the first attempt and therefore records the same counter value.
+        delivery.attempts = 1
+        DeployService.execute_delivery(delivery)
         return delivery
 
 

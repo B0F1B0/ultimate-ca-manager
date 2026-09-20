@@ -1,9 +1,9 @@
 """Deploy hooks models (#299).
 
-Push issued/renewed certificates to remote hosts over SFTP and run a fixed
-reload command over SSH. Admin-only feature: UCM holds SSH credentials that
-can execute a command on the fleet, so everything is encrypted at rest and
-audited.
+Push issued/renewed certificates and CRLs to remote hosts over SFTP. Each
+binding may run its own fixed reload command over SSH after a successful push.
+Admin-only feature: UCM holds SSH credentials that can execute commands on the
+fleet, so everything is encrypted at rest and audited.
 """
 import json
 
@@ -26,8 +26,8 @@ class DeployTarget(db.Model):
     public_key = db.Column(db.Text)
     # Pinned host key, '<type> <base64>', recorded on first connect (TOFU)
     host_key = db.Column(db.Text)
-    # One fixed, admin-defined command run over SSH after a successful push.
-    # No templating, no uploaded scripts (v1 scope).
+    # Legacy storage retained for downgrade compatibility. Migration 091 copies
+    # this value to each binding; new code neither exposes nor executes it.
     reload_command = db.Column(db.String(512))
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
@@ -61,7 +61,6 @@ class DeployTarget(db.Model):
             'public_key': self.public_key,
             'host_key_fingerprint': self.host_key_fingerprint(),
             'host_key_pinned': bool(self.host_key),
-            'reload_command': self.reload_command,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,
@@ -89,6 +88,9 @@ class DeployBinding(db.Model):
     # in a TLS server's fullchain. Keep the exceptional legacy behaviour as
     # an explicit per-binding choice.
     include_root = db.Column(db.Boolean, nullable=False, default=False)
+    # Optional command for this certificate deployment only. The same SSH
+    # target can therefore serve different daemons with different reloads.
+    reload_command = db.Column(db.String(512))
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -106,6 +108,7 @@ class DeployBinding(db.Model):
             'key_path': self.key_path,
             'fullchain_path': self.fullchain_path,
             'include_root': self.include_root,
+            'reload_command': self.reload_command,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,
@@ -135,6 +138,7 @@ class CRLDeployBinding(db.Model):
     crl_path = db.Column(db.String(512), nullable=False)
     format = db.Column(db.String(8), nullable=False, default=FORMAT_PEM)
     include_parent_crls = db.Column(db.Boolean, nullable=False, default=False)
+    reload_command = db.Column(db.String(512))
     enabled = db.Column(db.Boolean, nullable=False, default=True)
 
     created_at = db.Column(db.DateTime, default=utc_now)
@@ -153,6 +157,7 @@ class CRLDeployBinding(db.Model):
             'crl_path': self.crl_path,
             'format': self.format,
             'include_parent_crls': self.include_parent_crls,
+            'reload_command': self.reload_command,
             'enabled': self.enabled,
             'created_at': utc_isoformat(self.created_at),
             'created_by': self.created_by,

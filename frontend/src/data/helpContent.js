@@ -211,7 +211,7 @@ export const helpContent = {
         items: [
           { label: 'Attach target', text: 'From the certificate detail view: pick a deploy target and set absolute destination paths for the certificate, private key and/or full chain (at least one)' },
           { label: 'Same host', text: 'To deploy on the UCM host itself, use an SFTP target at 127.0.0.1 with a dedicated SSH account; the sandboxed service cannot write outside its data directory' },
-          { label: 'Automatic', text: 'On issuance and renewal, the bound files are pushed again and the target reload command runs, deliveries are queued with retries' },
+          { label: 'Automatic', text: 'On issuance and renewal, the bound files are pushed again and that deployment\'s optional reload command runs; deliveries are queued with retries' },
           { label: 'Files', text: 'Written atomically at the exact configured paths (parent directory must exist): key 0600, certificate/chain 0644' },
           { label: 'Deploy now', text: 'Manual push from the detail view, with the delivery status and last error shown per target' },
         ]
@@ -984,7 +984,7 @@ export const helpContent = {
           { label: 'HTTPS', text: 'TLS certificate for the UCM web interface. The applied certificate is remembered and re-applied when it is renewed (v2.217); the bound certificate is shown with an unbind button to stop following renewals (v2.218)' },
           { label: 'Updates', text: 'Check for new versions, view changelog, scheduled daily check with opt-in unattended install (DEB/RPM)' },
           { label: 'Webhooks', text: 'HTTP webhooks for certificate events (issue, revoke, expire): internal LAN URLs allowed; cloud-metadata IPs blocked. Optional outbound auth: Bearer, Basic, API key, or custom header' },
-          { label: 'Deployment', text: 'Deploy targets: remote hosts certificates are pushed to over SSH/SFTP on issuance and renewal, with a fixed reload command (admin-only, v2.215)' },
+          { label: 'Deployment', text: 'Deploy targets provide reusable SSH/SFTP connections; certificate and CRL deployments define their own paths and optional reload commands (admin-only, v2.215)' },
           { label: 'Active Directory', text: "UCM's own AD/LDAP connection for certificate-related lookups (Kerberos principal resolution, AD-derived subjects)" },
           { label: 'Windows Autoenrollment', text: 'MS-XCEP/MS-WSTEP native Windows enrollment: policy discovery, certificate issuance, and Kerberos/SPNEGO binding' },
         ]
@@ -992,7 +992,7 @@ export const helpContent = {
       {
         title: 'Deploy hooks (v2.215)',
         icon: CloudArrowUp,
-        content: 'Settings › Deployment (admin-only): remote hosts UCM pushes certificates to over SFTP, then runs one fixed reload command over SSH.',
+        content: 'Settings › Deployment (admin-only): reusable SSH/SFTP connections for certificate and CRL deployments. Paths and optional reload commands are configured on each deployment.',
         items: [
           { label: 'Target', text: 'Host, port, SSH user. UCM generates an ed25519 key (install the shown public key on the target) or accepts an imported private key, stored encrypted' },
           { label: 'Host key', text: 'Pinned on the first successful connection (trust-on-first-use); any later change fails closed. Changing the host re-pins' },

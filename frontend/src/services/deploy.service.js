@@ -1,6 +1,6 @@
 /**
  * Deploy Hooks Service (#299) — admin-only
- * Push certificates to remote hosts over SSH/SFTP with a reload command.
+ * Reusable SSH/SFTP targets plus certificate- and CRL-specific deployments.
  */
 import { apiClient, buildQueryString } from './apiClient'
 

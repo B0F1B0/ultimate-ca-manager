@@ -1581,7 +1581,7 @@
     "title": "Déploiement de certificats",
     "subtitle": "Pousser les certificats vers des hôtes distants via SSH",
     "helpTitle": "Hooks de déploiement",
-    "helpDescription": "À l'émission et au renouvellement, UCM pousse les fichiers choisis (certificat, clé privée, chaîne complète) vers les hôtes distants liés via SFTP, puis exécute la commande de rechargement de la cible via SSH. Utilisez un compte SSH dédié à privilèges réduits sur chaque cible : accès en écriture aux chemins des certificats et permission de recharger le service, rien de plus.",
+    "helpDescription": "Les cibles stockent des connexions SSH/SFTP réutilisables. Chaque déploiement de certificat ou de CRL définit ses propres chemins de destination et sa commande de rechargement facultative. Utilisez un compte SSH dédié avec des privilèges minimaux sur chaque cible.",
     "targets": "Cibles de déploiement",
     "noTargets": "Aucune cible de déploiement",
     "noTargetsDescription": "Créez une cible pour pousser les certificats vers un hôte distant via SSH à l'émission et au renouvellement.",

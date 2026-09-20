@@ -1905,7 +1905,7 @@
     "title": "Distribuzione dei certificati",
     "subtitle": "Invia i certificati agli host remoti tramite SSH",
     "helpTitle": "Hook di distribuzione",
-    "helpDescription": "All'emissione e al rinnovo, UCM invia i file scelti (certificato, chiave privata, catena completa) agli host remoti associati tramite SFTP, quindi esegue il comando di ricarica della destinazione tramite SSH. Usa un account SSH dedicato a privilegi minimi su ogni destinazione: accesso in scrittura ai percorsi dei certificati e permesso di ricaricare il servizio, nient'altro.",
+    "helpDescription": "Le destinazioni memorizzano connessioni SSH/SFTP riutilizzabili. Ogni distribuzione di certificato o CRL definisce i propri percorsi e il comando di ricarica facoltativo. Usa un account SSH dedicato con privilegi minimi su ogni destinazione.",
     "targets": "Destinazioni di distribuzione",
     "noTargets": "Nessuna destinazione di distribuzione",
     "noTargetsDescription": "Crea una destinazione per inviare i certificati a un host remoto via SSH a ogni emissione e rinnovo.",

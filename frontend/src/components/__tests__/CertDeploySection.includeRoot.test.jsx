@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getBindings: vi.fn(),
   getTargets: vi.fn(),
   createBinding: vi.fn(),
+  updateBinding: vi.fn(),
 }))
 
 vi.mock('react-i18next', () => ({
@@ -82,6 +83,69 @@ describe('CertDeploySection root CA option', () => {
       key_path: undefined,
       fullchain_path: '/etc/ssl/certs/app-fullchain.pem',
       include_root: true,
+      reload_command: '',
+    }))
+  })
+
+  it('edits the reload command on the certificate binding', async () => {
+    mocks.getBindings.mockResolvedValue({ data: [{
+      id: 9,
+      target_id: 7,
+      target_name: 'web01',
+      target_host: '192.0.2.10',
+      cert_path: '/etc/ssl/certs/app.pem',
+      key_path: null,
+      fullchain_path: null,
+      include_root: false,
+      reload_command: 'old reload',
+      enabled: true,
+    }] })
+    mocks.updateBinding.mockResolvedValue({ data: { id: 9 } })
+
+    render(<CertDeploySection certificate={certificate} />)
+    await screen.findByText('web01')
+    fireEvent.click(document.querySelector('[data-deploy-binding-edit="certificate"]'))
+    const command = screen.getByPlaceholderText(
+      '/usr/sbin/nginx -t && /usr/sbin/nginx -s reload')
+    fireEvent.change(command, { target: { value: 'new reload' } })
+    fireEvent.submit(document.querySelector('form'))
+
+    await waitFor(() => expect(mocks.updateBinding).toHaveBeenCalledWith(
+      9, expect.objectContaining({ reload_command: 'new reload' })))
+  })
+
+  it('explicitly clears optional paths when editing a certificate binding', async () => {
+    mocks.getBindings.mockResolvedValue({ data: [{
+      id: 10,
+      target_id: 7,
+      target_name: 'web01',
+      target_host: '192.0.2.10',
+      cert_path: '/etc/ssl/certs/app.pem',
+      key_path: '/etc/ssl/private/app.key',
+      fullchain_path: '/etc/ssl/certs/app-fullchain.pem',
+      include_root: true,
+      reload_command: '',
+      enabled: true,
+    }] })
+    mocks.updateBinding.mockResolvedValue({ data: { id: 10 } })
+
+    render(<CertDeploySection certificate={certificate} />)
+    await screen.findByText('web01')
+    fireEvent.click(document.querySelector('[data-deploy-binding-edit="certificate"]'))
+    fireEvent.change(screen.getByPlaceholderText('/etc/ssl/private/app.key'), {
+      target: { value: '' },
+    })
+    fireEvent.change(screen.getByPlaceholderText('/etc/ssl/certs/app-fullchain.pem'), {
+      target: { value: '' },
+    })
+    fireEvent.submit(document.querySelector('form'))
+
+    await waitFor(() => expect(mocks.updateBinding).toHaveBeenCalledWith(10, {
+      cert_path: '/etc/ssl/certs/app.pem',
+      key_path: null,
+      fullchain_path: null,
+      include_root: false,
+      reload_command: '',
     }))
   })
 })

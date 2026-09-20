@@ -1,9 +1,8 @@
 /**
  * DeploySection — deploy targets management (#299, admin-only).
  *
- * A deploy target is a remote host UCM pushes certificates to over SFTP,
- * followed by one fixed reload command over SSH. Certificates are attached
- * to targets from the certificate detail view (bindings).
+ * A deploy target contains only the reusable SSH/SFTP connection. Files,
+ * paths and optional reload commands belong to certificate/CRL bindings.
  */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +15,7 @@ import { useClipboard } from '../../hooks/useClipboard'
 import { extractData, formatDate } from '../../lib/utils'
 
 const EMPTY_FORM = {
-  name: '', host: '', port: 22, username: '', reload_command: '', private_key: '', enabled: true,
+  name: '', host: '', port: 22, username: '', private_key: '', enabled: true,
 }
 
 export default function DeploySection() {
@@ -54,8 +53,7 @@ export default function DeploySection() {
     setEditing(target)
     setForm({
       name: target.name, host: target.host, port: target.port,
-      username: target.username, reload_command: target.reload_command || '',
-      private_key: '', enabled: target.enabled,
+      username: target.username, private_key: '', enabled: target.enabled,
     })
     setFormOpen(true)
   }
@@ -67,7 +65,7 @@ export default function DeploySection() {
       const payload = {
         name: form.name.trim(), host: form.host.trim(),
         port: Number(form.port) || 22, username: form.username.trim(),
-        reload_command: form.reload_command.trim(), enabled: form.enabled,
+        enabled: form.enabled,
       }
       if (form.private_key.trim()) payload.private_key = form.private_key
       if (editing) {
@@ -137,7 +135,6 @@ export default function DeploySection() {
     ...current,
     host: '127.0.0.1',
     username: 'ucm-deploy',
-    reload_command: 'sudo systemctl reload nginx',
   }))
 
   return (
@@ -254,13 +251,6 @@ export default function DeploySection() {
                      className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm text-text-primary focus:outline-none focus:border-accent-primary"
                      value={form.port} onChange={field('port')} />
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-text-secondary">{t('deploy.reloadCommand')}</label>
-            <input className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm text-text-primary font-mono focus:outline-none focus:border-accent-primary"
-                   placeholder="systemctl reload nginx"
-                   value={form.reload_command} onChange={field('reload_command')} maxLength={512} />
-            <p className="text-2xs text-text-tertiary">{t('deploy.reloadCommandHint')}</p>
           </div>
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">

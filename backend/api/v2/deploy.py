@@ -322,10 +322,20 @@ def update_binding(binding_id):
         return error_response(
             'This certificate has no private key in UCM: remove the key path', 400)
 
+    delivery = DeployService.deploy_binding_update_now(
+        binding, DeployDelivery.BINDING_CERTIFICATE, actor=_actor())
     ok, err = safe_commit(logger, 'Failed to update deploy binding')
     if not ok:
         return err
-    return success_response(data=binding.to_dict(), message='Deploy binding updated')
+    if not delivery:
+        message = 'Deploy binding updated, no deployment queued'
+    elif delivery.status == DeployDelivery.STATUS_DELIVERED:
+        message = 'Deploy binding updated and deployed successfully'
+    elif delivery.status == DeployDelivery.STATUS_PENDING:
+        message = 'Deploy binding updated; immediate deployment failed, retry queued'
+    else:
+        message = 'Deploy binding updated; deployment failed'
+    return success_response(data=binding.to_dict(), message=message)
 
 
 @bp.route('/api/v2/deploy/bindings/<int:binding_id>', methods=['DELETE'])
@@ -472,10 +482,20 @@ def update_crl_binding(binding_id):
         return error_response(str(e), 400)
     for key, value in fields.items():
         setattr(binding, key, value)
+    delivery = DeployService.deploy_binding_update_now(
+        binding, DeployDelivery.BINDING_CRL, actor=_actor())
     ok, err = safe_commit(logger, 'Failed to update CRL deploy binding')
     if not ok:
         return err
-    return success_response(data=binding.to_dict(), message='CRL deploy binding updated')
+    if not delivery:
+        message = 'CRL deploy binding updated, no deployment queued'
+    elif delivery.status == DeployDelivery.STATUS_DELIVERED:
+        message = 'CRL deploy binding updated and deployed successfully'
+    elif delivery.status == DeployDelivery.STATUS_PENDING:
+        message = 'CRL deploy binding updated; immediate deployment failed, retry queued'
+    else:
+        message = 'CRL deploy binding updated; deployment failed'
+    return success_response(data=binding.to_dict(), message=message)
 
 
 @bp.route('/api/v2/deploy/crl-bindings/<int:binding_id>', methods=['DELETE'])

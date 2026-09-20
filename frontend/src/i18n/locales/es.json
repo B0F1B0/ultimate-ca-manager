@@ -1905,7 +1905,7 @@
     "title": "Despliegue de certificados",
     "subtitle": "Envíe certificados a hosts remotos por SSH",
     "helpTitle": "Hooks de despliegue",
-    "helpDescription": "En la emisión y la renovación, UCM envía los archivos elegidos (certificado, clave privada, cadena completa) a los hosts remotos vinculados por SFTP y luego ejecuta el comando de recarga del destino por SSH. Use una cuenta SSH dedicada con privilegios mínimos en cada destino: acceso de escritura a las rutas de los certificados y permiso para recargar el servicio, nada más.",
+    "helpDescription": "Los destinos almacenan conexiones SSH/SFTP reutilizables. Cada despliegue de certificado o CRL define sus propias rutas de destino y su comando de recarga opcional. Use una cuenta SSH dedicada con privilegios mínimos en cada destino.",
     "targets": "Destinos de despliegue",
     "noTargets": "No hay destinos de despliegue",
     "noTargetsDescription": "Cree un destino para enviar certificados a un host remoto por SSH en la emisión y la renovación.",

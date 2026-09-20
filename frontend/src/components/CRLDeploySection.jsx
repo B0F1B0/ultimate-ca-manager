@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CloudArrowUp, Plus, Trash, UploadSimple } from '@phosphor-icons/react'
+import { CloudArrowUp, Plus, Trash, UploadSimple, PencilSimple } from '@phosphor-icons/react'
 import { Badge, Button, CompactSection } from './index'
 import { Modal } from './Modal'
 import { deployService } from '../services'
@@ -9,8 +9,8 @@ import { usePermission } from '../hooks'
 import { extractData } from '../lib/utils'
 
 const EMPTY = {
-  target_id: '', crl_path: '/root/certs/CRL.crl', format: 'pem',
-  include_parent_crls: true, enabled: true,
+  target_id: '', crl_path: '', format: 'pem',
+  include_parent_crls: true, reload_command: '', enabled: true,
 }
 
 export function CRLDeploySection({ ca, hasCRL }) {
@@ -21,6 +21,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
   const [targets, setTargets] = useState([])
   const [loading, setLoading] = useState(true)
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [deploying, setDeploying] = useState(null)
   const [form, setForm] = useState(EMPTY)
@@ -51,11 +52,22 @@ export function CRLDeploySection({ ca, hasCRL }) {
     event.preventDefault()
     setSaving(true)
     try {
-      await deployService.createCRLBinding({
-        ...form, target_id: Number(form.target_id), ca_id: ca.id,
-      })
-      showSuccess(t('crlDeploy.created', 'CRL deployment attached and initial push queued'))
+      const payload = {
+        crl_path: form.crl_path.trim(), format: form.format,
+        include_parent_crls: form.include_parent_crls,
+        reload_command: form.reload_command.trim(), enabled: form.enabled,
+      }
+      if (editing) {
+        await deployService.updateCRLBinding(editing.id, payload)
+        showSuccess(t('common.updated'))
+      } else {
+        await deployService.createCRLBinding({
+          ...payload, target_id: Number(form.target_id), ca_id: ca.id,
+        })
+        showSuccess(t('crlDeploy.created', 'CRL deployment attached and initial push queued'))
+      }
       setOpen(false)
+      setEditing(null)
       setForm(EMPTY)
       await load()
     } catch (error) {
@@ -63,6 +75,19 @@ export function CRLDeploySection({ ca, hasCRL }) {
     } finally {
       setSaving(false)
     }
+  }
+
+  const edit = (binding) => {
+    setEditing(binding)
+    setForm({
+      target_id: String(binding.target_id),
+      crl_path: binding.crl_path,
+      format: binding.format,
+      include_parent_crls: Boolean(binding.include_parent_crls),
+      reload_command: binding.reload_command || '',
+      enabled: binding.enabled,
+    })
+    setOpen(true)
   }
 
   const remove = async (binding) => {
@@ -131,9 +156,22 @@ export function CRLDeploySection({ ca, hasCRL }) {
                       {binding.include_parent_crls
                         ? ` · ${t('crlDeploy.withParents', 'includes parent CRLs')}` : ''}
                     </p>
+                    {binding.reload_command && (
+                      <p className="text-xs text-text-tertiary font-mono truncate mt-1"
+                        title={binding.reload_command}>
+                        {t('deploy.reloadCommand', 'Reload command')}: {binding.reload_command}
+                      </p>
+                    )}
                   </div>
                   {(canWriteDeploy || canDeleteDeploy) && (
                     <div className="flex gap-1 shrink-0">
+                      {canWriteDeploy && (
+                        <Button type="button" size="xs" variant="secondary"
+                          data-deploy-binding-edit="crl"
+                          onClick={() => edit(binding)} title={t('common.edit')}>
+                          <PencilSimple size={14} />
+                        </Button>
+                      )}
                       {canWriteDeploy && (
                         <Button type="button" size="xs" variant="secondary"
                           onClick={() => deployNow(binding)} disabled={deploying === binding.id}
@@ -156,28 +194,38 @@ export function CRLDeploySection({ ca, hasCRL }) {
         )}
         {canWriteDeploy && hasCRL && (
           <Button type="button" size="sm" variant="secondary" className="mt-3"
-            onClick={() => { setForm(EMPTY); setOpen(true) }}
+            onClick={() => { setEditing(null); setForm(EMPTY); setOpen(true) }}
             disabled={availableTargets.length === 0}>
             <Plus size={14} /> {t('crlDeploy.attach', 'Attach target')}
           </Button>
         )}
       </CompactSection>
 
-      <Modal open={open} onOpenChange={value => !saving && setOpen(value)}
-        title={t('crlDeploy.attachFor', 'Attach CRL target: {{name}}', { name: ca?.descr || ca?.name })}
+      <Modal open={open} onOpenChange={value => {
+          if (!saving) { setOpen(value); if (!value) setEditing(null) }
+        }}
+        title={editing
+          ? `${t('common.edit')}: ${ca?.descr || ca?.name}`
+          : t('crlDeploy.attachFor', 'Attach CRL target: {{name}}', { name: ca?.descr || ca?.name })}
         size="sm">
         <form onSubmit={create} className="p-4 space-y-4">
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1">
               {t('deploy.target', 'Target')}
             </label>
-            <select required value={form.target_id}
+            <select required value={form.target_id} disabled={Boolean(editing)}
               onChange={event => setForm({ ...form, target_id: event.target.value })}
               className="w-full rounded-md border border-border bg-bg-primary text-text-primary text-sm p-2">
-              <option value="">{t('deploy.selectTarget', 'Select a target...')}</option>
-              {availableTargets.map(target => (
-                <option key={target.id} value={target.id}>{target.name} ({target.host})</option>
-              ))}
+              {editing ? (
+                <option value={editing.target_id}>{editing.target_name} ({editing.target_host})</option>
+              ) : (
+                <>
+                  <option value="">{t('deploy.selectTarget', 'Select a target...')}</option>
+                  {availableTargets.map(target => (
+                    <option key={target.id} value={target.id}>{target.name} ({target.host})</option>
+                  ))}
+                </>
+              )}
             </select>
           </div>
           <div>
@@ -185,6 +233,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
               {t('crlDeploy.path', 'CRL destination path')}
             </label>
             <input required value={form.crl_path}
+              data-crl-path-placeholder-only="true"
               onChange={event => setForm({ ...form, crl_path: event.target.value })}
               className="w-full rounded-md border border-border bg-bg-primary text-text-primary text-sm font-mono p-2"
               placeholder="/root/certs/CRL.crl" />
@@ -194,6 +243,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
               {t('common.format', 'Format')}
             </label>
             <select value={form.format}
+              data-crl-der-single-object="true"
               onChange={event => setForm({
                 ...form, format: event.target.value,
                 include_parent_crls: event.target.value === 'pem' && form.include_parent_crls,
@@ -203,25 +253,40 @@ export function CRLDeploySection({ ca, hasCRL }) {
               <option value="der">DER</option>
             </select>
           </div>
-          <label className="flex items-start gap-2 rounded-md border border-border p-3">
-            <input type="checkbox" className="mt-0.5" checked={form.include_parent_crls}
-              disabled={form.format !== 'pem'}
-              onChange={event => setForm({ ...form, include_parent_crls: event.target.checked })} />
-            <span>
-              <span className="block text-sm font-medium text-text-primary">
-                {t('crlDeploy.includeParents', 'Include parent CRLs')}
+          {form.format === 'pem' && (
+            <label className="flex items-start gap-2 rounded-md border border-border p-3">
+              <input type="checkbox" className="mt-0.5" checked={form.include_parent_crls}
+                onChange={event => setForm({ ...form, include_parent_crls: event.target.checked })} />
+              <span>
+                <span className="block text-sm font-medium text-text-primary">
+                  {t('crlDeploy.includeParents', 'Include parent CRLs')}
+                </span>
+                <span className="block text-xs text-text-tertiary">
+                  {t('crlDeploy.includeParentsHelp', 'Creates a PEM bundle containing this CA CRL followed by issuer CRLs.')}
+                </span>
               </span>
-              <span className="block text-xs text-text-tertiary">
-                {t('crlDeploy.includeParentsHelp', 'Creates a PEM bundle containing this CA CRL followed by issuer CRLs.')}
-              </span>
-            </span>
-          </label>
+            </label>
+          )}
+          <div>
+            <label className="block text-xs font-medium text-text-secondary mb-1">
+              {t('deploy.reloadCommand', 'Reload command')}
+            </label>
+            <input value={form.reload_command}
+              onChange={event => setForm({ ...form, reload_command: event.target.value })}
+              className="w-full rounded-md border border-border bg-bg-primary text-text-primary text-sm font-mono p-2"
+              placeholder="/usr/sbin/nginx -t && /usr/sbin/nginx -s reload"
+              maxLength={512} />
+            <p className="text-2xs text-text-tertiary mt-1">
+              {t('deploy.reloadCommandHint')}
+            </p>
+          </div>
           <div className="flex justify-end gap-2 pt-2 border-t border-border">
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={saving}>
+            <Button type="button" variant="secondary"
+              onClick={() => { setOpen(false); setEditing(null) }} disabled={saving}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" disabled={saving || !form.target_id}>
-              {t('crlDeploy.attach', 'Attach target')}
+              {editing ? t('common.save') : t('crlDeploy.attach', 'Attach target')}
             </Button>
           </div>
         </form>

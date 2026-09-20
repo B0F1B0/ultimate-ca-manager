@@ -7,7 +7,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CloudArrowUp, Plus, Trash, ArrowsClockwise } from '@phosphor-icons/react'
+import { CloudArrowUp, Plus, Trash, ArrowsClockwise, PencilSimple } from '@phosphor-icons/react'
 import { Badge } from '../Badge'
 import { Button } from '../Button'
 import { CompactSection } from '../DetailCard'
@@ -27,10 +27,12 @@ export function CertDeploySection({ certificate }) {
   const [bindings, setBindings] = useState(null)
   const [targets, setTargets] = useState([])
   const [addOpen, setAddOpen] = useState(false)
+  const [editing, setEditing] = useState(null)
   const [saving, setSaving] = useState(false)
   const [deploying, setDeploying] = useState(null)
   const [form, setForm] = useState({
     target_id: '', cert_path: '', key_path: '', fullchain_path: '', include_root: false,
+    reload_command: '',
   })
 
   const allowed = hasPermission('read:deploy')
@@ -51,12 +53,27 @@ export function CertDeploySection({ certificate }) {
   if (bindings.length === 0 && !hasPermission('write:deploy')) return null
 
   const openAdd = async () => {
+    setEditing(null)
     try {
       const all = extractData(await deployService.getTargets()) || []
       const bound = new Set(bindings.map(b => b.target_id))
       setTargets(all.filter(target => target.enabled && !bound.has(target.id)))
     } catch { setTargets([]) }
-    setForm({ target_id: '', cert_path: '', key_path: '', fullchain_path: '', include_root: false })
+    setForm({ target_id: '', cert_path: '', key_path: '', fullchain_path: '', include_root: false,
+      reload_command: '' })
+    setAddOpen(true)
+  }
+
+  const openEdit = (binding) => {
+    setEditing(binding)
+    setForm({
+      target_id: String(binding.target_id),
+      cert_path: binding.cert_path || '',
+      key_path: binding.key_path || '',
+      fullchain_path: binding.fullchain_path || '',
+      include_root: Boolean(binding.include_root),
+      reload_command: binding.reload_command || '',
+    })
     setAddOpen(true)
   }
 
@@ -64,16 +81,25 @@ export function CertDeploySection({ certificate }) {
     e?.preventDefault?.()
     setSaving(true)
     try {
-      await deployService.createBinding({
-        certificate_id: certificate.id,
-        target_id: Number(form.target_id),
-        cert_path: form.cert_path.trim() || undefined,
-        key_path: form.key_path.trim() || undefined,
-        fullchain_path: form.fullchain_path.trim() || undefined,
+      const optionalPath = value => value.trim() || (editing ? null : undefined)
+      const payload = {
+        cert_path: optionalPath(form.cert_path),
+        key_path: optionalPath(form.key_path),
+        fullchain_path: optionalPath(form.fullchain_path),
         include_root: Boolean(form.fullchain_path.trim() && form.include_root),
-      })
-      showSuccess(t('deploy.bindingCreated'))
+        reload_command: form.reload_command.trim(),
+      }
+      if (editing) {
+        await deployService.updateBinding(editing.id, payload)
+        showSuccess(t('common.updated'))
+      } else {
+        await deployService.createBinding({
+          ...payload, certificate_id: certificate.id, target_id: Number(form.target_id),
+        })
+        showSuccess(t('deploy.bindingCreated'))
+      }
       setAddOpen(false)
+      setEditing(null)
       await load()
     } catch (err) {
       showError(err?.message || t('deploy.saveFailed'))
@@ -140,6 +166,11 @@ export function CertDeploySection({ certificate }) {
                 </div>
                 {canWriteDeploy && (
                   <div className="flex items-center gap-1.5 shrink-0">
+                    <Button type="button" size="xs" variant="secondary"
+                            data-deploy-binding-edit="certificate"
+                            onClick={() => openEdit(binding)} title={t('common.edit')}>
+                      <PencilSimple size={12} />
+                    </Button>
                     <Button type="button" size="xs" variant="secondary" onClick={() => handleDeploy(binding)}
                             disabled={deploying === binding.id} title={t('deploy.deployNow')}>
                       {deploying === binding.id
@@ -155,6 +186,12 @@ export function CertDeploySection({ certificate }) {
               <p className="text-2xs text-text-tertiary font-mono truncate">
                 {[binding.cert_path, binding.key_path, binding.fullchain_path].filter(Boolean).join(' · ')}
               </p>
+              {binding.reload_command && (
+                <p className="text-2xs text-text-tertiary font-mono truncate"
+                   title={binding.reload_command}>
+                  {t('deploy.reloadCommand')}: {binding.reload_command}
+                </p>
+              )}
               {binding.last_delivery?.delivered_at && (
                 <p className="text-2xs text-text-tertiary">
                   {t('deploy.lastDeployed', { date: formatDate(binding.last_delivery.delivered_at) })}
@@ -175,21 +212,32 @@ export function CertDeploySection({ certificate }) {
         </div>
       </CompactSection>
 
-      <Modal open={addOpen} onOpenChange={(v) => !v && !saving && setAddOpen(false)}
-             title={t('deploy.attachTargetFor', { name: certificateName })} size="md">
-        <form onSubmit={handleAdd} className="p-4 space-y-3">
+      <Modal open={addOpen} onOpenChange={(v) => {
+               if (!v && !saving) { setAddOpen(false); setEditing(null) }
+             }}
+             title={editing
+               ? `${t('common.edit')}: ${certificateName}`
+               : t('deploy.attachTargetFor', { name: certificateName })} size="md">
+        <form onSubmit={handleAdd} className="p-4 space-y-3"
+              data-deploy-binding-path-clear="supported">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">{t('deploy.target')}</label>
             <select className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm text-text-primary focus:outline-none focus:border-accent-primary"
-                    value={form.target_id} onChange={field('target_id')} required>
-              <option value="" disabled>{t('deploy.selectTarget')}</option>
-              {targets.map(target => (
-                <option key={target.id} value={target.id}>
-                  {target.name} ({target.username}@{target.host})
-                </option>
-              ))}
+                    value={form.target_id} onChange={field('target_id')} required disabled={Boolean(editing)}>
+              {editing ? (
+                <option value={editing.target_id}>{editing.target_name} ({editing.target_host})</option>
+              ) : (
+                <>
+                  <option value="" disabled>{t('deploy.selectTarget')}</option>
+                  {targets.map(target => (
+                    <option key={target.id} value={target.id}>
+                      {target.name} ({target.username}@{target.host})
+                    </option>
+                  ))}
+                </>
+              )}
             </select>
-            {targets.length === 0 && (
+            {!editing && targets.length === 0 && (
               <p className="text-2xs text-text-tertiary">{t('deploy.noAvailableTargets')}</p>
             )}
           </div>
@@ -223,14 +271,24 @@ export function CertDeploySection({ certificate }) {
               </div>
             </label>
           )}
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-text-secondary">
+              {t('deploy.reloadCommand')}
+            </label>
+            <input className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm font-mono text-text-primary focus:outline-none focus:border-accent-primary"
+                   placeholder="/usr/sbin/nginx -t && /usr/sbin/nginx -s reload"
+                   value={form.reload_command} onChange={field('reload_command')} maxLength={512} />
+            <p className="text-2xs text-text-tertiary">{t('deploy.reloadCommandHint')}</p>
+          </div>
           <p className="text-2xs text-text-tertiary">{t('deploy.pathsHint')}</p>
           <div className="flex justify-end gap-2 pt-3 border-t border-border">
-            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} disabled={saving}>
+            <Button type="button" variant="secondary"
+                    onClick={() => { setAddOpen(false); setEditing(null) }} disabled={saving}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" variant="primary" loading={saving}
                     disabled={!form.target_id || !(form.cert_path.trim() || form.key_path.trim() || form.fullchain_path.trim())}>
-              {t('deploy.attach')}
+              {editing ? t('common.save') : t('deploy.attach')}
             </Button>
           </div>
         </form>
