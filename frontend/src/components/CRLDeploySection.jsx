@@ -164,7 +164,8 @@ export function CRLDeploySection({ ca, hasCRL }) {
         ) : (
           <div className="space-y-2">
             {bindings.map(binding => (
-              <div key={binding.id} className="p-2 rounded-md bg-bg-tertiary border border-border">
+              <div key={binding.id} data-crl-pending-auto-refresh="true"
+                className="p-2 rounded-md bg-bg-tertiary border border-border">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
