@@ -144,14 +144,8 @@ jobs:
             is_signed "$who" || missing="$missing $who"
           done < authors.txt
 
-          # Commits whose email belongs to no GitHub account. They cannot be matched
-          # to a username, so the name on the commit has to be in the file.
-          gh api "repos/$REPO/pulls/$PR/commits" --paginate \
-            --jq '.[] | select(.author == null) | .commit.author.name' | sort -u > unlinked.txt
-          while read -r who; do
-            [ -z "$who" ] && continue
-            is_signed "$who" || missing="$missing \"$who\"(no linked account)"
-          done < unlinked.txt
+          # A commit whose email GitHub links to no account counts as the pull
+          # request author's, checked above: the name on it cannot be verified.
 
           # Co-authors hold copyright on what they wrote, so they are checked too.
           # The trailer is free text: both the name and the address are looked up,
@@ -189,8 +183,8 @@ jobs:
 
           A co-author signs the same way, under their own GitHub username and in a
           pull request of their own, and the Co-authored-by trailer carries that
-          username. An author whose commit email is not linked to a GitHub account
-          is checked under the exact name on the commit.
+          username. A commit whose email is not linked to a GitHub account counts
+          as the pull request author's.
 
           You keep the copyright on your work. The agreement lets the project
           distribute it under its free licence and, separately, under a commercial
