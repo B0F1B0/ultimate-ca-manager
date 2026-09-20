@@ -87,19 +87,19 @@ export default {
           { label: 'HTTPS', text: 'Certificado TLS para a interface web do UCM. O certificado aplicado é lembrado e reaplicado quando é renovado (v2.217); o certificado vinculado é exibido com um botão de desvinculação para deixar de seguir as renovações (v2.218)' },
           { label: 'Atualizações', text: 'Verificar novas versões, visualizar changelog, verificação diária agendada com instalação não assistida opcional (DEB/RPM)' },
           { label: 'Webhooks', text: 'Webhooks HTTP para eventos de certificado (emissão, revogação, expiração). Autenticação de saída opcional: Bearer, Basic, API key ou cabeçalho personalizado' },
-          { label: 'Implantação', text: 'Alvos de implantação: hosts remotos para onde os certificados são enviados via SSH/SFTP na emissão e renovação, com um comando de recarga fixo (somente admin, v2.215)' },
+          { label: 'Implantação', text: 'Os alvos de implantação são conexões SSH/SFTP reutilizáveis; cada implantação de certificado ou de CRL define seus próprios caminhos e seu comando de recarga opcional (somente admin, v2.215)' },
           { label: 'Active Directory', text: 'Conexão própria do UCM com AD/LDAP para consultas relacionadas a certificados (resolução de entidade de segurança Kerberos, assuntos derivados do AD)' },
           { label: 'Autoinscrição do Windows', text: 'Inscrição nativa do Windows MS-XCEP/MS-WSTEP: descoberta de diretiva, emissão de certificados e vinculação Kerberos/SPNEGO' },
         ]
       },
       {
         title: 'Hooks de implantação (v2.215)',
-        content: 'Configurações › Implantação (somente admin): hosts remotos para onde o UCM envia certificados via SFTP e, em seguida, executa um comando de recarga fixo via SSH.',
+        content: 'Configurações › Implantação (somente admin): conexões SSH/SFTP reutilizáveis para as implantações de certificados e de CRL. Os caminhos e o comando de recarga opcional são configurados em cada implantação.',
         items: [
           { label: 'Alvo', text: 'Host, porta, usuário SSH. O UCM gera uma chave ed25519 (instale a chave pública exibida no alvo) ou aceita uma chave privada importada, armazenada criptografada' },
           { label: 'Host key', text: 'Fixada na primeira conexão bem-sucedida (trust-on-first-use); qualquer mudança posterior falha de forma segura. Alterar o host refaz a fixação' },
-          { label: 'Comando de recarga', text: 'Um único comando fixo, definido pelo admin, executado após um envio bem-sucedido (ex.: systemctl reload nginx): exit 0 = sucesso, sem templating' },
-          { label: 'Vínculos', text: 'Os certificados são anexados aos alvos a partir da visão de detalhe do certificado, com caminhos de destino por arquivo' },
+          { label: 'Comando de recarga', text: 'Um comando opcional, configurado em cada vínculo de certificado ou de CRL e executado após um envio bem-sucedido (ex.: systemctl reload nginx): exit 0 = sucesso, sem templating' },
+          { label: 'Vínculos', text: 'Os certificados são anexados a partir da visão de detalhe do certificado; as CRLs, em CRL e OCSP. Cada vínculo tem seus próprios caminhos, opções de arquivo e comando de recarga' },
           { label: 'Entrega', text: 'Os envios são executados de forma assíncrona por uma fila durável com tentativas e backoff; status por entrega, implantar agora e repetir manualmente, trilha de auditoria completa' },
           { label: 'Privilégio mínimo', text: 'Use uma conta SSH dedicada em cada alvo: acesso de escrita aos caminhos dos certificados e permissão para recarregar o serviço, nada mais' },
         ]

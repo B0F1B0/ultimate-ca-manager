@@ -216,10 +216,9 @@ export function CertDeploySection({ certificate }) {
                if (!v && !saving) { setAddOpen(false); setEditing(null) }
              }}
              title={editing
-               ? `${t('common.edit')}: ${certificateName}`
+               ? t('deploy.editDeploymentFor', { name: certificateName })
                : t('deploy.attachTargetFor', { name: certificateName })} size="md">
-        <form onSubmit={handleAdd} className="p-4 space-y-3"
-              data-deploy-binding-path-clear="supported">
+        <form onSubmit={handleAdd} className="p-4 space-y-3">
           <div className="space-y-1">
             <label className="block text-xs font-medium text-text-secondary">{t('deploy.target')}</label>
             <select className="w-full px-3 py-2 bg-bg-tertiary border border-border rounded-md text-sm text-text-primary focus:outline-none focus:border-accent-primary"

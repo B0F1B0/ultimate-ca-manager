@@ -87,19 +87,19 @@ export default {
           { label: 'HTTPS', text: 'Certificado TLS para la interfaz web de UCM. El certificado aplicado se recuerda y se vuelve a aplicar cuando se renueva (v2.217); el certificado vinculado se muestra con un botón para desvincularlo y dejar de seguir las renovaciones (v2.218)' },
           { label: 'Actualizaciones', text: 'Buscar nuevas versiones, ver registro de cambios, comprobación diaria programada con instalación desatendida opcional (DEB/RPM)' },
           { label: 'Webhooks', text: 'Webhooks HTTP para eventos de certificados (emisión, revocación, expiración). Autenticación saliente opcional: Bearer, Basic, API key o encabezado personalizado' },
-          { label: 'Despliegue', text: 'Destinos de despliegue: hosts remotos a los que se envían los certificados por SSH/SFTP en la emisión y renovación, con un comando de recarga fijo (solo administradores, v2.215)' },
+          { label: 'Despliegue', text: 'Los destinos de despliegue son conexiones SSH/SFTP reutilizables; cada despliegue de certificado o de CRL define sus propias rutas y su comando de recarga opcional (solo administradores, v2.215)' },
           { label: 'Active Directory', text: 'Conexión propia de UCM a AD/LDAP para búsquedas relacionadas con certificados (resolución de entidades de seguridad Kerberos, sujetos derivados de AD)' },
           { label: 'Autoinscripción de Windows', text: 'Inscripción nativa de Windows MS-XCEP/MS-WSTEP: descubrimiento de directivas, emisión de certificados y vinculación Kerberos/SPNEGO' },
         ]
       },
       {
         title: 'Hooks de despliegue (v2.215)',
-        content: 'Ajustes › Despliegue (solo administradores): hosts remotos a los que UCM envía certificados por SFTP, ejecutando después un único comando de recarga fijo por SSH.',
+        content: 'Ajustes › Despliegue (solo administradores): conexiones SSH/SFTP reutilizables para los despliegues de certificados y de CRL. Las rutas y el comando de recarga opcional se configuran en cada despliegue.',
         items: [
           { label: 'Destino', text: 'Host, puerto, usuario SSH. UCM genera una clave ed25519 (instale la clave pública mostrada en el destino) o acepta una clave privada importada, almacenada cifrada' },
           { label: 'Host key', text: 'Se fija en la primera conexión exitosa (trust-on-first-use); cualquier cambio posterior falla en cerrado. Cambiar el host vuelve a fijarla' },
-          { label: 'Comando de recarga', text: 'Un único comando fijo definido por el administrador que se ejecuta tras un envío exitoso (por ej. systemctl reload nginx): exit 0 = éxito, sin plantillas' },
-          { label: 'Vinculaciones', text: 'Los certificados se asocian a los destinos desde la vista de detalle del certificado, con rutas de destino por archivo' },
+          { label: 'Comando de recarga', text: 'Un comando opcional, configurado en cada vinculación de certificado o de CRL y ejecutado tras un envío exitoso (por ej. systemctl reload nginx): exit 0 = éxito, sin plantillas' },
+          { label: 'Vinculaciones', text: 'Los certificados se asocian desde la vista de detalle del certificado; las CRL, desde CRL & OCSP. Cada vinculación tiene sus propias rutas, opciones de archivo y comando de recarga' },
           { label: 'Entrega', text: 'Los envíos se ejecutan de forma asíncrona mediante una cola duradera con reintentos y backoff; estado por entrega, despliegue manual inmediato y reintento, traza de auditoría completa' },
           { label: 'Privilegio mínimo', text: 'Use una cuenta SSH dedicada en cada destino: acceso de escritura a las rutas de los certificados y permiso para recargar el servicio, nada más' },
         ]

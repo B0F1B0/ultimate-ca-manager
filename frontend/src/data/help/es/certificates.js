@@ -66,7 +66,7 @@ export default {
         items: [
           { label: 'Asociar destino', text: 'Desde la vista de detalle del certificado: elija un destino de despliegue y defina rutas de destino absolutas para el certificado, la clave privada y/o la cadena completa (al menos una)' },
           { label: 'Mismo host', text: 'Para desplegar en el propio host de UCM, use un destino SFTP en 127.0.0.1 con una cuenta SSH dedicada; el servicio aislado no puede escribir fuera de su directorio de datos' },
-          { label: 'Automático', text: 'En la emisión y renovación, los archivos vinculados se envían de nuevo y se ejecuta el comando de recarga del destino, las entregas se encolan con reintentos' },
+          { label: 'Automático', text: 'En la emisión y renovación, los archivos vinculados se envían de nuevo y se ejecuta el comando de recarga opcional de ese despliegue; las entregas se encolan con reintentos' },
           { label: 'Archivos', text: 'Se escriben de forma atómica en las rutas exactas configuradas (el directorio padre debe existir): clave 0600, certificado/cadena 0644' },
           { label: 'Desplegar ahora', text: 'Envío manual desde la vista de detalle, con el estado de entrega y el último error mostrados por destino' },
         ]

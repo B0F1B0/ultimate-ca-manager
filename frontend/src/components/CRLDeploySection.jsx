@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CloudArrowUp, Plus, Trash, UploadSimple, PencilSimple } from '@phosphor-icons/react'
 import { Badge, Button, CompactSection } from './index'
@@ -41,14 +41,17 @@ export function CRLDeploySection({ ca, hasCRL }) {
   const canWriteDeploy = hasPermission('write:deploy')
   const canDeleteDeploy = hasPermission('delete:deploy')
 
+  const sequence = useRef(0)   // only the newest load may fill the section
   const load = useCallback(async (silent = false) => {
     if (!ca?.id || !canReadDeploy) return
+    const seq = ++sequence.current
     if (!silent) setLoading(true)
     try {
       const [bindingRes, targetRes] = await Promise.all([
         deployService.getCRLBindings({ ca_id: ca.id }),
         deployService.getTargets(),
       ])
+      if (seq !== sequence.current) return
       setBindings(extractData(bindingRes) || [])
       setTargets((extractData(targetRes) || []).filter(target => target.enabled))
     } catch (error) {
@@ -164,7 +167,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
         ) : (
           <div className="space-y-2">
             {bindings.map(binding => (
-              <div key={binding.id} data-crl-pending-auto-refresh="true"
+              <div key={binding.id}
                 className="p-2 rounded-md bg-bg-tertiary border border-border">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -260,7 +263,7 @@ export function CRLDeploySection({ ca, hasCRL }) {
           if (!saving) { setOpen(value); if (!value) setEditing(null) }
         }}
         title={editing
-          ? `${t('common.edit')}: ${ca?.descr || ca?.name}`
+          ? t('deploy.editDeploymentFor', { name: ca?.descr || ca?.name })
           : t('crlDeploy.attachFor', 'Attach CRL target: {{name}}', { name: ca?.descr || ca?.name })}
         size="sm">
         <form onSubmit={create} className="p-4 space-y-4">
@@ -288,7 +291,6 @@ export function CRLDeploySection({ ca, hasCRL }) {
               {t('crlDeploy.path', 'CRL destination path')}
             </label>
             <input required value={form.crl_path}
-              data-crl-path-placeholder-only="true"
               onChange={event => setForm({ ...form, crl_path: event.target.value })}
               className="w-full rounded-md border border-border bg-bg-primary text-text-primary text-sm font-mono p-2"
               placeholder="/root/certs/CRL.crl" />
@@ -298,7 +300,6 @@ export function CRLDeploySection({ ca, hasCRL }) {
               {t('export.format')}
             </label>
             <select value={form.format}
-              data-crl-der-single-object="true"
               onChange={event => setForm({
                 ...form, format: event.target.value,
                 include_parent_crls: event.target.value === 'pem' && form.include_parent_crls,

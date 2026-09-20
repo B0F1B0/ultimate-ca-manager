@@ -87,19 +87,19 @@ export default {
           { label: 'HTTPS', text: 'Certificato TLS per l\'interfaccia web UCM. Il certificato applicato viene ricordato e riapplicato al suo rinnovo (v2.217); il certificato associato è mostrato con un pulsante di dissociazione per smettere di seguire i rinnovi (v2.218)' },
           { label: 'Aggiornamenti', text: 'Verifica nuove versioni, visualizza changelog, controllo giornaliero pianificato con installazione non presidiata opt-in (DEB/RPM)' },
           { label: 'Webhook', text: 'Webhook HTTP per eventi certificato (emissione, revoca, scadenza). Autenticazione in uscita opzionale: Bearer, Basic, API key o intestazione personalizzata' },
-          { label: 'Distribuzione', text: 'Destinazioni di distribuzione: host remoti a cui i certificati vengono inviati via SSH/SFTP all\'emissione e al rinnovo, con un comando di ricarica fisso (solo admin, v2.215)' },
+          { label: 'Distribuzione', text: 'Le destinazioni di distribuzione sono connessioni SSH/SFTP riutilizzabili; ogni distribuzione di certificato o di CRL definisce i propri percorsi e il proprio comando di ricarica opzionale (solo admin, v2.215)' },
           { label: 'Active Directory', text: 'Connessione AD/LDAP propria di UCM per le ricerche relative ai certificati (risoluzione principal Kerberos, soggetti derivati da AD)' },
           { label: 'Iscrizione automatica Windows', text: 'Iscrizione Windows nativa MS-XCEP/MS-WSTEP: rilevamento dei criteri, emissione dei certificati e associazione Kerberos/SPNEGO' },
         ]
       },
       {
         title: 'Hook di distribuzione (v2.215)',
-        content: 'Impostazioni › Distribuzione (solo admin): host remoti a cui UCM invia i certificati via SFTP, per poi eseguire un unico comando di ricarica fisso via SSH.',
+        content: 'Impostazioni › Distribuzione (solo admin): connessioni SSH/SFTP riutilizzabili per le distribuzioni di certificati e CRL. Percorsi e comando di ricarica opzionale si configurano su ogni distribuzione.',
         items: [
           { label: 'Destinazione', text: 'Host, porta, utente SSH. UCM genera una chiave ed25519 (installa la chiave pubblica mostrata sulla destinazione) o accetta una chiave privata importata, archiviata cifrata' },
           { label: 'Host key', text: 'Registrata alla prima connessione riuscita (trust-on-first-use); qualsiasi cambiamento successivo blocca la connessione. Cambiare l\'host la registra di nuovo' },
-          { label: 'Comando di ricarica', text: 'Un solo comando fisso definito dall\'admin, eseguito dopo un invio riuscito (es. systemctl reload nginx): exit 0 = successo, senza templating' },
-          { label: 'Associazioni', text: 'I certificati vengono associati alle destinazioni dalla vista di dettaglio del certificato, con percorsi di destinazione per ogni file' },
+          { label: 'Comando di ricarica', text: 'Un comando opzionale, configurato su ogni associazione di certificato o di CRL ed eseguito dopo un invio riuscito (es. systemctl reload nginx): exit 0 = successo, senza templating' },
+          { label: 'Associazioni', text: 'I certificati vengono associati dalla vista di dettaglio del certificato, le CRL da CRL e OCSP. Ogni associazione ha i propri percorsi, opzioni di file e comando di ricarica' },
           { label: 'Consegna', text: 'Gli invii avvengono in modo asincrono tramite una coda durevole con tentativi e backoff; stato per consegna, distribuzione e riprova manuali, tracciato di audit completo' },
           { label: 'Privilegi minimi', text: 'Usa un account SSH dedicato su ogni destinazione: accesso in scrittura ai percorsi dei certificati e permesso di ricaricare il servizio, nient\'altro' },
         ]

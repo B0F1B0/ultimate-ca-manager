@@ -66,7 +66,7 @@ export default {
         items: [
           { label: 'Anexar alvo', text: 'A partir da visão de detalhe do certificado: escolha um alvo de implantação e defina caminhos de destino absolutos para o certificado, a chave privada e/ou a cadeia completa (pelo menos um)' },
           { label: 'Mesmo host', text: 'Para implantar no próprio host UCM, use um alvo SFTP em 127.0.0.1 com uma conta SSH dedicada; o serviço isolado não pode gravar fora do diretório de dados' },
-          { label: 'Automático', text: 'Na emissão e na renovação, os arquivos vinculados são reenviados e o comando de recarga do alvo é executado, as entregas são enfileiradas com tentativas de repetição' },
+          { label: 'Automático', text: 'Na emissão e na renovação, os arquivos vinculados são reenviados e o comando de recarga opcional dessa implantação é executado; as entregas são enfileiradas com tentativas de repetição' },
           { label: 'Arquivos', text: 'Gravados de forma atômica exatamente nos caminhos configurados (o diretório pai deve existir): chave 0600, certificado/cadeia 0644' },
           { label: 'Implantar agora', text: 'Envio manual a partir da visão de detalhe, com o status da entrega e o último erro exibidos por alvo' },
         ]
