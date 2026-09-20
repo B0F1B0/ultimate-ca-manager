@@ -68,6 +68,7 @@ GENERIC_SECTIONS = (
     'webhook_endpoints',
     'deploy_targets',
     'deploy_bindings',
+    'crl_deploy_bindings',
     'scep_profiles',
     'ca_template_pins',
     'acme_client_accounts',
