@@ -153,7 +153,36 @@ def legacy_defaults(section_name, row, plan=None) -> dict:
             if same_identity or same_legacy_id:
                 defaults['reload_command'] = target.get('reload_command')
                 break
+    # Before migration 092 the Entra app registration sat on the profile. An
+    # archive of that shape gets an app row, shared by the profiles that
+    # carried the same tenant and client, and the frozen columns stay empty.
+    if section_name == 'scep_profiles' and 'intune_app_id' not in row:
+        defaults.update(_legacy_intune_app(row))
     return defaults
+
+
+def _legacy_intune_app(row) -> dict:
+    from models.scep import IntuneApp
+    from utils.encryption import encrypt_value
+    tenant = (row.get('intune_tenant_id') or '').strip()
+    client = (row.get('intune_client_id') or '').strip()
+    secret = row.get('intune_client_secret') or ''
+    cleared = {'intune_tenant_id': None, 'intune_client_id': None,
+               'intune_client_secret': None}
+    if not (tenant and client and secret):
+        return cleared
+    app = IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).first()
+    if app is None:
+        wanted = (row.get('name') or 'Intune')[:100]
+        name, n = wanted, 2
+        while IntuneApp.query.filter_by(name=name).first() is not None:
+            suffix = f' ({n})'
+            name, n = wanted[:100 - len(suffix)] + suffix, n + 1
+        app = IntuneApp(name=name, tenant_id=tenant, client_id=client,
+                        client_secret=encrypt_value(secret))
+        db.session.add(app)
+        db.session.flush()
+    return {'intune_app_id': app.id, **cleared}
 
 
 def _apply_row(section_name, section, instance, row, columns, attribute_of, plan):

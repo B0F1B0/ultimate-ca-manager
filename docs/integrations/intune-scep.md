@@ -63,12 +63,15 @@ in the form:
 - **Auto-approve requests** is forced on and becomes read-only, with the note:
   *"Intune requires auto-approve — its enrollment flow is a synchronous
   validate-then-issue round trip, not a manual approval queue."*
-- An **"Entra app registration required"** panel appears, along with **Tenant
-  ID**, **Client ID**, **Client secret** and a **Test connection** button.
+- An **App registration** selector appears, with a **Test connection** button
+  and a **Manage app registrations** link. The Entra app is defined once, under
+  **Protocols → SCEP → Intune apps**, and every profile that validates with the
+  same tenant picks it from this list.
 
 ![Intune validation enabled on the profile](img/intune-scep-profile-intune.png)
 
-Leave this dialog open — Step 2 produces the three values it now asks for.
+Save the profile later: Step 2 produces the three values the app registration
+needs, and Step 3 creates it.
 
 ---
 
@@ -171,9 +174,10 @@ rows turn to a green **Granted** status.
 
 ---
 
-## Step 3 — Complete the profile and test
+## Step 3 — Register the app in UCM, pick it in the profile, test
 
-Back in the UCM profile dialog, fill in the three values from Step 2:
+**Protocols → SCEP → Intune apps → New app registration**. Give it a name
+(e.g. `Corp tenant`) and fill in the three values from Step 2:
 
 | Field | Enter |
 |-------|-------|
@@ -189,7 +193,8 @@ Once filled in, the profile looks like this:
 
 All three are required. The secret is masked; once saved it displays as
 `••••••••` and is never sent back to the browser. Leave it blank when editing an
-existing profile to keep the stored secret unchanged.
+existing registration to keep the stored secret unchanged. One registration
+serves every profile of the tenant: rotate the secret once, in one place.
 
 ### Test the connection
 
@@ -200,23 +205,30 @@ ID are both filled.
 - **Failure:** *"Intune connection test failed"*, with the underlying error
 
 You can test **before saving** — the form's current values are used. When
-editing a saved profile with the secret field left blank, the stored secret is
-used instead.
+editing a saved registration with the secret field left blank, the stored
+secret is used instead.
 
 > The test only verifies that UCM can authenticate and reach your tenant's
 > Intune validation service. No device or certificate request is involved and no
 > real Intune challenge is consumed, so it is safe to run repeatedly.
 
-The outcome is recorded on the profile as the last-test timestamp and result,
-visible on subsequent edits.
+The outcome is recorded on the registration as the last-test timestamp and
+result, shown in the Intune apps list.
 
 A green toast confirms UCM acquired a token and reached your tenant's Intune
 validation service:
 
 ![Connected to Intune successfully](img/intune-scep-test-toast.png)
 
-Click **Create**. The profile now shows an **Intune** badge in the profiles
-list.
+Click **Create**. Back in the profile dialog, choose the registration in the
+**App registration** selector (the **Test connection** button there tests the
+selected registration) and click **Create**. The profile now shows an
+**Intune** badge in the profiles list, and the registration shows which
+profiles use it.
+
+> Upgrading from an earlier version: profiles that carried their own tenant,
+> client ID and secret get a registration automatically, named after the
+> profile and shared by the profiles that used the same tenant and client ID.
 
 ![Profiles list showing the Intune badge](img/intune-scep-profiles-list.png)
 

@@ -172,10 +172,9 @@ def get_scep_service(profile_slug=None):
         if profile.intune_enabled:
             try:
                 from services.scep.intune_client import IntuneScepClient
+                tenant_id, client_id, client_secret = profile.intune_credentials()
                 intune_client = IntuneScepClient(
-                    tenant_id=profile.intune_tenant_id,
-                    client_id=profile.intune_client_id,
-                    client_secret=profile.decrypted_intune_secret(),
+                    tenant_id=tenant_id, client_id=client_id, client_secret=client_secret,
                 )
             except Exception as e:
                 return _reject(

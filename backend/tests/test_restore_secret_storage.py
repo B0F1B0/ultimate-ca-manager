@@ -71,11 +71,11 @@ def _scep_challenge(secret):
     return ScepProfile, row, ScepProfile.name == f'{MARK}-challenge'
 
 
-def _scep_intune(secret):
-    from models.scep import ScepProfile
-    row = ScepProfile(name=f'{MARK}-intune', url_slug=f'{MARK}-intune',
-                      ca_refid=f'{MARK}-ca', intune_client_secret=_database(secret))
-    return ScepProfile, row, ScepProfile.name == f'{MARK}-intune'
+def _intune_app(secret):
+    from models.scep import IntuneApp
+    row = IntuneApp(name=f'{MARK}-intune', tenant_id=f'{MARK}-tenant',
+                    client_id=f'{MARK}-client', client_secret=_database(secret))
+    return IntuneApp, row, IntuneApp.name == f'{MARK}-intune'
 
 
 def _webhook(secret):
@@ -98,7 +98,7 @@ def _deploy_target(secret):
 CASES = [
     ('acme_client_accounts', 'account_key', _acme_client_account, _read_master),
     ('scep_profiles', 'challenge_password', _scep_challenge, _read_master),
-    ('scep_profiles', 'intune_client_secret', _scep_intune, _read_database),
+    ('intune_apps', 'client_secret', _intune_app, _read_database),
     ('webhook_endpoints', 'secret', _webhook, _read_database),
     ('deploy_targets', 'private_key', _deploy_target, _read_master),
 ]

@@ -69,6 +69,7 @@ GENERIC_SECTIONS = (
     'deploy_targets',
     'deploy_bindings',
     'crl_deploy_bindings',
+    'intune_apps',
     'scep_profiles',
     'ca_template_pins',
     'acme_client_accounts',

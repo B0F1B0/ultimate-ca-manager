@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { 
   Robot, Gear, CheckCircle, XCircle, Clock, Copy, ArrowsClockwise, 
   Eye, ShieldCheck, Plugs, Key, Warning, Info, FileText, Globe, Database, 
-  ListBullets
+  ListBullets, Cloud
 } from '@phosphor-icons/react'
 import {
   ResponsiveLayout,
@@ -18,6 +18,7 @@ import {
 } from '../components'
 import { scepService, casService, templatesService } from '../services'
 import ScepProfilesTab from './scep/ScepProfilesTab'
+import ScepIntuneAppsTab from './scep/ScepIntuneAppsTab'
 import { useNotification } from '../contexts'
 import { usePermission, useClipboard } from '../hooks'
 import { formatDate, cn } from '../lib/utils'
@@ -178,6 +179,7 @@ export default function SCEPPage() {
     { id: 'requests', label: t('scep.requests'), icon: ListBullets, badge: stats.pending > 0 ? stats.pending : null },
     { id: 'config', label: t('common.config'), icon: Gear },
     { id: 'profiles', label: t('scep.profiles'), icon: Plugs, badge: null },
+    { id: 'intune', label: t('scep.intuneApps'), icon: Cloud },
     { id: 'challenge', label: t('common.challenges'), icon: Key },
     { id: 'info', label: t('scep.info'), icon: Info }
   ], [stats.pending, t])
@@ -424,7 +426,7 @@ export default function SCEPPage() {
         tabLayout="sidebar"
         sidebarContentClass=""
         tabGroups={[
-          { labelKey: 'scep.groups.management', tabs: ['requests', 'challenge', 'profiles'], color: 'icon-bg-blue' },
+          { labelKey: 'scep.groups.management', tabs: ['requests', 'challenge', 'profiles', 'intune'], color: 'icon-bg-blue' },
           { labelKey: 'scep.groups.settings', tabs: ['config', 'info'], color: 'icon-bg-emerald' },
         ]}
         stats={activeTab === 'requests' ? headerStats : undefined}
@@ -611,7 +613,12 @@ export default function SCEPPage() {
             templates={templates}
             canWrite={hasPermission('write:scep')}
             onChanged={loadData}
+            onManageIntuneApps={() => setActiveTab('intune')}
           />
+        )}
+
+        {activeTab === 'intune' && (
+          <ScepIntuneAppsTab canWrite={hasPermission('write:scep')} />
         )}
 
         {activeTab === 'challenge' && (

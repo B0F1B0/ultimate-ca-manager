@@ -128,10 +128,13 @@ class TestIntuneProfileValidation:
             from models import ScepProfile
             row = ScepProfile.query.filter_by(id=prof['id']).first()
             assert row.decrypted_intune_secret() == 'plaintext-app-secret'
+            # The secret lives on the shared app registration since 092
+            assert row.intune_client_secret is None
+            row = row.intune_app
             # utils.encryption.encrypt_value always encrypts (real key or
             # machine-id-derived) -- unlike security.encryption's challenge
             # path, there is no "encryption disabled" passthrough to allow for.
-            assert row.intune_client_secret != 'plaintext-app-secret'
+            assert row.client_secret != 'plaintext-app-secret'
 
 
 class TestIntuneTestConnectionEndpoint:
@@ -229,6 +232,6 @@ class TestIntuneTestConnectionEndpoint:
 
         with app.app_context():
             from models import ScepProfile
-            row = ScepProfile.query.filter_by(id=prof['id']).first()
-            assert row.intune_last_test_at is not None
-            assert 'failed' in row.intune_last_test_result
+            row = ScepProfile.query.filter_by(id=prof['id']).first().intune_app
+            assert row.last_test_at is not None
+            assert 'failed' in row.last_test_result

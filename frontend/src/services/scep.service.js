@@ -74,5 +74,26 @@ export const scepService = {
 
   async testIntuneConnection(data) {
     return apiClient.post('/scep/profiles/test-intune-connection', data)
+  },
+
+  // Intune app registrations, defined once and picked per profile (#358)
+  async getIntuneApps() {
+    return apiClient.get('/scep/intune-apps')
+  },
+
+  async createIntuneApp(data) {
+    return apiClient.post('/scep/intune-apps', data)
+  },
+
+  async updateIntuneApp(id, data) {
+    return apiClient.patch(`/scep/intune-apps/${id}`, data)
+  },
+
+  async deleteIntuneApp(id) {
+    return apiClient.delete(`/scep/intune-apps/${id}`)
+  },
+
+  async testIntuneApp(data) {
+    return apiClient.post('/scep/intune-apps/test', data)
   }
 }

@@ -197,6 +197,19 @@ def template_deletion_blockers(template) -> Iterator[DeletionBlocker]:
         )
 
 
+def intune_app_deletion_blockers(app) -> Iterator[DeletionBlocker]:
+    """Why this Intune app registration may not be deleted."""
+    from models.scep import ScepProfile
+    names = sorted(p.name for p in ScepProfile.query.filter_by(intune_app_id=app.id))
+    if names:
+        yield DeletionBlocker(
+            409,
+            f"Cannot delete: the app registration is used by {len(names)} SCEP "
+            f"profile(s): {', '.join(names)}. Point them at another one first.",
+            f'Used by {len(names)} SCEP profile(s)',
+        )
+
+
 def purge_ca_dependents(ca) -> str:
     """Stage the rows that must not outlive a CA, and say what was staged.
 

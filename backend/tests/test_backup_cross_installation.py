@@ -256,7 +256,7 @@ SECRET_VALUES = {
         '-----BEGIN PRIVATE KEY-----\nxinst-msca-mtls\n'
         '-----END PRIVATE KEY-----\n'),
     ('scep_profiles', 'challenge_password'): 'xinst-scep-challenge',
-    ('scep_profiles', 'intune_client_secret'): 'xinst-intune-secret',
+    ('intune_apps', 'client_secret'): 'xinst-intune-secret',
     ('ad_connector', 'bind_password'): 'xinst-ad-bind-password',
     ('webhook_endpoints', 'secret'): 'xinst-webhook-secret',
     ('webhook_endpoints', 'auth_token'): 'xinst-webhook-auth-token',
@@ -274,6 +274,7 @@ SECRET_ROW = {
     'acme_eab_credentials': {'kid': 'xinst-eab-kid'},
     'acme_client_accounts': {'label': 'xinst-client-b'},
     'microsoft_cas': {'name': 'xinst-msca-b'},
+    'intune_apps': {'name': 'xinst-intune'},
     'scep_profiles': {'name': 'xinst-scep'},
     'ad_connector': {},
     'webhook_endpoints': {'name': 'xinst-webhook'},
@@ -574,10 +575,14 @@ def _seed_source():
         template='WebServer', status='issued',
         cert_id=leaves[1].id, csr_id=leaves[0].id)
 
+    intune = add('intune_apps', name='xinst-intune', tenant_id='xinst.onmicrosoft.com',
+                 client_id='xinst-client', client_secret='x')
+    secret(intune, 'intune_apps', 'client_secret')
+    db.session.flush()
     scep = add('scep_profiles', name='xinst-scep', url_slug='xinst-scep',
-               ca_refid='xinst-ca-b', template_id=templates[1].id)
-    for column in ('challenge_password', 'intune_client_secret'):
-        secret(scep, 'scep_profiles', column)
+               ca_refid='xinst-ca-b', template_id=templates[1].id,
+               intune_enabled=True, intune_app_id=intune.id)
+    secret(scep, 'scep_profiles', 'challenge_password')
 
     deploy_targets = [add('deploy_targets', name=f'xinst-deploy-{suffix}',
                           host=f'deploy-{suffix}.example.test', username='ucm',
@@ -697,6 +702,7 @@ RESTORABLE_SECTIONS = tuple(
         'acme_client_orders',
         'ssh_cas', 'ssh_certificates', 'microsoft_cas', 'msca_requests',
         'scep_profiles', 'deploy_targets', 'scan_profiles', 'scan_runs',
+        'intune_apps',
         'discovered_certificates', 'smtp_config', 'ad_connector',
         'webhook_endpoints',
         # These six used to abort the restore outright: their references
@@ -1293,7 +1299,7 @@ AT_REST_AFTER_A_RESTORE = {
     # under it.
     ('deploy_targets', 'private_key'): 'key-encryption key',
     ('scep_profiles', 'challenge_password'): 'key-encryption key',
-    ('scep_profiles', 'intune_client_secret'): 'database key',
+    ('intune_apps', 'client_secret'): 'database key',
     ('webhook_endpoints', 'secret'): 'database key',
 
     # Never written by the restore at all:

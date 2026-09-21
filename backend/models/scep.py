@@ -6,6 +6,56 @@ from models import db
 from utils.datetime_utils import utc_now, utc_isoformat
 
 
+class IntuneApp(db.Model):
+    """One Microsoft Entra app registration, shared by the SCEP profiles that
+    validate Intune challenges with it (issue #358). The secret is encrypted
+    with utils.encryption, the database key, as the per-profile column was."""
+
+    __tablename__ = "intune_apps"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    tenant_id = db.Column(db.String(255), nullable=False)
+    client_id = db.Column(db.String(255), nullable=False)
+    client_secret = db.Column(db.Text, nullable=False)
+    last_test_at = db.Column(db.DateTime)
+    last_test_result = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=utc_now)
+    created_by = db.Column(db.String(80))
+    updated_at = db.Column(db.DateTime, onupdate=utc_now)
+    updated_by = db.Column(db.String(80))
+
+    profiles = db.relationship("ScepProfile", back_populates="intune_app", lazy="select")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "tenant_id": self.tenant_id,
+            "client_id": self.client_id,
+            "client_secret_set": bool(self.client_secret),
+            "last_test_at": utc_isoformat(self.last_test_at),
+            "last_test_result": self.last_test_result,
+            "profile_count": len(self.profiles),
+            "profile_names": sorted(p.name for p in self.profiles),
+            "created_at": utc_isoformat(self.created_at),
+            "created_by": self.created_by,
+            "updated_at": utc_isoformat(self.updated_at),
+            "updated_by": self.updated_by,
+        }
+
+    def decrypted_secret(self):
+        """The client secret, whether or not it was stored encrypted (a restore
+        writes the archive's cleartext back through the database layer, an
+        older row may predate at-rest encryption)."""
+        if not self.client_secret:
+            return ''
+        from utils.encryption import decrypt_value, is_encrypted
+        if not is_encrypted(self.client_secret):
+            return self.client_secret
+        return decrypt_value(self.client_secret) or ''
+
+
 class ScepProfile(db.Model):
     """A named SCEP endpoint served at /scep/<url_slug>/pkiclient.exe.
 
@@ -45,13 +95,14 @@ class ScepProfile(db.Model):
     # per-device encrypted+signed challenge blob instead of a static secret,
     # validated live against Intune's API rather than compared locally.
     intune_enabled = db.Column(db.Boolean, default=False, nullable=False)
+    # The app registration the challenge is validated with (issue #358): one
+    # row of intune_apps, shared between profiles.
+    intune_app_id = db.Column(db.Integer, db.ForeignKey("intune_apps.id"), nullable=True)
+    intune_app = db.relationship("IntuneApp", back_populates="profiles", lazy="joined")
+    # Frozen since migration 092 moved them to intune_apps: kept for a
+    # downgrade, never read, cleared by the migration and by a restore.
     intune_tenant_id = db.Column(db.String(255))
     intune_client_id = db.Column(db.String(255))
-    # Encrypted at rest via utils.encryption (always encrypts — real key or
-    # machine-id-derived, never silently plaintext — unlike challenge_password
-    # above via security.encryption). A real Entra app secret warrants the
-    # stronger of this codebase's two encryption helpers; see AD Connector's
-    # bind_password for the same precedent.
     intune_client_secret = db.Column(db.Text)
     intune_last_test_at = db.Column(db.DateTime)
     intune_last_test_result = db.Column(db.String(255))
@@ -74,11 +125,14 @@ class ScepProfile(db.Model):
             "challenge_set": bool(self.challenge_password),
             "challenge_generated_at": utc_isoformat(self.challenge_generated_at),
             "intune_enabled": self.intune_enabled,
-            "intune_tenant_id": self.intune_tenant_id,
-            "intune_client_id": self.intune_client_id,
-            "intune_client_secret_set": bool(self.intune_client_secret),
-            "intune_last_test_at": utc_isoformat(self.intune_last_test_at),
-            "intune_last_test_result": self.intune_last_test_result,
+            "intune_app_id": self.intune_app_id,
+            "intune_app_name": self.intune_app.name if self.intune_app else None,
+            # Echoed from the app for one release: readers of the pre-092 shape
+            "intune_tenant_id": self.intune_app.tenant_id if self.intune_app else None,
+            "intune_client_id": self.intune_app.client_id if self.intune_app else None,
+            "intune_client_secret_set": bool(self.intune_app and self.intune_app.client_secret),
+            "intune_last_test_at": utc_isoformat(self.intune_app.last_test_at) if self.intune_app else None,
+            "intune_last_test_result": self.intune_app.last_test_result if self.intune_app else None,
             "created_at": utc_isoformat(self.created_at),
             "created_by": self.created_by,
             "updated_at": utc_isoformat(self.updated_at),
@@ -98,26 +152,16 @@ class ScepProfile(db.Model):
             # Legacy/plaintext value (e.g. encryption disabled at write time)
             return self.challenge_password
 
+    def intune_credentials(self):
+        """(tenant_id, client_id, client_secret) of the app this profile
+        validates with, or ('', '', '') when none is bound."""
+        app = self.intune_app
+        if app is None:
+            return '', '', ''
+        return app.tenant_id or '', app.client_id or '', app.decrypted_secret()
+
     def decrypted_intune_secret(self):
-        """The Intune client secret, whether or not it was stored encrypted.
-
-        `decrypt_value` answers None for anything that is not one of its
-        own tokens, and the `or ''` turned that into an empty string: a
-        value written before at-rest encryption, or put back by a restore
-        -- which carries secrets in the clear inside the archive so they
-        survive a change of database key -- read back as no secret at all,
-        and the Intune enrolment stopped working without a word.
-
-        The sibling above already tolerates this for the challenge
-        password; this is the same tolerance, decided by looking at the
-        value rather than by catching the failure.
-        """
-        if not self.intune_client_secret:
-            return ''
-        from utils.encryption import decrypt_value, is_encrypted
-        if not is_encrypted(self.intune_client_secret):
-            return self.intune_client_secret
-        return decrypt_value(self.intune_client_secret) or ''
+        return self.intune_credentials()[2]
 
 
 class SCEPRequest(db.Model):

@@ -501,27 +501,68 @@ def _validate_profile_payload(data, *, partial=False, profile_id=None):
                             '. Intune expects a synchronous validate-then-issue '
                             'response, not a manual approval queue')
         if resulting_intune_enabled:
-            tenant = data.get('intune_tenant_id') or (existing.intune_tenant_id if existing else None)
-            client = data.get('intune_client_id') or (existing.intune_client_id if existing else None)
-            if not tenant or not client:
-                return False, 'Intune SCEP challenge validation requires a tenant ID and client ID'
-            secret_present = bool(data.get('intune_client_secret')) or (
-                bool(existing.intune_client_secret) if existing else False
-            )
-            if not secret_present:
-                return False, 'Intune SCEP challenge validation requires a client secret'
+            app, err = _intune_app_for(data, existing, dry_run=True)
+            if err:
+                return False, err
 
     return True, None
 
 
-def _apply_intune_secret(profile, raw_secret):
-    """Encrypt and store an Intune client secret; blank leaves it unchanged
-    (matches _apply_challenge/AD Connector's own blank-on-edit convention —
-    a masked field never round-trips the real value back to the form)."""
-    if not raw_secret:
-        return
-    from utils.encryption import encrypt_value
-    profile.intune_client_secret = encrypt_value(raw_secret)
+def _intune_app_for(data, existing, dry_run=False):
+    """The app registration a profile payload names: `intune_app_id`, or the
+    pre-092 trio (tenant, client, secret) which finds or creates an app named
+    after the profile. Returns (app, error); `dry_run` only validates."""
+    from models import IntuneApp
+    if 'intune_app_id' in data:
+        app_id = data.get('intune_app_id')
+        if not app_id:
+            return None, 'Intune SCEP challenge validation requires an app registration'
+        app = db.session.get(IntuneApp, app_id)
+        if app is None:
+            return None, 'Intune app registration not found'
+        return app, None
+    tenant = (data.get('intune_tenant_id') or '').strip()
+    client = (data.get('intune_client_id') or '').strip()
+    secret = (data.get('intune_client_secret') or '').strip()
+    bound = existing.intune_app if existing is not None else None
+    if not any((tenant, client, secret)):
+        if bound is not None:
+            return bound, None
+        return None, 'Intune SCEP challenge validation requires an app registration'
+    if bound is not None:
+        # The pre-092 PATCH edited the profile's own credentials: it now edits
+        # the app the profile is bound to, fields left out keep their value
+        tenant, client = tenant or bound.tenant_id, client or bound.client_id
+        if dry_run:
+            return bound, None
+        from utils.encryption import encrypt_value
+        bound.tenant_id, bound.client_id = tenant, client
+        if secret:
+            bound.client_secret = encrypt_value(secret)
+        return bound, None
+    if not tenant or not client:
+        return None, 'Intune SCEP challenge validation requires a tenant ID and client ID'
+    app = IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).first()
+    if app is None and not secret:
+        return None, 'Intune SCEP challenge validation requires a client secret'
+    if dry_run:
+        return app, None
+    if app is None:
+        from utils.encryption import encrypt_value
+        wanted = (data.get('name') or (existing.name if existing else None) or 'Intune')[:100]
+        name, n = wanted, 2
+        while IntuneApp.query.filter_by(name=name).first() is not None:
+            suffix = f' ({n})'
+            name, n = wanted[:100 - len(suffix)] + suffix, n + 1
+        app = IntuneApp(name=name, tenant_id=tenant, client_id=client,
+                        client_secret=encrypt_value(secret),
+                        created_by=getattr(g.current_user, 'username', None))
+        db.session.add(app)
+        db.session.flush()
+    elif secret:
+        from utils.encryption import encrypt_value
+        app.client_secret = encrypt_value(secret)
+    return app, None
 
 
 def _apply_challenge(profile, raw_challenge):
@@ -575,12 +616,14 @@ def create_scep_profile():
         template_id=data.get('template_id') or None,
         auto_approve=bool(data.get('auto_approve', False)),
         intune_enabled=bool(data.get('intune_enabled', False)),
-        intune_tenant_id=(data.get('intune_tenant_id') or '').strip() or None,
-        intune_client_id=(data.get('intune_client_id') or '').strip() or None,
         created_by=getattr(g.current_user, 'username', None),
     )
     _apply_challenge(profile, (data.get('challenge_password') or '').strip())
-    _apply_intune_secret(profile, (data.get('intune_client_secret') or '').strip())
+    if profile.intune_enabled or 'intune_app_id' in data:
+        app, err = _intune_app_for(data, None)
+        if err:
+            return error_response(err, 400)
+        profile.intune_app = app
     db.session.add(profile)
     ok, _err = safe_commit(logger, "Failed to create SCEP profile")
     if not ok:
@@ -629,12 +672,16 @@ def update_scep_profile(profile_id):
         _apply_challenge(profile, (data.get('challenge_password') or '').strip())
     if 'intune_enabled' in data:
         profile.intune_enabled = bool(data['intune_enabled'])
-    if 'intune_tenant_id' in data:
-        profile.intune_tenant_id = (data.get('intune_tenant_id') or '').strip() or None
-    if 'intune_client_id' in data:
-        profile.intune_client_id = (data.get('intune_client_id') or '').strip() or None
-    if 'intune_client_secret' in data:
-        _apply_intune_secret(profile, (data.get('intune_client_secret') or '').strip())
+    names_app = any(key in data for key in (
+        'intune_app_id', 'intune_tenant_id', 'intune_client_id', 'intune_client_secret'))
+    if names_app or (profile.intune_enabled and profile.intune_app is None):
+        if 'intune_app_id' in data and not data.get('intune_app_id') and not profile.intune_enabled:
+            profile.intune_app = None
+        else:
+            app, err = _intune_app_for(data, profile)
+            if err:
+                return error_response(err, 400)
+            profile.intune_app = app
     profile.updated_by = getattr(g.current_user, 'username', None)
 
     ok, _err = safe_commit(logger, "Failed to update SCEP profile")
@@ -653,52 +700,183 @@ def update_scep_profile(profile_id):
                             message='SCEP profile updated')
 
 
+# ---- Intune app registrations (issue #358): defined once, picked per profile
+
+def _test_intune_credentials(tenant_id, client_id, client_secret):
+    """Token acquisition and service discovery only: no device, no CSR, no
+    Intune challenge spent."""
+    from services.scep.intune_client import IntuneScepClient
+    try:
+        IntuneScepClient(tenant_id=tenant_id, client_id=client_id,
+                         client_secret=client_secret).test_connection()
+        return {'success': True, 'message': 'Connected to Intune successfully'}
+    except Exception as e:
+        return {'success': False, 'message': str(e)}
+
+
+def _record_intune_test(app, result):
+    from utils.datetime_utils import utc_now
+    app.last_test_at = utc_now()
+    app.last_test_result = 'success' if result['success'] else f"failed: {result['message']}"
+    safe_commit(logger, 'Failed to record Intune connection test result')
+
+
+def _audit_intune_app(action, app, details):
+    AuditService.log_action(
+        action=action, resource_type='scep', resource_id=str(app.id),
+        resource_name=app.name, details=details, success=True)
+
+
+@bp.route('/api/v2/scep/intune-apps', methods=['GET'])
+@require_auth(['read:scep'])
+def list_intune_apps():
+    """Every app registration, secrets never returned."""
+    from models import IntuneApp
+    apps = IntuneApp.query.order_by(IntuneApp.name).all()
+    return success_response(data=[a.to_dict() for a in apps])
+
+
+def _intune_app_payload(data, existing=None):
+    name = (data.get('name') or (existing.name if existing else '')).strip()
+    tenant = (data.get('tenant_id') if 'tenant_id' in data
+              else (existing.tenant_id if existing else '')) or ''
+    client = (data.get('client_id') if 'client_id' in data
+              else (existing.client_id if existing else '')) or ''
+    tenant, client = tenant.strip(), client.strip()
+    if not name:
+        return None, 'Name is required'
+    if not tenant or not client:
+        return None, 'Tenant ID and client ID are required'
+    return {'name': name[:100], 'tenant_id': tenant[:255], 'client_id': client[:255]}, None
+
+
+@bp.route('/api/v2/scep/intune-apps', methods=['POST'])
+@require_auth(['write:scep'])
+def create_intune_app():
+    from models import IntuneApp
+    from utils.encryption import encrypt_value
+    data = request.json or {}
+    fields, err = _intune_app_payload(data)
+    if err:
+        return error_response(err, 400)
+    secret = (data.get('client_secret') or '').strip()
+    if not secret:
+        return error_response('Client secret is required', 400)
+    if IntuneApp.query.filter_by(name=fields['name']).first():
+        return error_response('An app registration with this name already exists', 409)
+    app = IntuneApp(**fields, client_secret=encrypt_value(secret),
+                    created_by=getattr(g.current_user, 'username', None))
+    db.session.add(app)
+    ok, _err = safe_commit(logger, 'Failed to create Intune app registration')
+    if not ok:
+        return _err
+    _audit_intune_app('intune_app_create', app,
+                      f'Created Intune app registration {app.name} (tenant {app.tenant_id})')
+    return success_response(data=app.to_dict(), message='Intune app registration created')
+
+
+@bp.route('/api/v2/scep/intune-apps/<int:app_id>', methods=['PUT', 'PATCH'])
+@require_auth(['write:scep'])
+def update_intune_app(app_id):
+    from models import IntuneApp
+    from utils.encryption import encrypt_value
+    app = db.session.get(IntuneApp, app_id)
+    if not app:
+        return error_response('Intune app registration not found', 404)
+    data = request.json or {}
+    fields, err = _intune_app_payload(data, app)
+    if err:
+        return error_response(err, 400)
+    clash = IntuneApp.query.filter(IntuneApp.name == fields['name'], IntuneApp.id != app.id).first()
+    if clash:
+        return error_response('An app registration with this name already exists', 409)
+    changed = [key for key, value in fields.items() if getattr(app, key) != value]
+    for key, value in fields.items():
+        setattr(app, key, value)
+    # A blank secret leaves the stored one alone: the masked field never
+    # round-trips the real value back to the form
+    secret = (data.get('client_secret') or '').strip()
+    if secret:
+        app.client_secret = encrypt_value(secret)
+        changed.append('client_secret')
+    app.updated_by = getattr(g.current_user, 'username', None)
+    ok, _err = safe_commit(logger, 'Failed to update Intune app registration')
+    if not ok:
+        return _err
+    _audit_intune_app('intune_app_update', app,
+                      f"Updated Intune app registration {app.name}; changed fields: "
+                      f"{', '.join(changed) if changed else 'none'}")
+    return success_response(data=app.to_dict(), message='Intune app registration updated')
+
+
+@bp.route('/api/v2/scep/intune-apps/<int:app_id>', methods=['DELETE'])
+@require_auth(['write:scep'])
+def delete_intune_app(app_id):
+    from models import IntuneApp
+    from services.deletion_blockers import first_blocker, intune_app_deletion_blockers
+    app = db.session.get(IntuneApp, app_id)
+    if not app:
+        return error_response('Intune app registration not found', 404)
+    blocker = first_blocker(intune_app_deletion_blockers(app))
+    if blocker:
+        return error_response(blocker.message, blocker.status)
+    name = app.name
+    try:
+        db.session.delete(app)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f'Failed to delete Intune app registration: {e}')
+        return error_response('Failed to delete Intune app registration', 500)
+    AuditService.log_action(
+        action='intune_app_delete', resource_type='scep', resource_id=str(app_id),
+        resource_name=name, details=f'Deleted Intune app registration {name}', success=True)
+    return success_response(message='Intune app registration deleted')
+
+
+@bp.route('/api/v2/scep/intune-apps/test', methods=['POST'])
+@require_auth(['write:scep'])
+def test_intune_app():
+    """Test an app registration: unsaved form values, or a saved app by
+    `app_id` whose stored secret is used when the field was left blank."""
+    from models import IntuneApp
+    data = request.json or {}
+    app = db.session.get(IntuneApp, data.get('app_id')) if data.get('app_id') else None
+    if data.get('app_id') and app is None:
+        return error_response('Intune app registration not found', 404)
+    tenant = (data.get('tenant_id') or (app.tenant_id if app else '')).strip()
+    client = (data.get('client_id') or (app.client_id if app else '')).strip()
+    secret = (data.get('client_secret') or '').strip() or (app.decrypted_secret() if app else '')
+    if not tenant or not client or not secret:
+        return error_response('Tenant ID, client ID and client secret are all required', 400)
+    result = _test_intune_credentials(tenant, client, secret)
+    if app:
+        _record_intune_test(app, result)
+        _audit_intune_app('intune_app_test', app,
+                          f"Tested Intune app registration {app.name}: {app.last_test_result}")
+    if result['success']:
+        return success_response(data=result, message=result['message'])
+    return error_response(result['message'], 400)
+
+
 @bp.route('/api/v2/scep/profiles/test-intune-connection', methods=['POST'])
 @require_auth(['write:scep'])
 def test_intune_connection():
-    """Test an Intune Entra app registration (issue #228 part 2).
-
-    Mirrors ad_connector.py's test_connection_inline: accepts unsaved form
-    data so an admin can test before saving, and falls back to the saved
-    client secret when profile_id is given and the secret field was left
-    blank (a masked field never round-trips the real value back to the form).
-    Only does token acquisition + service discovery — no real device/CSR is
-    involved, so this never touches ScepActions/* or spends a real Intune
-    challenge.
-    """
-    from models import ScepProfile
-    from services.scep.intune_client import IntuneScepClient
-    from utils.datetime_utils import utc_now
-
+    """Pre-092 shape, kept for one release: the profile's app, or the trio."""
+    from models import IntuneApp, ScepProfile
     data = request.json or {}
-    tenant_id = (data.get('intune_tenant_id') or '').strip()
-    client_id = (data.get('intune_client_id') or '').strip()
-    client_secret = (data.get('intune_client_secret') or '').strip()
-    profile_id = data.get('profile_id')
-
-    profile = db.session.get(ScepProfile, profile_id) if profile_id else None
-    if not client_secret and profile:
-        client_secret = profile.decrypted_intune_secret()
-
-    if not tenant_id or not client_id or not client_secret:
+    profile = db.session.get(ScepProfile, data.get('profile_id')) if data.get('profile_id') else None
+    app = profile.intune_app if profile else None
+    if data.get('intune_app_id'):
+        app = db.session.get(IntuneApp, data['intune_app_id'])
+    tenant = (data.get('intune_tenant_id') or (app.tenant_id if app else '')).strip()
+    client = (data.get('intune_client_id') or (app.client_id if app else '')).strip()
+    secret = (data.get('intune_client_secret') or '').strip() or (app.decrypted_secret() if app else '')
+    if not tenant or not client or not secret:
         return error_response('Tenant ID, client ID and client secret are all required', 400)
-
-    try:
-        client = IntuneScepClient(
-            tenant_id=tenant_id, client_id=client_id, client_secret=client_secret,
-        )
-        client.test_connection()
-        result = {'success': True, 'message': 'Connected to Intune successfully'}
-    except Exception as e:
-        result = {'success': False, 'message': str(e)}
-
-    if profile:
-        profile.intune_last_test_at = utc_now()
-        profile.intune_last_test_result = (
-            'success' if result['success'] else f"failed: {result['message']}"
-        )
-        safe_commit(logger, 'Failed to record Intune connection test result')
-
+    result = _test_intune_credentials(tenant, client, secret)
+    if app and tenant == app.tenant_id and client == app.client_id:
+        _record_intune_test(app, result)
     if result['success']:
         return success_response(data=result, message=result['message'])
     return error_response(result['message'], 400)
