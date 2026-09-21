@@ -7,15 +7,23 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ---
 
-## [2.232] - 2026-09-21
+## [Unreleased]
 
 ### Added
 - CRLs can be deployed over SSH/SFTP whenever they change, with durable per-target delivery, PEM parent-CRL bundles or a single DER CRL, on-demand deployment, and editable certificate and CRL bindings. Reload commands now belong to each binding so one SSH target can safely serve different services. Pending retries show their last error and a live countdown to the next attempt, refresh automatically while waiting, and bindings can be enabled or disabled from their edit dialog.
+
+### Changed
+- Deployment target settings now contain only the reusable SSH/SFTP connection. Destination paths, file options and reload commands are configured on each certificate or CRL binding; migration 091 copies existing target reload commands to existing bindings.
+
+---
+
+## [2.232] - 2026-09-21
+
+### Added
 - The server's own application log can be read from the interface, under System Logs: the source (application log, gunicorn access and error streams, the systemd journal where it exists), a subsystem, a level floor, a time window, a search and an exclusion, all applied on the server, with secrets redacted before anything leaves the process and a traceback kept as one entry. Reading is restricted to administrators and deliberately not audited, since the audit trail is written to that same log and the page polls (#361, by @stefanelul2000).
 - A guide to enrolling devices through Microsoft Intune's SCEP challenge validation, from the Entra app registration to the per-platform Intune profile, in `docs/integrations/intune-scep.md` (#360, by @stefanelul2000).
 
 ### Changed
-- Deployment target settings now contain only the reusable SSH/SFTP connection. Destination paths, file options and reload commands are configured on each certificate or CRL binding; migration 091 copies existing target reload commands to existing bindings.
 - The CLA check counts a commit whose email is linked to no GitHub account as the pull request author's, who ticks the attestation line the new pull request template carries instead of signing under the commit's name.
 - The service runs with the `systemd-journal` supplementary group, granted in the unit file on DEB and RPM, so the diagnostic bundle and the log viewer can read the unit's journal (#361, by @stefanelul2000).
 - The Attach target dialog names the certificate it is attaching, so two certificates opened one after the other no longer look alike (#359, by @B0F1B0).
