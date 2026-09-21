@@ -1,14 +1,19 @@
 """Migration 092: one Intune app registration, shared by SCEP profiles.
 
 The Entra tenant, client id and secret lived on each SCEP profile (076). They
-move to `intune_apps`, one row per distinct (tenant, client), and the profile
-keeps a foreign key to it. Existing rows are carried over, then the frozen
+move to `intune_apps`, one row per distinct (tenant, client, secret), and the
+profile keeps a foreign key to it. Profiles that carried the same credentials
+share one row; a different secret for the same tenant and client keeps a row
+of its own (Entra allows several secrets during a rotation) and is reported,
+for the operator to merge by hand. Nothing is discarded. Then the frozen
 profile columns are cleared: a secret must have one home. Idempotent, dual
 backend.
 """
 
+import logging
 import sqlite3
 
+logger = logging.getLogger(__name__)
 pg_compatible = True
 
 _TABLE_SQLITE = """
@@ -68,14 +73,34 @@ def _unique_name(taken, wanted):
     return name
 
 
+def _plain(secret):
+    """The secret as entered, so two encryptions of one value compare equal;
+    the ciphertext itself when it cannot be opened here (a missing key makes
+    two rows distinct, never merged)."""
+    try:
+        from utils.encryption import decrypt_value, is_encrypted
+        if is_encrypted(secret):
+            return decrypt_value(secret) or secret
+    except Exception:
+        pass
+    return secret
+
+
 def _carry_over(rows, existing_apps, insert_app, bind_profile, clear_profile):
-    """Give every legacy profile an app, one per distinct (tenant, client)."""
-    by_key = {(tenant, client): app_id for app_id, tenant, client, _name in existing_apps}
-    taken = {name for _id, _tenant, _client, name in existing_apps}
+    """Give every legacy profile an app, one per distinct (tenant, client, secret)."""
+    by_key = {(tenant, client, _plain(secret)): app_id
+              for app_id, tenant, client, _name, secret in existing_apps}
+    taken = {name for _id, _tenant, _client, name, _secret in existing_apps}
     for pid, pname, tenant, client, secret, tested_at, tested in rows:
-        key = (tenant, client)
+        key = (tenant, client, _plain(secret))
         app_id = by_key.get(key)
         if app_id is None:
+            if any(k[:2] == key[:2] for k in by_key):
+                logger.warning(
+                    "Migration 092: SCEP profile %r uses tenant %s / client %s with a "
+                    "secret that differs from another profile's; a separate app "
+                    "registration is created, merge them by hand under SCEP > Intune apps",
+                    pname, tenant, client)
             app_id = insert_app(_unique_name(taken, pname), tenant, client, secret,
                                 tested_at, tested)
             by_key[key] = app_id
@@ -90,8 +115,8 @@ def _upgrade_sqlite(conn):
         conn.execute(
             "ALTER TABLE scep_profiles ADD COLUMN intune_app_id INTEGER "
             "REFERENCES intune_apps(id)")
-    existing = [(r[0], r[1], r[2], r[3]) for r in conn.execute(
-        "SELECT id, tenant_id, client_id, name FROM intune_apps")]
+    existing = [(r[0], r[1], r[2], r[3], r[4]) for r in conn.execute(
+        "SELECT id, tenant_id, client_id, name, client_secret FROM intune_apps")]
     rows = conn.execute(_LEGACY_ROWS).fetchall()
 
     def insert_app(name, tenant, client, secret, tested_at, tested):
@@ -121,8 +146,8 @@ def _upgrade_pg(conn):
     conn.execute(text(
         "ALTER TABLE scep_profiles ADD COLUMN IF NOT EXISTS intune_app_id INTEGER "
         "REFERENCES intune_apps(id)"))
-    existing = [(r[0], r[1], r[2], r[3]) for r in conn.execute(text(
-        "SELECT id, tenant_id, client_id, name FROM intune_apps")).fetchall()]
+    existing = [(r[0], r[1], r[2], r[3], r[4]) for r in conn.execute(text(
+        "SELECT id, tenant_id, client_id, name, client_secret FROM intune_apps")).fetchall()]
     rows = conn.execute(text(_LEGACY_ROWS)).fetchall()
 
     def insert_app(name, tenant, client, secret, tested_at, tested):

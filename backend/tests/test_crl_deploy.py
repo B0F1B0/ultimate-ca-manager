@@ -79,18 +79,24 @@ class TestCRLBindings:
         from models import db, Certificate, DeployDelivery
         from services.cert_service import CertificateService
         with app.app_context():
-            # A fresh test database gives both binding tables the same first id;
-            # assert the precondition so this remains a real collision test.
-            assert cert_binding['id'] == crl_binding['id']
-            crl_delivery_ids = [row.id for row in DeployDelivery.query.filter_by(
-                binding_id=crl_binding['id'], binding_type='crl').all()]
-            assert crl_delivery_ids
+            # The collision is written down rather than hoped for: the two id
+            # sequences only coincide on a database nothing else has touched,
+            # which a shared test database is not. A CRL delivery carrying the
+            # certificate binding's number is the case the filter must survive.
+            collision = DeployDelivery(binding_id=cert_binding['id'], binding_type='crl',
+                                       event_type='crl.updated', status='pending')
+            db.session.add(collision)
+            db.session.commit()
+            collision_id = collision.id
             db.session.get(Certificate, cert['id']).revoked = True
             db.session.commit()
             assert CertificateService.delete_certificate(cert['id']) is True
-            assert [row.id for row in DeployDelivery.query.filter_by(
-                binding_id=crl_binding['id'], binding_type='crl').all()
-                    if row.id in crl_delivery_ids] == crl_delivery_ids
+            kept = db.session.get(DeployDelivery, collision_id)
+            assert kept is not None and kept.binding_type == 'crl'
+            assert DeployDelivery.query.filter_by(
+                binding_id=cert_binding['id'], binding_type='certificate').count() == 0
+            db.session.delete(kept)
+            db.session.commit()
 
     def test_create_lists_and_queues_initial_push(self, app, auth_client, create_ca):
         ca = create_ca(cn='CRL Binding CA')

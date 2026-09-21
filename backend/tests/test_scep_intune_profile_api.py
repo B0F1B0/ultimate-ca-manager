@@ -17,7 +17,7 @@ class TestIntuneProfileValidation:
         r = _create_profile(
             auth_client, name='intune-no-approve', ca_id=ca['id'],
             auto_approve=False, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-create_requires_auto_approve',
             intune_client_secret='secret-1',
         )
         assert r.status_code == 400
@@ -36,7 +36,7 @@ class TestIntuneProfileValidation:
         r = _create_profile(
             auth_client, name='intune-no-secret', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-create_requires_secret',
         )
         assert r.status_code == 400
 
@@ -45,14 +45,14 @@ class TestIntuneProfileValidation:
         r = _create_profile(
             auth_client, name='intune-full', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-create_succeeds_with_full_config',
             intune_client_secret='secret-1',
         )
         assert r.status_code == 200, r.data
         prof = get_json(r)['data']
         assert prof['intune_enabled'] is True
         assert prof['intune_tenant_id'] == 'contoso.onmicrosoft.com'
-        assert prof['intune_client_id'] == 'client-1'
+        assert prof['intune_client_id'] == 'client-create_succeeds_with_full_config'
         assert prof['intune_client_secret_set'] is True
         assert 'intune_client_secret' not in prof
 
@@ -69,7 +69,7 @@ class TestIntuneProfileValidation:
             data=json.dumps({
                 'intune_enabled': True,
                 'intune_tenant_id': 'contoso.onmicrosoft.com',
-                'intune_client_id': 'client-1',
+                'intune_client_id': 'client-patch_enabling_intune_checks_existi',
                 'intune_client_secret': 'secret-1',
             }),
             content_type=CONTENT_JSON,
@@ -87,7 +87,7 @@ class TestIntuneProfileValidation:
                 'auto_approve': True,
                 'intune_enabled': True,
                 'intune_tenant_id': 'contoso.onmicrosoft.com',
-                'intune_client_id': 'client-1',
+                'intune_client_id': 'client-patch_enabling_intune_with_auto_app',
                 'intune_client_secret': 'secret-1',
             }),
             content_type=CONTENT_JSON,
@@ -99,7 +99,7 @@ class TestIntuneProfileValidation:
         prof = get_json(_create_profile(
             auth_client, name='intune-blank-secret', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-patch_blank_secret_leaves_existing_',
             intune_client_secret='original-secret',
         ))['data']
 
@@ -121,7 +121,7 @@ class TestIntuneProfileValidation:
         prof = get_json(_create_profile(
             auth_client, name='intune-enc-check', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-secret_encrypted_at_rest',
             intune_client_secret='plaintext-app-secret',
         ))['data']
         with app.app_context():
@@ -162,7 +162,7 @@ class TestIntuneTestConnectionEndpoint:
             '/api/v2/scep/profiles/test-intune-connection',
             data=json.dumps({
                 'intune_tenant_id': 'contoso.onmicrosoft.com',
-                'intune_client_id': 'client-1',
+                'intune_client_id': 'client-inline_values_used_when_no_profile_',
                 'intune_client_secret': 'secret-1',
             }),
             content_type=CONTENT_JSON,
@@ -170,7 +170,7 @@ class TestIntuneTestConnectionEndpoint:
         assert r.status_code == 200, r.data
         assert captured == {
             'tenant_id': 'contoso.onmicrosoft.com',
-            'client_id': 'client-1',
+            'client_id': 'client-inline_values_used_when_no_profile_',
             'client_secret': 'secret-1',
         }
 
@@ -181,7 +181,7 @@ class TestIntuneTestConnectionEndpoint:
         prof = get_json(_create_profile(
             auth_client, name='intune-test-fallback', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-blank_secret_falls_back_to_saved_pr',
             intune_client_secret='the-real-secret',
         ))['data']
 
@@ -195,7 +195,7 @@ class TestIntuneTestConnectionEndpoint:
             '/api/v2/scep/profiles/test-intune-connection',
             data=json.dumps({
                 'intune_tenant_id': 'contoso.onmicrosoft.com',
-                'intune_client_id': 'client-1',
+                'intune_client_id': 'client-blank_secret_falls_back_to_saved_pr',
                 'profile_id': prof['id'],
             }),
             content_type=CONTENT_JSON,
@@ -210,7 +210,7 @@ class TestIntuneTestConnectionEndpoint:
         prof = get_json(_create_profile(
             auth_client, name='intune-test-fail', ca_id=ca['id'],
             auto_approve=True, intune_enabled=True,
-            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-1',
+            intune_tenant_id='contoso.onmicrosoft.com', intune_client_id='client-failure_reports_message_and_records',
             intune_client_secret='the-real-secret',
         ))['data']
 
@@ -222,7 +222,7 @@ class TestIntuneTestConnectionEndpoint:
             '/api/v2/scep/profiles/test-intune-connection',
             data=json.dumps({
                 'intune_tenant_id': 'contoso.onmicrosoft.com',
-                'intune_client_id': 'client-1',
+                'intune_client_id': 'client-failure_reports_message_and_records',
                 'profile_id': prof['id'],
             }),
             content_type=CONTENT_JSON,

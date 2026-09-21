@@ -14,7 +14,7 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 - CRLs can be deployed over SSH/SFTP whenever they change, with durable per-target delivery, PEM parent-CRL bundles or a single DER CRL, on-demand deployment, and editable certificate and CRL bindings. Reload commands now belong to each binding so one SSH target can safely serve different services. Pending retries show their last error and a live countdown to the next attempt, refresh automatically while waiting, and bindings can be enabled or disabled from their edit dialog.
 
 ### Changed
-- A SCEP profile names its Intune app registration instead of carrying the credentials; migration 092 gives every existing Intune profile a registration named after it, shared by the profiles that used the same tenant and client ID. The pre-092 profile fields stay accepted by the API for one release.
+- A SCEP profile names its Intune app registration instead of carrying the credentials; migration 092 gives every existing Intune profile a registration named after it, shared by the profiles that used the same tenant, client ID and secret. A different secret for the same tenant keeps a registration of its own, reported in the log for a merge by hand; two registrations for one tenant and client ID cannot be created through the API. The pre-092 profile fields stay accepted for one release.
 - Deployment target settings now contain only the reusable SSH/SFTP connection. Destination paths, file options and reload commands are configured on each certificate or CRL binding; migration 091 copies existing target reload commands to existing bindings.
 
 ---

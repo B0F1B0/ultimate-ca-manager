@@ -171,7 +171,11 @@ def _legacy_intune_app(row) -> dict:
                'intune_client_secret': None}
     if not (tenant and client and secret):
         return cleared
-    app = IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).first()
+    # The registration with these very credentials; a different secret for the
+    # same tenant and client keeps a registration of its own, nothing is lost
+    app = next((candidate for candidate in
+                IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).all()
+                if candidate.decrypted_secret() == secret), None)
     if app is None:
         wanted = (row.get('name') or 'Intune')[:100]
         name, n = wanted, 2

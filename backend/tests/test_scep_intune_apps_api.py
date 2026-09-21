@@ -19,10 +19,11 @@ def _patch(client, path, **payload):
     return client.patch(path, data=json.dumps(payload), content_type=CONTENT_JSON)
 
 
-def _create_app(client, name, tenant='apps.onmicrosoft.com', client_id='apps-client',
+def _create_app(client, name, tenant='apps.onmicrosoft.com', client_id=None,
                 secret='the-secret'):
+    # Tenant and client are unique per registration: one client per name
     r = _post(client, '/api/v2/scep/intune-apps', name=name, tenant_id=tenant,
-              client_id=client_id, client_secret=secret)
+              client_id=client_id or f'{name}-client', client_secret=secret)
     assert r.status_code == 200, r.data
     return get_json(r)['data']
 
@@ -247,3 +248,54 @@ class TestTheEndpointValidatesWithTheApp:
                 db.session.commit()
         assert built == {'tenant': 'endpoint.onmicrosoft.com', 'client': 'endpoint-client',
                          'secret': 'endpoint-secret'}
+
+
+class TestTenantAndClientAreUnique:
+
+    def test_an_explicit_duplicate_is_refused(self, auth_client):
+        first = _create_app(auth_client, 'apps-twin-a', tenant='twin.onmicrosoft.com', client_id='twin')
+        r = _post(auth_client, '/api/v2/scep/intune-apps', name='apps-twin-b',
+                  tenant_id='twin.onmicrosoft.com', client_id='twin', client_secret='other')
+        assert r.status_code == 409
+        assert 'apps-twin-a' in get_json(r)['message']
+        other = _create_app(auth_client, 'apps-twin-c', tenant='twin.onmicrosoft.com', client_id='twin-c')
+        r = _patch(auth_client, f"/api/v2/scep/intune-apps/{other['id']}", client_id='twin')
+        assert r.status_code == 409
+        # Editing a registration without moving it onto another pair stays allowed
+        r = _patch(auth_client, f"/api/v2/scep/intune-apps/{first['id']}", name='apps-twin-a2')
+        assert r.status_code == 200, r.data
+
+    def test_the_trio_with_another_secret_is_refused_not_merged(self, auth_client, create_ca):
+        _create_app(auth_client, 'apps-trio-clash', tenant='clash.onmicrosoft.com',
+                    client_id='clash', secret='current')
+        ca = create_ca(cn='Intune Trio Clash CA')
+        r = _create_profile(auth_client, name='apps-trio-clash-profile', ca_id=ca['id'],
+                            auto_approve=True, intune_enabled=True,
+                            intune_tenant_id='clash.onmicrosoft.com', intune_client_id='clash',
+                            intune_client_secret='rotated')
+        assert r.status_code == 409, r.data
+        assert 'apps-trio-clash' in get_json(r)['message']
+        assert len([a for a in _apps(auth_client).values()
+                    if a['tenant_id'] == 'clash.onmicrosoft.com']) == 1
+
+    def test_the_trio_without_a_secret_needs_one_candidate(self, auth_client, create_ca, app):
+        with app.app_context():
+            from models import IntuneApp, db
+            from utils.encryption import encrypt_value
+            for name, secret in (('apps-dup-old', 'old'), ('apps-dup-new', 'new')):
+                db.session.add(IntuneApp(name=name, tenant_id='dup.onmicrosoft.com',
+                                         client_id='dup', client_secret=encrypt_value(secret)))
+            db.session.commit()
+        ca = create_ca(cn='Intune Dup CA')
+        r = _create_profile(auth_client, name='apps-dup-profile', ca_id=ca['id'],
+                            auto_approve=True, intune_enabled=True,
+                            intune_tenant_id='dup.onmicrosoft.com', intune_client_id='dup')
+        assert r.status_code == 409
+        assert 'Several' in get_json(r)['message']
+        # With the secret, the matching registration is picked
+        r = _create_profile(auth_client, name='apps-dup-profile', ca_id=ca['id'],
+                            auto_approve=True, intune_enabled=True,
+                            intune_tenant_id='dup.onmicrosoft.com', intune_client_id='dup',
+                            intune_client_secret='new')
+        assert r.status_code == 200, r.data
+        assert get_json(r)['data']['intune_app_name'] == 'apps-dup-new'

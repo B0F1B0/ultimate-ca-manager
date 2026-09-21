@@ -501,17 +501,26 @@ def _validate_profile_payload(data, *, partial=False, profile_id=None):
                             '. Intune expects a synchronous validate-then-issue '
                             'response, not a manual approval queue')
         if resulting_intune_enabled:
-            app, err = _intune_app_for(data, existing, dry_run=True)
+            try:
+                app, err = _intune_app_for(data, existing, dry_run=True)
+            except IntuneAppConflict as conflict:
+                return False, (str(conflict), 409)
             if err:
                 return False, err
 
     return True, None
 
 
+class IntuneAppConflict(Exception):
+    """The pre-092 trio names credentials that clash with a registration on
+    file: answered 409, never a silent overwrite nor a duplicate."""
+
+
 def _intune_app_for(data, existing, dry_run=False):
     """The app registration a profile payload names: `intune_app_id`, or the
     pre-092 trio (tenant, client, secret) which finds or creates an app named
-    after the profile. Returns (app, error); `dry_run` only validates."""
+    after the profile. Returns (app, error); `dry_run` only validates. Raises
+    IntuneAppConflict when the trio contradicts a registration on file."""
     from models import IntuneApp
     if 'intune_app_id' in data:
         app_id = data.get('intune_app_id')
@@ -542,7 +551,20 @@ def _intune_app_for(data, existing, dry_run=False):
         return bound, None
     if not tenant or not client:
         return None, 'Intune SCEP challenge validation requires a tenant ID and client ID'
-    app = IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).first()
+    candidates = IntuneApp.query.filter_by(tenant_id=tenant, client_id=client).all()
+    if secret:
+        app = next((c for c in candidates if c.decrypted_secret() == secret), None)
+        if app is None and candidates:
+            raise IntuneAppConflict(
+                f"An app registration for this tenant and client ID already exists "
+                f"({candidates[0].name}) with a different secret: pick it with "
+                f"intune_app_id, or update its secret under SCEP > Intune apps")
+    elif len(candidates) > 1:
+        raise IntuneAppConflict(
+            "Several app registrations exist for this tenant and client ID: pick one "
+            "with intune_app_id")
+    else:
+        app = candidates[0] if candidates else None
     if app is None and not secret:
         return None, 'Intune SCEP challenge validation requires a client secret'
     if dry_run:
@@ -563,6 +585,13 @@ def _intune_app_for(data, existing, dry_run=False):
         from utils.encryption import encrypt_value
         app.client_secret = encrypt_value(secret)
     return app, None
+
+
+def _profile_error(err):
+    """A validation error is a message, or (message, status) for a 409."""
+    if isinstance(err, tuple):
+        return error_response(err[0], err[1])
+    return error_response(err, 400)
 
 
 def _apply_challenge(profile, raw_challenge):
@@ -605,7 +634,7 @@ def create_scep_profile():
     data = request.json or {}
     ok, err = _validate_profile_payload(data)
     if not ok:
-        return error_response(err, 400)
+        return _profile_error(err)
 
     profile = ScepProfile(
         name=data['name'],
@@ -620,7 +649,10 @@ def create_scep_profile():
     )
     _apply_challenge(profile, (data.get('challenge_password') or '').strip())
     if profile.intune_enabled or 'intune_app_id' in data:
-        app, err = _intune_app_for(data, None)
+        try:
+            app, err = _intune_app_for(data, None)
+        except IntuneAppConflict as conflict:
+            return error_response(str(conflict), 409)
         if err:
             return error_response(err, 400)
         profile.intune_app = app
@@ -652,7 +684,7 @@ def update_scep_profile(profile_id):
     data = request.json or {}
     ok, err = _validate_profile_payload(data, partial=True, profile_id=profile_id)
     if not ok:
-        return error_response(err, 400)
+        return _profile_error(err)
 
     if 'name' in data:
         profile.name = data['name']
@@ -678,7 +710,10 @@ def update_scep_profile(profile_id):
         if 'intune_app_id' in data and not data.get('intune_app_id') and not profile.intune_enabled:
             profile.intune_app = None
         else:
-            app, err = _intune_app_for(data, profile)
+            try:
+                app, err = _intune_app_for(data, profile)
+            except IntuneAppConflict as conflict:
+                return error_response(str(conflict), 409)
             if err:
                 return error_response(err, 400)
             profile.intune_app = app
@@ -764,6 +799,11 @@ def create_intune_app():
         return error_response('Client secret is required', 400)
     if IntuneApp.query.filter_by(name=fields['name']).first():
         return error_response('An app registration with this name already exists', 409)
+    twin = IntuneApp.query.filter_by(tenant_id=fields['tenant_id'],
+                                     client_id=fields['client_id']).first()
+    if twin:
+        return error_response(
+            f'An app registration for this tenant and client ID already exists: {twin.name}', 409)
     app = IntuneApp(**fields, client_secret=encrypt_value(secret),
                     created_by=getattr(g.current_user, 'username', None))
     db.session.add(app)
@@ -790,6 +830,12 @@ def update_intune_app(app_id):
     clash = IntuneApp.query.filter(IntuneApp.name == fields['name'], IntuneApp.id != app.id).first()
     if clash:
         return error_response('An app registration with this name already exists', 409)
+    twin = IntuneApp.query.filter(IntuneApp.tenant_id == fields['tenant_id'],
+                                  IntuneApp.client_id == fields['client_id'],
+                                  IntuneApp.id != app.id).first()
+    if twin and (fields['tenant_id'], fields['client_id']) != (app.tenant_id, app.client_id):
+        return error_response(
+            f'An app registration for this tenant and client ID already exists: {twin.name}', 409)
     changed = [key for key, value in fields.items() if getattr(app, key) != value]
     for key, value in fields.items():
         setattr(app, key, value)

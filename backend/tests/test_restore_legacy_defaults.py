@@ -121,3 +121,50 @@ def test_a_pre_092_intune_profile_gets_a_shared_app_registration(app, auth_clien
         assert registration.decrypted_secret() == 'legacy-clear-secret'
         assert (profile.intune_tenant_id, profile.intune_client_id,
                 profile.intune_client_secret) == (None, None, None)
+
+
+def test_pre_092_profiles_on_different_secrets_get_separate_apps(app, auth_client, create_ca):
+    """Two profiles of one tenant, one on the old secret and one on the new:
+    both keep enrolling after the restore."""
+    from models import db
+    from models.scep import IntuneApp, ScepProfile
+    from services.backup.export_generic import REFERENCE_SUFFIX
+    from tests.test_backup_hostile_corpus import _forged, _restore
+    ca = create_ca(cn='Legacy Intune Two Secrets CA')
+    secrets = {'legacy-two-a': 'old-secret', 'legacy-two-b': 'new-secret'}
+    with app.app_context():
+        registration = IntuneApp(name='legacy-two-app', tenant_id='two.onmicrosoft.com',
+                                 client_id='two-client', client_secret='x')
+        db.session.add(registration)
+        db.session.flush()
+        ca_refid = db.session.get(__import__('models').CA, ca['id']).refid
+        for name in secrets:
+            db.session.add(ScepProfile(name=name, url_slug=name, ca_refid=ca_refid,
+                                       auto_approve=True, intune_enabled=True,
+                                       intune_app_id=registration.id))
+        db.session.commit()
+
+        def as_written_before_092(data):
+            data.pop('intune_apps', None)
+            for row in data['scep_profiles']:
+                if row['name'] not in secrets:
+                    continue
+                row.pop('intune_app_id', None)
+                row.pop(f'intune_app_id{REFERENCE_SUFFIX}', None)
+                row.update(intune_tenant_id='two.onmicrosoft.com', intune_client_id='two-client',
+                           intune_client_secret=secrets[row['name']])
+        blob = _forged(('certificate_authorities', 'intune_apps', 'scep_profiles'),
+                       mutate=as_written_before_092)
+        ScepProfile.query.filter(ScepProfile.name.in_(list(secrets))).delete(synchronize_session=False)
+        IntuneApp.query.filter_by(name='legacy-two-app').delete()
+        db.session.commit()
+
+    assert _restore(auth_client, blob).status_code == 200
+    with app.app_context():
+        seen = {}
+        for name, secret in secrets.items():
+            profile = ScepProfile.query.filter_by(name=name).one()
+            assert profile.intune_app is not None
+            assert profile.intune_app.decrypted_secret() == secret
+            seen[name] = profile.intune_app.id
+        assert seen['legacy-two-a'] != seen['legacy-two-b']

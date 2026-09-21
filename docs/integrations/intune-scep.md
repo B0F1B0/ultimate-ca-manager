@@ -228,7 +228,10 @@ profiles use it.
 
 > Upgrading from an earlier version: profiles that carried their own tenant,
 > client ID and secret get a registration automatically, named after the
-> profile and shared by the profiles that used the same tenant and client ID.
+> profile and shared by the profiles that used the same tenant, client ID and
+> secret. A profile on a different secret (a rotation in progress) keeps a
+> registration of its own, so it goes on enrolling; the log says so, and you
+> merge the two by hand once every profile is on the new secret.
 
 ![Profiles list showing the Intune badge](img/intune-scep-profiles-list.png)
 
