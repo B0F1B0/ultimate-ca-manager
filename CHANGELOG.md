@@ -9,6 +9,9 @@ Starting with v2.48, UCM uses Major.Build versioning (e.g., 2.48, 2.49). Earlier
 
 ## [Unreleased]
 
+### Fixed
+- The Certificates table shows the Common Name instead of overriding it with the description. A separate, sortable Description column can be shown or hidden through Show Columns.
+
 ### Added
 - Intune app registrations are defined once, under SCEP › Intune app registrations, and picked per SCEP profile: one tenant, client ID and secret shared by the profiles that validate with it, tested and rotated in one place. (#358)
 - CRLs can be deployed over SSH/SFTP whenever they change, with durable per-target delivery, PEM parent-CRL bundles or a single DER CRL, on-demand deployment, and editable certificate and CRL bindings. Reload commands now belong to each binding so one SSH target can safely serve different services. Pending retries show their last error and a live countdown to the next attempt, refresh automatically while waiting, and bindings can be enabled or disabled from their edit dialog.
